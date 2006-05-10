@@ -6,6 +6,10 @@ let opt_iter f = function
   | None -> ()
   | Some x -> f x
 
+let bool_fun (b : bool) = ()
+
+let string_fun (s : string) = ()
+
 let sourceLoc_fun((file : string), (line : int), (char : int)) = ()
 
 let declFlags_fun(l : declFlag list) = ()
@@ -60,10 +64,12 @@ and topForm_fun = function
 
   | TF_linkage(sourceLoc, stringRef, translationUnit) -> 
       sourceLoc_fun sourceLoc;
+      string_fun stringRef;
       translationUnit_fun translationUnit
 
   | TF_one_linkage(sourceLoc, stringRef, topForm) -> 
       sourceLoc_fun sourceLoc;
+      string_fun stringRef;
       topForm_fun topForm
 
   | TF_asm(sourceLoc, e_stringLit) -> 
@@ -73,6 +79,7 @@ and topForm_fun = function
 
   | TF_namespaceDefn(sourceLoc, stringRef_opt, topForm_list) -> 
       sourceLoc_fun sourceLoc;
+      opt_iter string_fun stringRef_opt;
       List.iter topForm_fun topForm_list
 
   | TF_namespaceDecl(sourceLoc, namespaceDecl) -> 
@@ -116,18 +123,22 @@ and pQName_fun = function
   | PQ_qualifier(sourceLoc, stringRef_opt, 
 		 templateArgument_opt, pQName) -> 
       sourceLoc_fun sourceLoc;
+      opt_iter string_fun stringRef_opt;
       opt_iter templateArgument_fun templateArgument_opt;
       pQName_fun pQName
       
   | PQ_name(sourceLoc, stringRef) -> 
-      sourceLoc_fun sourceLoc
+      sourceLoc_fun sourceLoc;
+      string_fun stringRef;
 
   | PQ_operator(sourceLoc, operatorName, stringRef) -> 
       sourceLoc_fun sourceLoc;
-      operatorName_fun operatorName
+      operatorName_fun operatorName;
+      string_fun stringRef;
 
   | PQ_template(sourceLoc, stringRef, templateArgument_opt) -> 
       sourceLoc_fun sourceLoc;
+      string_fun stringRef;
       opt_iter templateArgument_fun templateArgument_opt
 
   | PQ_variable(sourceLoc, variable) -> 
@@ -140,6 +151,7 @@ and typeSpecifier_fun = function
   | TS_name(sourceLoc, pQName, bool) -> 
       sourceLoc_fun sourceLoc;
       pQName_fun pQName;
+      bool_fun bool
 
   | TS_simple(sourceLoc, simpleTypeId) -> 
       sourceLoc_fun sourceLoc;
@@ -160,6 +172,7 @@ and typeSpecifier_fun = function
 
   | TS_enumSpec(sourceLoc, stringRef_opt, enumerator_list) -> 
       sourceLoc_fun sourceLoc;
+      opt_iter string_fun stringRef_opt;
       List.iter enumerator_fun enumerator_list
 
   | TS_type(sourceLoc, cType) -> 
@@ -172,12 +185,14 @@ and typeSpecifier_fun = function
 
 
 and baseClassSpec_fun(bool, accessKeyword, pQName) =
+  bool_fun bool;
   accessKeyword_fun accessKeyword;
   pQName_fun pQName
 
 
 and enumerator_fun(sourceLoc, stringRef, expression_opt) =
   sourceLoc_fun sourceLoc;
+  string_fun stringRef;
   opt_iter expression_fun expression_opt
 
 
@@ -264,7 +279,9 @@ and exceptionSpec_fun(aSTTypeId_list) =
 
 
 and operatorName_fun = function
-  | ON_newDel(bool_is_new, bool_is_array) -> ()
+  | ON_newDel(bool_is_new, bool_is_array) -> 
+      bool_fun bool_is_new;
+      bool_fun bool_is_array
 
   | ON_operator(overloadableOp) -> 
       overloadableOp_fun overloadableOp
@@ -279,6 +296,7 @@ and statement_fun = function
 
   | S_label(sourceLoc, stringRef, statement) -> 
       sourceLoc_fun sourceLoc;
+      string_fun stringRef;
       statement_fun statement;      
 
   | S_case(sourceLoc, expression, statement) -> 
@@ -338,7 +356,8 @@ and statement_fun = function
       opt_iter fullExpression_fun fullExpression_opt
 
   | S_goto(sourceLoc, stringRef) -> 
-      sourceLoc_fun sourceLoc
+      sourceLoc_fun sourceLoc;
+      string_fun stringRef;
 
   | S_decl(sourceLoc, declaration) -> 
       sourceLoc_fun sourceLoc;
@@ -387,20 +406,25 @@ and handler_fun(aSTTypeId, statement) =
 
 
 and expression_fun = function
-  | E_boolLit(bool) -> ()
+  | E_boolLit(bool) -> 
+      bool_fun bool
 
-  | E_intLit(stringRef) -> ()
+  | E_intLit(stringRef) -> 
+      string_fun stringRef
 
-  | E_floatLit(stringRef) -> ()
+  | E_floatLit(stringRef) -> 
+      string_fun stringRef
 
   | E_stringLit(stringRef, e_stringLit_opt) -> 
+      string_fun stringRef;
       assert(match e_stringLit_opt with 
 	       | Some(E_stringLit _) -> true 
 	       | None -> true
 	       | _ -> false);
       opt_iter expression_fun e_stringLit_opt
 
-  | E_charLit(stringRef) -> ()
+  | E_charLit(stringRef) -> 
+      string_fun stringRef;
 
   | E_this -> ()
 
@@ -459,11 +483,14 @@ and expression_fun = function
       expression_fun expression_src
 
   | E_new(bool, argExpression_list, aSTTypeId, argExpressionListOpt_opt) -> 
+      bool_fun bool;
       List.iter argExpression_fun argExpression_list;
       aSTTypeId_fun aSTTypeId;
       opt_iter argExpressionListOpt_fun argExpressionListOpt_opt
 
   | E_delete(bool_colon, bool_array, expression_opt) -> 
+      bool_fun bool_colon;
+      bool_fun bool_array;
       opt_iter expression_fun expression_opt
 
   | E_throw(expression_opt) -> 
@@ -515,7 +542,8 @@ and expression_fun = function
       expression_fun expression_cond;
       expression_fun expression_false
 
-  | E_addrOfLabel(stringRef) -> ()
+  | E_addrOfLabel(stringRef) -> 
+      string_fun stringRef;
 
 
 and fullExpression_fun(expression_opt) =
@@ -566,6 +594,7 @@ and templateDeclaration_fun = function
 and templateParameter_fun = function
   | TP_type(sourceLoc, stringRef, aSTTypeId_opt, templateParameter_opt) -> 
       sourceLoc_fun sourceLoc;
+      string_fun stringRef;
       opt_iter aSTTypeId_fun aSTTypeId_opt;
       opt_iter templateParameter_fun templateParameter_opt
 
@@ -590,6 +619,7 @@ and templateArgument_fun = function
 
 and namespaceDecl_fun = function
   | ND_alias(stringRef, pQName) -> 
+      string_fun stringRef;
       pQName_fun pQName
 
   | ND_usingDecl(pQName) -> 
@@ -613,7 +643,8 @@ and aSTTypeof_fun = function
 
 and designator_fun = function
   | FieldDesignator(sourceLoc, stringRef) -> 
-      sourceLoc_fun sourceLoc
+      sourceLoc_fun sourceLoc;
+      string_fun stringRef;
 
   | SubscriptDesignator(sourceLoc, expression, expression_opt) -> 
       sourceLoc_fun sourceLoc;
@@ -638,10 +669,12 @@ and attribute_fun = function
       sourceLoc_fun sourceLoc
 
   | AT_word(sourceLoc, stringRef) -> 
-      sourceLoc_fun sourceLoc
+      sourceLoc_fun sourceLoc;
+      string_fun stringRef;
 
   | AT_func(sourceLoc, stringRef, argExpression_list) -> 
       sourceLoc_fun sourceLoc;
+      string_fun stringRef;
       List.iter argExpression_fun argExpression_list
 
 

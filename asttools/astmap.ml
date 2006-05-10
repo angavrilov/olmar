@@ -2,106 +2,46 @@
 open Cc_ml_types
 open Cc_ast_gen_type
 
+let opt_map f = function
+  | None -> None
+  | Some x -> Some(f x)
 
-let strings = Hashtbl.create 50
+let string_fun s = (s : string)
 
-let locs = Hashtbl.create 1487
+let bool_fun b = (b : bool)
 
-let waste = ref 0
+let sourceLoc_fun((file : string), (line : int), (char : int) as loc) = 
+  (loc : sourceLoc)
 
-let sourceLoc_fun loc = 
-  let (file,line,char) = loc 
-  in
-    Printf.printf "%s:%d:%d: " file line char;
-    try
-      let ll = Hashtbl.find locs loc 
-      in
-	if List.memq loc !ll
-	then
-	  print_endline "shared"
-	else
-	  begin
-	    ll := loc :: !ll;
-	    try
-	      let sl = Hashtbl.find strings file
-	      in
-		if List.memq file !sl then
-		  let size = 4 * 4
-		  in
-		    Printf.printf 
-		      "found but only file name shared, %d Bytes wasted\n"
-		      size;
-		    waste := !waste + size;
-		else
-		  let size = (String.length file) + 4 - 
-		    (String.length file) mod 4 + 5*4
-		  in
-		    sl := file :: !sl;
-		    Printf.printf "%d Bytes wasted\n" size;
-		    waste := !waste + size;
-	    with
-	      | Not_found -> assert(false)
-	  end
-    with
-      | Not_found ->
-	  Hashtbl.add locs loc (ref [loc]);
-	  try
-	    let sl = Hashtbl.find strings file
-	    in
-	      if List.memq file !sl then
-		print_endline "not found but file name shared!"
-	      else
-		let size = (String.length file) + 4 - 
-		  (String.length file) mod 4 + 4
-		in
-		  sl := file :: !sl;
-		  Printf.printf "only file name found, %d Bytes wasted\n" size;
-		  waste := !waste + size;
-	  with
-	    | Not_found -> 
-		print_endline "not found";
-		Hashtbl.add strings file (ref [file])
+let declFlags_fun(l : declFlag list) = l
 
+let variable_fun(v : variable) = v
 
+let cType_fun(c : cType) = c
 
-let bool_fun (b : bool) = ()
+let simpleTypeId_fun(id : simpleTypeId) = id
 
-let string_fun (s : string) = ()
+let typeIntr_fun(keywort : typeIntr) = keywort
 
-let opt_iter f = function
-  | None -> ()
-  | Some x -> f x
+let accessKeyword_fun(keyword : accessKeyword) = keyword
 
-let declFlags_fun(l : declFlag list) = ()
+let cVFlags_fun(fl : cVFlag list) = fl
 
-let variable_fun(v : variable) = ()
+let overloadableOp_fun(op :overloadableOp) = op
 
-let cType_fun(c : cType) = ()
+let unaryOp_fun(op : unaryOp) = op
 
-let simpleTypeId_fun(id : simpleTypeId) = ()
+let effectOp_fun(op : effectOp) = op
 
-let typeIntr_fun(keywort : typeIntr) = ()
+let binaryOp_fun(op : binaryOp) = op
 
-let accessKeyword_fun(keyword : accessKeyword) = ()
-
-let cVFlags_fun(fl : cVFlag list) = ()
-
-let overloadableOp_fun(op :overloadableOp) = ()
-
-let unaryOp_fun(op : unaryOp) = ()
-
-let effectOp_fun(op : effectOp) = ()
-
-let binaryOp_fun(op : binaryOp) = ()
-
-let castKeyword_fun(keyword : castKeyword) = ()
-
+let castKeyword_fun(keyword : castKeyword) = keyword
 
 
 
 
 let rec translationUnit_fun topForm_list =
-  List.iter topForm_fun topForm_list
+  List.map topForm_fun topForm_list
 
 
 and topForm_fun = function
@@ -139,8 +79,8 @@ and topForm_fun = function
 
   | TF_namespaceDefn(sourceLoc, stringRef_opt, topForm_list) -> 
       sourceLoc_fun sourceLoc;
-      opt_iter string_fun stringRef_opt;
-      List.iter topForm_fun topForm_list
+      opt_map string_fun stringRef_opt;
+      List.map topForm_fun topForm_list
 
   | TF_namespaceDecl(sourceLoc, namespaceDecl) -> 
       sourceLoc_fun sourceLoc;
@@ -153,23 +93,23 @@ and func_fun(declFlags, typeSpecifier, declarator, memberInit_list,
   declFlags_fun declFlags;
   typeSpecifier_fun typeSpecifier;
   declarator_fun declarator;
-  List.iter memberInit_fun memberInit_list;
+  List.map memberInit_fun memberInit_list;
   assert(match s_compound with | S_compound _ -> true | _ -> false);
   statement_fun s_compound;
-  List.iter handler_fun handler_list
+  List.map handler_fun handler_list
 
 
 
 and memberInit_fun(pQName, argExpression_list) =
   pQName_fun pQName;
-  List.iter argExpression_fun argExpression_list
+  List.map argExpression_fun argExpression_list
 
 
 
 and declaration_fun(declFlags, typeSpecifier, declarator_list) =
   declFlags_fun declFlags;
   typeSpecifier_fun typeSpecifier;
-  List.iter declarator_fun declarator_list
+  List.map declarator_fun declarator_list
   
 
 
@@ -183,8 +123,8 @@ and pQName_fun = function
   | PQ_qualifier(sourceLoc, stringRef_opt, 
 		 templateArgument_opt, pQName) -> 
       sourceLoc_fun sourceLoc;
-      opt_iter string_fun stringRef_opt;
-      opt_iter templateArgument_fun templateArgument_opt;
+      opt_map string_fun stringRef_opt;
+      opt_map templateArgument_fun templateArgument_opt;
       pQName_fun pQName
       
   | PQ_name(sourceLoc, stringRef) -> 
@@ -199,7 +139,7 @@ and pQName_fun = function
   | PQ_template(sourceLoc, stringRef, templateArgument_opt) -> 
       sourceLoc_fun sourceLoc;
       string_fun stringRef;
-      opt_iter templateArgument_fun templateArgument_opt
+      opt_map templateArgument_fun templateArgument_opt
 
   | PQ_variable(sourceLoc, variable) -> 
       sourceLoc_fun sourceLoc;
@@ -226,14 +166,14 @@ and typeSpecifier_fun = function
 		 baseClassSpec_list, memberList) -> 
       sourceLoc_fun sourceLoc;
       typeIntr_fun typeIntr;
-      opt_iter pQName_fun pQName_opt;
-      List.iter baseClassSpec_fun baseClassSpec_list;
+      opt_map pQName_fun pQName_opt;
+      List.map baseClassSpec_fun baseClassSpec_list;
       memberList_fun memberList      
 
   | TS_enumSpec(sourceLoc, stringRef_opt, enumerator_list) -> 
       sourceLoc_fun sourceLoc;
-      opt_iter string_fun stringRef_opt;
-      List.iter enumerator_fun enumerator_list
+      opt_map string_fun stringRef_opt;
+      List.map enumerator_fun enumerator_list
 
   | TS_type(sourceLoc, cType) -> 
       sourceLoc_fun sourceLoc;
@@ -253,11 +193,11 @@ and baseClassSpec_fun(bool, accessKeyword, pQName) =
 and enumerator_fun(sourceLoc, stringRef, expression_opt) =
   sourceLoc_fun sourceLoc;
   string_fun stringRef;
-  opt_iter expression_fun expression_opt
+  opt_map expression_fun expression_opt
 
 
 and memberList_fun(member_list) =
-  List.iter member_fun member_list
+  List.map member_fun member_list
 
 
 and member_fun = function
@@ -285,13 +225,13 @@ and member_fun = function
 
 and declarator_fun(iDeclarator, init_opt) =
   iDeclarator_fun iDeclarator;
-  opt_iter init_fun init_opt
+  opt_map init_fun init_opt
 
 
 and iDeclarator_fun = function
   | D_name(sourceLoc, pQName_opt) -> 
       sourceLoc_fun sourceLoc;
-      opt_iter pQName_fun pQName_opt
+      opt_map pQName_fun pQName_opt
 
   | D_pointer(sourceLoc, cVFlags, iDeclarator) -> 
       sourceLoc_fun sourceLoc;
@@ -306,21 +246,21 @@ and iDeclarator_fun = function
 	   exceptionSpec_opt, pq_name_list) -> 
       sourceLoc_fun sourceLoc;
       iDeclarator_fun iDeclarator;
-      List.iter aSTTypeId_fun aSTTypeId_list;
+      List.map aSTTypeId_fun aSTTypeId_list;
       cVFlags_fun cVFlags;
-      opt_iter exceptionSpec_fun exceptionSpec_opt;
+      opt_map exceptionSpec_fun exceptionSpec_opt;
       assert(List.for_all (function | PQ_name _ -> true | _ -> false) 
 	       pq_name_list);
-      List.iter pQName_fun pq_name_list
+      List.map pQName_fun pq_name_list
 
   | D_array(sourceLoc, iDeclarator, expression_opt) -> 
       sourceLoc_fun sourceLoc;
       iDeclarator_fun iDeclarator;
-      opt_iter expression_fun expression_opt
+      opt_map expression_fun expression_opt
 
   | D_bitfield(sourceLoc, pQName_opt, expression) -> 
       sourceLoc_fun sourceLoc;
-      opt_iter pQName_fun pQName_opt;
+      opt_map pQName_fun pQName_opt;
       expression_fun expression
 
   | D_ptrToMember(sourceLoc, pQName, cVFlags, iDeclarator) -> 
@@ -335,7 +275,7 @@ and iDeclarator_fun = function
 
 
 and exceptionSpec_fun(aSTTypeId_list) =
-  List.iter aSTTypeId_fun aSTTypeId_list
+  List.map aSTTypeId_fun aSTTypeId_list
 
 
 and operatorName_fun = function
@@ -374,7 +314,7 @@ and statement_fun = function
 
   | S_compound(sourceLoc, statement_list) -> 
       sourceLoc_fun sourceLoc;
-      List.iter statement_fun statement_list
+      List.map statement_fun statement_list
 
   | S_if(sourceLoc, condition, statement_then, statement_else) -> 
       sourceLoc_fun sourceLoc;
@@ -413,7 +353,7 @@ and statement_fun = function
 
   | S_return(sourceLoc, fullExpression_opt) -> 
       sourceLoc_fun sourceLoc;
-      opt_iter fullExpression_fun fullExpression_opt
+      opt_map fullExpression_fun fullExpression_opt
 
   | S_goto(sourceLoc, stringRef) -> 
       sourceLoc_fun sourceLoc;
@@ -426,7 +366,7 @@ and statement_fun = function
   | S_try(sourceLoc, statement, handler_list) -> 
       sourceLoc_fun sourceLoc;
       statement_fun statement;
-      List.iter handler_fun handler_list
+      List.map handler_fun handler_list
 
   | S_asm(sourceLoc, e_stringLit) -> 
       sourceLoc_fun sourceLoc;
@@ -481,7 +421,7 @@ and expression_fun = function
 	       | Some(E_stringLit _) -> true 
 	       | None -> true
 	       | _ -> false);
-      opt_iter expression_fun e_stringLit_opt
+      opt_map expression_fun e_stringLit_opt
 
   | E_charLit(stringRef) -> 
       string_fun stringRef;
@@ -493,11 +433,11 @@ and expression_fun = function
 
   | E_funCall(expression, argExpression_list) -> 
       expression_fun expression;
-      List.iter argExpression_fun argExpression_list
+      List.map argExpression_fun argExpression_list
 
   | E_constructor(typeSpecifier, argExpression_list) -> 
       typeSpecifier_fun typeSpecifier;
-      List.iter argExpression_fun argExpression_list
+      List.map argExpression_fun argExpression_list
 
   | E_fieldAcc(expression, pQName) -> 
       pQName_fun pQName;
@@ -544,17 +484,17 @@ and expression_fun = function
 
   | E_new(bool, argExpression_list, aSTTypeId, argExpressionListOpt_opt) -> 
       bool_fun bool;
-      List.iter argExpression_fun argExpression_list;
+      List.map argExpression_fun argExpression_list;
       aSTTypeId_fun aSTTypeId;
-      opt_iter argExpressionListOpt_fun argExpressionListOpt_opt
+      opt_map argExpressionListOpt_fun argExpressionListOpt_opt
 
   | E_delete(bool_colon, bool_array, expression_opt) -> 
       bool_fun bool_colon;
       bool_fun bool_array;
-      opt_iter expression_fun expression_opt
+      opt_map expression_fun expression_opt
 
   | E_throw(expression_opt) -> 
-      opt_iter expression_fun expression_opt
+      opt_map expression_fun expression_opt
 
   | E_keywordCast(castKeyword, aSTTypeId, expression) -> 
       castKeyword_fun castKeyword;
@@ -607,7 +547,7 @@ and expression_fun = function
 
 
 and fullExpression_fun(expression_opt) =
-  opt_iter expression_fun expression_opt
+  opt_map expression_fun expression_opt
 
 
 and argExpression_fun(expression) =
@@ -615,7 +555,7 @@ and argExpression_fun(expression) =
 
 
 and argExpressionListOpt_fun(argExpression_list) =
-  List.iter argExpression_fun argExpression_list
+  List.map argExpression_fun argExpression_list
 
 
 and init_fun = function
@@ -625,29 +565,29 @@ and init_fun = function
 
   | IN_compound(sourceLoc, init_list) -> 
       sourceLoc_fun sourceLoc;
-      List.iter init_fun init_list
+      List.map init_fun init_list
 
   | IN_ctor(sourceLoc, argExpression_list) -> 
       sourceLoc_fun sourceLoc;
-      List.iter argExpression_fun argExpression_list
+      List.map argExpression_fun argExpression_list
 
   | IN_designated(sourceLoc, designator_list, init) -> 
       sourceLoc_fun sourceLoc;
-      List.iter designator_fun designator_list;
+      List.map designator_fun designator_list;
       init_fun init
 
 
 and templateDeclaration_fun = function
   | TD_func(templateParameter_opt, func) -> 
-      opt_iter templateParameter_fun templateParameter_opt;
+      opt_map templateParameter_fun templateParameter_opt;
       func_fun func
 
   | TD_decl(templateParameter_opt, declaration) -> 
-      opt_iter templateParameter_fun templateParameter_opt;
+      opt_map templateParameter_fun templateParameter_opt;
       declaration_fun declaration
 
   | TD_tmember(templateParameter_opt, templateDeclaration) -> 
-      opt_iter templateParameter_fun templateParameter_opt;
+      opt_map templateParameter_fun templateParameter_opt;
       templateDeclaration_fun templateDeclaration
 
 
@@ -655,26 +595,26 @@ and templateParameter_fun = function
   | TP_type(sourceLoc, stringRef, aSTTypeId_opt, templateParameter_opt) -> 
       sourceLoc_fun sourceLoc;
       string_fun stringRef;
-      opt_iter aSTTypeId_fun aSTTypeId_opt;
-      opt_iter templateParameter_fun templateParameter_opt
+      opt_map aSTTypeId_fun aSTTypeId_opt;
+      opt_map templateParameter_fun templateParameter_opt
 
   | TP_nontype(sourceLoc, aSTTypeId, templateParameter_opt) -> 
       sourceLoc_fun sourceLoc;
       aSTTypeId_fun aSTTypeId;
-      opt_iter templateParameter_fun templateParameter_opt
+      opt_map templateParameter_fun templateParameter_opt
 
 
 and templateArgument_fun = function
   | TA_type(aSTTypeId, templateArgument_opt) -> 
       aSTTypeId_fun aSTTypeId;
-      opt_iter templateArgument_fun templateArgument_opt
+      opt_map templateArgument_fun templateArgument_opt
 
   | TA_nontype(expression, templateArgument_opt) -> 
       expression_fun expression;
-      opt_iter templateArgument_fun templateArgument_opt
+      opt_map templateArgument_fun templateArgument_opt
 
   | TA_templateUsed(templateArgument_opt) -> 
-      opt_iter templateArgument_fun templateArgument_opt
+      opt_map templateArgument_fun templateArgument_opt
 
 
 and namespaceDecl_fun = function
@@ -690,7 +630,7 @@ and namespaceDecl_fun = function
 
 
 and fullExpressionAnnot_fun(declaration_list) =
-    List.iter declaration_fun declaration_list
+    List.map declaration_fun declaration_list
 
 
 and aSTTypeof_fun = function
@@ -709,7 +649,7 @@ and designator_fun = function
   | SubscriptDesignator(sourceLoc, expression, expression_opt) -> 
       sourceLoc_fun sourceLoc;
       expression_fun expression;
-      opt_iter expression_fun expression_opt
+      opt_map expression_fun expression_opt
 
 
 and attributeSpecifierList_fun = function
@@ -735,57 +675,10 @@ and attribute_fun = function
   | AT_func(sourceLoc, stringRef, argExpression_list) -> 
       sourceLoc_fun sourceLoc;
       string_fun stringRef;
-      List.iter argExpression_fun argExpression_list
-
-
-
-
-let arguments = Arg.align
-  [
-  ]
-
-let usage_msg = 
-  "usage: bashlog [options...] <file>\n\
-   recognized options are:"
-
-let usage () =
-  prerr_endline usage_msg;
-  exit(1)
-  
-let file = ref ""
-
-let file_set = ref false
-
-let anonfun fn = 
-  if !file_set 
-  then
-    begin
-      Printf.eprintf "don't know what to do with %s\n" fn;
-      usage()
-    end
-  else
-    begin
-      file := fn;
-      file_set := true
-    end
-
-let main () =
-  Arg.parse arguments anonfun usage_msg;
-  if not !file_set then
-    usage();				(* does not return *)
-  let ic = open_in !file in
-  let ast = (Marshal.from_channel ic : translationUnit_type) 
-  in
-    close_in ic;
-    translationUnit_fun ast;
-    Printf.printf "\nTotally wasted %d Bytes\n" !waste
-;;
-
-
-Printexc.catch main ()
+      List.map argExpression_fun argExpression_list
 
 
 
 (*** Local Variables: ***)
-(*** compile-command: "ocamlc.opt -c -I ../elsa hashlog.ml" ***)
+(*** compile-command: "ocamlc.opt -c -I ../elsa astmap.ml" ***)
 (*** End: ***)

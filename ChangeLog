@@ -1,5 +1,7 @@
 2006-05-10  Hendrik Tews  <tews@localhost.localdomain>
 
+	* started astmap
+
 	* added ast iter template
 	* hashloc gives info about (non-) sharing of locations
 
