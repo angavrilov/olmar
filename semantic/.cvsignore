@@ -1,3 +1,4 @@
+*.cmi
+*.cmo
 dumpast
-dumpast.cmi
-dumpast.cmo
+hashloc

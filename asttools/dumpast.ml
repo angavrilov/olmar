@@ -130,7 +130,7 @@ Printexc.catch main ()
 
 
 (*** Local Variables: ***)
-(*** compile-command: "ocamlc.opt -o dumpast -I ../elsa cc_ast_gen_type.cmo dumpast.ml" ***)
+(*** compile-command: "ocamlc.opt -o dumpast -I ../elsa unix.cma dumpast.ml" ***)
 (*** End: ***)
 
 
