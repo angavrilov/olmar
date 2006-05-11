@@ -16,7 +16,7 @@ template <class T> class TailListIterNC;
 template <class T>
 class TailList {
 private:
-  friend class TailListIter<T>;        
+  friend class TailListIter<T>;
   friend class TailListIterNC<T>;
 
 protected:
@@ -52,6 +52,7 @@ public:
   // insertion
   void prepend(T *newitem)              { list.prepend(newitem); }
   void append(T *newitem)               { list.append(newitem); }
+  void appendAll(TailList<T> &tail)     { list.appendAll(tail.list); }
   void insertAt(T *newitem, int index)  { list.insertAt(newitem, index); }
   void concat(TailList<T> &tail)         { list.concat(tail.list); }
 
@@ -60,7 +61,7 @@ public:
   T *removeLast()                       { return (T*)list.removeLast(); }
   T *removeAt(int index)                { return (T*)list.removeAt(index); }
   void removeItem(T *item)              { list.removeItem((void*)item); }
-  
+
   // list-as-set: selectors
   int indexOf(T const *item) const      { return list.indexOf((void*)item); }
   int indexOfF(T const *item) const     { return list.indexOfF((void*)item); }
@@ -120,7 +121,7 @@ public:
   bool isDone() const                   { return iter.isDone(); }
   void adv()                            { iter.adv(); }
   T *data() const                       { return (T*)iter.data(); }
-  
+
   // iterator mutation; use with caution
   void setDataLink(T *newData)          { iter.setDataLink((void*)newData); }
 };
