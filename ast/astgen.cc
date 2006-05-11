@@ -1837,8 +1837,10 @@ void CGen::emitToOcaml(ASTClass const * super, ASTClass const *sub)
   if(args_count > 0)
     out << "  CAMLlocalN(child, " << args_count << ");\n";
 
-  out << "  if(ocaml_val)\n"
-      << "    CAMLreturn(ocaml_val);\n";
+  out << "  if(ocaml_val) {\n"
+      << "    cerr << \"SHARED VALUE FOUND!\\n\" << flush;\n"
+      << "    CAMLreturn(ocaml_val);\n"
+      << "  }\n";
 
   out << "  static value * " << cbc << " = NULL;\n"
       << "  if(" << cbc << " == NULL)\n"

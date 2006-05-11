@@ -438,7 +438,7 @@ value ocaml_from_SimpleTypeId(const SimpleTypeId &id, ToOcamlData *d){
     break;
   }
 
-  // not reached, the above assertion takes us before
+  // not reached, the above assertion takes us out before
   return(Val_unit);
 }
 
@@ -505,7 +505,7 @@ value ocaml_from_TypeIntr(const TypeIntr &id, ToOcamlData *d){
     break;
   }
 
-  // not reached, the above assertion takes us before
+  // not reached, the above assertion takes us out before
   return(Val_unit);
 }
 
@@ -555,7 +555,7 @@ value ocaml_from_AccessKeyword(const AccessKeyword &id, ToOcamlData *d){
     break;
   }
 
-  // not reached, the above assertion takes us before
+  // not reached, the above assertion takes us out before
   return(Val_unit);
 }
 
@@ -900,7 +900,7 @@ value ocaml_from_OverloadableOp(const OverloadableOp &id, ToOcamlData *d){
     break;
   }
 
-  // not reached, the above assertion takes us before
+  // not reached, the above assertion takes us out before
   return(Val_unit);
 }
 
@@ -949,7 +949,7 @@ value ocaml_from_UnaryOp(const UnaryOp &id, ToOcamlData *d){
     break;
   }
 
-  // not reached, the above assertion takes us before
+  // not reached, the above assertion takes us out before
   return(Val_unit);
 }
 
@@ -998,7 +998,7 @@ value ocaml_from_EffectOp(const EffectOp &id, ToOcamlData *d){
     break;
   }
 
-  // not reached, the above assertion takes us before
+  // not reached, the above assertion takes us out before
   return(Val_unit);
 }
 
@@ -1231,7 +1231,7 @@ value ocaml_from_BinaryOp(const BinaryOp &id, ToOcamlData *d){
     break;
   }
 
-  // not reached, the above assertion takes us before
+  // not reached, the above assertion takes us out before
   return(Val_unit);
 }
 
@@ -1280,7 +1280,7 @@ value ocaml_from_CastKeyword(const CastKeyword &id, ToOcamlData *d){
     break;
   }
 
-  // not reached, the above assertion takes us before
+  // not reached, the above assertion takes us out before
   return(Val_unit);
 }
 

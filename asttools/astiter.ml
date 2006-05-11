@@ -440,8 +440,8 @@ and expression_fun = function
       List.iter argExpression_fun argExpression_list
 
   | E_fieldAcc(expression, pQName) -> 
-      pQName_fun pQName;
       expression_fun expression
+      pQName_fun pQName;
 
   | E_sizeof(expression) -> 
       expression_fun expression
