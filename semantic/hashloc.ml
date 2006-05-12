@@ -2,7 +2,9 @@
 open Cc_ml_types
 open Cc_ast_gen_type
 
-let do_fast = false
+let do_fast = ref true
+
+let verbose = ref false
 
 let the ref_opt = match !ref_opt with
   | None -> assert false
@@ -27,7 +29,8 @@ let waste = ref 0
 let sourceLoc_fun_slow loc = 
   let (file,line,char) = loc 
   in
-    Printf.printf "%s:%05d:%04d: " file line char;
+    if !verbose then
+      Printf.printf "%s:%05d:%04d: " file line char;
     try
       let ll = Hashtbl.find (the locs) loc in
       let ret = List.nth !ll (List.length !ll -1)
@@ -35,7 +38,8 @@ let sourceLoc_fun_slow loc =
 	if List.memq loc !ll
 	then
 	  begin
-	    print_endline "shared";
+	    if !verbose then
+	      print_endline "shared";
 	    ret
 	  end
 	else
@@ -51,9 +55,10 @@ let sourceLoc_fun_slow loc =
 		   * let _ = assert(size * 4 = 4 * 4)
                    *)
 		  in
-		    Printf.printf 
-		      "found but only file name shared, %d Words wasted\n"
-		      size;
+		    if !verbose then
+		      Printf.printf 
+			"found but only file name shared, %d Words wasted\n"
+			size;
 		    waste := !waste + size;
 		    ret
 		else
@@ -65,7 +70,8 @@ let sourceLoc_fun_slow loc =
                    *)
 		  in
 		    sl := file :: !sl;
-		    Printf.printf "%d Words wasted\n" size;
+		    if !verbose then
+		      Printf.printf "%d Words wasted\n" size;
 		    waste := !waste + size;
 		    ret
 	    with
@@ -81,7 +87,8 @@ let sourceLoc_fun_slow loc =
 	      Hashtbl.add (the locs) ret (ref [loc; ret]);
 	      if List.memq file !sl then
 		begin
-		  print_endline "not found but file name shared!";
+		  if !verbose then
+		    print_endline "not found but file name shared!";
 		  ret
 		end		    
 	      else
@@ -97,12 +104,15 @@ let sourceLoc_fun_slow loc =
                  *)
 		in
 		  sl := file :: !sl;
-		  Printf.printf "only file name found, %d Words wasted\n" size;
+		  if !verbose then
+		    Printf.printf "only file name found, %d Words wasted\n" 
+		      size;
 		  waste := !waste + size;
 		  ret
 	  with
 	    | Not_found -> 
-		print_endline "not found";
+		if !verbose then
+		  print_endline "not found";
 		Hashtbl.add (the locs) loc (ref [loc]);
 		Hashtbl.add (the strings) file (ref [file]);
 		loc
@@ -111,7 +121,8 @@ let sourceLoc_fun_slow loc =
 let sourceLoc_fun_fast loc = 
   let (file,line,char) = loc 
   in
-    Printf.printf "%s:%05d:%04d\n" file line char;
+    if !verbose then
+      Printf.printf "%s:%05d:%04d\n" file line char;
     try
       Hashtbl.find (the locs_fast) loc
     with
@@ -129,7 +140,7 @@ let sourceLoc_fun_fast loc =
 		loc
 
 
-let sourceLoc_fun = if do_fast then sourceLoc_fun_fast else sourceLoc_fun_slow
+let sourceLoc_fun = if !do_fast then sourceLoc_fun_fast else sourceLoc_fun_slow
 
 
 let opt_map f = function
@@ -807,6 +818,10 @@ and attribute_fun = function
 
 let arguments = Arg.align
   [
+    ("-v", Arg.Set verbose,
+     " output some progress messages");
+    ("-slow", Arg.Clear do_fast,
+     " enable expensive checks for sharing");
   ]
 
 let usage_msg = 
@@ -868,7 +883,7 @@ let main () =
       Printf.printf "Incomplete cleanup: \
                      before %d read %d compact %d emtpy %d\n" 
 	live_before live_read live_compact live_empty;
-    if not do_fast then
+    if not !do_fast then
       Printf.printf "Totally wasted %d Words (%d Bytes)\n"
 	!waste (!waste * 4);
     Printf.printf "read size %d compact size %d safed %d\n"

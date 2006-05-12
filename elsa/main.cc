@@ -358,8 +358,6 @@ void marshal_to_ocaml(char ** argv, const char * inputFname,
   CAMLparam0();
   CAMLlocal2(ocaml_unit, of);
 
-  ToOcamlData ocaml_data;
-
   if (!caml_start_up_done){
     caml_startup(argv);
 
@@ -369,6 +367,8 @@ void marshal_to_ocaml(char ** argv, const char * inputFname,
     caml_start_up_done = true;
   }
   
+  ToOcamlData ocaml_data;
+
   ocaml_unit = unit->toOcaml(&ocaml_data);
 
   static value * marshal_callback = NULL;

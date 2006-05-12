@@ -6,13 +6,20 @@
 extern "C" {
 #include <caml/fail.h>
 }
+#include <iomanip.h>
+
 
 ToOcamlData::ToOcamlData()  : stack(), source_loc_hash(Val_unit) {
+
+  xassert(caml_start_up_done);
+
   caml_register_global_root(&source_loc_hash);
+
   static value * source_loc_hash_init_closure = NULL;
   if(!source_loc_hash_init_closure)
     source_loc_hash_init_closure = caml_named_value("source_loc_hash_init");
   xassert(source_loc_hash_init_closure);
+
   source_loc_hash = caml_callback(*source_loc_hash_init_closure, Val_unit);
 }
 
@@ -54,17 +61,39 @@ value ocaml_from_SourceLoc(const SourceLoc &loc, ToOcamlData *d){
   xassert(source_loc_hash_find_closure && source_loc_hash_add_closure
 	  && not_found_id);
 
-  cerr << "sourceloc " << loc << endl << flush;
+  // cerr << "sourceloc " << loc << endl << flush;
   val_loc = caml_copy_nativeint(loc);
   result = caml_callback2_exn(*source_loc_hash_find_closure, 
 			      d->source_loc_hash, val_loc);
-  if(Is_exception_result(result)){
-    cerr << "got exception ";
-    if(Field(Extract_exception(result), 0) != *not_found_id) {
-      cerr << "... reraising\n" << endl << flush;
-      caml_raise(Extract_exception(result));
+  bool result_is_exception = Is_exception_result(result);
+  result = Extract_exception(result);
+
+  if(result_is_exception){
+    // cerr << "got exception ";
+    if(Field(result, 0) != *not_found_id) {
+
+/*
+#define printhd(val) "[size " << dec << (Field((val), -1) >> 10) << \
+                     " color " << ((Field((val), -1) >> 8) & 0x3) << \
+                     " tag " << (Field((val), -1) & 0xff) << hex << "]"
+*/                   
+//       cerr << hex 
+// 	   << result << " "
+// 	   << printhd(result) << "|"
+// 	   << Field(result, 0) << "\n" 
+// 	   << printhd(Field(result, 0)) << "|"
+// 	   << Field(Field(result, 0), 0) << "\n"
+// 	   << printhd(Field(Field(result, 0), 0)) << "|"
+// 	   << "\"" << (char *) Field(Field(result, 0), 0)
+// 	   << "\""
+// 	   << dec
+// 	   << endl;
+      // cerr << "... reraising\n" << endl << flush;
+
+      caml_raise(result);
+      CAMLnoreturn;
     }
-    cerr << "Not_found\n" << endl << flush;
+    // cerr << "Not_found\n" << endl << flush;
 
     // had a not found exception
     sourceLocManager->decodeLineCol(loc, name, line, col);
@@ -77,9 +106,9 @@ value ocaml_from_SourceLoc(const SourceLoc &loc, ToOcamlData *d){
     result = caml_callback3(*source_loc_hash_add_closure, d->source_loc_hash,
 			    val_loc, result);
   }
-  else {
-    cerr << "val found" << endl << flush;
-  }
+  // else {
+  //   cerr << "val found" << endl << flush;
+  // }
 
   CAMLreturn(result);
 }

@@ -11,16 +11,24 @@ let source_loc_hash_init () : source_loc_hash =
   ((Hashtbl.create 50), (Hashtbl.create 1543))
 
 let source_loc_hash_find ((strings, locs) : source_loc_hash) (loc : nativeint) =
-  Printf.eprintf "hashing %nd ... " loc;
-  try
-    Hashtbl.find locs loc
-  with
-    | Not_found as ex -> 
-	Printf.eprintf "raise Not_found\n%!";
-	raise ex
-    | ex ->
-	Printf.eprintf "raise other exc\n%!";
-	raise ex
+  (* 
+   * Printf.eprintf "hashing %nd ... " loc;
+   * try
+   *)
+    let ret = Hashtbl.find locs loc
+    in
+      (* Printf.eprintf "found\n%!"; *)
+      (* raise End_of_file; *)
+      ret
+  (* 
+   * with
+   *   | Not_found as ex -> 
+   * 	Printf.eprintf "raise Not_found\n%!";
+   * 	raise ex
+   *   | ex ->
+   * 	Printf.eprintf "raise other exc\n%!";
+   * 	raise ex
+   *)
 
 let source_loc_hash_add ((strings, locs) : source_loc_hash) 
     (loc : nativeint) ((file,line,char) as srcloc : sourceLoc) =
@@ -29,7 +37,9 @@ let source_loc_hash_add ((strings, locs) : source_loc_hash)
     try
       Hashtbl.find strings file
     with
-      | Not_found -> file
+      | Not_found -> 
+	  Hashtbl.add strings file file;
+	  file
   in
   let ret = if new_file == file then srcloc else (new_file, line, char) in
     Hashtbl.add locs loc ret;
@@ -753,6 +763,3 @@ to create enum constructors and their callbacks:
 *)
 
 
-(*** Local Variables: ***)
-(*** compile-command : "ocamlc.opt -c cctypes.ml" ***)
-(*** End: ***)

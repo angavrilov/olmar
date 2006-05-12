@@ -12,6 +12,8 @@
 #include "cc_type.h"       // CType, FunctonType, CompoundType
 
 
+extern bool caml_start_up_done;
+
 class ToOcamlData {
 public:
   SObjSet<const void*> stack;		// used to detect cycles in the ast
@@ -19,7 +21,6 @@ public:
   ToOcamlData();
   ~ToOcamlData();
 };
-
 
 
 value ocaml_from_SourceLoc(const SourceLoc &, ToOcamlData *);
