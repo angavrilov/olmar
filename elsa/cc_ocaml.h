@@ -12,6 +12,16 @@
 #include "cc_type.h"       // CType, FunctonType, CompoundType
 
 
+class ToOcamlData {
+public:
+  SObjSet<const void*> stack;		// used to detect cycles in the ast
+  value source_loc_hash;
+  ToOcamlData();
+  ~ToOcamlData();
+};
+
+
+
 value ocaml_from_SourceLoc(const SourceLoc &, ToOcamlData *);
 
 // for flag sets

@@ -3,6 +3,45 @@
 
 open Cc_ml_types
 
+(* source loc hashing stuff *)
+type source_loc_hash = 
+    (string, string) Hashtbl.t * (nativeint, sourceLoc) Hashtbl.t
+
+let source_loc_hash_init () : source_loc_hash =
+  ((Hashtbl.create 50), (Hashtbl.create 1543))
+
+let source_loc_hash_find ((strings, locs) : source_loc_hash) (loc : nativeint) =
+  Printf.eprintf "hashing %nd ... " loc;
+  try
+    Hashtbl.find locs loc
+  with
+    | Not_found as ex -> 
+	Printf.eprintf "raise Not_found\n%!";
+	raise ex
+    | ex ->
+	Printf.eprintf "raise other exc\n%!";
+	raise ex
+
+let source_loc_hash_add ((strings, locs) : source_loc_hash) 
+    (loc : nativeint) ((file,line,char) as srcloc : sourceLoc) =
+  assert(not (Hashtbl.mem locs loc));
+  let new_file =
+    try
+      Hashtbl.find strings file
+    with
+      | Not_found -> file
+  in
+  let ret = if new_file == file then srcloc else (new_file, line, char) in
+    Hashtbl.add locs loc ret;
+    ret
+
+let register_src_loc_callbacks () =
+  Callback.register_exception "not_found_exception_id" (Not_found);
+  Callback.register "source_loc_hash_init" source_loc_hash_init;
+  Callback.register "source_loc_hash_find" source_loc_hash_find;
+  Callback.register "source_loc_hash_add" source_loc_hash_add
+
+
 (* DeclFlags from cc_flags.h
  *)
 
@@ -662,6 +701,7 @@ let register_CK_callbacks () =
 (* register all callbacks in this file *)
 
 let register_cc_ml_constructor_callbacks () =
+  register_src_loc_callbacks();
   Callback.register "declFlag_from_int32" declFlag_from_int32;
   Callback.register "cVFlag_from_int32" cVFlag_from_int32;
   register_ST_callbacks();

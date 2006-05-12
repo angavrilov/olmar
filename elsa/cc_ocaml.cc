@@ -3,6 +3,22 @@
 
 
 #include "cc_ocaml.h"
+extern "C" {
+#include <caml/fail.h>
+}
+
+ToOcamlData::ToOcamlData()  : stack(), source_loc_hash(Val_unit) {
+  caml_register_global_root(&source_loc_hash);
+  static value * source_loc_hash_init_closure = NULL;
+  if(!source_loc_hash_init_closure)
+    source_loc_hash_init_closure = caml_named_value("source_loc_hash_init");
+  xassert(source_loc_hash_init_closure);
+  source_loc_hash = caml_callback(*source_loc_hash_init_closure, Val_unit);
+}
+
+ToOcamlData::~ToOcamlData() {
+  caml_remove_global_root(&source_loc_hash);
+}
 
 
 // Variable, CType hack
@@ -20,20 +36,51 @@ value ocaml_from_CType(const CType &, ToOcamlData *){
 // hand written ocaml serialization function
 value ocaml_from_SourceLoc(const SourceLoc &loc, ToOcamlData *d){
   CAMLparam0();
-  CAMLlocal2(val_s, result);
-  // cout << "SourceLoc start marshal\n" << flush;
+  CAMLlocal3(val_s, val_loc, result);
   
   char const *name;
   int line, col;
-  sourceLocManager->decodeLineCol(loc, name, line, col);
 
-  val_s = caml_copy_string(name);
-  result = caml_alloc_tuple(3);
-  Store_field(result, 0, val_s);
-  Store_field(result, 1, Val_int(line));
-  Store_field(result, 2, Val_int(col));
+  static value * source_loc_hash_find_closure = NULL;
+  static value * source_loc_hash_add_closure = NULL;
+  static value * not_found_id = NULL;
 
-  // cout << "SourceLoc end marshal\n" << flush;
+  if(!source_loc_hash_find_closure)
+    source_loc_hash_find_closure = caml_named_value("source_loc_hash_find");
+  if(!source_loc_hash_add_closure)
+    source_loc_hash_add_closure = caml_named_value("source_loc_hash_add");
+  if(!not_found_id)
+    not_found_id = caml_named_value("not_found_exception_id");
+  xassert(source_loc_hash_find_closure && source_loc_hash_add_closure
+	  && not_found_id);
+
+  cerr << "sourceloc " << loc << endl << flush;
+  val_loc = caml_copy_nativeint(loc);
+  result = caml_callback2_exn(*source_loc_hash_find_closure, 
+			      d->source_loc_hash, val_loc);
+  if(Is_exception_result(result)){
+    cerr << "got exception ";
+    if(Field(Extract_exception(result), 0) != *not_found_id) {
+      cerr << "... reraising\n" << endl << flush;
+      caml_raise(Extract_exception(result));
+    }
+    cerr << "Not_found\n" << endl << flush;
+
+    // had a not found exception
+    sourceLocManager->decodeLineCol(loc, name, line, col);
+
+    val_s = caml_copy_string(name);
+    result = caml_alloc_tuple(3);
+    Store_field(result, 0, val_s);
+    Store_field(result, 1, Val_int(line));
+    Store_field(result, 2, Val_int(col));
+    result = caml_callback3(*source_loc_hash_add_closure, d->source_loc_hash,
+			    val_loc, result);
+  }
+  else {
+    cerr << "val found" << endl << flush;
+  }
+
   CAMLreturn(result);
 }
 

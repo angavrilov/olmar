@@ -1,3 +1,12 @@
+2006-05-12  Hendrik Tews  <tews@localhost.localdomain>
+
+	AST:
+	* made ToOcamlData a forward decl in ocamlhelp.h; clients have to
+	define it
+
+	ELSA:
+	* towards hashed sourceloc's; need to resolve caml init
+
 2006-05-11  Hendrik Tews  <tews@localhost.localdomain>
 
 	* finished astmap template

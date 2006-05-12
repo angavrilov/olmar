@@ -22,12 +22,13 @@ extern "C" {
 // take this only if we really want the ocaml interface
 // _and_ have defined the value type
 
-class ToOcamlData {
-public:
-  SObjSet<const void*> stack;		// used to detect cycles in the ast
 
-  ToOcamlData() : stack() {};
-};
+// The class ToOcamlData is not used in any way here. It only 
+// appears here because all the serialization functions have a 
+// standardized interface with a ToOcamlData pointer as second 
+// argument. 
+// Every user of this code must define the class ToOcamlData.
+class ToOcamlData;
 
 const value Val_None = Val_int(0);
 
