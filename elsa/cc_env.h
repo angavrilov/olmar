@@ -44,7 +44,7 @@ enum InferArgFlags {
   IA_NO_ERRORS       = 0,      // do not report errors
   IA_REPORT_ERRORS   = 0x01,   // report inference errors in Env
   IA_RECEIVER        = 0x02,   // passed arguments include potential receiver obj
-  
+
   IA_ALL             = 0x03
 };
 ENUM_BITWISE_OPS(InferArgFlags, IA_ALL)
@@ -79,7 +79,7 @@ protected:   // data
   // this is used to distinguish entities introduced automatically
   // at the start from those that appeared in the input file
   bool ctorFinished;
-  
+
   // set of function templates whose instantiation has been delayed
   ObjList<DelayedFuncInst> delayedFuncInsts;
 
@@ -131,23 +131,23 @@ public:      // data
 
   // ---- BEGIN: special names ----
   // name under which conversion operators are looked up
-  StringRef conversionOperatorName;                     
-  
+  StringRef conversionOperatorName;
+
   // name under which constructors are looked up
-  StringRef constructorSpecialName;             
-  
+  StringRef constructorSpecialName;
+
   // name of the operator()() functions
   StringRef functionOperatorName;
-  
+
   // "__receiver", a reference to the receiver object; it's a
   // parameter of methods
   StringRef receiverName;
-  
+
   // "__other", the name of the parameter in implicit methods
   // that accept a reference to another object of the same type
   // (e.g. copy ctor)
   StringRef otherName;
-  
+
   // linkage specification strings
   StringRef quote_C_quote;
   StringRef quote_C_plus_plus_quote;
@@ -227,7 +227,7 @@ private:     // funcs
   Variable *declareFunctionNargs(
     Type *retType, char const *funcName,
     Type **argTypes, char const **argNames, int numArgs,
-    FunctionFlags flags, 
+    FunctionFlags flags,
     Type * /*nullable*/ exnType);
 
   Variable *declareFunction0arg(Type *retType, char const *funcName,
@@ -272,7 +272,7 @@ private:     // funcs
     (CompoundType *ct, ObjList<STemplateArgument> const &args);
 
   bool equivalentSignatures(FunctionType *ft1, FunctionType *ft2);
-  bool equivalentTypes(Type const *t1, Type const *t2, 
+  bool equivalentTypes(Type const *t1, Type const *t2,
                        MatchFlags mflags = MF_NONE);
 
   Variable *getPrimaryOrSpecialization
@@ -285,7 +285,7 @@ private:     // funcs
   void mergeDefaultArguments(SourceLoc loc, Variable *prior, FunctionType *type);
 
 public:      // funcs
-  Env(StringTable &str, CCLang &lang, TypeFactory &tfac, 
+  Env(StringTable &str, CCLang &lang, TypeFactory &tfac,
       TranslationUnit *tunit0 /*TODO: eliminate this!*/);
   virtual ~Env();      // 'virtual' only to silence stupid warning; destruction is not part of polymorphic contract
 
@@ -327,7 +327,7 @@ public:      // funcs
 
   // essentially: enclosingKindScope(SK_CLASS)->curCompound;
   CompoundType *enclosingClassScope();
-   
+
   // more flexible: don't begin looking for a scope with kind 'k'
   // until we pass 's' going up on the scope stack
   Scope *enclosingKindScopeAbove(ScopeKind k, Scope *s);
@@ -389,7 +389,7 @@ public:      // funcs
   // it is *not* the case that all overloaded variables are added
   // using this interface
   void addVariableWithOload(Variable *prevLookup, Variable *v);
-                                                         
+
   // 'addEnum', plus typedef variable creation and checking for duplicates
   Type *declareEnum(SourceLoc loc /*...*/, EnumType *et);
 
@@ -429,7 +429,7 @@ public:      // funcs
     bool &dependent,
     bool &anyTemplates,
     LookupFlags lflags);
-  
+
   // extended interface capable of returning a set
   Variable *lookupVariable_set(LookupSet &candidates,
                                StringRef name, LookupFlags flags,
@@ -443,7 +443,7 @@ public:      // funcs
   // extend/retract entire scope sequences
   void extendScopeSeq(ScopeSeq const &scopes);
   void retractScopeSeq(ScopeSeq const &scopes);
-  
+
   // push/pop scopes that contain v's declaration (see implementation)
   void pushDeclarationScopes(Variable *v, Scope *stop);
   void popDeclarationScopes(Variable *v, Scope *stop);
@@ -459,7 +459,7 @@ public:      // funcs
   // return a new name for an anonymous type; 'keyword' says
   // which kind of type we're naming
   StringRef getAnonName(TypeIntr keyword);
-  
+
   // more general
   StringRef getAnonName(char const *why);
 
@@ -565,7 +565,7 @@ public:      // funcs
 
   // others are more obscure, so I'll just call into 'tfac' directly
   // in the places I call them
-                                                              
+
   // if in a context where an implicit receiver object is available,
   // return its type; otherwise return NULL
   Type *implicitReceiverType();
@@ -657,7 +657,7 @@ public:      // funcs
   //   buildASTTypeId
   //   inner_buildASTTypeId
   //   buildTypedefSpecifier
-  
+
   // 2005-02-14: partially resurrected
   PQName *makeFullyQualifiedName(Scope *s, PQName *name);
   PQName *makeQualifiedName(Scope *s, PQName *name);
@@ -684,7 +684,7 @@ public:      // funcs
   // see implementation; this is here b/c gnu.cc wants to call it
   Type *computeArraySizeFromCompoundInit(SourceLoc tgt_loc, Type *tgt_type,
                                          Type *src_type, Initializer *init);
-                                                          
+
   // if 'type' is not a complete type, attempt to make it into one
   // (by template instantiation); if it cannot be, then emit an
   // error message (using 'action') and return false
@@ -751,7 +751,7 @@ public:      // funcs
   // lookup "~ct->name" in 'ct'
   void lookupClassDestructor(LookupSet &set, CompoundType *ct,
                              LookupFlags flags);
-  
+
   // handling of DQTs in type specifiers
   Type *resolveDQTs(SourceLoc loc, Type *t);
   Type *resolveDQTs_atomic(SourceLoc loc, AtomicType *t);
@@ -816,7 +816,7 @@ private:     // template funcs
 
   Variable *instantiateClassTemplate_or_PI
     (CompoundType *ct, ObjList<STemplateArgument> const &args);
-  
+
 public:      // template funcs
   void setSTemplArgFromExpr(STemplateArgument &sarg, Expression *expr);
   STemplateArgument variableToSTemplateArgument(Variable *var);
@@ -859,7 +859,7 @@ public:      // template funcs
   // cloned AST for effecting the instantiation of the template;
   // Please see Scott's extensive comments at the implementation.
   void prepArgScopeForTemlCloneTcheck
-    (ObjList<SavedScopePair> &poppedScopes, SObjList<Scope> &pushedScopes, 
+    (ObjList<SavedScopePair> &poppedScopes, SObjList<Scope> &pushedScopes,
      Scope *foundScope);
 
   // Undo prepArgScopeForTemlCloneTcheck().
@@ -900,10 +900,10 @@ public:      // template funcs
   // that most of the time you want to call ensureCompleteType, not
   // this function
   void ensureClassBodyInstantiated(CompoundType *ct);
-        
+
   // do 'ensureClassBodyInstantiated' for all parameters
   void instantiateTemplatesInParams(FunctionType *ft);
-       
+
   // instantiate functions used in 'ic'
   void instantiateTemplatesInConversion(ImplicitConversion &ic);
 
@@ -918,7 +918,7 @@ public:      // template funcs
   // find template scope corresp. to this var
   Scope *findParameterizingScope(Variable *bareQualifierVar,
                                  bool argsHaveVariables);
-       
+
   // remove/restore scopes below 'bound'
   void removeScopesInside(ObjList<Scope> &dest, Scope *bound);
   void restoreScopesInside(ObjList<Scope> &src, Scope *bound);
