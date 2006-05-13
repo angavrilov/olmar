@@ -62,7 +62,7 @@ class TypeSpecifier {
 class MemberInit {
   // A single MemberInit seems very much like a single expression to
   // me, since it is a ctor call and an IN_ctor is also
-  private(xml_AST) FullExpressionAnnot *annot = NULL;
+  private(xml_AST,owner) FullExpressionAnnot *annot = NULL;
   public bool hasAnnot();
   public FullExpressionAnnot *getAnnot();
 
@@ -116,7 +116,7 @@ class Handler {
     // exception is caught by value has some place to go; that is, a
     // Handler has to have all the necessary components of an
     // E_funCall, as that's how it behaves
-    private(xml_AST) FullExpressionAnnot *annot = NULL;
+    private(xml_AST,owner) FullExpressionAnnot *annot = NULL;
     public bool hasAnnot();
     public FullExpressionAnnot *getAnnot();
     // local temporary and ctor for it if we catch by value
@@ -129,7 +129,7 @@ class Handler {
 
 
 class FullExpression {
-  private(xml_AST) FullExpressionAnnot *annot = NULL;
+  private(xml_AST,owner) FullExpressionAnnot *annot = NULL;
   public bool hasAnnot();
   public FullExpressionAnnot *getAnnot();
 }
@@ -235,7 +235,7 @@ class Initializer {
   //
   // But I'll leave it for now.
 
-  private(xml_AST) FullExpressionAnnot *annot = NULL;
+  private(xml_AST,owner) FullExpressionAnnot *annot = NULL;
   public bool hasAnnot();
   public FullExpressionAnnot *getAnnot();
 }
