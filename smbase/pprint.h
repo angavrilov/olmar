@@ -1,7 +1,7 @@
 // pprint.h
 // pretty-print code while emitting it
 
-                     
+
 
 // NOTE: This module is a little simpler to use, but much less
 // powerful than the 'boxprint' module.  I'm leaving this module
@@ -36,6 +36,7 @@
 // impression they're still a little too much in flux
 class PPrintOut {
 public:
+  virtual ~PPrintOut() {}
   virtual void write(char const *text) = 0;
 };
 
@@ -43,6 +44,7 @@ class PPrintStringOut : public PPrintOut {
   stringBuilder &sb;
 public:
   PPrintStringOut(stringBuilder &s) : sb(s) {}
+  virtual ~PPrintStringOut() {}
   virtual void write(char const *text);
 };
 
@@ -50,6 +52,7 @@ class PPrintOstreamOut : public PPrintOut {
   ostream &os;
 public:
   PPrintOstreamOut(ostream &o) : os(o) {}
+  virtual ~PPrintOstreamOut() {}
   virtual void write(char const *text);
 };
 
