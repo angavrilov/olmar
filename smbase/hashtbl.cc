@@ -37,7 +37,7 @@ void HashTable::makeTable(int size)
 }
 
 
-int HashTable::getEntry(void const *key) const
+inline int HashTable::getEntry(void const *key) const
 {
   int index = hashFunction(key);
   int originalIndex = index;
