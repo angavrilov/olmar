@@ -52,7 +52,7 @@ private:    // data
 
   // number of mapped (non-NULL) entries
   int numEntries;
-  
+
   // when false, we never make the table smaller (default: true)
   bool enableShrink;
 
@@ -131,6 +131,13 @@ public:     // funcs
 
 unsigned lcprngTwoSteps(unsigned v);
 
+// inlined copy of lcprngTwoSteps
+static inline unsigned lcprngTwoSteps_inline(unsigned v)
+{
+  v = (v * 1103515245) + 12345;
+  v = (v * 1103515245) + 12345;
+  return v;
+}
 
 // iterate over all stored values in a HashTable
 // NOTE: you can't change the table while an iter exists
