@@ -39,9 +39,9 @@ void rotD2Vector270(D2Vector *v)
 
 void rotD2VectorAngle(D2Vector *ret, D2Vector const *v, double theta)
 {
-  assert(ret != v);
   double cos_t = cos(theta);
   double sin_t = sin(theta);
+  assert(ret != v);
   ret->x = (v->x * cos_t) - (v->y * sin_t);
   ret->y = (v->x * sin_t) + (v->y * cos_t);
 }
@@ -87,15 +87,17 @@ double dotProdD2Vector(D2Vector const *a, D2Vector const *b)
 
 double projectD2PointLine(D2Point const *pt, D2Line const *line)
 {
+  double bLen, dot;
+
   // let a be the vector from line->origin to pt
   D2Vector a;
   subD2Points(&a, pt, &line->origin);
 
   // let b be line->vector
-  
-  double bLen = lengthD2Vector(&line->vector);         // |b|
-  double dot = dotProdD2Vector(&a, &line->vector);     // |a||b|cos(theta)
-  return dot/bLen;                                     // |a|cos(theta)
+  bLen = lengthD2Vector(&line->vector);          // |b|
+
+  dot = dotProdD2Vector(&a, &line->vector);      // |a||b|cos(theta)
+  return dot/bLen;                               // |a|cos(theta)
 }
 
 
@@ -106,15 +108,17 @@ double crossProdZD2Vector(D2Vector const *v1, D2Vector const *v2)
 
 double distanceD2PointLine(D2Point const *pt, D2Line const *line)
 {
+  double bLen, cross;
+
   // let a be the vector from line->origin to pt
   D2Vector a;
   subD2Points(&a, pt, &line->origin);
 
   // let b be line->vector
+  bLen = lengthD2Vector(&line->vector);          // |b|
 
-  double bLen = lengthD2Vector(&line->vector);          // |b|
-  double cross = crossProdZD2Vector(&a, &line->vector); // |a||b|sin(theta)
-  return cross/bLen;                                    // |a|sin(theta)
+  cross = crossProdZD2Vector(&a, &line->vector); // |a||b|sin(theta)
+  return cross/bLen;                             // |a|sin(theta)
 }
 
 
