@@ -168,6 +168,7 @@ SourceLocManager::File::~File()
     delete hashLines;
   }
   delete[] lineLengths;
+  delete[] index;
 }
 
 SourceLocManager::File::File(FileData *fileData, SourceLoc aStartLoc)
