@@ -109,10 +109,12 @@ void HashTable::resizeTable(int newSize)
 
 void HashTable::add(void const *key, void *value)
 {
-  if (numEntries+1 > tableSize*2/3) {
-    // we're over the usage threshold; increase table size
-    // TODO: increase the new size
-    resizeTable(tableSize * 2 + 1);
+  if (numEntries+1 > tableSize/2) {
+    // We're over the usage threshold; increase table size.
+    //
+    // Resizing by numEntries*4 instead of tableSize*2 gives 42% speedup in
+    // total time used by resizeTable().
+    resizeTable(numEntries*4 + 1);
   }
   // make sure above didn't fail due to integer overflow
   xassert(numEntries+1 < tableSize);
