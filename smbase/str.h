@@ -14,9 +14,12 @@
 #define STR_H
 
 #include "typ.h"         // bool
-#include <iostream.h>	 // istream, ostream
-#include <stdarg.h>      // va_list
-#include <string.h>      // strcmp, etc.
+#include <iostream>      // istream, ostream
+#include <cstdarg>       // va_list
+#include <cstring>       // strcmp, etc.
+
+using std::istream;
+using std::ostream;
 
 class Flatten;           // flatten.h
 
