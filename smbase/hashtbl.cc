@@ -78,29 +78,35 @@ void HashTable::resizeTable(int newSize)
   // save old stuff
   void **oldTable = hashTable;
   int oldSize = tableSize;
-  int entries = numEntries;
+  int oldEntries = numEntries;
 
-  // make the new table
+  // make the new table (sets 'numEntries' to 0)
   makeTable(newSize);
 
-  // set this now so that we increment a local instead of instance member
-  numEntries = entries;
+  // set this now, rather than incrementing it with each add
+  numEntries = oldEntries;
+
   // move entries to the new table
   for (int i=0; i<oldSize; i++) {
     if (oldTable[i] != NULL) {
-      // inline the following call:
-      //   add(getKey(oldTable[i]), oldTable[i]);
       // This function is worth optimizing; it accounts for 12% of qualcc
       // runtime.  This simple inlining reduces resizeTable()'s impact from
       // 12% to 2%.
+      if (0) {
+        // original code:
+        add(getKey(oldTable[i]), oldTable[i]);
+      }
+      else {
+        // inlined version:
+        int newIndex = getEntry(getKey(oldTable[i]));
+        xassertdb(hashTable[newIndex] == NULL);    // must not be a mapping yet
+        hashTable[newIndex] = oldTable[i];
+      }
 
-      int newIndex = getEntry(getKey(oldTable[i]));
-      xassertdb(hashTable[newIndex] == NULL);    // must not be a mapping yet
-      hashTable[newIndex] = oldTable[i];
-      entries--;
+      oldEntries--;
     }
   }
-  xassert(entries == 0);
+  xassert(oldEntries == 0);
 
   // deallocate the old table
   delete[] oldTable;
@@ -109,6 +115,12 @@ void HashTable::resizeTable(int newSize)
 
 void HashTable::add(void const *key, void *value)
 {
+  // SGM: My previous threshold was tableSize*2/3, and an expansion
+  // factor of 2.  The intent is to be more space-efficient, at the
+  // cost of some performance in some situations.  I will leave these
+  // changes for now, but I'd like to see the client move to a
+  // different hash table implementation rather than hacking this one.
+
   if (numEntries+1 > tableSize/2) {
     // We're over the usage threshold; increase table size.
     //
