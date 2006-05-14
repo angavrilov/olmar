@@ -29,7 +29,7 @@ void x_assert_fail(char const *cond, char const *file, int line) NORETURN;
 
 // Here's a version which will turn off with ordinary NDEBUG.  It
 // is for more expensive checks that need not ship.
-#if !defined(NDEBUG)
+#if !defined(NDEBUG) && !defined(NDEBUG_NO_ASSERTIONS)
   #define xassertdb(cond) xassert(cond)
 #else
   #define xassertdb(cond) ((void)0)
@@ -50,7 +50,7 @@ void x_assert_fail(char const *cond, char const *file, int line) NORETURN;
 
 /*
   Why throw an exception after an assertion?
-  
+
   The standard assert() calls abort() after printing its message.
   This is like throwing an exception all the way to the calling
   process.  This is fine if programs are small.
@@ -69,7 +69,7 @@ void x_assert_fail(char const *cond, char const *file, int line) NORETURN;
   very much like 'assert'.  But by using 'xassert' consistenty, any
   time I *do* have a large program with recovery, all the lower-level
   modules are all ready to cooperate.
-  
+
   Speaking of recovery: Be aware that when a module fails an
   assertion, its internal state is most likely inconsistent.  Recovery
   actions need to be fairly conservative about what code gets
