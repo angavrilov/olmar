@@ -1,3 +1,15 @@
+2006-05-15  Hendrik Tews  <tews@debian>
+
+	AST
+	* new class AnnotationField in the ast.ast
+	* new field ASTClass.fields
+	* fields marked with the "field" modifier are cached in
+	ASTClass.fields, because we'll access them frequently in the ocaml
+	related code
+	* ASTClass.fields is initialized via the init_fields method, which
+	is called from within the parser (could also be done after
+	merging, but well ...), mergeClass merges the fields
+
 2006-05-12  Hendrik Tews  <tews@debian>
 
 	ELSA

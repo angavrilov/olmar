@@ -259,6 +259,32 @@ ASTClass *ASTClass::clone() const
 }
 
 
+// ------------------ AnnotationField -------------------
+// *** DO NOT EDIT ***
+AnnotationField::~AnnotationField()
+{
+}
+
+void AnnotationField::debugPrint(ostream &os, int indent, char const *subtreeName) const
+{
+  PRINT_HEADER(subtreeName, AnnotationField);
+
+  PRINT_BOOL(isOwner);
+  PRINT_STRING(type);
+  PRINT_STRING(name);
+}
+
+AnnotationField *AnnotationField::clone() const
+{
+  AnnotationField *ret = new AnnotationField(
+    isOwner,
+    type,
+    name
+  );
+  return ret;
+}
+
+
 // ------------------ AccessMod -------------------
 // *** DO NOT EDIT ***
 AccessMod::~AccessMod()
@@ -440,6 +466,27 @@ string ASTClass::classKindName() const
     ret &= "KIND_";
   }
   return ret;
+}
+
+// forward declaration of two utility functions
+// they are defined in astgen.cc
+string extractFieldType(rostring decl);
+string extractFieldName(rostring decl);
+
+
+// init the fields list from the decls list
+// call after decls list is complete
+void ASTClass::init_fields()
+{
+  FOREACH_ASTLIST(Annotation, decls, iter) {
+    if (!iter.data()->isUserDecl()) continue;
+    UserDecl const *ud = iter.data()->asUserDeclC();
+    if (!ud->amod->hasMod("field")) continue;
+
+    fields.append(new AnnotationField(ud->amod->hasMod("owner"),
+				       extractFieldType(ud->code),
+				       extractFieldName(ud->code)));
+  }
 }
 
 bool AccessMod::hasMod(char const *mod) const

@@ -50,7 +50,17 @@ class ASTClass (string name,
   // the name of the enum constant denoting this ctor, as distinguished
   // from its sibling ctors
   public string classKindName() const;
+
+  // the fields inside the decls list are often needed, therefore 
+  // let's have an accessor function for the fields
+  public ASTList<AnnotationField> fields;
+  public void init_fields(); // to be called after decls list is complete
 }
+
+// interesting pieces from field Annotation's, 
+// used in the "fields" field of ASTClass
+class AnnotationField (bool isOwner, string type, string name);
+
 
 verbatim {
   // specifies what kind of userdecl this is; pub/priv/prot are uninterpreted
@@ -138,6 +148,27 @@ string ASTClass::classKindName() const
     ret &= "KIND_";
   }
   return ret;
+}
+
+// forward declaration of two utility functions
+// they are defined in astgen.cc
+string extractFieldType(rostring decl);
+string extractFieldName(rostring decl);
+
+
+// init the fields list from the decls list
+// call after decls list is complete
+void ASTClass::init_fields()
+{
+  FOREACH_ASTLIST(Annotation, decls, iter) {
+    if (!iter.data()->isUserDecl()) continue;
+    UserDecl const *ud = iter.data()->asUserDeclC();
+    if (!ud->amod->hasMod("field")) continue;
+
+    fields.append(new AnnotationField(ud->amod->hasMod("owner"),
+				       extractFieldType(ud->code),
+				       extractFieldName(ud->code)));
+  }
 }
 
 bool AccessMod::hasMod(char const *mod) const

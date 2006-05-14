@@ -1042,7 +1042,7 @@ public:
   void emitDestructor(ASTClass const &cls);
   void emitDestroyField(bool isOwner, rostring type, rostring name);
   void emitPrintCtorArgs(ASTList<CtorArg> const &args);
-  void emitPrintFields(ASTList<Annotation> const &decls);
+  void emitPrintFields(const ASTList<AnnotationField> & fields);
   void emitPrintField(rostring print,
                       bool isOwner, rostring type, rostring name);
 
@@ -1270,7 +1270,7 @@ void CGen::emitTFClass(TF_class const &cls)
   if (cls.super->lastArgs.isNotEmpty()) {
     out << "  // (lastArgs are printed by subclasses)\n";
   }
-  emitPrintFields(cls.super->decls);
+  emitPrintFields(cls.super->fields);
 
   out << "}\n";
   out << "\n";
@@ -1313,7 +1313,7 @@ void CGen::emitTFClass(TF_class const &cls)
   }
 
 
-  // clone for childless superclasses
+  // clone / ocaml traversal for childless superclasses
   if (!cls.hasChildren()) {
     emitCloneCode(cls.super, NULL /*sub*/);
     if (wantOcaml)
@@ -1354,7 +1354,7 @@ void CGen::emitTFClass(TF_class const &cls)
 
     emitCustomCode(ctor.decls, "debugPrint");
     emitPrintCtorArgs(ctor.args);
-    emitPrintFields(ctor.decls);
+    emitPrintFields(ctor.fields);
     
     // superclass 'last' args come after all subclass things
     emitPrintCtorArgs(cls.super->lastArgs);
@@ -1392,7 +1392,7 @@ void CGen::emitTFClass(TF_class const &cls)
       out << "\n";
     }
 
-    // clone for subclasses
+    // clone / ocaml traversal for subclasses
     emitCloneCode(cls.super, &ctor);
     if (wantOcaml)
       emitToOcaml(cls.super, &ctor);
@@ -1497,17 +1497,11 @@ void CGen::emitPrintCtorArgs(ASTList<CtorArg> const &args)
   }
 }
 
-void CGen::emitPrintFields(ASTList<Annotation> const &decls)
+void CGen::emitPrintFields(const ASTList<AnnotationField> & fields)
 {
-  FOREACH_ASTLIST(Annotation, decls, iter) {
-    if (!iter.data()->isUserDecl()) continue;
-    UserDecl const *ud = iter.data()->asUserDeclC();
-    if (!ud->amod->hasMod("field")) continue;
-
-    emitPrintField("PRINT",
-                   ud->amod->hasMod("owner"),
-                   extractFieldType(ud->code),
-                   extractFieldName(ud->code));
+  FOREACH_ASTLIST(AnnotationField, fields, iter) {
+    const AnnotationField * field = iter.data();
+    emitPrintField("PRINT", field->isOwner, field->type, field->name);
   }
 }
 
@@ -3759,6 +3753,11 @@ void mergeClass(ASTClass *base, ASTClass *ext)
   // and same for annotations
   while (ext->decls.isNotEmpty()) {
     base->decls.append(ext->decls.removeFirst());
+  }
+
+  // and for the fields extracted from the annotations
+  while (ext->fields.isNotEmpty()) {
+    base->fields.append(ext->fields.removeFirst());
   }
 }
 

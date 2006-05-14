@@ -133,12 +133,14 @@ Input: /* empty */           { $$ = new ASTList<ToplevelForm>; }
 Class: NewOpt "class" TOK_NAME CtorArgsOpt BaseClassesOpt ClassBody
          { ($$=$6)->super->name = unbox($3); 
            $$->super->args.steal($4); 
-           $$->super->bases.steal($5); }
+           $$->super->bases.steal($5); 
+           $$->super->init_fields(); }
      | NewOpt "class" TOK_NAME CtorArgs CtorArgs BaseClassesOpt ClassBody
          { ($$=$7)->super->name = unbox($3);
            $$->super->args.steal($4);
            $$->super->lastArgs.steal($5);
-           $$->super->bases.steal($6); }
+           $$->super->bases.steal($6); 
+           $$->super->init_fields(); }
      ;
 
 /* for now, just allow "new" but don't interpret it */
@@ -167,9 +169,17 @@ ClassMembersOpt
   : /* empty */
       { $$ = new TF_class(new ASTClass("(placeholder)", NULL, NULL, NULL, NULL), NULL); }
   | ClassMembersOpt "->" TOK_NAME CtorArgsOpt BaseClassesOpt ";"
-      { ($$=$1)->ctors.append(new ASTClass(unbox($3), $4, NULL, $5, NULL)); }
+      { ASTClass * cl = new ASTClass(unbox($3), $4, NULL, $5, NULL);
+        // unnecessary call to init_fields, since decls is empty, 
+        // but who knows, maybe this will change some day ...
+        cl->init_fields();
+	($$=$1)->ctors.append(cl); 
+      }
   | ClassMembersOpt "->" TOK_NAME CtorArgsOpt BaseClassesOpt "{" CtorMembersOpt "}"
-      { ($$=$1)->ctors.append(new ASTClass(unbox($3), $4, NULL, $5, $7)); }
+      { ASTClass * cl = new ASTClass(unbox($3), $4, NULL, $5, $7);
+        cl->init_fields();
+	($$=$1)->ctors.append(cl); 
+      }
   | ClassMembersOpt Annotation
       { ($$=$1)->super->decls.append($2); }
   ;

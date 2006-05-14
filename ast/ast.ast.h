@@ -18,6 +18,7 @@ class TF_option;
 class TF_custom;
 class TF_enum;
 class ASTClass;
+class AnnotationField;
 class AccessMod;
 class Annotation;
 class UserDecl;
@@ -144,7 +145,6 @@ public:      // data
 
 public:      // funcs
   TF_class(ASTClass *_super, ASTList <ASTClass > *_ctors) : ToplevelForm(), super(_super), ctors(_ctors) {
-  xassert(super);
   }
   virtual ~TF_class();
 
@@ -183,7 +183,6 @@ public:      // data
 
 public:      // funcs
   TF_custom(CustomCode *_cust) : ToplevelForm(), cust(_cust) {
-  xassert(cust);
   }
   virtual ~TF_custom();
 
@@ -238,6 +237,30 @@ public:      // funcs
   void debugPrint(ostream &os, int indent, char const *subtreeName = "tree") const;
 
   public:  string classKindName() const;
+  public:  ASTList<AnnotationField> fields;
+  public:  void init_fields();
+};
+
+
+
+// *** DO NOT EDIT ***
+class AnnotationField {
+public:      // data
+  bool isOwner;
+  string type;
+  string name;
+
+public:      // funcs
+  AnnotationField(bool _isOwner, string _type, string _name) : isOwner(_isOwner), type(_type), name(_name) {
+  }
+  ~AnnotationField();
+
+  char const *kindName() const { return "AnnotationField"; }
+
+  AnnotationField *clone() const;
+
+  void debugPrint(ostream &os, int indent, char const *subtreeName = "tree") const;
+
 };
 
 
@@ -316,7 +339,6 @@ public:      // data
 
 public:      // funcs
   UserDecl(AccessMod *_amod, string _code, string _init) : Annotation(), amod(_amod), code(_code), init(_init) {
-  xassert(amod);
   }
   virtual ~UserDecl();
 
