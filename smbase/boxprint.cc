@@ -10,7 +10,7 @@
 // ----------------------- BPRender ----------------------
 BPRender::BPRender()
   : sb(),         // initially empty
-    margin(72),   
+    margin(72),
     curCol(0),
     lineStartText("")
 {}
@@ -179,7 +179,7 @@ void takeBreak(BPRender &mgr, int &startCol, BPBreak *brk)
 {
   startCol += brk->indent;
 
-  if (brk->enabled == BT_LINE_START && 
+  if (brk->enabled == BT_LINE_START &&
       mgr.curCol == startCol) {
     // do not add a line
   }
@@ -286,7 +286,7 @@ void BPBox::render(BPRender &mgr)
 
 
 void BPBox::debugPrint(ostream &os, int ind) const
-{           
+{
   static char const * const map[] = {
     "vert",
     "seq",
@@ -295,7 +295,7 @@ void BPBox::debugPrint(ostream &os, int ind) const
 
   os << "box(kind=" << map[kind] << ") {\n";
   ind += 2;
-  
+
   FOREACH_ASTLIST(BPElement, elts, iter) {
     for (int i=0; i<ind; i++) {
       os << " ";
@@ -323,7 +323,7 @@ BPKind const BoxPrint::end  = NUM_BPKINDS;
 BoxPrint::BoxPrint()
   : boxStack(),
     levelIndent(2)
-{         
+{
   // initial vert box
   boxStack.push(new BPBox(BP_vertical));
 }
@@ -414,7 +414,7 @@ BPBox* /*owner*/ BoxPrint::takeTree()
 
 
 void BoxPrint::debugPrint(ostream &os) const
-{                             
+{
   for (int i=0; i < boxStack.length(); i++) {
     os << "----- frame -----\n";
     boxStack[i]->debugPrint(os, 0 /*ind*/);
@@ -424,7 +424,7 @@ void BoxPrint::debugPrint(ostream &os) const
 
 void BoxPrint::debugPrintCout() const
 {
-  debugPrint(cout);
+  debugPrint(std::cout);
 }
 
 
