@@ -1824,7 +1824,9 @@ void CGen::emitDVisitorImplementation()
         << "(" << c->super->name << " *obj) {\n"
       // dsw: I changed this back to xassert() from xassertdb()
       // because NDEBUG just gets turned on more often than I like.
-        << "  xassert(!wasVisitedAST(obj));\n"
+      // quarl 2006-05-13: changed back to xassertdb(); it's worth removing
+      // this as it accounts for 15% of qualcc runtime
+        << "  xassertdb(!wasVisitedAST(obj));\n"
         << "  return client ? client->visit" << c->super->name << "(obj) : true;\n"
         << "}\n";
 
