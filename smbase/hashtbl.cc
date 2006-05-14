@@ -78,19 +78,29 @@ void HashTable::resizeTable(int newSize)
   // save old stuff
   void **oldTable = hashTable;
   int oldSize = tableSize;
-  int oldEntries = numEntries;
+  int entries = numEntries;
 
   // make the new table
   makeTable(newSize);
 
+  // set this now so that we increment a local instead of instance member
+  numEntries = entries;
   // move entries to the new table
   for (int i=0; i<oldSize; i++) {
     if (oldTable[i] != NULL) {
-      add(getKey(oldTable[i]), oldTable[i]);
-      oldEntries--;
+      // inline the following call:
+      //   add(getKey(oldTable[i]), oldTable[i]);
+      // This function is worth optimizing; it accounts for 12% of qualcc
+      // runtime.  This simple inlining reduces resizeTable()'s impact from
+      // 12% to 2%.
+
+      int newIndex = getEntry(getKey(oldTable[i]));
+      xassertdb(hashTable[newIndex] == NULL);    // must not be a mapping yet
+      hashTable[newIndex] = oldTable[i];
+      entries--;
     }
   }
-  xassert(oldEntries == 0);
+  xassert(entries == 0);
 
   // deallocate the old table
   delete[] oldTable;
@@ -101,6 +111,7 @@ void HashTable::add(void const *key, void *value)
 {
   if (numEntries+1 > tableSize*2/3) {
     // we're over the usage threshold; increase table size
+    // TODO: increase the new size
     resizeTable(tableSize * 2 + 1);
   }
   // make sure above didn't fail due to integer overflow
