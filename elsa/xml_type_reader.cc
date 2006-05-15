@@ -19,6 +19,7 @@ void fromXml(CompoundType::Keyword &out, rostring str) {
 }
 
 void fromXml(FunctionFlags &out, rostring str) {
+  // TODO: get rid of StrtokParse
   StrtokParse tok(str.c_str(), "|");
   for (int i=0; i<tok; ++i) {
     char const * const token = tok[i];
