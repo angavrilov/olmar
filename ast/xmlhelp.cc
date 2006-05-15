@@ -5,7 +5,7 @@
 #include <stdlib.h>             // atof, atol
 #include <ctype.h>              // isprint, isdigit, isxdigit
 #include <stdio.h>              // sprintf
-#include "strtokp.h"            // StrtokParse
+// #include "strtokp.h"            // StrtokParse
 #include "exc.h"                // xformat
 #include "ptrintmap.h"          // PtrIntMap
 
@@ -126,29 +126,109 @@ string toXml_SourceLoc(SourceLoc loc) {
   return sourceLocManager->getString_nohashline(loc);
 }
 
+// Avoid allocating memory to construct a substring, by being sneaky.  This
+// isn't thread safe.  When put on the stack, the optimizer should only end up
+// using one word, for 'save'.
+class SneakySubstring {
+public:
+  SneakySubstring(const char *begin0, const char *end0)
+    : begin(begin0), end(end0), save(*end0)
+  {
+    const_cast<char*>(end) [0] = '\0';
+  }
+
+  ~SneakySubstring() {
+    const_cast<char*>(end) [0] = save;
+  }
+
+  operator const char *() const {
+    return begin;
+  }
+
+  const char *begin;
+  const char *end;
+  char save;
+};
+
+
+// #define string_prefix_match(s, prefix) (0==strncmp(s, prefix, sizeof(prefix)-1))
+
+// Note: this function is performance-critical for deserialization, so don't
+// use StrtokParse.
 void fromXml_SourceLoc(SourceLoc &loc, const char *str) {
   // the file format is filename:line:column
-  StrtokParse tok(str, ":");
-  if ((int)tok != 3) {
-    // FIX: this is a parsing error but I don't want to throw an
-    // exception out of this library function
+
+  if (streq(str, "<noloc>:1:1")) {
     loc = SL_UNKNOWN;
     return;
   }
-  char const *file = tok[0];
-  if (streq(file, "<noloc>")) {
-    loc = SL_UNKNOWN;
-    return;
-  }
-  if (streq(file, "<init>")) {
+
+  if (streq(str, "<init>:1:1")) {
     loc = SL_INIT;
     return;
   }
-  int line = atoi(tok[1]);
-  int col  = atoi(tok[2]);
+
+  char const *end = str + strlen(str);
+
+  int line;
+  int col;
+
+  while (true) {
+    if (end <= str) {
+      // FIX: this is a parsing error but I don't want to throw an
+      // exception out of this library function
+      loc = SL_UNKNOWN;
+      return;
+    }
+
+    end--;
+    if (*end == ':') {
+      col = atoi(end+1);
+      if (!col) {
+        loc = SL_UNKNOWN;
+        return;
+      }
+      break;
+    }
+
+    if (!isdigit(*end)) {
+      loc = SL_UNKNOWN;
+      return;
+    }
+  }
+
+  while (true) {
+    if (end <= str) {
+      loc = SL_UNKNOWN;
+      return;
+    }
+
+    end--;
+    if (*end == ':') {
+      line = atoi(end+1);
+      if (!line) {
+        loc = SL_UNKNOWN;
+        return;
+      }
+      break;
+    }
+
+    if (!isdigit(*end)) {
+      loc = SL_UNKNOWN;
+      return;
+    }
+  }
+
+  if (end <= str) {
+    loc = SL_UNKNOWN;
+    return;
+  }
+
+  // the substring (str, end] is the filename.
+  SneakySubstring file(str, end);
+
   loc = sourceLocManager->encodeLineCol(file, line, col);
 }
-
 
 // named escape codes
 #define lt_CODE "lt;"
