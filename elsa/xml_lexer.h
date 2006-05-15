@@ -12,7 +12,11 @@
 #include "xml_enum.h"           // XTOK_*
 
 class XmlLexer : private yyFlexLexer {
-  public:
+private:
+  inline int yyunderflow(); // helper for read_xml_string
+  bool read_xml_string();   // used by lexer when reading strings
+
+public:
   char const *inputFname;       // just for error messages
   int linenumber;
   bool sawEof;
@@ -27,8 +31,10 @@ class XmlLexer : private yyFlexLexer {
   int getToken();
   // have we seen the EOF?
   bool haveSeenEof() { return sawEof; }
-  // this is yytext
+
+  // This is yytext.  Strings are already dequoted+unescaped.
   char const *currentText() { return this->YYText(); }
+
   // this is yyrestart.  For starting and restarting.
   void restart(istream *in) { this->yyrestart(in); sawEof = false; }
 

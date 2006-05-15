@@ -9,42 +9,14 @@
   return svalTok(XTOK_NAME);
 }
 
-  /** TODO: dequote the string directly while lexing */
+  /** dequote the string directly while lexing */
 
-  /* string literal */
-{QUOTE}({STRCHAR}|{ESCAPE})*{QUOTE} {
+({QUOTE}|{SQUOTE}) {
+  // read_xml_string() will Do The Right Thing: read a quoted and escaped
+  // string; dequote and unescape into yytext and update all pointers
+  // appropriately.
+  read_xml_string();
   return svalTok(XTOK_STRING_LITERAL);
-}
-
-  /* string literal */
-{SQUOTE}({STRCHAR_S}|{ESCAPE})*{SQUOTE} {
-  return svalTok(XTOK_STRING_LITERAL);
-}
-
-  /* string literal missing final quote */
-{QUOTE}({STRCHAR}|{ESCAPE})*{EOL}   {
-    err("string literal missing final `\"'");
-    return svalTok(XTOK_STRING_LITERAL);     // error recovery
-}
-
-  /* string literal missing final quote */
-{SQUOTE}({STRCHAR_S}|{ESCAPE})*{EOL}   {
-    err("string literal missing final `\"'");
-    return svalTok(XTOK_STRING_LITERAL);     // error recovery
-}
-
-  /* unterminated string literal; maximal munch causes us to prefer
-   * either of the above two rules when possible; the trailing
-   * optional backslash is needed so the scanner won't back up in that
-   * case; NOTE: this can only happen if the file ends in the string
-   * and there is no newline before the EOF */
-{QUOTE}({STRCHAR}|{ESCAPE})*{BACKSL}? {
-  err("unterminated string literal");
-  yyterminate();
-}
-{SQUOTE}({STRCHAR_S}|{ESCAPE})*{BACKSL}? {
-  err("unterminated string literal");
-  yyterminate();
 }
 
 [\n]   {

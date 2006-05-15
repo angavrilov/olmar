@@ -33,21 +33,21 @@ extern bool xmlDanglingPointersAllowed;
 #define ul(FIELD, KIND) \
   manager->unsatLinks.append \
     (new UnsatLink((void*) &(obj->FIELD), \
-                   xmlAttrDeQuote(strValue), \
+                   strValue, \
                    (KIND), \
                    false))
 
 #define ulEmbed(FIELD, KIND) \
   manager->unsatLinks.append \
     (new UnsatLink((void*) &(obj->FIELD), \
-                   xmlAttrDeQuote(strValue), \
+                   strValue, \
                    (KIND), \
                    true))
 
 #define ulList(LIST, FIELD, KIND) \
   manager->unsatLinks##LIST.append \
     (new UnsatLink((void*) &(obj->FIELD), \
-                   xmlAttrDeQuote(strValue), \
+                   strValue, \
                    (KIND), \
                    true))
 

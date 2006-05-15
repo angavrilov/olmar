@@ -1,7 +1,7 @@
 // xml_writer.cc            see license.txt for copyright and terms of use
 
 #include "xml_writer.h"
-#include "xmlhelp.h"            // xmlAttrDeQuote() etc.
+// #include "xmlhelp.h"            // xmlAttrDeQuote() etc.
 #include "exc.h"                // xBase
 
 

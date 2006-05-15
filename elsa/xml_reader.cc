@@ -1,7 +1,7 @@
 // xml_reader.cc            see license.txt for copyright and terms of use
 
 #include "xml_reader.h"         // this module
-#include "xmlhelp.h"            // xmlAttrDeQuote() etc.
+// #include "xmlhelp.h"            // xmlAttrDeQuote() etc.
 #include "exc.h"                // xBase
 
 
@@ -308,7 +308,8 @@ bool XmlReaderManager::readAttributes() {
       // get it out of yytext below
       break;
     case XTOK_STRING_LITERAL:
-      // get it out of yytext below
+      // Get it out of yytext below.  Note that this string has already been
+      // dequoted/unescaped in the lexer!
       break;                    // go on
     }
 
@@ -316,8 +317,8 @@ bool XmlReaderManager::readAttributes() {
     xassert(nodeStack.isNotEmpty());
     // special case the '_id' attribute
     if (attr == XTOK_DOT_ID) {
-      // FIX: I really hope the map makes a copy of this string
-      string id0 = xmlAttrDeQuote(lexer.currentText());
+      // the map makes a copy of this string
+      const char *id0 = lexer.currentText();
       // DEBUG1
 //       cout << "readAttributes: _id=" << id0 << endl;
       if (id2obj.isMapped(id0)) {
@@ -336,7 +337,7 @@ bool XmlReaderManager::readAttributes() {
         break;
       case XTOK_item:
         static_cast<ListItem*>(nodeStack.top())->to =
-          strTable(xmlAttrDeQuote(lexer.currentText()));
+          strTable(lexer.currentText());
         break;
       }
     }
@@ -348,11 +349,11 @@ bool XmlReaderManager::readAttributes() {
         break;
       case XTOK_name:
         static_cast<NameMapItem*>(nodeStack.top())->from =
-          strTable(xmlAttrDeQuote(lexer.currentText()));
+          strTable(lexer.currentText());
         break;
       case XTOK_item:
         static_cast<NameMapItem*>(nodeStack.top())->to =
-          strTable(xmlAttrDeQuote(lexer.currentText()));
+          strTable(lexer.currentText());
         break;
       }
     }
@@ -364,11 +365,11 @@ bool XmlReaderManager::readAttributes() {
         break;
       case XTOK_key:
         static_cast<MapItem*>(nodeStack.top())->from =
-          strTable(xmlAttrDeQuote(lexer.currentText()));
+          strTable(lexer.currentText());
         break;
       case XTOK_item:
         static_cast<MapItem*>(nodeStack.top())->to =
-          strTable(xmlAttrDeQuote(lexer.currentText()));
+          strTable(lexer.currentText());
         break;
       }
     }
@@ -380,11 +381,11 @@ bool XmlReaderManager::readAttributes() {
 //          break;
 //        case XTOK_from:
 //          static_cast<UnsatBiLink*>(nodeStack.top())->from =
-//            strTable(xmlAttrDeQuote(lexer.currentText()));
+//            strTable(lexer.currentText());
 //          break;
 //        case XTOK_to:
 //          static_cast<UnsatBiLink*>(nodeStack.top())->to =
-//            strTable(xmlAttrDeQuote(lexer.currentText()));
+//            strTable(lexer.currentText());
 //          break;
 //        }
 //      }

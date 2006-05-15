@@ -12,6 +12,8 @@
 // this works around a problem with cygwin & fileno
 #define YY_NEVER_INTERACTIVE 1
 
+#include "xml_lex_extra.h"
+
 %}
 
 
