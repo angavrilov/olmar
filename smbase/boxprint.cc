@@ -534,14 +534,14 @@ void doit(int argc, char *argv[])
   if (argc >= 2) {
     ren.margin = atoi(argv[1]);
   }
-  cout << "margin: " << ren.margin << "\n";
+  std::cout << "margin: " << ren.margin << "\n";
 
   tree->render(ren);
   delete tree;
 
-  cout << "         1    1    2    2    3    3    4    4    5    5    6    6    7\n";
-  cout << "1---5----0----5----0----5----0----5----0----5----0----5----0----5----0\n";
-  cout << ren.takeString();
+  std::cout << "         1    1    2    2    3    3    4    4    5    5    6    6    7\n";
+  std::cout << "1---5----0----5----0----5----0----5----0----5----0----5----0----5----0\n";
+  std::cout << ren.takeString();
 }
 
 int main(int argc, char *argv[])
