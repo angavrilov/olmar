@@ -55,11 +55,22 @@ void fromXml_double(double &x, const char *str);
 string toXml_SourceLoc(SourceLoc loc);
 void fromXml_SourceLoc(SourceLoc &loc, const char *str);
 
+// output SRC with encoding and quotes around it.
+ostream &outputXmlAttrQuoted(ostream &o, const char *src);
+static inline ostream &outputXmlAttrQuoted(ostream &o, string const &src)
+{ return outputXmlAttrQuoted(o, src.c_str()); }
+
+// output SRC with quotes, but no encoding.  Only use with strings that do not
+// contain ["'<>&]
+ostream &outputXmlAttrQuotedNoEscape(ostream &o, const char *src);
+static inline ostream &outputXmlAttrQuotedNoEscape(ostream &o, string const &src)
+{ return outputXmlAttrQuotedNoEscape(o, src.c_str()); }
+
 // for quoting and unquoting xml attribute strings
 string xmlAttrQuote(const char *src);
 inline string xmlAttrQuote(rostring src) { return xmlAttrQuote(src.c_str()); }
-string xmlAttrEncode(const char *src);
-string xmlAttrEncode(char const *p, int len);
+// string xmlAttrEncode(char const *src);
+// string xmlAttrEncode(char const *p, int len);
 
 string xmlAttrDeQuote(const char *text);
 // dsw: This function does not process all XML escapes.  I only

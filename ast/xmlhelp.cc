@@ -155,22 +155,57 @@ void fromXml_SourceLoc(SourceLoc &loc, const char *str) {
 #define gt_CODE "gt;"
 #define amp_CODE "amp;"
 #define quot_CODE "quot;"
-int const lt_codelen   = strlen(lt_CODE);
-int const gt_codelen   = strlen(gt_CODE);
-int const amp_codelen  = strlen(amp_CODE);
-int const quot_codelen = strlen(quot_CODE);
+#define apos_CODE "apos;"
+// int const lt_codelen   = strlen(lt_CODE);
+// int const gt_codelen   = strlen(gt_CODE);
+// int const amp_codelen  = strlen(amp_CODE);
+// int const quot_codelen = strlen(quot_CODE);
 
-// TODO: creating these strings to print them is inefficient.  Can print them
-// directly using iomanip.
-
-string xmlAttrQuote(const char *src) {
-  return stringc << "\""
-                 << xmlAttrEncode(src)
-                 << "\"";
+ostream &outputXmlAttrQuotedNoEscape(ostream &o, const char *src)
+{
+  return o << '\'' << src << '\'';
 }
 
-string xmlAttrEncode(const char *src) {
-  return xmlAttrEncode(src, strlen(src));
+// Output SRC with escaping and quotes to output stream directly.  This is
+// more efficient than constructing strings and then outputting that.
+ostream &outputXmlAttrQuoted(ostream &o, const char *src)
+{
+  o << '\'';
+
+  for (; *src; ++src) {
+    unsigned char c = *src;
+
+    // escape those special to xml attributes;
+    // http://www.w3.org/TR/2004/REC-xml-20040204/#NT-AttValue
+    switch (c) {
+    default: break;             // try below
+    case '<': o << "&" lt_CODE;   continue;
+    case '>': o << "&" gt_CODE;   continue; // this one not strictly required here
+    case '&': o << "&" amp_CODE;  continue;
+      // Don't need to escape '"' if surrounding quote is "'"
+    // case '"': o << "&" quot_CODE; continue;
+    case '\'': o << "&" apos_CODE; continue;
+    }
+
+    // try itself
+    if (isprint(c)) {
+      o << c;
+      continue;
+    }
+
+    // use the most general notation
+    char tmp[7];
+    // dsw: the sillyness of XML knows no bounds: it is actually more
+    // efficient to use the decimal encoding since sometimes you only
+    // need 4 or 5 characters, whereas with hex you are guaranteed to
+    // need 6, however the uniformity makes it easier to decode hex.
+    // Why not make the shorter encoding also the default so that it
+    // really is shorter in the big picture?
+    sprintf(tmp, "&#x%02X;", c);
+    o << tmp;
+  }
+
+  return o << '\'';
 }
 
 string xmlAttrEncode(char const *p, int len) {
@@ -188,6 +223,7 @@ string xmlAttrEncode(char const *p, int len) {
     case '>': sb << "&" gt_CODE;   continue; // this one not strictly required here
     case '&': sb << "&" amp_CODE;  continue;
     case '"': sb << "&" quot_CODE; continue;
+    case '\'': sb << "&" apos_CODE; continue;
     }
 
     // try itself
@@ -211,16 +247,31 @@ string xmlAttrEncode(char const *p, int len) {
   return sb;
 }
 
+string xmlAttrEncode(const char *src) {
+  return xmlAttrEncode(src, strlen(src));
+}
+
+string xmlAttrQuote(const char *src) {
+  return stringc << '\''
+                 << xmlAttrEncode(src)
+                 << '\'';
+}
+
 // dsw: based on smbase/strutil.cc/parseQuotedString();
 string xmlAttrDeQuote(const char *text) {
   int len = strlen(text);
-  if (!( text[0] == '"' &&
-         text[len-1] == '"' )) {
-    xformat(stringc << "quoted string is missing quotes: " << text);
+
+  if ( text[0] == '\'' && text[len-1] == '\'' ) {
+    // decode escapes
+    return xmlAttrDecode(text+1, text+len-1, '\'');
   }
 
-  // decode escapes
-  return xmlAttrDecode(text+1, text+len-1, '"');
+  if ( text[0] == '"' && text[len-1] == '"' ) {
+    // decode escapes
+    return xmlAttrDecode(text+1, text+len-1, '"');
+  }
+
+  xformat(stringc << "quoted string is missing quotes: " << text);
 }
 
 // process characters between 'src' and 'end'.  The 'end' is so we don't have
@@ -237,7 +288,8 @@ string xmlAttrDecode(char const *src, const char *end, char delim)
 
     // check for the delimiter
     if (*src == delim) {
-      xformat(stringc << "unescaped delimiter (" << delim << ")");
+      xformat(stringc << "unescaped delimiter (" << delim << ") in "
+              << substring(src,end-src));
     }
 
     // check for normal characters
@@ -250,17 +302,18 @@ string xmlAttrDecode(char const *src, const char *end, char delim)
     src++;                      // advance past amperstand
 
     // checked for named escape codes
-#define DO_ESCAPE(NAME, CHAR)                                     \
-      if (strncmp(NAME ##_CODE, src, NAME ##_codelen) == 0) {     \
-        result << char(CHAR);                                     \
-        src += NAME ##_codelen;                                   \
-        continue;                                                 \
-      }
+#define DO_ESCAPE(NAME, CHAR)                                           \
+    if (strncmp(NAME ##_CODE, src, (sizeof(NAME ##_CODE)-1)) == 0) {    \
+      result << char(CHAR);                                             \
+      src += (sizeof(NAME ##_CODE)-1);                                  \
+      continue;                                                         \
+    }
 
     DO_ESCAPE(lt,   '<');
     DO_ESCAPE(gt,   '>');
     DO_ESCAPE(amp,  '&');
     DO_ESCAPE(quot, '"');
+    DO_ESCAPE(apos, '\'');
 #undef DO_ESCAPE
 
     // check for numerical escapes
