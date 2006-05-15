@@ -424,7 +424,7 @@ void BoxPrint::debugPrint(ostream &os) const
 
 void BoxPrint::debugPrintCout() const
 {
-  debugPrint(std::cout);
+  debugPrint(cout);
 }
 
 
@@ -534,14 +534,14 @@ void doit(int argc, char *argv[])
   if (argc >= 2) {
     ren.margin = atoi(argv[1]);
   }
-  std::cout << "margin: " << ren.margin << "\n";
+  cout << "margin: " << ren.margin << "\n";
 
   tree->render(ren);
   delete tree;
 
-  std::cout << "         1    1    2    2    3    3    4    4    5    5    6    6    7\n";
-  std::cout << "1---5----0----5----0----5----0----5----0----5----0----5----0----5----0\n";
-  std::cout << ren.takeString();
+  cout << "         1    1    2    2    3    3    4    4    5    5    6    6    7\n";
+  cout << "1---5----0----5----0----5----0----5----0----5----0----5----0----5----0\n";
+  cout << ren.takeString();
 }
 
 int main(int argc, char *argv[])
