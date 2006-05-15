@@ -115,18 +115,12 @@ void HashTable::resizeTable(int newSize)
 
 void HashTable::add(void const *key, void *value)
 {
-  // SGM: My previous threshold was tableSize*2/3, and an expansion
-  // factor of 2.  The intent is to be more space-efficient, at the
-  // cost of some performance in some situations.  I will leave these
-  // changes for now, but I'd like to see the client move to a
-  // different hash table implementation rather than hacking this one.
-
-  if (numEntries+1 > tableSize/2) {
+  if (numEntries+1 > tableSize*2/3) {
     // We're over the usage threshold; increase table size.
     //
-    // Resizing by numEntries*4 instead of tableSize*2 gives 42% speedup in
-    // total time used by resizeTable().
-    resizeTable(numEntries*4 + 1);
+    // Note: Resizing by numEntries*4 instead of tableSize*2 gives 42% speedup
+    // in total time used by resizeTable(), at the expense of more memory used.
+    resizeTable(tableSize * 2 + 1);
   }
   // make sure above didn't fail due to integer overflow
   xassert(numEntries+1 < tableSize);
