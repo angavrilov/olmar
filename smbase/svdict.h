@@ -14,7 +14,7 @@
 #include "xassert.h"    // xassert
 #include "typ.h"        // MUTABLE
 #include "strhash.h"    // StringHash
-  
+
 
 // constness: for this class, 'const' means the *mapping* from string
 // to void* won't change; but I don't prevent the thing pointed-at
@@ -34,8 +34,10 @@ private:    // types
   public:
     Node(char const *k, void *v, Node *n = NULL)
       : next(n), key(k), value(v) {}
+    Node(string const &k, void *v, Node *n = NULL)
+      : next(n), key(k), value(v) {}
     ~Node() {}
-    
+
     static char const *getKey(Node const *n);
   };
 
@@ -66,7 +68,7 @@ public:     // types
 
     string &key() const { return current->key; }
     void *&value() const { return current->value; }
-    
+
     long private_getCurrent() const { return (long)current; }
   };
   friend class Iter;
@@ -145,6 +147,7 @@ public:
 
   // -------- mutators -----------
   void add(char const *key, void *value);
+  void add(string const &key, void *value);
     // add a mapping from 'key' to 'value'; 'key' must initially be unmapped
 
   void *modify(char const *key, void *newValue);
@@ -179,7 +182,7 @@ public:
   // ------------ misc --------------
   INSERT_OSTREAM(StringVoidDict)
   string toString() const;
-  
+
   // debugging...
   long private_getTopAddr() const { return (long)top; }
 };

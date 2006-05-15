@@ -161,6 +161,21 @@ void StringVoidDict::add(char const *key, void *value)
   SELFCHECK();
 }
 
+// Another version of add() which takes a 'string const &'.  If we are using a
+// reference-counting implementation of 'string' then this is more efficient.
+// (The strdup inside this Node construction happens to be the bottleneck in
+// XML deserialization.)
+void StringVoidDict::add(string const &key, void *value)
+{
+  xassert(!isMapped(key.c_str()));
+
+  // just prepend; we'll sort later (when an iterator is retrieved)
+  top = new Node(key, value, top);
+  hash.add(key.c_str(), top);
+
+  SELFCHECK();
+}
+
 
 void *StringVoidDict::modify(char const *key, void *newValue)
 {
