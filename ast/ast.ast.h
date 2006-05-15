@@ -18,12 +18,11 @@ class TF_option;
 class TF_custom;
 class TF_enum;
 class ASTClass;
-class AnnotationField;
 class AccessMod;
 class Annotation;
 class UserDecl;
 class CustomCode;
-class CtorArg;
+class FieldOrCtorArg;
 class BaseClass;
 
 
@@ -220,13 +219,13 @@ public:      // funcs
 class ASTClass {
 public:      // data
   string name;
-  ASTList <CtorArg > args;
-  ASTList <CtorArg > lastArgs;
+  ASTList <FieldOrCtorArg > args;
+  ASTList <FieldOrCtorArg > lastArgs;
   ASTList <BaseClass > bases;
   ASTList <Annotation > decls;
 
 public:      // funcs
-  ASTClass(string _name, ASTList <CtorArg > *_args, ASTList <CtorArg > *_lastArgs, ASTList <BaseClass > *_bases, ASTList <Annotation > *_decls) : name(_name), args(_args), lastArgs(_lastArgs), bases(_bases), decls(_decls) {
+  ASTClass(string _name, ASTList <FieldOrCtorArg > *_args, ASTList <FieldOrCtorArg > *_lastArgs, ASTList <BaseClass > *_bases, ASTList <Annotation > *_decls) : name(_name), args(_args), lastArgs(_lastArgs), bases(_bases), decls(_decls) {
   }
   ~ASTClass();
 
@@ -237,30 +236,8 @@ public:      // funcs
   void debugPrint(ostream &os, int indent, char const *subtreeName = "tree") const;
 
   public:  string classKindName() const;
-  public:  ASTList<AnnotationField> fields;
+  public:  ASTList<FieldOrCtorArg> fields;
   public:  void init_fields();
-};
-
-
-
-// *** DO NOT EDIT ***
-class AnnotationField {
-public:      // data
-  bool isOwner;
-  string type;
-  string name;
-
-public:      // funcs
-  AnnotationField(bool _isOwner, string _type, string _name) : isOwner(_isOwner), type(_type), name(_name) {
-  }
-  ~AnnotationField();
-
-  char const *kindName() const { return "AnnotationField"; }
-
-  AnnotationField *clone() const;
-
-  void debugPrint(ostream &os, int indent, char const *subtreeName = "tree") const;
-
 };
 
 
@@ -376,7 +353,7 @@ public:      // funcs
 
 
 // *** DO NOT EDIT ***
-class CtorArg {
+class FieldOrCtorArg {
 public:      // data
   bool isOwner;
   bool nullable;
@@ -385,13 +362,13 @@ public:      // data
   string defaultValue;
 
 public:      // funcs
-  CtorArg(bool _isOwner, bool _nullable, string _type, string _name, string _defaultValue) : isOwner(_isOwner), nullable(_nullable), type(_type), name(_name), defaultValue(_defaultValue) {
+  FieldOrCtorArg(bool _isOwner, bool _nullable, string _type, string _name, string _defaultValue) : isOwner(_isOwner), nullable(_nullable), type(_type), name(_name), defaultValue(_defaultValue) {
   }
-  ~CtorArg();
+  ~FieldOrCtorArg();
 
-  char const *kindName() const { return "CtorArg"; }
+  char const *kindName() const { return "FieldOrCtorArg"; }
 
-  CtorArg *clone() const;
+  FieldOrCtorArg *clone() const;
 
   void debugPrint(ostream &os, int indent, char const *subtreeName = "tree") const;
 

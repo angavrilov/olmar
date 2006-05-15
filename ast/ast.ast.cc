@@ -240,8 +240,8 @@ void ASTClass::debugPrint(ostream &os, int indent, char const *subtreeName) cons
   PRINT_HEADER(subtreeName, ASTClass);
 
   PRINT_STRING(name);
-  PRINT_LIST(CtorArg, args);
-  PRINT_LIST(CtorArg, lastArgs);
+  PRINT_LIST(FieldOrCtorArg, args);
+  PRINT_LIST(FieldOrCtorArg, lastArgs);
   PRINT_LIST(BaseClass, bases);
   PRINT_LIST(Annotation, decls);
 }
@@ -254,32 +254,6 @@ ASTClass *ASTClass::clone() const
     cloneASTList(lastArgs),
     cloneASTList(bases),
     cloneASTList(decls)
-  );
-  return ret;
-}
-
-
-// ------------------ AnnotationField -------------------
-// *** DO NOT EDIT ***
-AnnotationField::~AnnotationField()
-{
-}
-
-void AnnotationField::debugPrint(ostream &os, int indent, char const *subtreeName) const
-{
-  PRINT_HEADER(subtreeName, AnnotationField);
-
-  PRINT_BOOL(isOwner);
-  PRINT_STRING(type);
-  PRINT_STRING(name);
-}
-
-AnnotationField *AnnotationField::clone() const
-{
-  AnnotationField *ret = new AnnotationField(
-    isOwner,
-    type,
-    name
   );
   return ret;
 }
@@ -381,15 +355,15 @@ CustomCode *CustomCode::clone() const
 }
 
 
-// ------------------ CtorArg -------------------
+// ------------------ FieldOrCtorArg -------------------
 // *** DO NOT EDIT ***
-CtorArg::~CtorArg()
+FieldOrCtorArg::~FieldOrCtorArg()
 {
 }
 
-void CtorArg::debugPrint(ostream &os, int indent, char const *subtreeName) const
+void FieldOrCtorArg::debugPrint(ostream &os, int indent, char const *subtreeName) const
 {
-  PRINT_HEADER(subtreeName, CtorArg);
+  PRINT_HEADER(subtreeName, FieldOrCtorArg);
 
   PRINT_BOOL(isOwner);
   PRINT_BOOL(nullable);
@@ -398,9 +372,9 @@ void CtorArg::debugPrint(ostream &os, int indent, char const *subtreeName) const
   PRINT_STRING(defaultValue);
 }
 
-CtorArg *CtorArg::clone() const
+FieldOrCtorArg *FieldOrCtorArg::clone() const
 {
-  CtorArg *ret = new CtorArg(
+  FieldOrCtorArg *ret = new FieldOrCtorArg(
     isOwner,
     nullable,
     type,
@@ -483,9 +457,11 @@ void ASTClass::init_fields()
     UserDecl const *ud = iter.data()->asUserDeclC();
     if (!ud->amod->hasMod("field")) continue;
 
-    fields.append(new AnnotationField(ud->amod->hasMod("owner"),
-				       extractFieldType(ud->code),
-				       extractFieldName(ud->code)));
+    fields.append(new FieldOrCtorArg(ud->amod->hasMod("owner"),
+				     ud->amod->hasMod("nullable"),
+				     extractFieldType(ud->code),
+				     extractFieldName(ud->code),
+				     "" /* unused defaultValue */ ));
   }
 }
 

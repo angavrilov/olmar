@@ -36,9 +36,9 @@ string *appendStr(string *left, string *right)
 }
 
 
-CtorArg *parseCtorArg(rostring origStr)
+FieldOrCtorArg *parseCtorArg(rostring origStr)
 {
-  CtorArg *ret = new CtorArg(false, false, "", "", "");
+  FieldOrCtorArg *ret = new FieldOrCtorArg(false, false, "", "", "");
 
   // strip leading and trailing whitespace
   string str = trimWhitespace(origStr);

@@ -17,6 +17,15 @@ extern "C" {
 #include "thashtbl.h"       // THashTbl
 #include "sobjset.h"        // SObjSet
 
+
+// returns true on the values that we expect back from ocaml:
+// namly on plain structured data blocks
+#define IS_OCAML_AST_VALUE(x) (Is_long(x) || VALUE_TAG(Tag_hd(Hd_val(x))))
+
+#define VALUE_TAG(x) ((x) < No_scan_tag && (x) != Forward_tag && \
+		      (x) != Infix_tag  && (x) != Object_tag && \
+		      (x) != Closure_tag && (x) != Lazy_tag)
+
 // -------------------------- ocaml helpers -----------------------
 
 // take this only if we really want the ocaml interface

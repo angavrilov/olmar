@@ -37,6 +37,9 @@
 class PPrintOut {
 public:
   virtual void write(char const *text) = 0;
+
+  // silence the virtual destructor warning
+  virtual ~PPrintOut() {};
 };
 
 class PPrintStringOut : public PPrintOut {
@@ -44,6 +47,9 @@ class PPrintStringOut : public PPrintOut {
 public:
   PPrintStringOut(stringBuilder &s) : sb(s) {}
   virtual void write(char const *text);
+
+  // silence the virtual destructor warning
+  virtual ~PPrintStringOut() {};
 };
 
 class PPrintOstreamOut : public PPrintOut {
@@ -51,6 +57,9 @@ class PPrintOstreamOut : public PPrintOut {
 public:
   PPrintOstreamOut(ostream &o) : os(o) {}
   virtual void write(char const *text);
+
+  // silence the virtual destructor warning
+  virtual ~PPrintOstreamOut() {};
 };
 
 

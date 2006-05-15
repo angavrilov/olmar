@@ -13,6 +13,9 @@ public:
 
   // report a warning
   virtual void reportWarning(rostring str)=0;
+
+  // silence the virtual destructor warning
+  virtual ~ReportError() {};
 };
 
 

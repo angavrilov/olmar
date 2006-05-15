@@ -43,8 +43,8 @@ class ToplevelForm {
 
 // a definition of a grammar terminal or nonterminal
 class ASTClass (string name,
-                ASTList<CtorArg> args,
-                ASTList<CtorArg> lastArgs,    // only for nonterminal
+                ASTList<FieldOrCtorArg> args,
+                ASTList<FieldOrCtorArg> lastArgs,    // only for nonterminal
                 ASTList<BaseClass> bases,
                 ASTList<Annotation> decls) {
   // the name of the enum constant denoting this ctor, as distinguished
@@ -53,13 +53,9 @@ class ASTClass (string name,
 
   // the fields inside the decls list are often needed, therefore 
   // let's have an accessor function for the fields
-  public ASTList<AnnotationField> fields;
+  public ASTList<FieldOrCtorArg> fields;
   public void init_fields(); // to be called after decls list is complete
 }
-
-// interesting pieces from field Annotation's, 
-// used in the "fields" field of ASTClass
-class AnnotationField (bool isOwner, string type, string name);
 
 
 verbatim {
@@ -108,8 +104,12 @@ class Annotation {
 }
 
 // something that has to be passed to create a constructor
-class CtorArg (bool isOwner, bool nullable, 
-	       string type, string name, string defaultValue);
+// Used also for interesting pieces from "field" marked field Annotation's, 
+// that are cached in ASTClass.fields. In the latter case the defaultValue
+// is unused and empty (could split this into subclasses, but it is
+// probably not worth the hassle).
+class FieldOrCtorArg (bool isOwner, bool nullable, 
+		      string type, string name, string defaultValue);
 
 // designate a class that one of the ASTClasses should inherit; for
 // AST subclasses, this inheritance is in addition to inheriting the
@@ -165,9 +165,11 @@ void ASTClass::init_fields()
     UserDecl const *ud = iter.data()->asUserDeclC();
     if (!ud->amod->hasMod("field")) continue;
 
-    fields.append(new AnnotationField(ud->amod->hasMod("owner"),
-				       extractFieldType(ud->code),
-				       extractFieldName(ud->code)));
+    fields.append(new FieldOrCtorArg(ud->amod->hasMod("owner"),
+				     ud->amod->hasMod("nullable"),
+				     extractFieldType(ud->code),
+				     extractFieldName(ud->code),
+				     "" /* unused defaultValue */ ));
   }
 }
 

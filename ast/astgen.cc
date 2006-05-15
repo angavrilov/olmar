@@ -88,7 +88,8 @@ StringSet pointerTypes;
 // true if the user wants the xmlPrint stuff
 bool wantXMLPrint = false;
 
-// true if the user wants the ocaml interface (including a visitor)
+// true if the user wants the ocaml interface 
+// (includes a traversal function for marshalling)
 bool wantOcaml = false;
 
 // true if the user wants the gdb() functions
@@ -410,16 +411,16 @@ private:        // funcs
   void emitTFClass(TF_class const &cls);
   void emitBaseClassDecls(ASTClass const &cls, int ct);
   static char const *virtualIfChildren(TF_class const &cls);
-  void emitCtorFields(ASTList<CtorArg> const &args,
-                      ASTList<CtorArg> const &lastArgs);
-  void innerEmitCtorFields(ASTList<CtorArg> const &args);
-  void emitCtorFormal(int &ct, CtorArg const *arg);
-  void emitCtorFormals(int &ct, ASTList<CtorArg> const &args);
+  void emitCtorFields(ASTList<FieldOrCtorArg> const &args,
+                      ASTList<FieldOrCtorArg> const &lastArgs);
+  void innerEmitCtorFields(ASTList<FieldOrCtorArg> const &args);
+  void emitCtorFormal(int &ct, FieldOrCtorArg const *arg);
+  void emitCtorFormals(int &ct, ASTList<FieldOrCtorArg> const &args);
   void emitCtorDefn(ASTClass const &cls, ASTClass const *parent, 
 		    bool ocaml_val_init);
-  void passParentCtorArgs(int &ct, ASTList<CtorArg> const &args);
-  void initializeMyCtorArgs(int &ct, ASTList<CtorArg> const &args);
-  void assertNonNullCtorArgs(ASTList<CtorArg> const & args);
+  void passParentCtorArgs(int &ct, ASTList<FieldOrCtorArg> const &args);
+  void initializeMyCtorArgs(int &ct, ASTList<FieldOrCtorArg> const &args);
+  void assertNonNullCtorArgs(ASTList<FieldOrCtorArg> const & args);
   void emitCommonFuncs(rostring virt, bool hasChildren);
   void emitUserDecls(ASTList<Annotation> const &decls);
   void emitCtor(ASTClass const &ctor, ASTClass const &parent);
@@ -699,8 +700,8 @@ void HGen::emitBaseClassDecls(ASTClass const &cls, int ct)
 
 
 // emit data fields implied by the constructor
-void HGen::emitCtorFields(ASTList<CtorArg> const &args,
-                          ASTList<CtorArg> const &lastArgs)
+void HGen::emitCtorFields(ASTList<FieldOrCtorArg> const &args,
+                          ASTList<FieldOrCtorArg> const &lastArgs)
 {
   out << "public:      // data\n";
   innerEmitCtorFields(args);
@@ -708,11 +709,11 @@ void HGen::emitCtorFields(ASTList<CtorArg> const &args,
   out << "\n";
 }
 
-void HGen::innerEmitCtorFields(ASTList<CtorArg> const &args)
+void HGen::innerEmitCtorFields(ASTList<FieldOrCtorArg> const &args)
 {
   // go over the arguments in the ctor and declare fields for them
   {
-    FOREACH_ASTLIST(CtorArg, args, arg) {
+    FOREACH_ASTLIST(FieldOrCtorArg, args, arg) {
       char const *star = "";
       if (isTreeNode(arg.data()->type)) {
         // make it a pointer in the concrete representation
@@ -726,7 +727,7 @@ void HGen::innerEmitCtorFields(ASTList<CtorArg> const &args)
 
 
 // emit the declaration of a formal argument to a constructor
-void HGen::emitCtorFormal(int &ct, CtorArg const *arg)
+void HGen::emitCtorFormal(int &ct, FieldOrCtorArg const *arg)
 {
   // put commas between formals
   if (ct++ > 0) {
@@ -754,9 +755,9 @@ void HGen::emitCtorFormal(int &ct, CtorArg const *arg)
   }
 }
 
-void HGen::emitCtorFormals(int &ct, ASTList<CtorArg> const &args)
+void HGen::emitCtorFormals(int &ct, ASTList<FieldOrCtorArg> const &args)
 {
-  FOREACH_ASTLIST(CtorArg, args, arg) {
+  FOREACH_ASTLIST(FieldOrCtorArg, args, arg) {
     emitCtorFormal(ct, arg.data());
   }
 }
@@ -850,9 +851,9 @@ void HGen::emitCtorDefn(ASTClass const &cls, ASTClass const *parent,
   }
 }
 
-void HGen::passParentCtorArgs(int &ct, ASTList<CtorArg> const &args)
+void HGen::passParentCtorArgs(int &ct, ASTList<FieldOrCtorArg> const &args)
 {
-  FOREACH_ASTLIST(CtorArg, args, parg) {
+  FOREACH_ASTLIST(FieldOrCtorArg, args, parg) {
     if (ct++ > 0) {
       out << ", ";
     }
@@ -861,9 +862,9 @@ void HGen::passParentCtorArgs(int &ct, ASTList<CtorArg> const &args)
   }
 }
 
-void HGen::initializeMyCtorArgs(int &ct, ASTList<CtorArg> const &args)
+void HGen::initializeMyCtorArgs(int &ct, ASTList<FieldOrCtorArg> const &args)
 {
-  FOREACH_ASTLIST(CtorArg, args, arg) {
+  FOREACH_ASTLIST(FieldOrCtorArg, args, arg) {
     if (ct++ > 0) {
       out << ", ";
     }
@@ -877,21 +878,21 @@ void HGen::initializeMyCtorArgs(int &ct, ASTList<CtorArg> const &args)
 }
 
 
-bool ctor_uses_option(const CtorArg * arg) {
+bool ctor_uses_option(const FieldOrCtorArg * arg) {
   return arg->nullable && 
     (isTreeNode(arg->type) || isPtrKind(arg->type) || 
      pointerTypes.contains(arg->type));
 }
 
-bool ctor_non_null_assert(const CtorArg * arg) {
+bool ctor_non_null_assert(const FieldOrCtorArg * arg) {
   return (!arg->nullable) && 
     (isTreeNode(arg->type) || isPtrKind(arg->type) ||
      pointerTypes.contains(arg->type));
 }
 
-void HGen::assertNonNullCtorArgs(ASTList<CtorArg> const & args) {
-  FOREACH_ASTLIST(CtorArg, args, iter) {
-    const CtorArg * arg = iter.data();
+void HGen::assertNonNullCtorArgs(ASTList<FieldOrCtorArg> const & args) {
+  FOREACH_ASTLIST(FieldOrCtorArg, args, iter) {
+    const FieldOrCtorArg * arg = iter.data();
     if(ctor_non_null_assert(arg)) {
       out << "  xassert(" << arg->name << ");\n";
     }
@@ -1041,19 +1042,19 @@ public:
   void emitTFClass(TF_class const &cls);
   void emitDestructor(ASTClass const &cls);
   void emitDestroyField(bool isOwner, rostring type, rostring name);
-  void emitPrintCtorArgs(ASTList<CtorArg> const &args);
-  void emitPrintFields(const ASTList<AnnotationField> & fields);
+  void emitPrintCtorArgs(ASTList<FieldOrCtorArg> const &args);
+  void emitPrintFields(const ASTList<FieldOrCtorArg> & fields);
   void emitPrintField(rostring print,
                       bool isOwner, rostring type, rostring name);
 
-  void emitXmlPrintCtorArgs(ASTList<CtorArg> const &args);
+  void emitXmlPrintCtorArgs(ASTList<FieldOrCtorArg> const &args);
   bool emitCustomCode(ASTList<Annotation> const &list, rostring tag);
 
-  void emitCloneCtorArg(CtorArg const *arg, int &ct);
-  void emitCloneCtorArgs(int &ct, ASTList<CtorArg> const &args);
+  void emitCloneCtorArg(FieldOrCtorArg const *arg, int &ct);
+  void emitCloneCtorArgs(int &ct, ASTList<FieldOrCtorArg> const &args);
   void emitCloneCode(ASTClass const *super, ASTClass const *sub);
 
-  void emitToOcamlChilds(const string & cl_name, const ASTList<CtorArg> & args, 
+  void emitToOcamlChilds(const ASTList<FieldOrCtorArg> & args, 
 			 unsigned & count);
   void emitToOcaml(ASTClass const *super, ASTClass const *sub);
   void emitOcamlFromList(ListClass const *cls);      
@@ -1066,7 +1067,7 @@ public:
   void emitDVisitorImplementation();
 
   private:
-  void emitXmlCtorArgs(ASTList<CtorArg> const &args, char const *baseName, string const &className);
+  void emitXmlCtorArgs(ASTList<FieldOrCtorArg> const &args, char const *baseName, string const &className);
   void emitXmlFields(ASTList<Annotation> const &decls, char const *baseName, string const &className);
   void emitXmlField(rostring type, rostring name, char const *baseName,
                     string const &className, AccessMod *amod);
@@ -1112,32 +1113,32 @@ class XmlParserGen {
   {}
 
   private:
-  void collectXmlParserCtorArgs(ASTList<CtorArg> const &args, char const *baseName);
+  void collectXmlParserCtorArgs(ASTList<FieldOrCtorArg> const &args, char const *baseName);
   void collectXmlParserFields(ASTList<Annotation> const &decls, char const *baseName);
   void collectXmlParserField
     (rostring type, rostring name, char const *baseName, AccessMod *amod);
 
-  void emitXmlCtorArgs_AttributeParseRule(ASTList<CtorArg> const &args, string &baseName);
+  void emitXmlCtorArgs_AttributeParseRule(ASTList<FieldOrCtorArg> const &args, string &baseName);
   void emitXmlFields_AttributeParseRule(ASTList<Annotation> const &decls, string &baseName);
   void emitXmlField_AttributeParseRule
     (rostring type, rostring name, string &baseName, AccessMod *amod);
 
   void emitXmlParser_objCtorArgs
-    (ASTList<CtorArg> const &args, bool &firstTime);
+    (ASTList<FieldOrCtorArg> const &args, bool &firstTime);
 
   void emitXmlParser_Node
     (ASTClass const *clazz,
-     ASTList<CtorArg> const *args,
+     ASTList<FieldOrCtorArg> const *args,
      ASTList<Annotation> const *decls,
-     ASTList<CtorArg> const *lastArgs,
-     ASTList<CtorArg> const *childArgs = NULL,
+     ASTList<FieldOrCtorArg> const *lastArgs,
+     ASTList<FieldOrCtorArg> const *childArgs = NULL,
      ASTList<Annotation> const *childDecls = NULL);
   void emitXmlParser_Node_registerAttr
     (ASTClass const *clazz,
-     ASTList<CtorArg> const *args,
+     ASTList<FieldOrCtorArg> const *args,
      ASTList<Annotation> const *decls,
-     ASTList<CtorArg> const *lastArgs,
-     ASTList<CtorArg> const *childArgs = NULL,
+     ASTList<FieldOrCtorArg> const *lastArgs,
+     ASTList<FieldOrCtorArg> const *childArgs = NULL,
      ASTList<Annotation> const *childDecls = NULL);
   void emitXmlParser_ASTList(ListClass const *type);
 //    void emitXmlParser_FakeList(ListClass const *type);
@@ -1430,8 +1431,8 @@ void CGen::emitDestructor(ASTClass const &cls)
   emitFiltered(cls.decls, AC_DTOR, "  ");
   
   // constructor arguments
-  FOREACH_ASTLIST(CtorArg, cls.args, argiter) {
-    CtorArg const &arg = *(argiter.data());
+  FOREACH_ASTLIST(FieldOrCtorArg, cls.args, argiter) {
+    FieldOrCtorArg const &arg = *(argiter.data());
     emitDestroyField(arg.isOwner, arg.type, arg.name);
   }
                           
@@ -1488,19 +1489,19 @@ void CGen::emitDestroyField(bool isOwner, rostring type, rostring name)
 }
 
 
-void CGen::emitPrintCtorArgs(ASTList<CtorArg> const &args)
+void CGen::emitPrintCtorArgs(ASTList<FieldOrCtorArg> const &args)
 {
-  FOREACH_ASTLIST(CtorArg, args, argiter) {
-    CtorArg const &arg = *(argiter.data());
+  FOREACH_ASTLIST(FieldOrCtorArg, args, argiter) {
+    FieldOrCtorArg const &arg = *(argiter.data());
 
     emitPrintField("PRINT", arg.isOwner, arg.type, arg.name);
   }
 }
 
-void CGen::emitPrintFields(const ASTList<AnnotationField> & fields)
+void CGen::emitPrintFields(const ASTList<FieldOrCtorArg> & fields)
 {
-  FOREACH_ASTLIST(AnnotationField, fields, iter) {
-    const AnnotationField * field = iter.data();
+  FOREACH_ASTLIST(FieldOrCtorArg, fields, iter) {
+    const FieldOrCtorArg * field = iter.data();
     emitPrintField("PRINT", field->isOwner, field->type, field->name);
   }
 }
@@ -1540,17 +1541,17 @@ void CGen::emitPrintField(rostring print,
 }
 
 
-void CGen::emitXmlPrintCtorArgs(ASTList<CtorArg> const &args)
+void CGen::emitXmlPrintCtorArgs(ASTList<FieldOrCtorArg> const &args)
 {
-  FOREACH_ASTLIST(CtorArg, args, argiter) {
-    CtorArg const &arg = *(argiter.data());
+  FOREACH_ASTLIST(FieldOrCtorArg, args, argiter) {
+    FieldOrCtorArg const &arg = *(argiter.data());
     
     emitPrintField("XMLPRINT", arg.isOwner, arg.type, arg.name);
   }
 }
 
 
-void CGen::emitCloneCtorArg(CtorArg const *arg, int &ct)
+void CGen::emitCloneCtorArg(FieldOrCtorArg const *arg, int &ct)
 {
   if (ct++ > 0) {
     out << ",";
@@ -1600,9 +1601,9 @@ void CGen::emitCloneCtorArg(CtorArg const *arg, int &ct)
   }
 }
 
-void CGen::emitCloneCtorArgs(int &ct, ASTList<CtorArg> const &args)
+void CGen::emitCloneCtorArgs(int &ct, ASTList<FieldOrCtorArg> const &args)
 {
-  FOREACH_ASTLIST(CtorArg, args, iter) {
+  FOREACH_ASTLIST(FieldOrCtorArg, args, iter) {
     emitCloneCtorArg(iter.data(), ct);
   }
 }
@@ -1663,14 +1664,21 @@ void CGen::emitCloneCode(ASTClass const *super, ASTClass const *sub)
 // simple type equation
 bool is_cyclic(ASTClass const *c) {
   const string & my_name = c->name;
-  const ASTList<CtorArg> * args = &c->args;
+  const ASTList<FieldOrCtorArg> * args = &c->args;
 
-  FOREACH_ASTLIST(CtorArg, *args, arg) {
+  FOREACH_ASTLIST(FieldOrCtorArg, *args, arg) {
     if (my_name.equals(arg.data()->type))
       return true;
   }
+
+  args = &c->fields;
+  FOREACH_ASTLIST(FieldOrCtorArg, *args, arg) {
+    if (my_name.equals(arg.data()->type))
+      return true;
+  }
+
   args = &c->lastArgs;
-  FOREACH_ASTLIST(CtorArg, *args, arg) {
+  FOREACH_ASTLIST(FieldOrCtorArg, *args, arg) {
     if (my_name.equals(arg.data()->type))
       return true;
   }
@@ -1773,10 +1781,10 @@ void CGen::emitOcamlFromList(ListClass const *cls) {
 }
 
 
-void CGen::emitToOcamlChilds(const string & cl_name,
-			     const ASTList<CtorArg> & args, unsigned & count) {
-  FOREACH_ASTLIST(CtorArg, args, iter) {
-    const CtorArg * arg = iter.data();
+void CGen::emitToOcamlChilds(const ASTList<FieldOrCtorArg> & args, 
+			     unsigned & count) {
+  FOREACH_ASTLIST(FieldOrCtorArg, args, iter) {
+    const FieldOrCtorArg * arg = iter.data();
     bool use_option = ctor_uses_option(arg);
     if(use_option) {
       out << "  if(" << arg->name << ") {\n"
@@ -1786,7 +1794,7 @@ void CGen::emitToOcamlChilds(const string & cl_name,
       out << "  child[" << count << "] = ";
     }
     
-    if(isTreeNode(arg->type)) {
+    if(isTreeNode(arg->type) || isTreeNodePtr(arg->type)) {
       out << arg->name << "->toOcaml(data)";
     }
     else {
@@ -1813,7 +1821,6 @@ void CGen::emitToOcamlChilds(const string & cl_name,
   }
 }
 
-
 void CGen::emitToOcaml(ASTClass const * super, ASTClass const *sub)
 { // sub may be NULL for a childless superclass !!
 
@@ -1825,8 +1832,9 @@ void CGen::emitToOcaml(ASTClass const * super, ASTClass const *sub)
   out << "value " << myClass->name << "::toOcaml(ToOcamlData *data) {\n";
   out << "  CAMLparam0();\n";
 
-  unsigned args_count = super->args.count() + super->lastArgs.count() +
-    (sub ? sub->args.count() : 0);
+  unsigned sub_args = sub ? (sub->args.count() + sub->fields.count()) : 0;
+  unsigned args_count = super->args.count() + super->fields.count() +
+    super->lastArgs.count() + sub_args;
 
   if(args_count > 0)
     out << "  CAMLlocalN(child, " << args_count << ");\n";
@@ -1851,10 +1859,13 @@ void CGen::emitToOcaml(ASTClass const * super, ASTClass const *sub)
       << "  }\n";
 
   unsigned count = 0;
-  emitToOcamlChilds(super->name, super->args, count);
-  if(sub)
-    emitToOcamlChilds(super->name, sub->args, count);
-  emitToOcamlChilds(super->name, super->lastArgs, count);
+  emitToOcamlChilds(super->args, count);
+  emitToOcamlChilds(super->fields, count);
+  if(sub) {
+    emitToOcamlChilds(sub->args, count);
+    emitToOcamlChilds(sub->fields, count);
+  }
+  emitToOcamlChilds(super->lastArgs, count);
   out << endl;
 
   out << "  caml_register_global_root(&ocaml_val);\n";
@@ -1884,6 +1895,9 @@ void CGen::emitToOcaml(ASTClass const * super, ASTClass const *sub)
   }
 
   out << ");" << endl;
+
+  out << "  xassert(IS_OCAML_AST_VALUE(ocaml_val));\n";
+
   out << "  CAMLreturn(ocaml_val);" << endl;
   
   out << "}" << endl << endl;
@@ -2101,8 +2115,8 @@ void CGen::emitTraverse(ASTClass const *c, ASTClass const * /*nullable*/ super,
   }
 
   // traverse into the ctor arguments
-  FOREACH_ASTLIST(CtorArg, c->args, iter) {
-    CtorArg const *arg = iter.data();
+  FOREACH_ASTLIST(FieldOrCtorArg, c->args, iter) {
+    FieldOrCtorArg const *arg = iter.data();
     emitOneTraverseCall(c->name, arg->name, arg->type);
   }
 
@@ -2118,8 +2132,8 @@ void CGen::emitTraverse(ASTClass const *c, ASTClass const * /*nullable*/ super,
   emitCustomCode(c->decls, "traverse");
 
   // traverse into the ctor last arguments
-  FOREACH_ASTLIST(CtorArg, c->lastArgs, iter) {
-    CtorArg const *arg = iter.data();
+  FOREACH_ASTLIST(FieldOrCtorArg, c->lastArgs, iter) {
+    FieldOrCtorArg const *arg = iter.data();
     emitOneTraverseCall(c->name, arg->name, arg->type);
   }
 
@@ -2295,10 +2309,10 @@ void CGen::emitDVisitorImplementation()
 
 // ------------------- xml visitor --------------------
 
-void CGen::emitXmlCtorArgs(ASTList<CtorArg> const &args, char const *baseName,
+void CGen::emitXmlCtorArgs(ASTList<FieldOrCtorArg> const &args, char const *baseName,
                            string const &className) {
-  FOREACH_ASTLIST(CtorArg, args, argiter) {
-    CtorArg const &arg = *(argiter.data());
+  FOREACH_ASTLIST(FieldOrCtorArg, args, argiter) {
+    FieldOrCtorArg const &arg = *(argiter.data());
     emitXmlField(arg.type, arg.name, baseName, className, NULL);
   }
 }
@@ -2792,8 +2806,8 @@ void CGen::emitMVisitorImplementation()
 void CGen::emitMTraverse(ASTClass const *c, rostring obj, rostring i)
 {
   // traverse into the ctor arguments
-  FOREACH_ASTLIST(CtorArg, c->args, iter) {
-    CtorArg const *arg = iter.data();
+  FOREACH_ASTLIST(FieldOrCtorArg, c->args, iter) {
+    FieldOrCtorArg const *arg = iter.data();
     string argVar = stringc << obj << "->" << arg->name;
 
     if (isTreeNode(arg->type) || isTreeNodePtr(arg->type)) {
@@ -2866,10 +2880,10 @@ void CGen::emitMTraverseCall(rostring i, rostring eltType, rostring argVar)
 // FIX: an iterator desing pattern over the fields/ctor_args of an AST
 // node would be better than this repeated copies of the DFS
 
-void XmlParserGen::collectXmlParserCtorArgs(ASTList<CtorArg> const &args, char const *baseName)
+void XmlParserGen::collectXmlParserCtorArgs(ASTList<FieldOrCtorArg> const &args, char const *baseName)
 {
-  FOREACH_ASTLIST(CtorArg, args, argiter) {
-    CtorArg const &arg = *(argiter.data());
+  FOREACH_ASTLIST(FieldOrCtorArg, args, argiter) {
+    FieldOrCtorArg const &arg = *(argiter.data());
     collectXmlParserField(arg.type, arg.name, baseName, NULL);
   }
 }
@@ -2924,10 +2938,10 @@ void XmlParserGen::collectXmlParserField
 
 
 void XmlParserGen::emitXmlCtorArgs_AttributeParseRule
-  (ASTList<CtorArg> const &args, string &baseName)
+  (ASTList<FieldOrCtorArg> const &args, string &baseName)
 {
-  FOREACH_ASTLIST(CtorArg, args, argiter) {
-    CtorArg const &arg = *(argiter.data());
+  FOREACH_ASTLIST(FieldOrCtorArg, args, argiter) {
+    FieldOrCtorArg const &arg = *(argiter.data());
     emitXmlField_AttributeParseRule(arg.type, arg.name, baseName, NULL);
   }
 }
@@ -3044,10 +3058,10 @@ void XmlParserGen::emitXmlField_AttributeParseRule
 }
 
 void XmlParserGen::emitXmlParser_objCtorArgs
-  (ASTList<CtorArg> const &args, bool &firstTime)
+  (ASTList<FieldOrCtorArg> const &args, bool &firstTime)
 {
-  FOREACH_ASTLIST(CtorArg, args, argiter) {
-    CtorArg const &arg = *(argiter.data());
+  FOREACH_ASTLIST(FieldOrCtorArg, args, argiter) {
+    FieldOrCtorArg const &arg = *(argiter.data());
     if (firstTime) { firstTime = false; }
     else { parser2_ctorCalls << ", "; }
     if (strlen(arg.defaultValue.c_str())>0) {
@@ -3074,13 +3088,13 @@ void XmlParserGen::emitXmlParser_objCtorArgs
 void XmlParserGen::emitXmlParser_Node
   (ASTClass const *clazz,
 
-   ASTList<CtorArg> const *args,
+   ASTList<FieldOrCtorArg> const *args,
    ASTList<Annotation> const *decls,
-   ASTList<CtorArg> const *lastArgs,
+   ASTList<FieldOrCtorArg> const *lastArgs,
 
    // these two default to NULL, which is used in the case of a top
    // level class with no subclasses
-   ASTList<CtorArg> const *childArgs,
+   ASTList<FieldOrCtorArg> const *childArgs,
    ASTList<Annotation> const *childDecls)
 {
   string name = clazz->name;
@@ -3109,13 +3123,13 @@ void XmlParserGen::emitXmlParser_Node
 void XmlParserGen::emitXmlParser_Node_registerAttr
   (ASTClass const *clazz,
 
-   ASTList<CtorArg> const *args,
+   ASTList<FieldOrCtorArg> const *args,
    ASTList<Annotation> const *decls,
-   ASTList<CtorArg> const *lastArgs,
+   ASTList<FieldOrCtorArg> const *lastArgs,
 
    // these two default to NULL, which is used in the case of a top
    // level class with no subclasses
-   ASTList<CtorArg> const *childArgs,
+   ASTList<FieldOrCtorArg> const *childArgs,
    ASTList<Annotation> const *childDecls)
 {
   string name = clazz->name;
@@ -3396,7 +3410,7 @@ public:         // funcs
 
   void emitVerbatim(TF_ocaml_type_verbatim const *v);
   void emitType(TF_class const *c, bool * first_type);
-  void ocaml_arg_list(const ASTList<CtorArg> & al, bool & first, 
+  void ocaml_arg_list(const ASTList<FieldOrCtorArg> & al, bool & first, 
 		      const string & first_string);
   void emitFile();
 };
@@ -3450,10 +3464,10 @@ void OTGen::ocaml_type(string type){
 
 
 // emit the types belonging to an constructor argument list
-void OTGen::ocaml_arg_list(const ASTList<CtorArg> & al, bool & first, 
+void OTGen::ocaml_arg_list(const ASTList<FieldOrCtorArg> & al, bool & first, 
 			   const string & first_string) {
-  FOREACH_ASTLIST(CtorArg, al, iter) {
-    const CtorArg * arg = iter.data();
+  FOREACH_ASTLIST(FieldOrCtorArg, al, iter) {
+    const FieldOrCtorArg * arg = iter.data();
     if (first) {
       out << first_string;
       first = false;
@@ -3482,8 +3496,9 @@ void OTGen::emitType(TF_class const *c, bool * first_type) {
   ocaml_type(c->super->name);
   out << " = ";
 
-  const ASTList<CtorArg> &super_args = c->super->args;
-  const ASTList<CtorArg> &super_last_args = c->super->lastArgs;
+  const ASTList<FieldOrCtorArg> &super_args = c->super->args;
+  const ASTList<FieldOrCtorArg> &super_fields = c->super->fields;
+  const ASTList<FieldOrCtorArg> &super_last_args = c->super->lastArgs;
 
   if (c->hasChildren()) {
     out << endl;
@@ -3497,7 +3512,9 @@ void OTGen::emitType(TF_class const *c, bool * first_type) {
       bool first = true;
       string first_string = " of ";
       ocaml_arg_list(super_args, first, first_string);
+      ocaml_arg_list(super_fields, first, first_string);
       ocaml_arg_list(ctor->args, first, first_string);
+      ocaml_arg_list(ctor->fields, first, first_string);
       ocaml_arg_list(super_last_args, first, first_string);
 
       out << endl;
@@ -3519,6 +3536,7 @@ void OTGen::emitType(TF_class const *c, bool * first_type) {
 
     bool first = true;
     ocaml_arg_list(super_args, first, first_string);
+    ocaml_arg_list(super_fields, first, first_string);
     ocaml_arg_list(super_last_args, first, first_string);
     if (first) {
       // no children, no arguments
@@ -3585,17 +3603,17 @@ public:		// funcs
 
 
 string ocaml_callback(string ast_file) {
-  return(string("register_") &
-	 translate(ast_file, "\001-\057\072-\101\133-\140\173-\377", 
-		   // don't know how many underscores we precisely need here
-		   // put 256, thats certainly enough
-		   "_________________________________________________________"
-		   "_________________________________________________________"
-		   "_________________________________________________________"
-		   "_________________________________________________________"
-		   "____________________________"
-		   ) &
-	 "_callbacks"
+  return(stringc << "register_" 
+	 << translate(ast_file, "\001-\057\072-\101\133-\140\173-\377", 
+		      // don't know how many underscores we precisely need here
+		      // put 256, thats certainly enough
+		      "_____________________________________________________"
+		      "_____________________________________________________"
+		      "_____________________________________________________"
+		      "_____________________________________________________"
+		      "____________________________________________"
+		      ) 
+	 << "_callbacks"
 	 );
 }
 
@@ -3611,8 +3629,9 @@ void OCGen::emitConstructorCallbacks(TF_class const *cl)
 {
   topicComment(string("callbacks for ") & cl->super->name);
 
-  ASTList<CtorArg> *super_args = &cl->super->args;
-  ASTList<CtorArg> *super_last_args = &cl->super->lastArgs;
+  const ASTList<FieldOrCtorArg> & super_args = cl->super->args;
+  const ASTList<FieldOrCtorArg> & super_fields = cl->super->fields;
+  const ASTList<FieldOrCtorArg> & super_last_args = cl->super->lastArgs;
 
   if (cl->hasChildren()) {
     FOREACH_ASTLIST(ASTClass, cl->ctors, c_iter) {
@@ -3620,8 +3639,8 @@ void OCGen::emitConstructorCallbacks(TF_class const *cl)
 
       out << "let " << ocaml_node_callback(ctor->name, true, false) << " ";
 
-      int args = super_args->count() + super_last_args->count() +
-	ctor->args.count();
+      int args = super_args.count() + super_fields.count() +
+	super_last_args.count() + ctor->args.count() + ctor->fields.count();
 
       if(args != 0){
 	// Constructor has arguments
@@ -3644,7 +3663,8 @@ void OCGen::emitConstructorCallbacks(TF_class const *cl)
   }
   else {
     bool cyclic = is_cyclic(cl->super);
-    int args = super_args->count() + super_last_args->count();
+    int args = super_args.count() + super_fields.count() +
+      super_last_args.count();
 
     out << "let "
 	<< ocaml_node_callback(cl->super->name, false, cyclic)
@@ -3913,7 +3933,7 @@ void mergeExtension(ASTSpecFile *base, ASTSpecFile *ext)
 // re-enable allClasses
 #undef allClasses
 
-void recordListClass(ListKind lkind, rostring className, CtorArg const *arg) {
+void recordListClass(ListKind lkind, rostring className, FieldOrCtorArg const *arg) {
   rostring argName = arg->name;
   ListClass *cls = new ListClass
     (lkind, stringc << className << "_" << argName, extractListType(arg->type));
@@ -3925,7 +3945,7 @@ void recordListClass(ListKind lkind, rostring className, CtorArg const *arg) {
   }
 }
 
-void getListClasses(rostring className, CtorArg const *arg) {
+void getListClasses(rostring className, FieldOrCtorArg const *arg) {
   // I would rather visit all the lists, but we don't seem to generate
   // visit() traversals for non-tree nodes, so there is nothing to put
   // inside the nesting
@@ -3939,10 +3959,10 @@ void getListClasses(rostring className, CtorArg const *arg) {
 
 void getListClasses(ASTClass const *c) {
   rostring className = c->name;
-  FOREACH_ASTLIST(CtorArg, c->args, ctorIter) {
+  FOREACH_ASTLIST(FieldOrCtorArg, c->args, ctorIter) {
     getListClasses(className, ctorIter.data());
   }
-  FOREACH_ASTLIST(CtorArg, c->lastArgs, ctorIter) {
+  FOREACH_ASTLIST(FieldOrCtorArg, c->lastArgs, ctorIter) {
     getListClasses(className, ctorIter.data());
   }
 }

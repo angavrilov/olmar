@@ -1,3 +1,19 @@
+2006-05-15  Hendrik Tews  <tews@localhost.localdomain>
+
+	AST
+	* merged AnnotationField into CtorArg, renamed the latter into
+	FieldOrCtorArg
+	* added "field" marked fields to the ocaml ast
+	* added check in generated code that tests for the right number of
+	arguments for ocaml callbacks
+	* enabled nullable flag for fields
+
+	ELSA
+	* added nullable to all fields that might be NULL
+
+	ALL
+	* added virtual destructors and other stuff to silence warning
+
 2006-05-15  Hendrik Tews  <tews@debian>
 
 	AST

@@ -379,7 +379,7 @@ void marshal_to_ocaml(char ** argv, const char * inputFname,
   if(ocamlAstFname.length() != 0)
     of = caml_copy_string(toCStr(ocamlAstFname));
   else
-    of = caml_copy_string(stringc << inputFname << ".ocaml-ast");
+    of = caml_copy_string(stringc << inputFname << ".oast");
 
   // cerr << "call marshal_translation_unit_callback(...., " 
   //      << String_val(of) << ")\n";

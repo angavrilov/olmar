@@ -70,7 +70,7 @@
   ASTSpecFile *file;
   ASTList<ToplevelForm> *formList;
   TF_class *tfClass;
-  ASTList<CtorArg> *ctorArgList;
+  ASTList<FieldOrCtorArg> *ctorArgList;
   ASTList<Annotation> *userDeclList;
   string *str;
   enum AccessCtl accessCtl;
@@ -185,25 +185,25 @@ ClassMembersOpt
   ;
 
 /* empty ctor args can have parens or not, at user's discretion */  
-/* yields ASTList<CtorArg> */
+/* yields ASTList<FieldOrCtorArg> */
 CtorArgsOpt
   : /* empty */
-      { $$ = new ASTList<CtorArg>; }
+      { $$ = new ASTList<FieldOrCtorArg>; }
   | CtorArgs
       { $$ = $1; }
   ;
 
-/* yields ASTList<CtorArg> */
+/* yields ASTList<FieldOrCtorArg> */
 CtorArgs
   : "(" ")"
-      { $$ = new ASTList<CtorArg>; }
+      { $$ = new ASTList<FieldOrCtorArg>; }
   | "(" CtorArgList ")"
       { $$ = $2; }
   ;
 
-/* yields ASTList<CtorArg> */
+/* yields ASTList<FieldOrCtorArg> */
 CtorArgList: Arg
-               { $$ = new ASTList<CtorArg>;
+               { $$ = new ASTList<FieldOrCtorArg>;
                  {
                    string tmp = unbox($1);
                    $$->append(parseCtorArg(tmp));

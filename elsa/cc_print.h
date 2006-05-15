@@ -255,6 +255,9 @@ class TypePrinter {
   
   // and for an E_constructor, nominally Expression::type
   virtual TypeLike const *getE_constructorTypeLike(E_constructor const *c);
+
+  // silence the virtual destructor warning
+  virtual ~TypePrinter() {};
 };
 
 // This class knows how to print out Types in C syntax
