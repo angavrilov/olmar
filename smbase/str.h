@@ -302,6 +302,10 @@ public:
   typedef stringBuilder& (*Manipulator)(stringBuilder &sb);
   stringBuilder& operator<< (Manipulator manip);
 
+  // work around problems invoking non-const non-member funcs
+  // on temporaries
+  stringBuilder &myself() { return *this; }
+
   // stream readers
   friend istream& operator>> (istream &is, stringBuilder &sb)
     { sb.readline(is); return is; }
@@ -328,12 +332,12 @@ public:
 // the real strength of this entire module: construct strings in-place
 // using the same syntax as C++ iostreams.  e.g.:
 //   puts(stringb("x=" << x << ", y=" << y));
-#define stringb(expr) (stringBuilder() << expr)
+#define stringb(expr) (stringBuilder().myself() << expr)
 
 // experimenting with dropping the () in favor of <<
 // (the "c" can be interpreted as "constructor", or maybe just
 // the successor to "b" above)
-#define stringc stringBuilder()
+#define stringc (stringBuilder().myself())
 
 
 // experimenting with using toString as a general method for datatypes
