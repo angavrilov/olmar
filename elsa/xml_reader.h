@@ -282,7 +282,7 @@ class XmlReaderManager {
   // if you no longer want to use a reader, otherwise the reader is
   // deallocated automatically on destruction.
   void unregisterReader(XmlReader *reader);
-  
+
   void reset();
 
   // **** parsing
