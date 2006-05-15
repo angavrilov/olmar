@@ -427,7 +427,8 @@ void XmlTypeWriter::toXml_Variable_properties(Variable *var) {
 
   if (var->linkerVisibleName()) {
     newline();
-    *out << "fullyQualifiedMangledName=" << xmlAttrQuote(var->fullyQualifiedMangledName0());
+    *out << "fullyQualifiedMangledName=";
+    outputXmlAttrQuoted(*out, var->fullyQualifiedMangledName0());
   }
 }
 

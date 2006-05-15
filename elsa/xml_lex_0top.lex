@@ -95,12 +95,16 @@ FLOAT_SUFFIX  [flFL]
 
 /* normal string character: any but quote, newline, or backslash */
 STRCHAR       [^\"\n\\]
+STRCHAR_S     [^\'\n\\]
 
 /* (start of) an escape sequence */
 ESCAPE        ({BACKSL}{ANY})
 
 /* double quote */
 QUOTE         [\"]
+
+/* single quote (apos) */
+SQUOTE          [\']
 
 /* normal character literal character: any but single-quote, newline, or backslash */
 CCCHAR        [^\'\n\\]

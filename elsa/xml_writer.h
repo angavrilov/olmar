@@ -92,43 +92,49 @@ public:
     readyTag(tagname0);
 
     // idPrefix and uniqueId are overloaded on T.
-    out() << '<' << tagname << " _id="
-          << xmlAttrQuote(xmlPrintPointer(ttx.idmgr.idPrefix(obj), ttx.idmgr.uniqueId(obj)));
+    out() << '<' << tagname << " _id=";
+    outputXmlAttrQuotedNoEscape(out(), xmlPrintPointer(ttx.idmgr.idPrefix(obj), ttx.idmgr.uniqueId(obj)));
   }
 
   template <class T>
   void printNameMapItemOpenTag(const char *objname, T const &target) {
     readyTag("_NameMap_Item");
     out() << "<_NameMap_Item"
-          << " name=" << xmlAttrQuote(objname)
-          << " item=" << xmlAttrQuote(xmlPrintPointer(ttx.idmgr.idPrefix(target), ttx.idmgr.uniqueId(target)))
-          << '>';
+          << " name=";
+    outputXmlAttrQuoted(out(), objname);
+    out() << " item=";
+    outputXmlAttrQuoted(out(), xmlPrintPointer(ttx.idmgr.idPrefix(target), ttx.idmgr.uniqueId(target)));
+    out() << '>';
   }
 
   template <class T>
   void printListItemOpenTag(T const &target) {
     readyTag("_List_Item");
-    out() << "<_List_Item item="
-          << xmlAttrQuote(xmlPrintPointer(ttx.idmgr.idPrefix(target), ttx.idmgr.uniqueId(target)))
-          << '>';
+    out() << "<_List_Item item=";
+    outputXmlAttrQuoted(out(), xmlPrintPointer(ttx.idmgr.idPrefix(target), ttx.idmgr.uniqueId(target)));
+    out() << '>';
   }
 
   template <class T>
   void printMapItemOpenTag(const char *key, T const &value) {
     readyTag("_Map_Item");
     out() << "<_Map_Item"
-          << " key=" << xmlAttrQuote(key)
-          << " item=" << xmlAttrQuote(xmlPrintPointer(ttx.idmgr.idPrefix(value), ttx.idmgr.uniqueId(value)))
-          << '>';
+          << " key=";
+    outputXmlAttrQuoted(out(), key);
+    out() << " item=";
+    outputXmlAttrQuoted(out(), xmlPrintPointer(ttx.idmgr.idPrefix(value), ttx.idmgr.uniqueId(value)));
+    out() << '>';
   }
 
   template <class T>
   void printMapItemOpenTag(T const &key, T const &value) {
     readyTag("_Map_Item");
     out() << "<_Map_Item"
-          << " key=" << xmlAttrQuote(xmlPrintPointer(ttx.idmgr.idPrefix(key), ttx.idmgr.uniqueId(key)))
-          << " item=" << xmlAttrQuote(xmlPrintPointer(ttx.idmgr.idPrefix(value), ttx.idmgr.uniqueId(value)))
-          << '>';
+          << " key=";
+    outputXmlAttrQuoted(out(), xmlPrintPointer(ttx.idmgr.idPrefix(key), ttx.idmgr.uniqueId(key)));
+    out() << " item=";
+    outputXmlAttrQuoted(out(), xmlPrintPointer(ttx.idmgr.idPrefix(value), ttx.idmgr.uniqueId(value)));
+    out() << '>';
   }
 
   // template <class T>
@@ -179,9 +185,10 @@ class IncDec {
 
 // TODO: templatize
 
-#define printThing0(NAME, VALUE)                                  \
-  do {                                                            \
-    *out << #NAME "=" << xmlAttrQuote(VALUE);                     \
+#define printThing0(NAME, VALUE)                                   \
+  do {                                                             \
+    *out << #NAME "=";                                             \
+    outputXmlAttrQuoted(*out, VALUE);                              \
   } while(0)
 
 #define printThing(NAME, RAW, VALUE)                                           \
@@ -243,7 +250,8 @@ class IncDec {
   do {                                                            \
     if (VALUE) {                                                  \
       newline();                                                  \
-      *out << #NAME << '=' << xmlAttrQuote(VALUE);                \
+      *out << #NAME "=";                                          \
+      outputXmlAttrQuoted(*out, VALUE);                           \
     }                                                             \
   } while(0)
 

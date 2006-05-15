@@ -9,13 +9,26 @@
   return svalTok(XTOK_NAME);
 }
 
+  /** TODO: dequote the string directly while lexing */
+
   /* string literal */
-"L"?{QUOTE}({STRCHAR}|{ESCAPE})*{QUOTE} {
+{QUOTE}({STRCHAR}|{ESCAPE})*{QUOTE} {
+  return svalTok(XTOK_STRING_LITERAL);
+}
+
+  /* string literal */
+{SQUOTE}({STRCHAR_S}|{ESCAPE})*{SQUOTE} {
   return svalTok(XTOK_STRING_LITERAL);
 }
 
   /* string literal missing final quote */
-"L"?{QUOTE}({STRCHAR}|{ESCAPE})*{EOL}   {
+{QUOTE}({STRCHAR}|{ESCAPE})*{EOL}   {
+    err("string literal missing final `\"'");
+    return svalTok(XTOK_STRING_LITERAL);     // error recovery
+}
+
+  /* string literal missing final quote */
+{SQUOTE}({STRCHAR_S}|{ESCAPE})*{EOL}   {
     err("string literal missing final `\"'");
     return svalTok(XTOK_STRING_LITERAL);     // error recovery
 }
@@ -25,7 +38,11 @@
    * optional backslash is needed so the scanner won't back up in that
    * case; NOTE: this can only happen if the file ends in the string
    * and there is no newline before the EOF */
-"L"?{QUOTE}({STRCHAR}|{ESCAPE})*{BACKSL}? {
+{QUOTE}({STRCHAR}|{ESCAPE})*{BACKSL}? {
+  err("unterminated string literal");
+  yyterminate();
+}
+{SQUOTE}({STRCHAR_S}|{ESCAPE})*{BACKSL}? {
   err("unterminated string literal");
   yyterminate();
 }

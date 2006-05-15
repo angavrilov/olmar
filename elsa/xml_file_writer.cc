@@ -46,7 +46,8 @@ void XmlFileWriter::toXml(SourceLocManager::File *file)
     // FIX: this special situation just breaks all the macros so we do
     // it manually
     newline();
-    *out << "lineLengths=" << xmlAttrQuote(xmlPrintPointer("FI", idmgr.uniqueId(lineLengths)));
+    *out << "lineLengths=";
+    outputXmlAttrQuotedNoEscape(*out,xmlPrintPointer("FI", idmgr.uniqueId(lineLengths)));
 
     printPtr(file, hashLines);
     tagPrinter.tagEnd();
@@ -74,7 +75,8 @@ void XmlFileWriter::toXml_lineLengths(SourceLocManager::File *file)
     // LineLengths to be their own class.
 //    openTagWhole(LineLengths, lineLengths);
     tagPrinter.readyTag("LineLengths");
-    *out << "<LineLengths _id=" << xmlAttrQuote(xmlPrintPointer("FI", idmgr.uniqueId(lineLengths))) << '>';
+    *out << "<LineLengths _id=";
+    outputXmlAttrQuotedNoEscape(*out, xmlPrintPointer("FI", idmgr.uniqueId(lineLengths))) << '>';
 
     // **** sub-data
     // Note: This simple whitespace-separated list is the suggested
@@ -111,7 +113,8 @@ void XmlFileWriter::toXml(HashLineMap *hashLines)
     // "FI" here.
 //    printEmbed(hashLines, directives);
     newline();
-    *out << "directives=" << xmlAttrQuote(xmlPrintPointer("FI", idmgr.uniqueId(&directives)));
+    *out << "directives=";
+    outputXmlAttrQuoted(*out, xmlPrintPointer("FI", idmgr.uniqueId(&directives)));
     tagPrinter.tagEnd();
   }
 
