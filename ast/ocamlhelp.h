@@ -26,6 +26,17 @@ extern "C" {
 		      (x) != Infix_tag  && (x) != Object_tag && \
 		      (x) != Closure_tag && (x) != Lazy_tag)
 
+// returns true on int32 objects (among other custom blocks)
+#define IS_OCAML_INT32(x) (Is_block(x) && Tag_hd(Hd_val(x)) == Custom_tag)
+#define IS_OCAML_STRING(x) (Is_block(x) && Tag_hd(Hd_val(x)) == String_tag)
+
+// code snipped to examine block size & tags
+// cerr << hex << val_loc << dec
+//      << " size " << Wosize_val(val_loc)
+//      << " tag " << Tag_hd(Hd_val(val_loc)) 
+//      << endl << flush;
+
+
 // -------------------------- ocaml helpers -----------------------
 
 // take this only if we really want the ocaml interface

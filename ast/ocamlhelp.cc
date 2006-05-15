@@ -11,5 +11,6 @@ value option_some_constr(value v){
   CAMLlocal1(result);
   result = caml_alloc(1, 0);  // the option cell
   Store_field(result, 0, v);
+  xassert(IS_OCAML_AST_VALUE(result));
   CAMLreturn(result);
 }
