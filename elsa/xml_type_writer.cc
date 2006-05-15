@@ -7,7 +7,6 @@
 #include "xmlhelp.h"            // toXml_int() etc.
 #include "strutil.h"            // DelimStr
 #include "cc_ast.h"             // AST nodes only for AST sub-traversals
-#include "strtokp.h"            // StrtokParse
 
 #define serializeOracle serializeOracle_m
 
