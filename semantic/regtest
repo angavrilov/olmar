@@ -1,0 +1,21 @@
+#!/bin/bash
+
+rm temp.oast
+
+ast_files=$(find .. -name \*.oast -print)
+
+
+for f in $ast_files ; do
+    # echo doint $f
+    ./hashloc -q $f -o temp.oast
+    result=$?
+    if [ ! $result -eq 0 ] ; then
+	echo hashloc exit $result on $f >&2
+    fi
+    diff $f temp.oast
+    result=$?
+    if [ ! $result -eq 0 ] ; then
+	echo difference found with $f >&2
+    fi
+done
+

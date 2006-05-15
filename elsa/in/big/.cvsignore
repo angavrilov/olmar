@@ -6,3 +6,4 @@ hide*
 # my collection of versions of the .i files that have been edited to
 # actually build in my verison of g++
 works
+*.oast

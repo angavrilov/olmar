@@ -89,20 +89,23 @@ and topForm_fun = function
 
 
 and func_fun(declFlags, typeSpecifier, declarator, memberInit_list, 
-	 s_compound, handler_list) =
+	 s_compound, handler_list, statement_opt, bool) =
   assert(match s_compound with | S_compound _ -> true | _ -> false);
   (declFlags_fun declFlags,
    typeSpecifier_fun typeSpecifier,
    declarator_fun declarator,
    List.map memberInit_fun memberInit_list,
    statement_fun s_compound,
-   List.map handler_fun handler_list)
+   List.map handler_fun handler_list,
+   opt_map statement_fun statement_opt,
+   bool_fun bool)
 
 
 
-and memberInit_fun(pQName, argExpression_list) =
+and memberInit_fun(pQName, argExpression_list, statement_opt) =
   (pQName_fun pQName,
-   List.map argExpression_fun argExpression_list)
+   List.map argExpression_fun argExpression_list,
+   opt_map statement_fun statement_opt)
 
 
 
@@ -147,39 +150,46 @@ and pQName_fun = function
 
 
 and typeSpecifier_fun = function
-  | TS_name(sourceLoc, pQName, bool) -> 
+  | TS_name(sourceLoc, cVFlags, pQName, bool) -> 
       TS_name(sourceLoc_fun sourceLoc,
+	      cVFlags_fun cVFlags,
 	      pQName_fun pQName,
 	      bool_fun bool)
 
-  | TS_simple(sourceLoc, simpleTypeId) -> 
+  | TS_simple(sourceLoc, cVFlags, simpleTypeId) -> 
       TS_simple(sourceLoc_fun sourceLoc,
+		cVFlags_fun cVFlags,
 		simpleTypeId_fun simpleTypeId)
 
-  | TS_elaborated(sourceLoc, typeIntr, pQName) -> 
+  | TS_elaborated(sourceLoc, cVFlags, typeIntr, pQName) -> 
       TS_elaborated(sourceLoc_fun sourceLoc,
+		    cVFlags_fun cVFlags,
 		    typeIntr_fun typeIntr,
 		    pQName_fun pQName)
 
-  | TS_classSpec(sourceLoc, typeIntr, pQName_opt, 
+  | TS_classSpec(sourceLoc, cVFlags, typeIntr, pQName_opt, 
 		 baseClassSpec_list, memberList) -> 
       TS_classSpec(sourceLoc_fun sourceLoc,
+		   cVFlags_fun cVFlags,
 		   typeIntr_fun typeIntr,
 		   opt_map pQName_fun pQName_opt,
 		   List.map baseClassSpec_fun baseClassSpec_list,
 		   memberList_fun memberList      )
 
-  | TS_enumSpec(sourceLoc, stringRef_opt, enumerator_list) -> 
+  | TS_enumSpec(sourceLoc, cVFlags, stringRef_opt, enumerator_list) -> 
       TS_enumSpec(sourceLoc_fun sourceLoc,
+		  cVFlags_fun cVFlags,
 		  opt_map string_fun stringRef_opt,
 		  List.map enumerator_fun enumerator_list)
 
-  | TS_type(sourceLoc, cType) -> 
+  | TS_type(sourceLoc, cVFlags, cType) -> 
       TS_type(sourceLoc_fun sourceLoc,
+	      cVFlags_fun cVFlags,
 	      cType_fun cType)
 
-  | TS_typeof(sourceLoc, aSTTypeof) -> 
+  | TS_typeof(sourceLoc, cVFlags, aSTTypeof) -> 
       TS_typeof(sourceLoc_fun sourceLoc,
+		cVFlags_fun cVFlags,
 		aSTTypeof_fun aSTTypeof)
 
 
@@ -222,9 +232,12 @@ and member_fun = function
 		  templateDeclaration_fun templateDeclaration)
 
 
-and declarator_fun(iDeclarator, init_opt) =
+and declarator_fun(iDeclarator, init_opt, 
+		   statement_opt_ctor, statement_opt_dtor) =
   (iDeclarator_fun iDeclarator,
-   opt_map init_fun init_opt)
+   opt_map init_fun init_opt,
+   opt_map statement_fun statement_opt_ctor,
+   opt_map statement_fun statement_opt_dtor)
 
 
 and iDeclarator_fun = function
@@ -350,9 +363,10 @@ and statement_fun = function
   | S_continue(sourceLoc) -> 
       S_continue(sourceLoc_fun sourceLoc)
 
-  | S_return(sourceLoc, fullExpression_opt) -> 
+  | S_return(sourceLoc, fullExpression_opt, statement_opt) -> 
       S_return(sourceLoc_fun sourceLoc,
-	       opt_map fullExpression_fun fullExpression_opt)
+	       opt_map fullExpression_fun fullExpression_opt,
+	       opt_map statement_fun statement_opt)
 
   | S_goto(sourceLoc, stringRef) -> 
       S_goto(sourceLoc_fun sourceLoc,
@@ -399,9 +413,11 @@ and condition_fun = function
       CN_decl(aSTTypeId_fun aSTTypeId)
 
 
-and handler_fun(aSTTypeId, statement) =
+and handler_fun(aSTTypeId, statement_body, expression_opt, statement_gdtor) =
       (aSTTypeId_fun aSTTypeId,
-       statement_fun statement)
+       statement_fun statement_body,
+       opt_map expression_fun expression_opt,
+       opt_map statement_fun statement_gdtor)
 
 
 and expression_fun = function
@@ -430,13 +446,16 @@ and expression_fun = function
   | E_variable(pQName) -> 
       E_variable(pQName_fun pQName)
 
-  | E_funCall(expression, argExpression_list) -> 
-      E_funCall(expression_fun expression,
-		List.map argExpression_fun argExpression_list)
+  | E_funCall(expression_func, argExpression_list, expression_retobj_opt) -> 
+      E_funCall(expression_fun expression_func,
+		List.map argExpression_fun argExpression_list,
+		opt_map expression_fun expression_retobj_opt)
 
-  | E_constructor(typeSpecifier, argExpression_list) -> 
+  | E_constructor(typeSpecifier, argExpression_list, bool, expression_opt) -> 
       E_constructor(typeSpecifier_fun typeSpecifier,
-		    List.map argExpression_fun argExpression_list)
+		    List.map argExpression_fun argExpression_list,
+		    bool_fun bool,
+		    opt_map expression_fun expression_opt)
 
   | E_fieldAcc(expression, pQName) -> 
       E_fieldAcc(expression_fun expression,
@@ -481,19 +500,23 @@ and expression_fun = function
 	       binaryOp_fun binaryOp,
 	       expression_fun expression_src)
 
-  | E_new(bool, argExpression_list, aSTTypeId, argExpressionListOpt_opt) -> 
+  | E_new(bool, argExpression_list, aSTTypeId, argExpressionListOpt_opt,
+	  statement_opt) -> 
       E_new(bool_fun bool,
 	    List.map argExpression_fun argExpression_list,
 	    aSTTypeId_fun aSTTypeId,
-	    opt_map argExpressionListOpt_fun argExpressionListOpt_opt)
+	    opt_map argExpressionListOpt_fun argExpressionListOpt_opt,
+	    opt_map statement_fun statement_opt)
 
-  | E_delete(bool_colon, bool_array, expression_opt) -> 
+  | E_delete(bool_colon, bool_array, expression_opt, statement_opt) -> 
       E_delete(bool_fun bool_colon,
 	       bool_fun bool_array,
-	       opt_map expression_fun expression_opt)
+	       opt_map expression_fun expression_opt,
+	       opt_map statement_fun statement_opt)
 
-  | E_throw(expression_opt) -> 
-      E_throw(opt_map expression_fun expression_opt)
+  | E_throw(expression_opt, statement_opt) -> 
+      E_throw(opt_map expression_fun expression_opt,
+	      opt_map statement_fun statement_opt)
 
   | E_keywordCast(castKeyword, aSTTypeId, expression) -> 
       E_keywordCast(castKeyword_fun castKeyword,
@@ -566,9 +589,10 @@ and init_fun = function
       IN_compound(sourceLoc_fun sourceLoc,
 		  List.map init_fun init_list)
 
-  | IN_ctor(sourceLoc, argExpression_list) -> 
+  | IN_ctor(sourceLoc, argExpression_list, bool) -> 
       IN_ctor(sourceLoc_fun sourceLoc,
-	      List.map argExpression_fun argExpression_list)
+	      List.map argExpression_fun argExpression_list,
+	      bool_fun bool)
 
   | IN_designated(sourceLoc, designator_list, init) -> 
       IN_designated(sourceLoc_fun sourceLoc,
