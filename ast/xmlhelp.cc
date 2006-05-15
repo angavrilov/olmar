@@ -337,113 +337,116 @@ string xmlAttrQuote(const char *src) {
                  << '\'';
 }
 
-// dsw: based on smbase/strutil.cc/parseQuotedString();
-string xmlAttrDeQuote(const char *text) {
-  int len = strlen(text);
+// XML dequoting and unescaping is now done in the lexer: see
+// xml_lex_extra.cc.
 
-  if ( text[0] == '\'' && text[len-1] == '\'' ) {
-    // decode escapes
-    return xmlAttrDecode(text+1, text+len-1, '\'');
-  }
 
-  if ( text[0] == '"' && text[len-1] == '"' ) {
-    // decode escapes
-    return xmlAttrDecode(text+1, text+len-1, '"');
-  }
+// string xmlAttrDeQuote(const char *text) {
+//   int len = strlen(text);
 
-  xformat(stringc << "quoted string is missing quotes: " << text);
-}
+//   if ( text[0] == '\'' && text[len-1] == '\'' ) {
+//     // decode escapes
+//     return xmlAttrDecode(text+1, text+len-1, '\'');
+//   }
 
-// process characters between 'src' and 'end'.  The 'end' is so we don't have
-// to create a new string just to strip quotes.
-string xmlAttrDecode(char const *src, const char *end, char delim)
-{
-  stringBuilder result;
-  result.reserve(end-src);
-  while (src != end) {
-    // check for newlines
-    if (*src == '\n') {
-      xformat("unescaped newline (unterminated string)");
-    }
+//   if ( text[0] == '"' && text[len-1] == '"' ) {
+//     // decode escapes
+//     return xmlAttrDecode(text+1, text+len-1, '"');
+//   }
 
-    // check for the delimiter
-    if (*src == delim) {
-      xformat(stringc << "unescaped delimiter (" << delim << ") in "
-              << substring(src,end-src));
-    }
+//   xformat(stringc << "quoted string is missing quotes: " << text);
+// }
 
-    // check for normal characters
-    if (*src != '&') {
-      // normal character
-      result << char(*src);
-      src++;
-      continue;
-    }
-    src++;                      // advance past amperstand
+// // process characters between 'src' and 'end'.  The 'end' is so we don't have
+// // to create a new string just to strip quotes.
+// string xmlAttrDecode(char const *src, const char *end, char delim)
+// {
+//   stringBuilder result;
+//   result.reserve(end-src);
+//   while (src != end) {
+//     // check for newlines
+//     if (*src == '\n') {
+//       xformat("unescaped newline (unterminated string)");
+//     }
 
-    // checked for named escape codes
-#define DO_ESCAPE(NAME, CHAR)                                           \
-    if (strncmp(NAME ##_CODE, src, (sizeof(NAME ##_CODE)-1)) == 0) {    \
-      result << char(CHAR);                                             \
-      src += (sizeof(NAME ##_CODE)-1);                                  \
-      continue;                                                         \
-    }
+//     // check for the delimiter
+//     if (*src == delim) {
+//       xformat(stringc << "unescaped delimiter (" << delim << ") in "
+//               << substring(src,end-src));
+//     }
 
-    DO_ESCAPE(lt,   '<');
-    DO_ESCAPE(gt,   '>');
-    DO_ESCAPE(amp,  '&');
-    DO_ESCAPE(quot, '"');
-    DO_ESCAPE(apos, '\'');
-#undef DO_ESCAPE
+//     // check for normal characters
+//     if (*src != '&') {
+//       // normal character
+//       result << char(*src);
+//       src++;
+//       continue;
+//     }
+//     src++;                      // advance past amperstand
 
-    // check for numerical escapes
-    if (*src != '#') {
-      xformat(stringc << "use of an unimplemented or illegal amperstand escape (" << *src << ")");
-    }
-    ++src;
+//     // checked for named escape codes
+// #define DO_ESCAPE(NAME, CHAR)
+//     if (strncmp(NAME ##_CODE, src, (sizeof(NAME ##_CODE)-1)) == 0) {
+//       result << char(CHAR);
+//       src += (sizeof(NAME ##_CODE)-1);
+//       continue;
+//     }
 
-    // process decimal and hex escapes: decimal '&#DDD;' where D is a
-    // decimal digit or hexadecimal '&#xHH;' where H is a hex digit.
-    if (!(*src == 'x' || isdigit(*src))) {
-      xformat(stringc << "illegal charcter after '&#' (" << *src << ")");
-    }
+//     DO_ESCAPE(lt,   '<');
+//     DO_ESCAPE(gt,   '>');
+//     DO_ESCAPE(amp,  '&');
+//     DO_ESCAPE(quot, '"');
+//     DO_ESCAPE(apos, '\'');
+// #undef DO_ESCAPE
 
-    // are we doing hex or decimal processing?
-    //
-    // http://www.w3.org/TR/2004/REC-xml-20040204/#NT-CharRef "If the
-    // character reference begins with "&#x", the digits and letters
-    // up to the terminating ; provide a hexadecimal representation of
-    // the character's code point in ISO/IEC 10646. If it begins just
-    // with "&#", the digits up to the terminating ; provide a decimal
-    // representation of the character's code point."
-    bool hex = (*src == 'x');
-    if (hex) {
-      src++;
+//     // check for numerical escapes
+//     if (*src != '#') {
+//       xformat(stringc << "use of an unimplemented or illegal amperstand escape (" << *src << ")");
+//     }
+//     ++src;
 
-      // strtoul is willing to skip leading whitespace, so I need
-      // to catch it myself
-      if (!isxdigit(*src)) {
-        // dsw: NOTE: in the non-hex case, the leading digit has
-        // already been seen
-        xformat("non-hex digit following '&#x' escape");
-      }
-      xassert(isxdigit(*src));
-    } else {
-      xassert(isdigit(*src));
-    }
+//     // process decimal and hex escapes: decimal '&#DDD;' where D is a
+//     // decimal digit or hexadecimal '&#xHH;' where H is a hex digit.
+//     if (!(*src == 'x' || isdigit(*src))) {
+//       xformat(stringc << "illegal charcter after '&#' (" << *src << ")");
+//     }
 
-    // parse the digit
-    char const *endptr;
-    unsigned long val = strtoul(src, (char**)&endptr, hex? 16 : 10);
-    if (src == endptr) {
-      // this can't happen with the octal escapes because
-      // there is always at least one valid digit
-      xformat("invalid '&#' escape");
-    }
+//     // are we doing hex or decimal processing?
+//     //
+//     // http://www.w3.org/TR/2004/REC-xml-20040204/#NT-CharRef "If the
+//     // character reference begins with "&#x", the digits and letters
+//     // up to the terminating ; provide a hexadecimal representation of
+//     // the character's code point in ISO/IEC 10646. If it begins just
+//     // with "&#", the digits up to the terminating ; provide a decimal
+//     // representation of the character's code point."
+//     bool hex = (*src == 'x');
+//     if (hex) {
+//       src++;
 
-    // keep it
-    result << ((char)(unsigned char)val);    // possible truncation..
-    src = endptr;
-  }
-  return result;
-}
+//       // strtoul is willing to skip leading whitespace, so I need
+//       // to catch it myself
+//       if (!isxdigit(*src)) {
+//         // dsw: NOTE: in the non-hex case, the leading digit has
+//         // already been seen
+//         xformat("non-hex digit following '&#x' escape");
+//       }
+//       xassert(isxdigit(*src));
+//     } else {
+//       xassert(isdigit(*src));
+//     }
+
+//     // parse the digit
+//     char const *endptr;
+//     unsigned long val = strtoul(src, (char**)&endptr, hex? 16 : 10);
+//     if (src == endptr) {
+//       // this can't happen with the octal escapes because
+//       // there is always at least one valid digit
+//       xformat("invalid '&#' escape");
+//     }
+
+//     // keep it
+//     result << ((char)(unsigned char)val);    // possible truncation..
+//     src = endptr;
+//   }
+//   return result;
+// }

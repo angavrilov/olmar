@@ -72,10 +72,14 @@ inline string xmlAttrQuote(rostring src) { return xmlAttrQuote(src.c_str()); }
 // string xmlAttrEncode(char const *src);
 // string xmlAttrEncode(char const *p, int len);
 
-string xmlAttrDeQuote(const char *text);
-// dsw: This function does not process all XML escapes.  I only
-// process the ones that I use in the partner encoding function
-// xmlAttrEncode().
-string xmlAttrDecode(char const *src, const char *end, char delim);
+
+// Use of xmlAttrDeQuote() is now almost certainly an error since the lexer
+// returns dequoted/unescaped strings.
+
+// string xmlAttrDeQuote(const char *text);
+// // dsw: This function does not process all XML escapes.  I only
+// // process the ones that I use in the partner encoding function
+// // xmlAttrEncode().
+// string xmlAttrDecode(char const *src, const char *end, char delim);
 
 #endif // XMLHELP_H

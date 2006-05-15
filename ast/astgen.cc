@@ -2557,69 +2557,69 @@ void XmlParserGen::emitXmlField_AttributeParseRule
   //  cout << "emitXmlField_AttributeParseRule() name:" << name << ", type:" << type << endl;
   if (streq(type, "string")) {
     parser1_defs << "  case XTOK_" << name << ":\n";
-    parser1_defs << "    obj->" << name << " = strdup(xmlAttrDeQuote(strValue));\n";
+    parser1_defs << "    obj->" << name << " = strdup(strValue);\n";
     parser1_defs << "    break;\n";
   }
   else if (streq(type, "StringRef")) {
     parser1_defs << "  case XTOK_" << name << ":\n";
-    parser1_defs << "    obj->" << name << " = manager->strTable(xmlAttrDeQuote(strValue));\n";
+    parser1_defs << "    obj->" << name << " = manager->strTable(strValue);\n";
     parser1_defs << "    break;\n";
   }
   else if (streq(type, "bool")) {
     parser1_defs << "  case XTOK_" << name << ":\n";
-    parser1_defs << "    fromXml_bool(obj->" << name << ", xmlAttrDeQuote(strValue).c_str());\n";
+    parser1_defs << "    fromXml_bool(obj->" << name << ", strValue);\n";
     parser1_defs << "    break;\n";
   }
   else if (streq(type, "int")) {
     parser1_defs << "  case XTOK_" << name << ":\n";
-    parser1_defs << "    fromXml_int(obj->" << name << ", xmlAttrDeQuote(strValue).c_str());\n";
+    parser1_defs << "    fromXml_int(obj->" << name << ", strValue);\n";
     parser1_defs << "    break;\n";
   }
   else if (streq(type, "unsigned int")) {
     parser1_defs << "  case XTOK_" << name << ":\n";
     parser1_defs << "    fromXml_unsigned_int(obj->" << name
-                 << ", xmlAttrDeQuote(strValue).c_str());\n";
+                 << ", strValue);\n";
     parser1_defs << "    break;\n";
   }
   else if (streq(type, "long")) {
     parser1_defs << "  case XTOK_" << name << ":\n";
-    parser1_defs << "    fromXml_long(obj->" << name << ", xmlAttrDeQuote(strValue).c_str());\n";
+    parser1_defs << "    fromXml_long(obj->" << name << ", strValue);\n";
     parser1_defs << "    break;\n";
   }
   else if (streq(type, "unsigned long")) {
     parser1_defs << "  case XTOK_" << name << ":\n";
     parser1_defs << "    fromXml_unsigned_long(obj->" << name
-                 << ", xmlAttrDeQuote(strValue).c_str());\n";
+                 << ", strValue);\n";
     parser1_defs << "    break;\n";
   }
   else if (streq(type, "double")) {
     parser1_defs << "  case XTOK_" << name << ":\n";
-    parser1_defs << "    fromXml_double(obj->" << name << ", xmlAttrDeQuote(strValue).c_str());\n";
+    parser1_defs << "    fromXml_double(obj->" << name << ", strValue);\n";
     parser1_defs << "    break;\n";
   }
   else if (streq(type, "SourceLoc")) {
     parser1_defs << "  case XTOK_" << name << ":\n";
-    parser1_defs << "    fromXml_SourceLoc(obj->" << name << ", xmlAttrDeQuote(strValue).c_str());\n";
+    parser1_defs << "    fromXml_SourceLoc(obj->" << name << ", strValue);\n";
     parser1_defs << "    break;\n";
   }
   else if (isListType(type)) {
     parser1_defs << "  case XTOK_" << name << ":\n";
     parser1_defs << "    manager->unsatLinks_List.append(new UnsatLink("
-                 << "(void*) &(obj->" << name << "), xmlAttrDeQuote(strValue), "
+                 << "(void*) &(obj->" << name << "), strValue, "
                  << "XTOK_List_" << baseName << "_" << name << ", true));\n";
     parser1_defs << "    break;\n";
   }
   else if (isFakeListType(type)) {
     parser1_defs << "  case XTOK_" << name << ":\n";
     parser1_defs << "    manager->unsatLinks_List.append(new UnsatLink("
-                 << "(void*) &(obj->" << name << "), xmlAttrDeQuote(strValue), "
+                 << "(void*) &(obj->" << name << "), strValue, "
                  << "XTOK_List_" << baseName << "_" << name << ", true));\n";
     parser1_defs << "    break;\n";
   }
   else if (isTreeNode(type) || (isTreeNodePtr(type))) {
     parser1_defs << "  case XTOK_" << name << ":\n";
     parser1_defs << "    manager->unsatLinks.append(new UnsatLink("
-                 << "(void*) &(obj->" << name << "), xmlAttrDeQuote(strValue),"
+                 << "(void*) &(obj->" << name << "), strValue,"
                  << "XTOK_" << extractNodeType(type) << ", false));\n";
     parser1_defs << "    break;\n";
   }
@@ -2627,7 +2627,7 @@ void XmlParserGen::emitXmlField_AttributeParseRule
     // catch-all for objects
     parser1_defs << "  case XTOK_" << name << ":\n";
     parser1_defs << "    manager->unsatLinks.append(new UnsatLink("
-                 << "(void*) &(obj->" << name << "), xmlAttrDeQuote(strValue),"
+                 << "(void*) &(obj->" << name << "), strValue,"
                  << "XTOK_" << extractNodeType(type) << ", false));\n";
     parser1_defs << "    break;\n";
   } else if (amod && amod->hasModPrefix("xmlEmbed")) {
@@ -2635,13 +2635,13 @@ void XmlParserGen::emitXmlField_AttributeParseRule
     rostring kind = amod->getModSuffixFromPrefix("xmlEmbed");
     parser1_defs << "  case XTOK_" << name << ":\n";
     parser1_defs << "    manager->unsatLinks" << kind << ".append(new UnsatLink("
-                 << "(void*) &(obj->" << name << "), xmlAttrDeQuote(strValue),"
+                 << "(void*) &(obj->" << name << "), strValue,"
                  << "XTOK" << kind << "_" << baseName << "_" << name << ", true));\n";
     parser1_defs << "    break;\n";
   } else {
     // catch-all for non-objects
     parser1_defs << "  case XTOK_" << name << ":\n";
-    parser1_defs << "    fromXml(obj->" << name << ", xmlAttrDeQuote(strValue).c_str());\n";
+    parser1_defs << "    fromXml(obj->" << name << ", strValue);\n";
     parser1_defs << "    break;\n";
   }
 }
