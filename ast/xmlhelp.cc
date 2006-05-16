@@ -62,19 +62,19 @@ string xmlPrintPointer(char const *label, xmlUniqueId_t id) {
 }
 
 
-string toXml_bool(bool b) {
-  if (b) return "true";
-  else return "false";
-}
+// string toXml_bool(bool b) {
+//   if (b) return "true";
+//   else return "false";
+// }
 
 void fromXml_bool(bool &b, const char *str) {
   b = streq(str, "true");
 }
 
 
-string toXml_int(int i) {
-  return stringc << i;
-}
+// string toXml_int(int i) {
+//   return stringc << i;
+// }
 
 void fromXml_int(int &i, const char *str) {
   long i0 = strtol(str, NULL, 10);
@@ -82,9 +82,9 @@ void fromXml_int(int &i, const char *str) {
 }
 
 
-string toXml_long(long i) {
-  return stringc << i;
-}
+// string toXml_long(long i) {
+//   return stringc << i;
+// }
 
 void fromXml_long(long &i, const char *str) {
   long i0 = strtol(str, NULL, 10);
@@ -92,9 +92,9 @@ void fromXml_long(long &i, const char *str) {
 }
 
 
-string toXml_unsigned_int(unsigned int i) {
-  return stringc << i;
-}
+// string toXml_unsigned_int(unsigned int i) {
+//   return stringc << i;
+// }
 
 void fromXml_unsigned_int(unsigned int &i, const char *str) {
   unsigned long i0 = strtoul(str, NULL, 10);
@@ -102,9 +102,9 @@ void fromXml_unsigned_int(unsigned int &i, const char *str) {
 }
 
 
-string toXml_unsigned_long(unsigned long i) {
-  return stringc << i;
-}
+// string toXml_unsigned_long(unsigned long i) {
+//   return stringc << i;
+// }
 
 void fromXml_unsigned_long(unsigned long &i, const char *str) {
   unsigned long i0 = strtoul(str, NULL, 10);
@@ -112,9 +112,9 @@ void fromXml_unsigned_long(unsigned long &i, const char *str) {
 }
 
 
-string toXml_double(double x) {
-  return stringc << x;
-}
+// string toXml_double(double x) {
+//   return stringc << x;
+// }
 
 void fromXml_double(double &x, const char *str) {
   x = atof(str);
@@ -240,11 +240,6 @@ void fromXml_SourceLoc(SourceLoc &loc, const char *str) {
 // int const gt_codelen   = strlen(gt_CODE);
 // int const amp_codelen  = strlen(amp_CODE);
 // int const quot_codelen = strlen(quot_CODE);
-
-ostream &outputXmlAttrQuotedNoEscape(ostream &o, const char *src)
-{
-  return o << '\'' << src << '\'';
-}
 
 // Output SRC with escaping and quotes to output stream directly.  This is
 // more efficient than constructing strings and then outputting that.

@@ -34,22 +34,29 @@ string xmlPrintPointer(char const *label, xmlUniqueId_t id);
 // otherwise what happens is that if a toXml() for some enum flag is
 // missing then the C++ compiler will just use the toXml(bool)
 // instead, which is a bug.
-string toXml_bool(bool b);
+
+// string toXml_bool(bool b);
+static inline const char * toXml_bool(bool b) { return b ? "true" : "false"; }
 void fromXml_bool(bool &b, const char *str);
 
-string toXml_int(int i);
+// string toXml_int(int i);
+static inline int toXml_int(int i) { return i; }
 void fromXml_int(int &i, const char *str);
 
-string toXml_long(long i);
+// string toXml_long(long i);
+static inline long toXml_long(long i) { return i; }
 void fromXml_long(long &i, const char *str);
 
-string toXml_unsigned_int(unsigned int i);
+// string toXml_unsigned_int(unsigned int i);
+static inline unsigned int toXml_unsigned_int(unsigned int i) { return i; }
 void fromXml_unsigned_int(unsigned int &i, const char *str);
 
-string toXml_unsigned_long(unsigned long i);
+// string toXml_unsigned_long(unsigned long i);
+static inline unsigned long toXml_unsigned_long(unsigned long i) { return i; }
 void fromXml_unsigned_long(unsigned long &i, const char *str);
 
-string toXml_double(double x);
+// string toXml_double(double x);
+static inline double toXml_double(double i) { return i; }
 void fromXml_double(double &x, const char *str);
 
 string toXml_SourceLoc(SourceLoc loc);
@@ -60,11 +67,18 @@ ostream &outputXmlAttrQuoted(ostream &o, const char *src);
 static inline ostream &outputXmlAttrQuoted(ostream &o, string const &src)
 { return outputXmlAttrQuoted(o, src.c_str()); }
 
-// output SRC with quotes, but no encoding.  Only use with strings that do not
+// Output SRC with quotes, but no encoding.  Only use with objects that do not
 // contain ["'<>&]
-ostream &outputXmlAttrQuotedNoEscape(ostream &o, const char *src);
-static inline ostream &outputXmlAttrQuotedNoEscape(ostream &o, string const &src)
-{ return outputXmlAttrQuotedNoEscape(o, src.c_str()); }
+//
+// Works for any type with ostream insertion operators, e.g. const char*,
+// string, int, ...  Avoiding going to a string improves serialization
+// performance a lot.
+template <typename T>
+inline
+ostream &outputXmlAttrQuotedNoEscape(ostream &o, T src)
+{
+  return o << '\'' << src << '\'';
+}
 
 // for quoting and unquoting xml attribute strings
 string xmlAttrQuote(const char *src);
