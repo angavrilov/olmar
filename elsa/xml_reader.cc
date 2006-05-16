@@ -18,8 +18,8 @@ void XmlReader::setManager(XmlReaderManager *manager0) {
   manager = manager0;
 }
 
-void XmlReader::userError(char const *msg) {
-  manager->userError(msg);
+void XmlReader::xmlUserFatalError(char const *msg) {
+  manager->xmlUserFatalError(msg);
 }
 
 void XmlReaderManager::registerReader(XmlReader *reader) {
@@ -51,13 +51,13 @@ void XmlReaderManager::parseOneTopLevelTag() {
 void XmlReaderManager::parseOneTagOrDatum() {
   // state: looking for a tag start
   if (lexer.haveSeenEof()) {
-    userError("unexpected EOF while looking for '<' of an open tag");
+    xmlUserFatalError("unexpected EOF while looking for '<' of an open tag");
   }
   int start = lexer.getToken();
   //      printf("start:%s\n", lexer.tokenKindDesc(start).c_str());
   switch(start) {
   default:
-    userError("unexpected token while looking for '<' of an open tag");
+    xmlUserFatalError("unexpected token while looking for '<' of an open tag");
     break;
   case XTOK_NAME:
     // this is raw data in between tags
@@ -122,14 +122,14 @@ void XmlReaderManager::parseOneTagOrDatum() {
     // state: we saw a stand-alone tag.  FIX: I suppose I should
     // generalize this, but for now there is only one stand-alone tag
 //      if (!tag == XTOK___Link) {
-    userError("illegal stand-alone tag");
+    xmlUserFatalError("illegal stand-alone tag");
 //      }
 //      UnsatBiLink *ul = (UnsatBiLink*) topTemp;
 //      if (!ul->from) {
-//        userError("missing 'from' field on __Link tag");
+//        xmlUserFatalError("missing 'from' field on __Link tag");
 //      }
 //      if (!ul->to) {
-//        userError("missing 'to' field on __Link tag");
+//        xmlUserFatalError("missing 'to' field on __Link tag");
 //      }
 //      unsatBiLinks.append(ul);
 //      // we don't need it on the stack anymore
@@ -141,23 +141,23 @@ void XmlReaderManager::parseOneTagOrDatum() {
   // state: read a close tag name
   int closeTag = lexer.getToken();
   if (!closeTag) {
-    userError("unexpected file termination while looking for a close tag name");
+    xmlUserFatalError("unexpected file termination while looking for a close tag name");
   }
   if (nodeStack.isEmpty()) {
-    userError("too many close tags");
+    xmlUserFatalError("too many close tags");
   }
   lastNode = nodeStack.pop();
   lastKind = *kindStack.pop();
   if (lastKind != closeTag) {
-    userError(stringc << "close tag " << lexer.tokenKindDesc(closeTag)
-              << " does not match open tag " << lexer.tokenKindDesc(lastKind));
+    xmlUserFatalError(stringc << "close tag " << lexer.tokenKindDesc(closeTag)
+                      << " does not match open tag " << lexer.tokenKindDesc(lastKind));
   }
 
   // state: read the '>' after a close tag
   int closeGreaterThan = lexer.getToken();
   switch(closeGreaterThan) {
-  default: userError("unexpected token while looking for '>' of a close tag");
-  case 0: userError("unexpected file termination while looking for '>' of a close tag");
+  default: xmlUserFatalError("unexpected token while looking for '>' of a close tag");
+  case 0: xmlUserFatalError("unexpected file termination while looking for '>' of a close tag");
   case XTOK_GREATERTHAN:
     break;
   }
@@ -171,7 +171,7 @@ void XmlReaderManager::parseOneTagOrDatum() {
 
     // what kind of thing is next on the stack?
     if (nodeStack.isEmpty()) {
-      userError("a _List_Item tag not immediately under a List");
+      xmlUserFatalError("a _List_Item tag not immediately under a List");
     }
     void *listNode = nodeStack.top();
     int listKind = *kindStack.top();
@@ -184,13 +184,13 @@ void XmlReaderManager::parseOneTagOrDatum() {
            || listKindCat == KC_SObjList
            || listKindCat == KC_ArrayStack)
         )) {
-      userError("a _List_Item tag not immediately under a List");
+      xmlUserFatalError("a _List_Item tag not immediately under a List");
     }
 
     // find the Node pointed to by the item; it should have been seen
     // by now
     if (!itemNode->to) {
-      userError("no 'to' field for this _List_Item tag");
+      xmlUserFatalError("no 'to' field for this _List_Item tag");
     }
     void *pointedToItem = id2obj.queryif(itemNode->to);
     if (pointedToItem) {
@@ -198,7 +198,7 @@ void XmlReaderManager::parseOneTagOrDatum() {
 //       cout << "parseOneTagOrDatum, itemNode->to: " << itemNode->to << endl;
       append2List(listNode, listKind, pointedToItem);
     } else {
-      if (!xmlDanglingPointersAllowed) userError("no Node pointed to by _List_Item");
+      if (!xmlDanglingPointersAllowed) xmlUserFatalError("no Node pointed to by _List_Item");
     }
   }
 
@@ -211,14 +211,14 @@ void XmlReaderManager::parseOneTagOrDatum() {
 
     // what kind of thing is next on the stack?
     if (nodeStack.isEmpty()) {
-      userError("a _NameMap_Item tag not immediately under a Map");
+      xmlUserFatalError("a _NameMap_Item tag not immediately under a Map");
     }
     void *mapNode = nodeStack.top();
     int mapKind = *kindStack.top();
     KindCategory mapKindCat;
     kind2kindCat(mapKind, &mapKindCat);
     if (!(mapNode && (mapKindCat == KC_StringRefMap || mapKindCat == KC_StringSObjDict))) {
-      userError("a _NameMap_Item tag not immediately under a Map");
+      xmlUserFatalError("a _NameMap_Item tag not immediately under a Map");
     }
 
     // find the Node pointed to by the item; it should have been seen
@@ -229,7 +229,7 @@ void XmlReaderManager::parseOneTagOrDatum() {
 //       cout << "parseOneTagOrDatum, nameNode->to: " << nameNode->to << endl;
       insertIntoNameMap(mapNode, mapKind, nameNode->from, pointedToItem);
     } else {
-      if (!xmlDanglingPointersAllowed) userError("no Node pointed to by _NameMap_Item");
+      if (!xmlDanglingPointersAllowed) xmlUserFatalError("no Node pointed to by _NameMap_Item");
     }
 
     // FIX: we should probably delete the NameMapItem
@@ -244,14 +244,14 @@ void XmlReaderManager::parseOneTagOrDatum() {
 
     // what kind of thing is next on the stack?
     if (nodeStack.isEmpty()) {
-      userError("a _Map_Item tag not immediately under a Map");
+      xmlUserFatalError("a _Map_Item tag not immediately under a Map");
     }
     void *mapNode = nodeStack.top();
     int mapKind = *kindStack.top();
     KindCategory mapKindCat;
     kind2kindCat(mapKind, &mapKindCat);
     if (!(mapNode && (mapKindCat == KC_PtrMap))) {
-      userError("a _Map_Item tag not immediately under a Map");
+      xmlUserFatalError("a _Map_Item tag not immediately under a Map");
     }
 
     // find the Node-s pointed to by both the key and item; they
@@ -263,7 +263,7 @@ void XmlReaderManager::parseOneTagOrDatum() {
 //       cout << "parseOneTagOrDatum, nameNode->to: " << nameNode->to << endl;
       insertIntoMap(mapNode, mapKind, pointedToKey, pointedToItem);
     } else {
-      if (!xmlDanglingPointersAllowed) userError("no Node pointed to by _Map_Item");
+      if (!xmlDanglingPointersAllowed) xmlUserFatalError("no Node pointed to by _Map_Item");
     }
 
     // FIX: we should probably delete the MapItem
@@ -281,29 +281,29 @@ bool XmlReaderManager::readAttributes() {
     int attr = lexer.getToken();
     switch(attr) {
     default: break;             // go on; assume it is a legal attribute tag
-    case 0: userError("unexpected file termination while looking for an attribute name");
+    case 0: xmlUserFatalError("unexpected file termination while looking for an attribute name");
     case XTOK_GREATERTHAN:
       return true;              // container tag
     case XTOK_SLASH:
       attr = lexer.getToken();  // eat the '>' token
       if (attr!=XTOK_GREATERTHAN) {
-        userError("expected '>' after '/' that terminates a stand-alone tag");
+        xmlUserFatalError("expected '>' after '/' that terminates a stand-alone tag");
       }
       return false;             // non-container tag
     }
 
     int eq = lexer.getToken();
     switch(eq) {
-    default: userError("unexpected token while looking for an '='");
-    case 0: userError("unexpected file termination while looking for an '='");
+    default: xmlUserFatalError("unexpected token while looking for an '='");
+    case 0: xmlUserFatalError("unexpected file termination while looking for an '='");
     case XTOK_EQUAL:
       break;                    // go on
     }
 
     int value = lexer.getToken();
     switch(value) {
-    default: userError("unexpected token while looking for an attribute value");
-    case 0: userError("unexpected file termination while looking for an attribute value");
+    default: xmlUserFatalError("unexpected token while looking for an attribute value");
+    case 0: xmlUserFatalError("unexpected file termination while looking for an attribute value");
     case XTOK_INT_LITERAL:
       // get it out of yytext below
       break;
@@ -322,7 +322,7 @@ bool XmlReaderManager::readAttributes() {
       // DEBUG1
 //       cout << "readAttributes: _id=" << id0 << endl;
       if (id2obj.isMapped(id0)) {
-        userError(stringc << "this _id is taken: " << id0);
+        xmlUserFatalError(stringc << "this _id is taken: " << id0);
       }
       id2obj.add(id0, nodeStack.top());
       if (recordKind(*kindStack.top())) {
@@ -333,7 +333,7 @@ bool XmlReaderManager::readAttributes() {
     else if (*kindStack.top() == XTOK__List_Item) {
       switch(attr) {
       default:
-        userError("illegal attribute for _List_Item");
+        xmlUserFatalError("illegal attribute for _List_Item");
         break;
       case XTOK_item:
         static_cast<ListItem*>(nodeStack.top())->to =
@@ -345,7 +345,7 @@ bool XmlReaderManager::readAttributes() {
     else if (*kindStack.top() == XTOK__NameMap_Item) {
       switch(attr) {
       default:
-        userError("illegal attribute for _NameMap_Item");
+        xmlUserFatalError("illegal attribute for _NameMap_Item");
         break;
       case XTOK_name:
         static_cast<NameMapItem*>(nodeStack.top())->from =
@@ -361,7 +361,7 @@ bool XmlReaderManager::readAttributes() {
     else if (*kindStack.top() == XTOK__Map_Item) {
       switch(attr) {
       default:
-        userError("illegal attribute for _Map_Item");
+        xmlUserFatalError("illegal attribute for _Map_Item");
         break;
       case XTOK_key:
         static_cast<MapItem*>(nodeStack.top())->from =
@@ -377,7 +377,7 @@ bool XmlReaderManager::readAttributes() {
 //      else if (*kindStack.top() == XTOK___Link) {
 //        switch(attr) {
 //        default:
-//          userError("illegal attribute for __Link");
+//          xmlUserFatalError("illegal attribute for __Link");
 //          break;
 //        case XTOK_from:
 //          static_cast<UnsatBiLink*>(nodeStack.top())->from =
@@ -395,7 +395,7 @@ bool XmlReaderManager::readAttributes() {
     }
   }
   if (!nodeStack.isEmpty()) {
-    userError("missing closing tags at eof");
+    xmlUserFatalError("missing closing tags at eof");
   }
   // stacks should not be out of sync
   xassert(kindStack.isEmpty());
@@ -484,7 +484,7 @@ void XmlReaderManager::insertIntoNameMap(void *map0, int mapKind, StringRef name
   xassert(map0);
   StringRefMap<char> *map = static_cast<StringRefMap<char>*>(map0);
   if (map->get(name)) {
-    userError(stringc << "duplicate name " << name << " in map");
+    xmlUserFatalError(stringc << "duplicate name " << name << " in map");
   }
   map->add(name, (char*)datum);
 }
@@ -494,17 +494,17 @@ void XmlReaderManager::insertIntoMap(void *map0, int mapKind, void *key, void *i
   PtrMap<void, void> *map = static_cast<PtrMap<void, void>*>(map0);
   if (map->get(key)) {
     // there is no good way to print out the key
-    userError(stringc << "duplicate key in map");
+    xmlUserFatalError(stringc << "duplicate key in map");
   }
   map->add(key, item);
 }
 
-void XmlReaderManager::userError(char const *msg) {
+void XmlReaderManager::xmlUserFatalError(char const *msg) {
   stringBuilder msg0;
   if (inputFname) {
-    msg0 << inputFname << ":";
+    msg0 << inputFname << ':';
   }
-  msg0 << lexer.linenumber << ":" << msg;
+  msg0 << lexer.linenumber << ':' << msg;
   THROW(xBase(msg0));
   xfailure("should not get here");
 }
@@ -543,7 +543,7 @@ void XmlReaderManager::satisfyLinks_Nodes() {
         }
       }
     } else {
-      if (!xmlDanglingPointersAllowed) userError(stringc << "unsatisfied node link: " << ul->id);
+      if (!xmlDanglingPointersAllowed) xmlUserFatalError(stringc << "unsatisfied node link: " << ul->id);
     }
   }
   // remove the links
@@ -560,7 +560,7 @@ void XmlReaderManager::satisfyLinks_Lists() {
     // pointer to void; see the note in the if below.
     ASTList<char> *obj = reinterpret_cast<ASTList<char>*>(id2obj.queryif(ul->id));
     if (!obj) {
-      if (!xmlDanglingPointersAllowed) userError(stringc << "unsatisfied List link: " << ul->id);
+      if (!xmlDanglingPointersAllowed) xmlUserFatalError(stringc << "unsatisfied List link: " << ul->id);
       continue;
     }
 
@@ -673,7 +673,7 @@ void XmlReaderManager::satisfyLinks_Maps() {
     // pointer to void; see the note in the if below.
     StringRefMap<char> *obj = reinterpret_cast<StringRefMap<char>*>(id2obj.queryif(ul->id));
     if (!obj) {
-      if (!xmlDanglingPointersAllowed) userError(stringc << "unsatisfied Map link: " << ul->id);
+      if (!xmlDanglingPointersAllowed) xmlUserFatalError(stringc << "unsatisfied Map link: " << ul->id);
       continue;
     }
 
@@ -711,11 +711,11 @@ void XmlReaderManager::satisfyLinks_Maps() {
 //      // NOTE: these are different from unidirectional links: you really
 //      // shouldn't make one unless both parties can be found.
 //      if (!from) {
-//        userError("Unsatisfied bidirectional link: 'from' not found");
+//        xmlUserFatalError("Unsatisfied bidirectional link: 'from' not found");
 //      }
 //      void *to = id2obj.queryif(ul->to);
 //      if (!to) {
-//        userError("Unsatisfied bidirectional link: 'to' not found");
+//        xmlUserFatalError("Unsatisfied bidirectional link: 'to' not found");
 //      }
 //      *(from) = to;
 //    }

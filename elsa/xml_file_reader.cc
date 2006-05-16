@@ -9,7 +9,7 @@
 void *XmlFileReader::ctorNodeFromTag(int tag) {
   switch(tag) {
   default: return NULL;
-  case 0: userError("unexpected file termination while looking for an open tag name");
+  case 0: xmlUserFatalError("unexpected file termination while looking for an open tag name");
   case XTOK_File:
     return new SourceLocManager::FileData();
     break;
@@ -43,7 +43,7 @@ bool XmlFileReader::registerStringToken(void *target, int kind, char const *yyte
   default: return false; break;
 
   case XTOK_File: {
-    userError("cannot register data with a File tag");
+    xmlUserFatalError("cannot register data with a File tag");
     break;
   }
 
@@ -66,7 +66,7 @@ bool XmlFileReader::registerAttribute(void *target0, int kind, int attr, char co
   case XTOK_File: {
     SourceLocManager::FileData *obj = (SourceLocManager::FileData*)target0;
     switch(attr) {
-    default: userError("illegal attribute for a File tag"); break;
+    default: xmlUserFatalError("illegal attribute for a File tag"); break;
     case XTOK_name: obj->name = manager->strTable(strValue); break;
     case XTOK_numChars: fromXml_int(obj->numChars, strValue); break;
     case XTOK_numLines: fromXml_int(obj->numLines, strValue); break;
@@ -80,7 +80,7 @@ bool XmlFileReader::registerAttribute(void *target0, int kind, int attr, char co
     // currently unused so I turned it off to avoid the compiler warning
 //      ArrayStack<unsigned char> *obj = (ArrayStack<unsigned char>*)target0;
     switch(attr) {
-    default: userError("illegal attribute for a LineLengths tag"); break;
+    default: xmlUserFatalError("illegal attribute for a LineLengths tag"); break;
     }
     break;
   }
@@ -88,7 +88,7 @@ bool XmlFileReader::registerAttribute(void *target0, int kind, int attr, char co
   case XTOK_HashLineMap: {
     HashLineMap *obj = (HashLineMap*) target0;
     switch(attr) {
-    default: userError("illegal attribute for a HashLineMap tag"); break;
+    default: xmlUserFatalError("illegal attribute for a HashLineMap tag"); break;
     case XTOK_ppFname: obj->serializationOnly_set_ppFname(strValue); break;
     case XTOK_directives:
       ulList(_List, directives, XTOK_List_HashLineMap_directives);
@@ -102,7 +102,7 @@ bool XmlFileReader::registerAttribute(void *target0, int kind, int attr, char co
   case XTOK_HashLine: {
     HashLineMap::HashLine *obj = (HashLineMap::HashLine*) target0;
     switch(attr) {
-    default: userError("illegal attribute for a HashLine tag"); break;
+    default: xmlUserFatalError("illegal attribute for a HashLine tag"); break;
     case XTOK_ppLine: fromXml_int(obj->ppLine, strValue); break;
     case XTOK_origLine: fromXml_int(obj->origLine, strValue); break;
     case XTOK_origFname: obj->origFname = manager->strTable(strValue); break;

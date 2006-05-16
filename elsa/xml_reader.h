@@ -180,7 +180,7 @@ class XmlReader {
   void setManager(XmlReaderManager *manager0);
 
   protected:
-  void userError(char const *msg) NORETURN;
+  void xmlUserFatalError(char const *msg) NORETURN;
 
   // **** virtual API
   public:
@@ -306,7 +306,7 @@ class XmlReaderManager {
   // **** parsing result
   public:
   // report an error to the user with source location information
-  void userError(char const *msg) NORETURN;
+  void xmlUserFatalError(char const *msg) NORETURN;
   // are we at the top level during parsing?
   bool atTopLevel() {return nodeStack.isEmpty();}
   // return the top of the stack: the one tag that was parsed

@@ -381,7 +381,7 @@ bool XmlTypeReader::convertNameMap2StringSObjDict
 void *XmlTypeReader::ctorNodeFromTag(int tag) {
   switch(tag) {
   default: return NULL; break;
-  case 0: userError("unexpected file termination while looking for an open tag name");
+  case 0: xmlUserFatalError("unexpected file termination while looking for an open tag name");
 
   // **** Types
   case XTOK_CVAtomicType: return new CVAtomicType((AtomicType*)0, (CVFlags)0);
@@ -514,7 +514,7 @@ bool XmlTypeReader::registerAttribute(void *target, int kind, int attr, char con
 
 void XmlTypeReader::registerAttr_CVAtomicType(CVAtomicType *obj, int attr, char const *strValue) {
   switch(attr) {
-  default: userError("illegal attribute for a CVAtomicType"); break;
+  default: xmlUserFatalError("illegal attribute for a CVAtomicType"); break;
   case XTOK_atomic: ul(atomic, XTOK_AtomicType); break;
   case XTOK_cv: fromXml(obj->cv, strValue); break;
   }
@@ -522,7 +522,7 @@ void XmlTypeReader::registerAttr_CVAtomicType(CVAtomicType *obj, int attr, char 
 
 void XmlTypeReader::registerAttr_PointerType(PointerType *obj, int attr, char const *strValue) {
   switch(attr) {
-  default: userError("illegal attribute for a PointerType"); break;
+  default: xmlUserFatalError("illegal attribute for a PointerType"); break;
   case XTOK_cv: fromXml(obj->cv, strValue); break;
   case XTOK_atType: ul(atType, XTOK_Type); break;
   }
@@ -530,14 +530,14 @@ void XmlTypeReader::registerAttr_PointerType(PointerType *obj, int attr, char co
 
 void XmlTypeReader::registerAttr_ReferenceType(ReferenceType *obj, int attr, char const *strValue) {
   switch(attr) {
-  default: userError("illegal attribute for a ReferenceType"); break;
+  default: xmlUserFatalError("illegal attribute for a ReferenceType"); break;
   case XTOK_atType: ul(atType, XTOK_Type); break;
   }
 }
 
 void XmlTypeReader::registerAttr_FunctionType(FunctionType *obj, int attr, char const *strValue) {
   switch(attr) {
-  default: userError("illegal attribute for a FunctionType"); break;
+  default: xmlUserFatalError("illegal attribute for a FunctionType"); break;
   case XTOK_flags: fromXml(obj->flags, strValue); break;
   case XTOK_retType: ul(retType, XTOK_Type); break;
   case XTOK_params: ulList(_List, params, XTOK_List_FunctionType_params); break;
@@ -548,14 +548,14 @@ void XmlTypeReader::registerAttr_FunctionType(FunctionType *obj, int attr, char 
 void XmlTypeReader::registerAttr_FunctionType_ExnSpec
   (FunctionType::ExnSpec *obj, int attr, char const *strValue) {
   switch(attr) {
-  default: userError("illegal attribute for a FunctionType_ExnSpec"); break;
+  default: xmlUserFatalError("illegal attribute for a FunctionType_ExnSpec"); break;
   case XTOK_types: ulList(_List, types, XTOK_List_ExnSpec_types); break;
   }
 }
 
 void XmlTypeReader::registerAttr_ArrayType(ArrayType *obj, int attr, char const *strValue) {
   switch(attr) {
-  default: userError("illegal attribute for a ArrayType"); break;
+  default: xmlUserFatalError("illegal attribute for a ArrayType"); break;
   case XTOK_eltType: ul(eltType, XTOK_Type); break;
   case XTOK_size: fromXml_int(obj->size, strValue); break;
   }
@@ -564,7 +564,7 @@ void XmlTypeReader::registerAttr_ArrayType(ArrayType *obj, int attr, char const 
 void XmlTypeReader::registerAttr_PointerToMemberType
   (PointerToMemberType *obj, int attr, char const *strValue) {
   switch(attr) {
-  default: userError("illegal attribute for a PointerToMemberType"); break;
+  default: xmlUserFatalError("illegal attribute for a PointerToMemberType"); break;
   case XTOK_inClassNAT:
     ul(inClassNAT, XTOK_NamedAtomicType); break;
   case XTOK_cv: fromXml(obj->cv, strValue); break;
@@ -623,7 +623,7 @@ void XmlTypeReader::registerAttr_Variable(Variable *obj, int attr, char const *s
   // "superclass": just re-use our own superclass code for ourself
   if (registerAttr_Variable_super(obj, attr, strValue)) return;
   // shouldn't get here
-  userError("illegal attribute for a Variable");
+  xmlUserFatalError("illegal attribute for a Variable");
 }
 
 bool XmlTypeReader::registerAttr_NamedAtomicType_super
@@ -639,7 +639,7 @@ bool XmlTypeReader::registerAttr_NamedAtomicType_super
 
 void XmlTypeReader::registerAttr_SimpleType(SimpleType *obj, int attr, char const *strValue) {
   switch(attr) {
-  default: userError("illegal attribute for a SimpleType"); break;
+  default: xmlUserFatalError("illegal attribute for a SimpleType"); break;
   case XTOK_type:
     // NOTE: this 'type' is not a type node, but basically an enum,
     // and thus is handled more like a flag would be.
@@ -654,7 +654,7 @@ void XmlTypeReader::registerAttr_CompoundType(CompoundType *obj, int attr, char 
   if (registerAttr_Scope_super(obj, attr, strValue)) return;
 
   switch(attr) {
-  default: userError("illegal attribute for a CompoundType"); break;
+  default: xmlUserFatalError("illegal attribute for a CompoundType"); break;
   case XTOK_forward: fromXml_bool(obj->forward, strValue); break;
   case XTOK_keyword: fromXml(obj->keyword, strValue); break;
   case XTOK_dataMembers: ulList(_List, dataMembers, XTOK_List_CompoundType_dataMembers); break;
@@ -675,7 +675,7 @@ void XmlTypeReader::registerAttr_EnumType(EnumType *obj, int attr, char const *s
   if (registerAttr_NamedAtomicType_super(obj, attr, strValue)) return;
 
   switch(attr) {
-  default: userError("illegal attribute for a EnumType"); break;
+  default: xmlUserFatalError("illegal attribute for a EnumType"); break;
   case XTOK_valueIndex: ulList(_NameMap, valueIndex, XTOK_NameMap_EnumType_valueIndex); break;
   case XTOK_nextValue: fromXml_int(obj->nextValue, strValue); break;
   }
@@ -684,7 +684,7 @@ void XmlTypeReader::registerAttr_EnumType(EnumType *obj, int attr, char const *s
 void XmlTypeReader::registerAttr_EnumType_Value
   (EnumType::Value *obj, int attr, char const *strValue) {
   switch(attr) {
-  default: userError("illegal attribute for a EnumType"); break;
+  default: xmlUserFatalError("illegal attribute for a EnumType"); break;
   case XTOK_name: obj->name = manager->strTable(strValue); break;
   case XTOK_type: ul(type, XTOK_EnumType); break; // NOTE: 'type' here is actually an atomic type
   case XTOK_value: fromXml_int(obj->value, strValue); break;
@@ -696,7 +696,7 @@ void XmlTypeReader::registerAttr_TypeVariable(TypeVariable *obj, int attr, char 
   // superclass
   if (registerAttr_NamedAtomicType_super(obj, attr, strValue)) return;
   // shouldn't get here
-  userError("illegal attribute for a TypeVariable");
+  xmlUserFatalError("illegal attribute for a TypeVariable");
 }
 
 void XmlTypeReader::registerAttr_PseudoInstantiation
@@ -705,7 +705,7 @@ void XmlTypeReader::registerAttr_PseudoInstantiation
   if (registerAttr_NamedAtomicType_super(obj, attr, strValue)) return;
 
   switch(attr) {
-  default: userError("illegal attribute for a PsuedoInstantiation"); break;
+  default: xmlUserFatalError("illegal attribute for a PsuedoInstantiation"); break;
   case XTOK_primary: ul(primary, XTOK_CompoundType); break;
   case XTOK_args: ulList(_List, args, XTOK_List_PseudoInstantiation_args); break;
   }
@@ -717,7 +717,7 @@ void XmlTypeReader::registerAttr_DependentQType
   if (registerAttr_NamedAtomicType_super(obj, attr, strValue)) return;
 
   switch(attr) {
-  default: userError("illegal attribute for a DependentQType"); break;
+  default: xmlUserFatalError("illegal attribute for a DependentQType"); break;
   case XTOK_first: ul(first, XTOK_AtomicType);
   case XTOK_rest: ul(rest, XTOK_PQName);
   }
@@ -743,7 +743,7 @@ void XmlTypeReader::registerAttr_Scope(Scope *obj, int attr, char const *strValu
   // "superclass": just re-use our own superclass code for ourself
   if (registerAttr_Scope_super(obj, attr, strValue)) return;
   // shouldn't get here
-  userError("illegal attribute for a Scope");
+  xmlUserFatalError("illegal attribute for a Scope");
 }
 
 bool XmlTypeReader::registerAttr_BaseClass_super(BaseClass *obj, int attr, char const *strValue) {
@@ -760,7 +760,7 @@ void XmlTypeReader::registerAttr_BaseClass(BaseClass *obj, int attr, char const 
   // "superclass": just re-use our own superclass code for ourself
   if (registerAttr_BaseClass_super(obj, attr, strValue)) return;
   // shouldn't get here
-  userError("illegal attribute for a BaseClass");
+  xmlUserFatalError("illegal attribute for a BaseClass");
 }
 
 void XmlTypeReader::registerAttr_BaseClassSubobj
@@ -769,14 +769,14 @@ void XmlTypeReader::registerAttr_BaseClassSubobj
   if (registerAttr_BaseClass_super(obj, attr, strValue)) return;
 
   switch(attr) {
-  default: userError("illegal attribute for a BaseClassSubobj"); break;
+  default: xmlUserFatalError("illegal attribute for a BaseClassSubobj"); break;
   case XTOK_parents: ulList(_List, parents, XTOK_List_BaseClassSubobj_parents); break;
   }
 }
 
 void XmlTypeReader::registerAttr_OverloadSet(OverloadSet *obj, int attr, char const *strValue) {
   switch(attr) {
-  default: userError("illegal attribute for a OverloadSet"); break;
+  default: xmlUserFatalError("illegal attribute for a OverloadSet"); break;
   case XTOK_set: ulList(_List, set, XTOK_List_OverloadSet_set); break;
   }
 }
@@ -784,7 +784,7 @@ void XmlTypeReader::registerAttr_OverloadSet(OverloadSet *obj, int attr, char co
 void XmlTypeReader::registerAttr_STemplateArgument
   (STemplateArgument *obj, int attr, char const *strValue) {
   switch(attr) {
-  default: userError("illegal attribute for a STemplateArgument"); break;
+  default: xmlUserFatalError("illegal attribute for a STemplateArgument"); break;
   case XTOK_kind: fromXml(obj->kind, strValue); break;
   // exactly one of these must show up as it is a union; I don't check that though
   case XTOK_t: ul(value.t, XTOK_Type); break;
@@ -809,7 +809,7 @@ void XmlTypeReader::registerAttr_TemplateInfo(TemplateInfo *obj, int attr, char 
   if (registerAttr_TemplateParams_super(obj, attr, strValue)) return;
 
   switch(attr) {
-  default: userError("illegal attribute for a TemplateInfo"); break;
+  default: xmlUserFatalError("illegal attribute for a TemplateInfo"); break;
   case XTOK_var: ul(var, XTOK_Variable); break;
   case XTOK_inheritedParams:
     ulList(_List, inheritedParams, XTOK_List_TemplateInfo_inheritedParams); break;
@@ -844,7 +844,7 @@ void XmlTypeReader::registerAttr_InheritedTemplateParams
   if (registerAttr_TemplateParams_super(obj, attr, strValue)) return;
 
   switch(attr) {
-  default: userError("illegal attribute for a InheritedTemplateParams"); break;
+  default: xmlUserFatalError("illegal attribute for a InheritedTemplateParams"); break;
   case XTOK_enclosing:
     ul(enclosing, XTOK_CompoundType); break;
   }

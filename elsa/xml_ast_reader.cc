@@ -30,7 +30,7 @@ bool XmlAstReader::convertNameMap2StringSObjDict(StringRefMap<char> *map, int ma
 void *XmlAstReader::ctorNodeFromTag(int tag) {
   switch(tag) {
   default: return NULL;
-  case 0: userError("unexpected file termination while looking for an open tag name");
+  case 0: xmlUserFatalError("unexpected file termination while looking for an open tag name");
 #include "xml_ast_reader_2ctrc.gen.cc"
   }
 }

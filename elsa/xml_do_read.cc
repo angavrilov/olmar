@@ -37,7 +37,7 @@ TranslationUnit *xmlDoRead(StringTable &strTable, char const *inputFname) {
   while(true) {
     manager.parseOneTopLevelTag();
     if (lexer.haveSeenEof()) {
-      manager.userError("unexpected EOF");
+      manager.xmlUserFatalError("unexpected EOF");
     }
     int lastKind = manager.getLastKind();
     if (lastKind == XTOK_List_files) {
@@ -49,7 +49,7 @@ TranslationUnit *xmlDoRead(StringTable &strTable, char const *inputFname) {
       FOREACH_OBJLIST_NC(SourceLocManager::FileData, *files, iter) {
         SourceLocManager::FileData *fileData = iter.data();
         if (!fileData->complete()) {
-          manager.userError("missing attributes to File tag");
+          manager.xmlUserFatalError("missing attributes to File tag");
         }
         sourceLocManager->loadFile(fileData);
       }
@@ -58,7 +58,7 @@ TranslationUnit *xmlDoRead(StringTable &strTable, char const *inputFname) {
     } else if (lastKind == XTOK_TranslationUnit) {
       break;                    // we are done
     } else {
-      manager.userError("illegal top-level tag");
+      manager.xmlUserFatalError("illegal top-level tag");
     }
   }
 
@@ -66,7 +66,7 @@ TranslationUnit *xmlDoRead(StringTable &strTable, char const *inputFname) {
   manager.satisfyLinks();
 
 //    if (manager.getLastKind() != XTOK_TranslationUnit) {
-//      manager.userError("top tag is not a TranslationUnit");
+//      manager.xmlUserFatalError("top tag is not a TranslationUnit");
 //    }
   TranslationUnit *tunit = (TranslationUnit*) manager.getLastNode();
 
