@@ -100,12 +100,108 @@ bool nocvr = false;
 // ------------------ shared gen functions ----------------------
 enum TreeNodeKind { TKN_NONE, TKN_SUPERCLASS, TKN_SUBCLASS };
 
+size_t getFileSize(istream &i)
+{
+  if (!i) return 0;
+  istream::pos_type save_pos = i.tellg();
+  i.seekg(0, ios::beg);
+  istream::pos_type begin_pos = i.tellg();
+  i.seekg(0, ios::end);
+  istream::pos_type end_pos = i.tellg();
+  size_t size = end_pos - begin_pos;
+  i.seekg(save_pos);
+  return size;
+}
+
+bool filesIdentical(const char *f1, const char *f2)
+{
+  ifstream i1(f1);
+  if (!i1) return false;
+
+  ifstream i2(f2);
+  if (!i2) {
+    xfatal(stringc << "I thought I just wrote " << f2 << ", but it doesn't exist");
+    return false;
+  }
+
+  if (getFileSize(i1) != getFileSize(i2))
+    return false;
+
+  while (true) {
+    if (i1.bad() || i2.bad()) {
+      return false;
+    }
+
+    if (i1.eof() && i2.eof()) {
+      // reached EOF and no problem.
+      return true;
+    }
+
+    if (!i1 || !i2) {
+      // Other error? or for some reason we reached EOF in one file but not
+      // another even though file sizes are the same
+      return false;
+    }
+
+    if (i1.get() != i2.get()) {
+      // unidentical character
+      return false;
+    }
+  }
+}
+
+// An ofstream which is timestamp-conscious.  It first writes to a temporary
+// file, and on success renames it to the target destination.  However, it
+// doesn't do this if the file hasn't changed.  This way we avoid messing with
+// the timestamp, which is annoying since 'make' will think we have to rebuild
+// everything.
+//
+// Call 'dontsave()' to avoid saving, e.g. if an error occurred.
+class ofstreamTS : public ofstream {
+  string destFname;
+  stringBuilder tmpFname;
+  bool dosave;
+
+  const char *init_fname(string const &destFname0)
+  {
+    destFname = destFname0;
+    tmpFname = destFname0; tmpFname << ".tmp";
+    return tmpFname;
+  }
+
+  void openTmp()
+  {
+    open(tmpFname.c_str());
+  }
+
+  void save() {
+    close();
+    if (filesIdentical(destFname.c_str(), tmpFname.c_str())) {
+      cout << "  file " << destFname << " unchanged, so not overwriting it.\n";
+      if (unlink(tmpFname.c_str())) {
+        cerr << "  unlink " << tmpFname << " failed\n";
+      }
+      return;
+    }
+    if (rename(tmpFname.c_str(), destFname.c_str())) {
+      cerr << "Rename " << tmpFname << " to " << destFname << " failed\n";
+    }
+  }
+
+public:
+  ofstreamTS(string const &destFname0) : dosave(true)
+  { init_fname(destFname0); openTmp(); }
+  ~ofstreamTS() { if (dosave) save(); }
+
+  void dontsave() { dosave = false; }
+};
+
 class Gen {
 protected:        // data
   string srcFname;                  // name of source file
   ObjList<string> const &modules;   // extension modules
   string destFname;                 // name of output file
-  ofstream out;                     // output stream
+  ofstreamTS out;                   // output stream
   ASTSpecFile const &file;          // AST specification
 
 public:           // funcs
@@ -981,11 +1077,11 @@ public:
 class XmlParserGen {
   StringSet attributeNames;     // names of attributes of AST nodes
 
-  ofstream tokensOut;
-  ofstream parser0_decls;
-  ofstream parser1_defs;
-  ofstream parser2_ctorCalls;
-  ofstream parser3_registerCalls;
+  ofstreamTS tokensOut;
+  ofstreamTS parser0_decls;
+  ofstreamTS parser1_defs;
+  ofstreamTS parser2_ctorCalls;
+  ofstreamTS parser3_registerCalls;
 
   public:
   XmlParserGen(string &xmlParserName)
