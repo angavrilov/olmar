@@ -225,7 +225,9 @@ inline int XmlLexer::yyunderflow() {
       // need more input
       char *old_yytext = yytext;
       int movement;
+#ifndef NDEBUG
       int offset = yy_c_buf_p - yytext; // debug
+#endif
       ++yy_c_buf_p;
 
       switch (yy_get_next_buffer())
