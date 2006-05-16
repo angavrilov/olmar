@@ -1,4 +1,4 @@
-# .gdbinit   -*- sh -*-
+# .gdbinit
 
 #file ccsstr
 #file agrampar
