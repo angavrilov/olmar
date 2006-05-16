@@ -324,7 +324,7 @@ quicktest: ccparse
 
 # -------------------- semgrep --------------------
 TOCLEAN += semgrep
-semgrep: $(CCPARSE_OBJS) semgrep.o $(libraries)
+semgrep: $(CCPARSE_OBJS) semgrep.o $(libraries) $(LIBSMBASE)
 	$(CXX) -o $@ $(CCPARSE_OBJS) semgrep.o $(LDFLAGS)
 
 
