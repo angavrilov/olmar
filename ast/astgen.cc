@@ -2252,7 +2252,7 @@ void CGen::emitXmlVisitorImplementation()
 
   out << "void " << xmlVisitorName << "::printIndentation()\n";
   out << "{\n";
-  out << "  for(int i=0; i<depth; ++i) out << \" \";\n";
+  out << "  writeSpaces(out, depth);\n";
   out << "}\n\n";
 
   out << "// default xml-visitor\n";
@@ -2824,7 +2824,7 @@ void XmlParserGen::emitXmlParser_Node_registerAttr
     << "(" << name << " *obj, int attr, char const *strValue) {\n";
   parser1_defs << "  switch(attr) {\n";
   parser1_defs << "  default:\n";
-  parser1_defs << "    userError(\"illegal attribute for a " << name << "\");\n";
+  parser1_defs << "    xmlUserFatalError(\"illegal attribute for a " << name << "\");\n";
   parser1_defs << "    break;\n";
 
   // for each attribute, emit a rule to parse it as an attribute of this tag

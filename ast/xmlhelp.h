@@ -96,4 +96,27 @@ inline string xmlAttrQuote(rostring src) { return xmlAttrQuote(src.c_str()); }
 // // xmlAttrEncode().
 // string xmlAttrDecode(char const *src, const char *end, char delim);
 
+
+// write N spaces to OUT.
+static inline
+void writeSpaces(ostream &out, size_t n)
+{
+  static char const spaces[] =
+    "                                                  "
+    "                                                  "
+    "                                                  "
+    "                                                  ";
+
+  static size_t const max_spaces = sizeof spaces - 1;
+
+  // If we're printing more than this many spaces it's pretty useless anyway,
+  // since it's only for human viewing pleasure!
+  while (n > max_spaces) {
+    out.write(spaces, max_spaces);
+    n -= max_spaces;
+  }
+  out.write(spaces, n);
+}
+
+
 #endif // XMLHELP_H
