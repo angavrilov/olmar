@@ -191,6 +191,12 @@ class IncDec {
     outputXmlAttrQuoted(*out, VALUE);                              \
   } while(0)
 
+#define printThing0_ne(NAME, VALUE)                               \
+  do {                                                            \
+    *out << #NAME "=";                                            \
+    outputXmlAttrQuotedNoEscape(*out, VALUE);                     \
+  } while(0)
+
 #define printThing(NAME, RAW, VALUE)                                           \
   do {                                                                         \
     if ((RAW) && (!serializeOracle || serializeOracle->shouldSerialize(RAW))) { \
@@ -229,13 +235,13 @@ class IncDec {
 #define printXml_bool(NAME, VALUE)                                \
   do {                                                            \
     newline();                                                    \
-    printThing0(NAME, ::toXml_bool(VALUE));                       \
+    printThing0_ne(NAME, ::toXml_bool(VALUE));                    \
   } while(0)
 
 #define printXml_int(NAME, VALUE)                                 \
   do {                                                            \
     newline();                                                    \
-    printThing0(NAME, ::toXml_int(VALUE));                        \
+    printThing0_ne(NAME, ::toXml_int(VALUE));                     \
   } while(0)
 
 #define printXml_SourceLoc(NAME, VALUE)                           \
