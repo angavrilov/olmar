@@ -122,8 +122,15 @@ void fromXml_double(double &x, const char *str) {
 
 
 string toXml_SourceLoc(SourceLoc loc) {
-  // NOTE: the nohashline here is very important; never change it
-  return sourceLocManager->getString_nohashline(loc);
+  // use "(noloc)" and "(init)" so we don't have to encode to &lt;init&gt;
+  if (loc == SL_UNKNOWN) {
+    return "(noloc)";
+  } else if (loc == SL_INIT) {
+    return "(init)";
+  } else {
+    // NOTE: the nohashline here is very important; never change it
+    return sourceLocManager->getString_nohashline(loc);
+  }
 }
 
 // Avoid allocating memory to construct a substring, by being sneaky.  This
@@ -158,12 +165,12 @@ public:
 void fromXml_SourceLoc(SourceLoc &loc, const char *str) {
   // the file format is filename:line:column
 
-  if (streq(str, "<noloc>:1:1")) {
+  if (streq(str, "(noloc)")) {
     loc = SL_UNKNOWN;
     return;
   }
 
-  if (streq(str, "<init>:1:1")) {
+  if (streq(str, "(init)")) {
     loc = SL_INIT;
     return;
   }
