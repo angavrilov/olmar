@@ -22,10 +22,25 @@ xmlUniqueId_t mapAddrToUniqueId(void const * const addr);
 // classes and make the argument here take a pointer to that.
 xmlUniqueId_t uniqueIdAST(void const * const obj);
 
-// print a unique id with prefix, for example "FL12345678"; guaranteed
-// to print (e.g.) "FL0" for NULL pointers; the "FL" part is the label
-string xmlPrintPointer(char const *label, xmlUniqueId_t id);
-// TODO: don't construct a string in xmlPrintPointer
+// Print a unique id with prefix, directly to output stream, for example
+// "FL12345678"; guaranteed to print (e.g.) "FL0" for NULL pointers; the "FL"
+// part is the label
+//
+// quarl 2006-05-22: print directly to stream without 'string' creation
+static inline
+ostream &outputXmlPointer(ostream &out, char const *label, xmlUniqueId_t id) {
+  // 'id' is an integer type, so we don't need to special-case its insertion.
+  return out << label << id;
+}
+
+static inline
+ostream &outputXmlPointerQuoted(ostream &out, char const *label, xmlUniqueId_t id) {
+  // assume label does not contain characters requiring quoting/escaping
+  return out << '\'' << label << id << '\'';
+}
+
+// string xmlPrintPointer(char const *label, xmlUniqueId_t id);
+
 
 // 2006-05-05 these used to take an rostring, but I changed them to const char
 // *, because these functions are performance-critical and they were not

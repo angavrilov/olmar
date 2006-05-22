@@ -2071,7 +2071,7 @@ void CGen::emitXmlField(rostring type, rostring name, char const *baseName,
     out << "    out << '\\n';\n";
     out << "    if (indent) printIndentation();\n";
     out << "    out << \"" << name << "=\";\n";
-    out << "    outputXmlAttrQuotedNoEscape(out, xmlPrintPointer(\"AL\", uniqueIdAST(&(" << baseName << "->" << name << "))));\n";
+    out << "    outputXmlPointerQuoted(out, \"AL\", uniqueIdAST(&(" << baseName << "->" << name << ")));\n";
     out << "  }\n";
   }
   else if (isFakeListType(type)) {
@@ -2079,7 +2079,7 @@ void CGen::emitXmlField(rostring type, rostring name, char const *baseName,
     out << "    out << '\\n';\n";
     out << "    if (indent) printIndentation();\n";
     out << "    out << \"" << name << "=\";\n";
-    out << "    outputXmlAttrQuotedNoEscape(out, xmlPrintPointer(\"FL\", uniqueIdAST(" << baseName << "->" << name << ")));\n";
+    out << "    outputXmlPointerQuoted(out, \"FL\", uniqueIdAST(" << baseName << "->" << name << "));\n";
     out << "  }\n";
   }
   else if (isTreeNode(type) || (isTreeNodePtr(type))) {
@@ -2087,7 +2087,7 @@ void CGen::emitXmlField(rostring type, rostring name, char const *baseName,
     out << "    out << '\\n';\n";
     out << "    if (indent) printIndentation();\n";
     out << "    out << \"" << name << "=\";\n";
-    out << "    outputXmlAttrQuotedNoEscape(out, xmlPrintPointer(\"AST\", uniqueIdAST(" << baseName << "->" << name << ")));\n";
+    out << "    outputXmlPointerQuoted(out, \"AST\", uniqueIdAST(" << baseName << "->" << name << "));\n";
     out << "  }\n";
   } else if (amod && amod->hasModPrefix("xmlEmbed") && amod->hasModPrefix("xml_")) {
     rostring idPrefix = amod->getModSuffixFromPrefix("xml_");
@@ -2095,7 +2095,7 @@ void CGen::emitXmlField(rostring type, rostring name, char const *baseName,
     out << "    out << '\\n';\n";
     out << "    if (indent) printIndentation();\n";
     out << "    out << \"" << name << "=\";\n";
-    out << "    outputXmlAttrQuotedNoEscape(out, xmlPrintPointer(\"" << idPrefix << "\", uniqueIdAST(&" << baseName << "->" << name << ")));\n";
+    out << "    outputXmlPointerQuoted(out, \"" << idPrefix << "\", uniqueIdAST(&" << baseName << "->" << name << "));\n";
     out << "  }\n";
   }
 
@@ -2125,9 +2125,9 @@ void CGen::emitXmlField(rostring type, rostring name, char const *baseName,
     out << "    out << '\\n';\n";
     out << "    if (indent) printIndentation();\n";
     out << "    out << \"" << name << "=\";\n";
-    out << "    /*catch-all*/outputXmlAttrQuotedNoEscape(out, xmlPrintPointer(\"" << idPrefix << "\", ";
+    out << "    /*catch-all*/outputXmlPointerQuoted(out, \"" << idPrefix << "\", ";
     if (wantIdentityManager()) out << "idmgr.";
-    out << "uniqueId(" << baseName << "->" << name << ")));\n";
+    out << "uniqueId(" << baseName << "->" << name << "));\n";
     out << "  }\n";
 
   } else {
@@ -2277,7 +2277,7 @@ void CGen::emitXmlVisitorImplementation()
 //      out << "  out << '\\n';\n";
 //      out << "  if (indent) printIndentation();\n";
     out << "  out << \" _id=\";\n";
-    out << "  outputXmlAttrQuotedNoEscape(out, xmlPrintPointer(\"AST\", uniqueIdAST(obj)));\n";
+    out << "  outputXmlPointerQuoted(out, \"AST\", uniqueIdAST(obj));\n";
 
     // emit other properties
     emitXmlCtorArgs(c->super->args, "obj", c->super->name);
@@ -2343,13 +2343,13 @@ void CGen::emitXmlVisitorImplementation()
     out << "    out << '\\n';\n";
     out << "    if (indent) printIndentation();\n";
     out << "    out << \"<List_" << cls->classAndMemberName << " _id=\";\n";
-    out << "    outputXmlAttrQuotedNoEscape(out, xmlPrintPointer(\"";
+    out << "    outputXmlPointerQuoted(out, \"";
     if (cls->lkind == LK_ASTList) {
       out << "AL";
     } else if (cls->lkind == LK_FakeList) {
       out << "FL";
     } else xfailure("illegal list kind");
-    out << "\", uniqueIdAST(obj)));\n";
+    out << "\", uniqueIdAST(obj));\n";
     out << "    out << '>';\n";
     out << "    ++depth;\n";
     out << "  };\n";
@@ -2374,7 +2374,7 @@ void CGen::emitXmlVisitorImplementation()
     out << "  out << '\\n';\n";
     out << "  if (indent) printIndentation();\n";
     out << "  out << \"<_List_Item\" << \" item=\";\n";
-    out << "  outputXmlAttrQuotedNoEscape(out, xmlPrintPointer(\"AST\", uniqueIdAST(obj)));\n";
+    out << "  outputXmlPointerQuoted(out, \"AST\", uniqueIdAST(obj));\n";
     out << "  out << '>';\n";
     out << "  ++depth;\n";
     out << "  return true;\n";

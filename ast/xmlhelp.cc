@@ -14,14 +14,14 @@
 #define CANONICAL_XML_IDS
 
 #ifdef CANONICAL_XML_IDS
-xmlUniqueId_t nextXmlUniqueId = 0;
+xmlUniqueId_t nextXmlUniqueId = 1;
 PtrIntMap<void const, xmlUniqueId_t> addr2id;
 #endif
 
 xmlUniqueId_t mapAddrToUniqueId(void const * const addr) {
 #ifdef CANONICAL_XML_IDS
-  // special case the NULL pointer
-  if (addr == 0) return 0;
+  // special-case the NULL pointer
+  if (addr == NULL) return 0;
   // otherwise, maintain a map to a canonical address
   xmlUniqueId_t id0 = addr2id.get(addr);
   if (!id0) {
@@ -40,27 +40,26 @@ xmlUniqueId_t uniqueIdAST(void const * const obj) {
   return mapAddrToUniqueId(obj);
 }
 
-string xmlPrintPointer(char const *label, xmlUniqueId_t id) {
-  stringBuilder sb;
-  sb.reserve(20);
-  if (!id) {
-    // sm: previously, the code for this function just inserted 'p'
-    // as a 'void const *', but that is nonportable, as gcc-3 inserts
-    // "0" while gcc-2 emits "(nil)"
-    sb << label << "0";
-  }
-  else {
-    sb << label;
-    // sm: I question whether this is portable, but it may not matter
-    // since null pointers are the only ones that are treated
-    // specially (as far as I can tell)
-//     sb << stringBuilder::Hex(reinterpret_cast<long unsigned>(p));
-    // dsw: just using ints now
-    sb << id;
-  }
-  return sb;
-}
-
+// string xmlPrintPointer(char const *label, xmlUniqueId_t id) {
+//   stringBuilder sb;
+//   sb.reserve(20);
+//   if (!id) {
+//     // sm: previously, the code for this function just inserted 'p'
+//     // as a 'void const *', but that is nonportable, as gcc-3 inserts
+//     // "0" while gcc-2 emits "(nil)"
+//     sb << label << "0";
+//   }
+//   else {
+//     sb << label;
+//     // sm: I question whether this is portable, but it may not matter
+//     // since null pointers are the only ones that are treated
+//     // specially (as far as I can tell)
+// //     sb << stringBuilder::Hex(reinterpret_cast<long unsigned>(p));
+//     // dsw: just using ints now
+//     sb << id;
+//   }
+//   return sb;
+// }
 
 // string toXml_bool(bool b) {
 //   if (b) return "true";
