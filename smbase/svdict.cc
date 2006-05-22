@@ -250,9 +250,10 @@ void StringVoidDict::emptyAndDel(DelFn func)
     if (func != NULL) {
       func(temp->value);
     }
-    hash.remove(temp->key.c_str());
+    // hash.remove(temp->key.c_str());
     delete temp;
   }
+  hash.empty();
 
   SELFCHECK();
 }
