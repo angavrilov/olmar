@@ -18,9 +18,13 @@
 
 class IdentityManager_Elsa {
 public:
-#define identity_defn0(PREFIX, NAME, TEMPL)                                    \
-  TEMPL char const *idPrefix(NAME const * const) {return #PREFIX;}             \
+#define identity_defn0(PREFIX, NAME, TEMPL) \
+  TEMPL char const *idPrefix(NAME const * const) {return #PREFIX;} \
   TEMPL xmlUniqueId_t uniqueId(NAME const * const obj) {return mapAddrToUniqueId(obj);} \
+  TEMPL bool printed0(NAME const * const obj) {                                \
+    if (printedSet ##PREFIX.contains(obj)) return true;                        \
+    return false;                                                              \
+  }                                                                            \
   TEMPL bool printed(NAME const * const obj) {                                 \
     if (printedSet ##PREFIX.contains(obj)) return true;                        \
     printedSet ##PREFIX.add(obj);                                              \
@@ -49,6 +53,7 @@ public:
   identity_defn(TY, StringRefMap<Variable>)
 
   identityTempl_defn(OL, ObjList<T>)
+  identityTempl_defn(OL, ObjArrayStack<T>)
   identityTempl_defn(OL, SObjList<T>)
   identityTempl_defn(NM, StringRefMap<T>)
   identityTempl_defn(NM, StringObjDict<T>)

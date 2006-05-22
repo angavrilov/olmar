@@ -29,7 +29,7 @@ public:
                 XFW_SerializeOracle *serializeOracle0);
   virtual ~XmlFileWriter() {}
 
-  void toXml(ObjList<SourceLocManager::File> &files);
+  void toXml(SourceLocManager::FileList &files);
   void toXml(SourceLocManager::File *file);
   // this is an exception to the generic toXml() mechanism since
   // lineLengths are not self-contained

@@ -14,9 +14,9 @@ XmlFileWriter::XmlFileWriter(IdentityManager &idmgr0,
     serializeOracle(serializeOracle0)
 {}
 
-void XmlFileWriter::toXml(ObjList<SourceLocManager::File> &files)
+void XmlFileWriter::toXml(SourceLocManager::FileList &files)
 {
-  travObjList0(files, files, SourceLocManager::File, FOREACH_OBJLIST_NC, ObjList);
+  travObjList0(files, files, SourceLocManager::File, FOREACH_OBJARRAYSTACK_NC, ObjArrayStack);
 
   // FOREACH_OBJLIST_NC(SourceLocManager::File, files, iter) {
   //   SourceLocManager::File *file = iter.data();
