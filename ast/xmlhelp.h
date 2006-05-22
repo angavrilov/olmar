@@ -29,14 +29,22 @@ xmlUniqueId_t uniqueIdAST(void const * const obj);
 // quarl 2006-05-22: print directly to stream without 'string' creation
 static inline
 ostream &outputXmlPointer(ostream &out, char const *label, xmlUniqueId_t id) {
-  // 'id' is an integer type, so we don't need to special-case its insertion.
-  return out << label << id;
+  if (id == 0) {
+    // make it easy to parse this later, as a string without a label
+    return out << "(null)";
+  } else {
+    return out << label << id;
+  }
 }
 
 static inline
 ostream &outputXmlPointerQuoted(ostream &out, char const *label, xmlUniqueId_t id) {
-  // assume label does not contain characters requiring quoting/escaping
-  return out << '\'' << label << id << '\'';
+  if (id == 0) {
+    return out << "'(null)'";
+  } else {
+    // assume label does not contain characters requiring quoting/escaping
+    return out << '\'' << label << id << '\'';
+  }
 }
 
 // string xmlPrintPointer(char const *label, xmlUniqueId_t id);
