@@ -31,7 +31,7 @@
 
 #include "str.h"      // string
 #include "objlist.h"  // ObjList
-#include "array.h"    // ArrayStack
+#include "array.h"    // ArrayStack, ObjArrayStack
 
 class HashLineMap;    // hashline.h
 
@@ -201,6 +201,15 @@ public:      // types
       { return toInt(startLoc) <= sl &&
                                   sl <= toInt(startLoc) + numChars; }
 
+    // returns -1 if the range of 'this' is less than sl, 0 if this contains
+    // sl (i.e. hasLoc), and +1 if this is greater than sl.
+    int cmpLoc(SourceLoc sl) const
+    {
+      if (toInt(startLoc) > sl) return +1;
+      if (toInt(startLoc) + numChars < sl) return -1;
+      return 0;
+    }
+
     // call this time each time a #line directive is encountered;
     // same semantics as HashLineMap::addHashLine
     void addHashLine(int ppLine, int origLine, char const *origFname);
@@ -234,11 +243,15 @@ public:      // types
     ~StaticLoc();
   };
 
+public:
+  // type of SourceLocManager::files, so that we don't have to update
+  // everything when the type of this changes.
+  typedef ObjArrayStack<File> FileList;
+
 private:     // data
-  // list of files; it would be possible to use a data structure
-  // that is faster to search, but the cache ought to exploit
-  // query locality to the extent that it doesn't matter
-  ObjList<File> files;
+  // list of files; implemented using an array for fast binary search lookup
+  // (used to be a linked list).
+  FileList files;
 
   // most-recently accessed File; this is a cache
   File *recent;                      // (nullable serf)
@@ -360,6 +373,7 @@ public:      // funcs
   char const *getFile(SourceLoc loc) { return getFile(loc, this->useHashLines); }
   char const *getFile(SourceLoc loc, bool localUseHashLines);
   int getOffset(SourceLoc loc);
+  int getOffset_nohashline(SourceLoc loc);
   int getLine(SourceLoc loc);
   int getCol(SourceLoc loc);
 
@@ -388,7 +402,7 @@ public:      // funcs
 
   // dsw: the xml serialization code needs access to this field; the
   // idea is that the method name suggests that people not use it
-  ObjList<File> &serializationOnly_get_files() {return files;}
+  FileList &serializationOnly_get_files() {return files;}
   // for de-serializing from xml a single File and loading it into the SourceLocManager
   void loadFile(FileData *fileData);
   // has this file been loaded?

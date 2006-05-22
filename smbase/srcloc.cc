@@ -582,7 +582,7 @@ SourceLocManager::File *SourceLocManager::findFile(char const *name)
     return recent;
   }
 
-  FOREACH_OBJLIST_NC(File, files, iter) {
+  FOREACH_OBJARRAYSTACK_NC(File, files, iter) {
     if (iter.data()->name.equals(name)) {
       return recent = iter.data();
     }
@@ -716,10 +716,33 @@ SourceLocManager::File *SourceLocManager::findFileWithLoc(SourceLoc loc)
 //      return recent;
 //    }
 
-  // iterative walk
-  FOREACH_OBJLIST_NC(File, files, iter) {
-    if (iter.data()->hasLoc(loc)) {
-      return recent = iter.data();
+  // quarl 2006-05-21
+  //    Used to use a linear search through a linked list; now we do a O(log
+  //    N) binary search through an array.
+
+  // // iterative walk
+  // FOREACH_OBJARRAYSTACK_NC(File, files, iter) {
+  //   if (iter.data()->hasLoc(loc)) {
+  //     return recent = iter.data();
+  //   }
+  // }
+
+  // binary search
+  int left  = 0;                  // inclusive lower bound
+  int right = files.length() - 1; // inclusive upper bound
+
+  while (left <= right) {
+    int mid = int((right-left)/2) + left;
+    File *file = files[mid];
+    int cmp = file->cmpLoc(loc);
+
+    if (cmp == 0) {
+      xassert(file->hasLoc(loc));
+      return file;
+    } else if (cmp > 0) {
+      right = mid - 1;
+    } else if (cmp < 0) {
+      left = mid + 1;
     }
   }
 
@@ -855,6 +878,13 @@ int SourceLocManager::getOffset(SourceLoc loc)
   return ofs;
 }
 
+int SourceLocManager::getOffset_nohashline(SourceLoc loc)
+{
+  char const *name;
+  int ofs;
+  decodeOffset_explicitHL(loc, name, ofs, false);
+  return ofs;
+}
 
 int SourceLocManager::getLine(SourceLoc loc)
 {
