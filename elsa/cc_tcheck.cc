@@ -6029,7 +6029,7 @@ int compareArgsToParams(Env &env, FunctionType *ft, FakeList<ArgExpression> *arg
 
       // Elaboration: if 'ic' involves a user-defined conversion, then
       // modify the AST to make that explicit
-      assert(arg->ambiguity == NULL);
+      xassert(arg->ambiguity == NULL);
       arg->expr = makeConvertedArg(env, arg->expr, ic);
 
       // at least note that we plan to use this conversion, so
