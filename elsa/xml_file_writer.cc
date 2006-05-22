@@ -47,7 +47,7 @@ void XmlFileWriter::toXml(SourceLocManager::File *file)
     // it manually
     newline();
     *out << "lineLengths=";
-    outputXmlAttrQuotedNoEscape(*out,xmlPrintPointer("FI", idmgr.uniqueId(lineLengths)));
+    outputXmlPointerQuoted(*out, "FI", idmgr.uniqueId(lineLengths));
 
     printPtr(file, hashLines);
     tagPrinter.tagEnd();
@@ -76,7 +76,7 @@ void XmlFileWriter::toXml_lineLengths(SourceLocManager::File *file)
 //    openTagWhole(LineLengths, lineLengths);
     tagPrinter.readyTag("LineLengths");
     *out << "<LineLengths _id=";
-    outputXmlAttrQuotedNoEscape(*out, xmlPrintPointer("FI", idmgr.uniqueId(lineLengths))) << '>';
+    outputXmlPointerQuoted(*out, "FI", idmgr.uniqueId(lineLengths)) << '>';
 
     // **** sub-data
     // Note: This simple whitespace-separated list is the suggested
@@ -114,7 +114,7 @@ void XmlFileWriter::toXml(HashLineMap *hashLines)
 //    printEmbed(hashLines, directives);
     newline();
     *out << "directives=";
-    outputXmlAttrQuoted(*out, xmlPrintPointer("FI", idmgr.uniqueId(&directives)));
+    outputXmlPointerQuoted(*out, "FI", idmgr.uniqueId(&directives));
     tagPrinter.tagEnd();
   }
 

@@ -93,7 +93,9 @@ public:
 
     // idPrefix and uniqueId are overloaded on T.
     out() << '<' << tagname << " _id=";
-    outputXmlAttrQuotedNoEscape(out(), xmlPrintPointer(ttx.idmgr.idPrefix(obj), ttx.idmgr.uniqueId(obj)));
+    outputXmlPointerQuoted(out(),
+                           ttx.idmgr.idPrefix(obj),
+                           ttx.idmgr.uniqueId(obj));
   }
 
   template <class T>
@@ -103,7 +105,9 @@ public:
           << " name=";
     outputXmlAttrQuoted(out(), objname);
     out() << " item=";
-    outputXmlAttrQuoted(out(), xmlPrintPointer(ttx.idmgr.idPrefix(target), ttx.idmgr.uniqueId(target)));
+    outputXmlPointerQuoted(out(),
+                           ttx.idmgr.idPrefix(target),
+                           ttx.idmgr.uniqueId(target));
     out() << '>';
   }
 
@@ -111,7 +115,9 @@ public:
   void printListItemOpenTag(T const &target) {
     readyTag("_List_Item");
     out() << "<_List_Item item=";
-    outputXmlAttrQuoted(out(), xmlPrintPointer(ttx.idmgr.idPrefix(target), ttx.idmgr.uniqueId(target)));
+    outputXmlPointerQuoted(out(),
+                           ttx.idmgr.idPrefix(target),
+                           ttx.idmgr.uniqueId(target));
     out() << '>';
   }
 
@@ -122,7 +128,7 @@ public:
           << " key=";
     outputXmlAttrQuoted(out(), key);
     out() << " item=";
-    outputXmlAttrQuoted(out(), xmlPrintPointer(ttx.idmgr.idPrefix(value), ttx.idmgr.uniqueId(value)));
+    outputXmlPointerQuoted(out(), ttx.idmgr.idPrefix(value), ttx.idmgr.uniqueId(value));
     out() << '>';
   }
 
@@ -131,9 +137,9 @@ public:
     readyTag("_Map_Item");
     out() << "<_Map_Item"
           << " key=";
-    outputXmlAttrQuoted(out(), xmlPrintPointer(ttx.idmgr.idPrefix(key), ttx.idmgr.uniqueId(key)));
+    outputXmlPointerQuoted(out(), ttx.idmgr.idPrefix(key), ttx.idmgr.uniqueId(key));
     out() << " item=";
-    outputXmlAttrQuoted(out(), xmlPrintPointer(ttx.idmgr.idPrefix(value), ttx.idmgr.uniqueId(value)));
+    outputXmlPointerQuoted(out(), ttx.idmgr.idPrefix(value), ttx.idmgr.uniqueId(value));
     out() << '>';
   }
 
@@ -183,8 +189,6 @@ class IncDec {
   ~IncDec() {--x;}
 };
 
-// TODO: templatize
-
 #define printThing0(NAME, VALUE)                                   \
   do {                                                             \
     *out << #NAME "=";                                             \
@@ -214,17 +218,44 @@ class IncDec {
   } while(0)
 
 // TODO: refactor uniqueIdAST into IdentityManager
-#define printPtr0(NAME, VALUE) printThing(NAME, VALUE, xmlPrintPointer(idmgr.idPrefix(VALUE), idmgr.uniqueId(VALUE)))
+#define printPtr0(NAME, VALUE)                                    \
+  do {                                                            \
+    *out << #NAME "=";                                            \
+    outputXmlPointerQuoted(*out, idmgr.idPrefix(VALUE),           \
+                           idmgr.uniqueId(VALUE));                \
+  } while(0)
 #define printPtr(BASE, MEM)    printPtr0(MEM, (BASE)->MEM)
-#define printPtrAST(BASE, MEM) printThingAST(MEM, (BASE)->MEM, xmlPrintPointer("AST", uniqueIdAST((BASE)->MEM)))
+#define printPtrAST(BASE, MEM)                                    \
+  do {                                                            \
+    if (astVisitor && ((BASE)->MEM)) {                            \
+      newline();                                                  \
+      *out << #MEM "=";                                           \
+      outputXmlPointerQuoted(*out, "AST",                         \
+                             uniqueIdAST((BASE)->MEM));           \
+    }                                                             \
+  } while(0)
 // print an embedded thing
-#define printEmbed(BASE, MEM)  printThing(MEM, (&((BASE)->MEM)), xmlPrintPointer(idmgr.idPrefix(&((BASE)->MEM)), idmgr.uniqueId(&((BASE)->MEM))))
+#define printEmbed(BASE, MEM)  printPtr0(MEM, (&((BASE)->MEM)))
 
 // for unions where the member name does not match the xml name and we
 // don't want the 'if'
-#define printPtrUnion(BASE, MEM, NAME) printThing0(NAME, xmlPrintPointer(idmgr.idPrefix((BASE)->MEM), idmgr.uniqueId((BASE)->MEM)))
+#define printPtrUnion(BASE, MEM, NAME)                            \
+  do {                                                            \
+    *out << #NAME "=";                                            \
+    outputXmlPointerQuoted(*out, idmgr.idPrefix((BASE)->MEM),     \
+                           idmgr.uniqueId((BASE)->MEM));          \
+  } while(0)
+
 // this is only used in one place
-#define printPtrASTUnion(BASE, MEM, NAME) if (astVisitor) printThing0(NAME, xmlPrintPointer("AST", uniqueIdAST((BASE)->MEM)))
+#define printPtrASTUnion(BASE, MEM, NAME)                         \
+  do {                                                            \
+    if (astVisitor) {                                             \
+      newline();                                                  \
+      *out << #NAME "=";                                          \
+      outputXmlPointerQuoted(*out, "AST",                         \
+                             uniqueIdAST((BASE)->MEM));           \
+    }                                                             \
+  } while(0)
 
 #define printXml(NAME, VALUE)                                     \
   do {                                                            \
