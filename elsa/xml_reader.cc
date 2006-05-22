@@ -516,34 +516,45 @@ void XmlReaderManager::satisfyLinks() {
 //    satisfyLinks_Bidirectional();
 }
 
+#include "xmlhelp.h"
+static inline
+bool inputXmlPointerIsNull(char const * s_id) {
+  return streq(s_id, "(null)");
+}
+
 void XmlReaderManager::satisfyLinks_Nodes() {
   FOREACH_ASTLIST(UnsatLink, unsatLinks, iter) {
     UnsatLink const *ul = iter.data();
-    void *obj = id2obj.queryif(ul->id);
-    if (obj) {
-      if (ul->embedded) {
-        // I can assume that the kind of the object that was
-        // de-serialized is the same as the target because it was
-        // embedded and there is no chance for a reference/referent
-        // type mismatch.
-        callOpAssignToEmbeddedObj(obj, ul->kind, ul->ptr);
-        // FIX: we should now delete obj; in fact, this should be done
-        // by callOpAssignToEmbeddedObj() since it knows the type of
-        // the object which is necessary to delete it of course.  I'll
-        // leave this for an optimization pass which we will do later
-        // to handle many of these things.
-      } else {
-        if (int *kind = id2kind.queryif(ul->id)) {
-          *( (void**)(ul->ptr) ) = upcastToWantedType(obj, *kind, ul->kind);
-        } else {
-          // no kind was registered for the object and therefore no
-          // upcasting is required and there is no decision to make; so
-          // just do the straight pointer assignment
-          *( (void**) (ul->ptr) ) = obj;
-        }
-      }
+    void *obj;
+    if (inputXmlPointerIsNull(ul->id.c_str())) {
+      obj = NULL;
     } else {
-      if (!xmlDanglingPointersAllowed) xmlUserFatalError(stringc << "unsatisfied node link: " << ul->id);
+      obj = id2obj.queryif(ul->id);
+      if (obj == NULL) {
+        if (!xmlDanglingPointersAllowed) xmlUserFatalError(stringc << "unsatisfied node link: " << ul->id);
+      }
+    }
+
+    if (ul->embedded) {
+      // I can assume that the kind of the object that was
+      // de-serialized is the same as the target because it was
+      // embedded and there is no chance for a reference/referent
+      // type mismatch.
+      callOpAssignToEmbeddedObj(obj, ul->kind, ul->ptr);
+      // FIX: we should now delete obj; in fact, this should be done
+      // by callOpAssignToEmbeddedObj() since it knows the type of
+      // the object which is necessary to delete it of course.  I'll
+      // leave this for an optimization pass which we will do later
+      // to handle many of these things.
+    } else {
+      if (int *kind = id2kind.queryif(ul->id)) {
+        *( (void**)(ul->ptr) ) = upcastToWantedType(obj, *kind, ul->kind);
+      } else {
+        // no kind was registered for the object and therefore no
+        // upcasting is required and there is no decision to make; so
+        // just do the straight pointer assignment
+        *( (void**) (ul->ptr) ) = obj;
+      }
     }
   }
   // remove the links

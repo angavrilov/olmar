@@ -220,6 +220,7 @@ class IncDec {
 // TODO: refactor uniqueIdAST into IdentityManager
 #define printPtr0(NAME, VALUE)                                    \
   do {                                                            \
+    newline();                                                    \
     *out << #NAME "=";                                            \
     outputXmlPointerQuoted(*out, idmgr.idPrefix(VALUE),           \
                            idmgr.uniqueId(VALUE));                \
@@ -241,6 +242,7 @@ class IncDec {
 // don't want the 'if'
 #define printPtrUnion(BASE, MEM, NAME)                            \
   do {                                                            \
+    newline();                                                    \
     *out << #NAME "=";                                            \
     outputXmlPointerQuoted(*out, idmgr.idPrefix((BASE)->MEM),     \
                            idmgr.uniqueId((BASE)->MEM));          \
