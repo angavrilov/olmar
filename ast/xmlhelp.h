@@ -25,6 +25,7 @@ xmlUniqueId_t uniqueIdAST(void const * const obj);
 // print a unique id with prefix, for example "FL12345678"; guaranteed
 // to print (e.g.) "FL0" for NULL pointers; the "FL" part is the label
 string xmlPrintPointer(char const *label, xmlUniqueId_t id);
+// TODO: don't construct a string in xmlPrintPointer
 
 // 2006-05-05 these used to take an rostring, but I changed them to const char
 // *, because these functions are performance-critical and they were not
