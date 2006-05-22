@@ -102,12 +102,14 @@ enum TreeNodeKind { TKN_NONE, TKN_SUPERCLASS, TKN_SUBCLASS };
 
 size_t getFileSize(istream &i)
 {
+  // use 'streampos' instead of 'istream::pos_type' for gcc-2.95
+  // compatibility.
   if (!i) return 0;
-  istream::pos_type save_pos = i.tellg();
+  streampos save_pos = i.tellg();
   i.seekg(0, ios::beg);
-  istream::pos_type begin_pos = i.tellg();
+  streampos begin_pos = i.tellg();
   i.seekg(0, ios::end);
-  istream::pos_type end_pos = i.tellg();
+  streampos end_pos = i.tellg();
   size_t size = end_pos - begin_pos;
   i.seekg(save_pos);
   return size;
