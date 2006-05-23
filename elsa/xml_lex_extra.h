@@ -2,6 +2,8 @@
 # error "This file should only be included in the flex-generated scanner"
 #endif
 
+#include <assert.h>
+
 // This file is to be included in xml_lex.gen.yy.cc (see xml_lex_0top.lex).
 // It depends on flex macros so we can't make it a separate translation unit.
 // It's named a ".h" file to work with existing oink build infrastructure.
