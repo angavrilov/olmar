@@ -50,10 +50,10 @@ char **buildPrefixUppercaseMap(char const *prefix, char const * const *src,
 // find the index of a string in 'names' that equals 'str', or
 // throw xFormat on error
 int findInMap(char const * const *names, int numNames,
-              char const *kind, rostring str)
+              char const *kind, char const *str)
 {
   for (int i=0; i<numNames; i++) {
-    if (0==strcmp(names[i], str.c_str())) {
+    if (0==strcmp(names[i], str)) {
       return i;
     }
   }
@@ -87,7 +87,7 @@ char const *toXml(TypeIntr id)
   return typeIntrPrefixNames()[id];
 }
 
-void fromXml(TypeIntr &out, rostring str)
+void fromXml(TypeIntr &out, char const *str)
 {
   out = (TypeIntr)findInMap(typeIntrPrefixNames(), NUM_TYPEINTRS,
                             "TypeIntr", str);
@@ -335,22 +335,22 @@ bool isComplexOrImaginary(SimpleTypeId id)
 }
 
 
-#define MAKE_USUAL_ENUM_TO_FROM_XML(TYPE, numElements)  \
-  char const *toXml(TYPE id)                            \
-  {                                                     \
-    return toString(id);   /* overloaded */             \
-  }                                                     \
-                                                        \
-  void fromXml(TYPE &out, rostring str)                 \
-  {                                                     \
-    for (int id=0; id < numElements; id++) {            \
-      TYPE typedId = (TYPE)id;                          \
-      if (0==strcmp(toString(typedId), str.c_str())) {  \
-        out = typedId;                                  \
-        return;                                         \
-      }                                                 \
-    }                                                   \
-    xfailure(stringc << "bad " #TYPE ": '" << str << "'"); \
+#define MAKE_USUAL_ENUM_TO_FROM_XML(TYPE, numElements)            \
+  char const *toXml(TYPE id)                                      \
+  {                                                               \
+    return toString(id);   /* overloaded */                       \
+  }                                                               \
+                                                                  \
+  void fromXml(TYPE &out, char const *str)                        \
+  {                                                               \
+    for (int id=0; id < numElements; id++) {                      \
+      TYPE typedId = (TYPE)id;                                    \
+      if (0==strcmp(toString(typedId), str)) {                    \
+        out = typedId;                                            \
+        return;                                                   \
+      }                                                           \
+    }                                                             \
+    xfailure(stringc << "bad " #TYPE ": '" << str << "'");        \
   }
 
 // Some of the strings have angle brackets.  But, those cases should
