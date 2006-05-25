@@ -14,24 +14,31 @@
 // the timestamp, which is annoying since 'make' will think we have to rebuild
 // everything.
 //
+// Another advantage of writing to a temporary file then renaming is we get
+// atomic output.
+//
 // Call 'dontsave()' to avoid saving, e.g. if an error occurred.
 class ofstreamTS : public ofstream {
+  // The name of the file where the data is eventually saved
   string destFname;
-  stringBuilder tmpFname;
+
+  // The name of a temporary file where we write until we rename.
+  //
+  // This is currently "filename.tmp".  Since it is 'rename'd to destFname, it
+  // must be in the same file system as destFname (i.e. generally not in
+  // /tmp)
+  string tmpFname;
+
+  // Flag indicating whether the destructor should save.  See dontsave().
   bool dosave;
 
-  const char *init_fname(string const &destFname0)
-  {
-    destFname = destFname0;
-    tmpFname = destFname0; tmpFname << ".tmp";
-    return tmpFname;
-  }
+  // Initialize the member filenames; used internally by constructor
+  const char *init_fname(string const &destFname0);
 
-  void openTmp()
-  {
-    open(tmpFname.c_str());
-  }
+  // Open the temporary file
+  void openTmp() { open(tmpFname.c_str()); }
 
+  // Close the temporary file and rename to the destination file
   void save();
 
 public:
@@ -39,6 +46,7 @@ public:
   { init_fname(destFname0); openTmp(); }
   ~ofstreamTS() { if (dosave) save(); }
 
+  // Indicate that the output shouldn't be saved, e.g. due to an error.
   void dontsave() { dosave = false; }
 };
 

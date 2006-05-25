@@ -57,6 +57,12 @@ bool filesIdentical(const char *f1, const char *f2)
   }
 }
 
+const char *ofstreamTS::init_fname(string const &destFname0)
+{
+  destFname = destFname0;
+  tmpFname = destFname0 & ".tmp";
+  return tmpFname.c_str();
+}
 
 void ofstreamTS::save() {
   close();
@@ -68,6 +74,6 @@ void ofstreamTS::save() {
     return;
   }
   if (rename(tmpFname.c_str(), destFname.c_str())) {
-    cerr << "Rename " << tmpFname << " to " << destFname << " failed\n";
+    xfatal(stringc << "Rename " << tmpFname << " to " << destFname << " failed");
   }
 }
