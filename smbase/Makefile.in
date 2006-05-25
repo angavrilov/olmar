@@ -129,6 +129,7 @@ OBJS := \
   mypopen.o \
   mysig.o \
   nonport.o \
+  ofstreamts.o \
   point.o \
   pprint.o \
   smregexp.o \
