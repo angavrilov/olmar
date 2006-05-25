@@ -141,7 +141,7 @@ inline bool operator>= (DeclFlags df1, DeclFlags df2)
   { return (df1 & df2) == df2; }
 
 // helper of possibly general purpose
-string bitmapString(int bitmap, char const * const *names, 
+string bitmapString(int bitmap, char const * const *names,
                     int numflags, char const *delim);
 
 
@@ -363,7 +363,7 @@ bool isPredicateCombinator(BinaryOp op);     // &&, ||, ==>, <==>
 bool isRelational(BinaryOp op);              // == thru >=
 bool isInequality(BinaryOp op);              // <, >, <=, >=
 bool isOverloadable(BinaryOp op);
-                                                                     
+
 
 // ---------------- access control ------------
 // these are listed from least restrictive to most restrictive,
@@ -373,7 +373,7 @@ enum AccessKeyword {
   AK_PROTECTED,
   AK_PRIVATE,
   AK_UNSPECIFIED,      // not explicitly specified; typechecking changes it later
-  
+
   NUM_ACCESS_KEYWORDS
 };
 
@@ -398,7 +398,7 @@ char const *toXml(CastKeyword key);
 void fromXml(CastKeyword &out, rostring str);
 
 
-// --------------- overloadable operators -------------            
+// --------------- overloadable operators -------------
 // This is all of the unary and binary operators that are overloadable
 // in C++.  While it repeats operators that are also declared above in
 // some form, it makes the design more orthogonal: the operators above
@@ -464,7 +464,7 @@ enum OverloadableOp {
   OP_PARENS,       // ()
   OP_COMMA,        // ,
   OP_QUESTION,     // ?:  (not overloadable, but resolution used nonetheless)
-  
+
   // gcc extensions
   OP_MINIMUM,      // <?
   OP_MAXIMUM,      // >?
