@@ -141,6 +141,10 @@ bool Variable::linkerVisibleName(bool evenIfStatic) const {
 //    if (scope) oldAnswer = scope->linkerVisible();
 //    else oldAnswer = hasFlag(DF_GLOBAL);
 
+  // do not consider members of uninstantiated template primaries or
+  // partial specializations
+  if (isUninstTemplateMember()) return false;
+
   // it seems that we should not consider typedefs to be linker-visible
   if (hasFlag(DF_TYPEDEF)) return false;
 
