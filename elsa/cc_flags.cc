@@ -5,7 +5,7 @@
 #include "macros.h"       // STATIC_ASSERT
 #include "xassert.h"      // xassert
 #include "trace.h"        // tracingSys
-#include "strtokp.h"      // StrtokParse
+#include "strtokpc.h"     // StrtokParseC
 #include "exc.h"          // xformat
 #include <ctype.h>        // toupper
 
@@ -141,23 +141,27 @@ string toXml(CVFlags id)
 // For best performance, 'str' should have its flags in numerically
 // increasing order (this routine does not sort them first).
 int fromBitmapString(char const * const *names, int numFlags,
-                     char const *kind, rostring str, char const *delim)
+                     char const *kind, char const *str, char delim)
 {
-  StrtokParse tok(str.c_str(), delim);
+  StrtokParseC tok(str);
 
   int ret = 0;       // set of flags that have been found in 'str'
   int tokIndex = 0;  // progress in 'tok'
 
+  char const *curToken = tok.nextToken(delim);
+
   // loop while still flag names in 'tok' yet to be processed
-  while (tokIndex < tok) {
+  while (curToken != NULL) {
     int origTokIndex = tokIndex;
 
     // loop over names in 'names'
-    for (int flag = 0; tokIndex<tok && flag<numFlags; flag++) {
-      if (0==strcmp(names[flag], tok[tokIndex])) {
+    for (int flag = 0; flag<numFlags; flag++) {
+      if (0==strcmp(names[flag], curToken)) {
         // the current string is the current flag
         ret |= (1 << flag);
         tokIndex++;
+        curToken = tok.nextToken(delim);
+        if (curToken == NULL) break;
       }
     }
 
@@ -165,19 +169,18 @@ int fromBitmapString(char const * const *names, int numFlags,
     if (origTokIndex == tokIndex) {
       // failed to make progress; this string isn't anywhere
       // in the 'names' array
-      xformat(stringc << "unknown " << kind << ": " << tok[tokIndex]);
+      xformat(stringc << "unknown " << kind << ": " << curToken);
     }
   }
 
   return ret;
 }
 
-void fromXml(CVFlags &out, rostring str)
+void fromXml(CVFlags &out, char const *str)
 {
-  int tmp = fromBitmapString(cvFlagNames, NUM_CVFLAGS, "CVFlag", str, "|");
+  int tmp = fromBitmapString(cvFlagNames, NUM_CVFLAGS, "CVFlag", str, '|');
   out = (CVFlags)(tmp << CV_SHIFT_AMOUNT);
 }
-
 
 // ------------------- DeclFlags --------------
 char const * const declFlagNames[NUM_DECLFLAGS] = {
@@ -228,10 +231,10 @@ string toXml(DeclFlags id)
   return bitmapString(id, declFlagNames, NUM_DECLFLAGS, "|");
 }
 
-void fromXml(DeclFlags &out, rostring str)
+void fromXml(DeclFlags &out, char const *str)
 {
   out = (DeclFlags)fromBitmapString(declFlagNames, NUM_DECLFLAGS,
-                                    "DeclFlag", str, "|");
+                                    "DeclFlag", str, '|');
 }
 
 

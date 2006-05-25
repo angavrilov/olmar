@@ -133,7 +133,8 @@ enum DeclFlags {
 extern char const * const declFlagNames[NUM_DECLFLAGS];      // 0="inline", 1="virtual", 2="friend", ..
 string toString(DeclFlags df);
 string toXml(DeclFlags df);
-void fromXml(DeclFlags &out, rostring str);
+void fromXml(DeclFlags &out, char const *str);
+
 
 ENUM_BITWISE_OPS(DeclFlags, ALL_DECLFLAGS)
 
@@ -358,6 +359,7 @@ extern char const * const binaryOpNames[NUM_BINARYOPS];   // "*", ..
 char const *toString(BinaryOp op);
 char const *toXml(BinaryOp op);
 void fromXml(BinaryOp &out, rostring str);
+void fromXml(CVFlags &out, char const *str);
 
 bool isPredicateCombinator(BinaryOp op);     // &&, ||, ==>, <==>
 bool isRelational(BinaryOp op);              // == thru >=
