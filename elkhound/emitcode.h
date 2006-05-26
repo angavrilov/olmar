@@ -3,14 +3,14 @@
 
 #ifndef EMITCODE_H
 #define EMITCODE_H
-  
-#include <fstream.h>      // ofstream
+
 #include "str.h"          // stringBuffer
 #include "srcloc.h"       // SourceLoc
+#include "ofstreamts.h"   // ofstreamTS
 
 class EmitCode : public stringBuilder {
 private:     // data
-  ofstream os;         // stream to write to
+  ofstreamTS os;       // stream to write to
   string fname;        // filename for emitting #line
   int line;            // current line number
 
@@ -29,7 +29,7 @@ public:      // funcs
 
 
 // return a #line directive for the given location
-string lineDirective(SourceLoc loc);  
+string lineDirective(SourceLoc loc);
 
 // emit a #line directive to restore reporting to the
 // EmitCode file itself (the 'sb' argument must be an EmitFile object)
