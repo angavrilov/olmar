@@ -41,6 +41,9 @@ class ofstreamTS : public ofstream {
   // Close the temporary file and rename to the destination file
   void save();
 
+  // Close the temporary file and delete it without saving.
+  void deleteTmp();
+
 public:
   ofstreamTS(string const &destFname0) : dosave(true)
   { init_fname(destFname0); openTmp(); }
@@ -48,6 +51,9 @@ public:
 
   // Indicate that the output shouldn't be saved, e.g. due to an error.
   void dontsave() { dosave = false; }
+
+  // Abort output: delete temporary file, and don't save.
+  void abort() { deleteTmp(); dontsave(); }
 };
 
 #endif

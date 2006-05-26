@@ -77,3 +77,10 @@ void ofstreamTS::save() {
     xfatal(stringc << "Rename " << tmpFname << " to " << destFname << " failed");
   }
 }
+
+void ofstreamTS::deleteTmp() {
+  close();
+  if (unlink(tmpFname.c_str())) {
+    cerr << "  unlink " << tmpFname << " failed\n";
+  }
+}
