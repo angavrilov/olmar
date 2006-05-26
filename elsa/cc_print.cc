@@ -1445,8 +1445,18 @@ void FullExpression::print(PrintEnv &env)
   // print some curlies somewhere to make it legal to parse it back in
   // again, and we aren't using E_statement, so it would not reflect
   // the actual ast.
-  xassert(expr && "39ce4334-0ca1-4e19-aaf9-7f27f335a629");
-  expr->print(env);
+  if (expr) {
+    expr->print(env);
+  } else {
+    // 2006-05-25
+    //   TODO: this can happen e.g.
+    //       struct S1 func () {
+    //         struct S1 v;
+    //         ({ return v; });
+    //       }
+    //
+    // xassert(expr && "39ce4334-0ca1-4e19-aaf9-7f27f335a629");
+  }
 }
 
 
