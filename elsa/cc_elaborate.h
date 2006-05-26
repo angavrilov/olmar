@@ -154,7 +154,7 @@ public:      // data
 
   // When true, we retain cloned versions of subtrees whose semantics
   // is captured (and therefore the tree obviated) by the elaboration.
-  // When false, we just nullify thoee subtrees, which results in
+  // When false, we just nullify those subtrees, which results in
   // sometimes-invalid AST, but makes some analyses happy anway.  This
   // defaults to false.
   bool cloneDefunctChildren;
