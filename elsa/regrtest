@@ -1097,6 +1097,7 @@ failparse k0093.cc "tertiary operator implicitly casting one pointer operand to 
 # This is a warning now instead of an error:
 #testparse k0094.cc #declared non-static, cannot re-declare as static
 failparse k0095.cc "templatized enum parameter"
+testparse k0096.cc "statement expression returning struct"
 
 ### </quarl-testcases-c++>
 
