@@ -4,6 +4,12 @@
 
 #include <assert.h>
 
+// SGM 2006-05-26: My flex does not seem to have
+// YY_CURRENT_BUFFER_LVALUE.. maybe this will work?  seems to.
+#ifndef YY_CURRENT_BUFFER_LVALUE
+  #define YY_CURRENT_BUFFER_LVALUE YY_CURRENT_BUFFER
+#endif
+
 // This file is to be included in xml_lex.gen.yy.cc (see xml_lex_0top.lex).
 // It depends on flex macros so we can't make it a separate translation unit.
 // It's named a ".h" file to work with existing oink build infrastructure.

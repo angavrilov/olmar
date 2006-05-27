@@ -1023,6 +1023,34 @@ STATICDEF
 TemplCandidates::STemplateArgsCmp TemplCandidates::compareSTemplateArgs
   (STemplateArgument const *larg, STemplateArgument const *rarg)
 {
+  // handle cases like t0583.cc
+  if (larg->kind == STemplateArgument::STA_DEPEXPR ||
+      rarg->kind == STemplateArgument::STA_DEPEXPR) {
+    // In general I think the STemplateArgument scheme does not
+    // handle non-type params well.  The design in cpp_er.html
+    // looks much better; someday I should implement it.
+
+    if (larg->kind == STemplateArgument::STA_DEPEXPR &&
+        rarg->kind == STemplateArgument::STA_DEPEXPR) {
+      // no structural checks for expressions
+      return STAC_INCOMPARABLE;
+    }
+
+    if (larg->kind == STemplateArgument::STA_DEPEXPR) {
+      // assume that the RHS is more specialized
+      //
+      // TODO (admission): I should be checking that the RHS has a
+      // compatible type, is a non-type argument, etc.
+      return STAC_RIGHT_MORE_SPEC;
+    }
+    else {
+      // symmetric
+      return STAC_LEFT_MORE_SPEC;
+    }
+  }
+
+  // SGM 2006-05-26: I believe this assertion simply reflects that
+  // other cases are not handled, rather than being a precondition.
   xassert(larg->kind == rarg->kind);
 
   switch(larg->kind) {

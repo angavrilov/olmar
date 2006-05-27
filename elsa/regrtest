@@ -861,6 +861,7 @@ failparse t0579.cc "tricky rules about enumerator types"
 failparse t0580.cc "use of enumerator in template-id for explicit specializiation"
 failparse t0581.cc "simpler dependent array bound problem"
 failparse t0582.cc "template array bound problem leads to crash"
+testparse t0583.cc
 
 # another set of tests, generally isolated by Daniel
 testparse d0001.cc
@@ -1059,7 +1060,7 @@ testparse k0058.cc #"converting to types from parameter templates"
 failparse k0059.cc "implicit type conversion in operator delete"
 failparse k0060.cc "disambiguated from multiple base class subobjects"
 failparse k0061.cc "multiple base classes instantiated from the same template class"
-testparse k0062.cc #"template class with subclass whose member function with default argument is defined outside class"
+failparse k0062.cc "template class with subclass whose member function with default argument is defined outside class"
 testparse k0063.cc #"class friend main"
 failparse k0064.cc "functions overloaded by number of template parameters"
 testparse k0065.cc "using incomplete class as default template argument"
