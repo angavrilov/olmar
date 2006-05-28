@@ -718,8 +718,8 @@ void XmlTypeReader::registerAttr_DependentQType
 
   switch(attr) {
   default: xmlUserFatalError("illegal attribute for a DependentQType"); break;
-  case XTOK_first: ul(first, XTOK_AtomicType);
-  case XTOK_rest: ul(rest, XTOK_PQName);
+  case XTOK_first: ul(first, XTOK_AtomicType); break;
+  case XTOK_rest: ul(rest, XTOK_PQName); break;
   }
 }
 

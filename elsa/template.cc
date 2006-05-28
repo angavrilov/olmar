@@ -172,6 +172,7 @@ DependentQType::~DependentQType()
 string DependentQType::toCString() const
 {
   checkOkToBeHere();
+  xassert(rest && "b6160580-54bb-4f08-a032-a69eb4791f3b");
   return stringc << first->toCString() << "::" << rest->toString();
 }
 
