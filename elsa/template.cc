@@ -908,7 +908,8 @@ string STemplateArgument::toString() const
     case STA_INT:       return stringc << "/*int*/ " << value.i;
     case STA_ENUMERATOR:return stringc << "/*enum*/ " << value.v->name;
     case STA_REFERENCE: return stringc << "/*ref*/ " << value.v->name;
-    case STA_POINTER:   return stringc << "/*ptr*/ &" << value.v->name;
+    case STA_POINTER:   xassert(value.v && "ed1f952c-dbf5-41bf-9778-d5b0c0bda5af");
+                        return stringc << "/*ptr*/ &" << value.v->name;
     case STA_MEMBER:    return stringc
       << "/*member*/ &" << value.v->scope->curCompound->name
       << "::" << value.v->name;
