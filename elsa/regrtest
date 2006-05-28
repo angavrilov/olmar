@@ -1060,7 +1060,7 @@ testparse k0058.cc #"converting to types from parameter templates"
 failparse k0059.cc "implicit type conversion in operator delete"
 failparse k0060.cc "disambiguated from multiple base class subobjects"
 failparse k0061.cc "multiple base classes instantiated from the same template class"
-failparse k0062.cc "template class with subclass whose member function with default argument is defined outside class"
+#failparse k0062.cc "template class with subclass whose member function with default argument is defined outside class"
 testparse k0063.cc #"class friend main"
 failparse k0064.cc "functions overloaded by number of template parameters"
 testparse k0065.cc "using incomplete class as default template argument"
@@ -1099,6 +1099,7 @@ failparse k0093.cc "tertiary operator implicitly casting one pointer operand to 
 #testparse k0094.cc #declared non-static, cannot re-declare as static
 failparse k0095.cc "templatized enum parameter"
 testparse k0096.cc "statement expression returning struct"
+testparse k0097.cc "function pointer template"
 
 ### </quarl-testcases-c++>
 
