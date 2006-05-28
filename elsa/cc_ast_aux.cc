@@ -68,7 +68,7 @@ void LoweredASTVisitorHelper::oneVariable(Variable *tinfoVar)
 
   // look in the primary (as a container)
   oneContainer(tinfoVar);
-    
+
   // look in the specializations (as containers)
   SFOREACH_OBJLIST_NC(Variable, tinfo->specializations, iter) {
     oneContainer(iter.data());
@@ -472,7 +472,7 @@ Function *Function::shallowClone() const
   );
 
   ret->cloneThunkSource = this;
-  
+
   return ret;
 }
 
@@ -529,7 +529,7 @@ void MemberInit::printExtras(ostream &os, int indent) const
 void ASTTypeId::printAmbiguities(ostream &os, int indent) const
 {
   genericPrintAmbiguities(this, "ASTTypeId", os, indent);
-  
+
   genericCheckNexts(this);
 }
 
@@ -605,7 +605,7 @@ stringBuilder& operator<< (stringBuilder &sb, PQName const &obj)
 
 string PQName::toString() const
 {
-  return stringc << qualifierString() 
+  return stringc << qualifierString()
                  << getUnqualifiedNameC()->toComponentString();
 }
 
@@ -669,7 +669,7 @@ string PQ_template::toComponentString() const
 
 
 PQName const *PQName::getUnqualifiedNameC() const
-{                   
+{
   PQName const *p = this;
   while (p->isPQ_qualifier()) {
     p = p->asPQ_qualifierC()->rest;
@@ -702,7 +702,7 @@ bool PQName::templateUsed() const
 // list is of nonzero length (neither is NULL), and there can be
 // at most one PQ_template among both lists.  So the situation
 // looks something like this:
-//            
+//
 //            +--------------+   +--------------+   +-------------+
 //     this-->| PQ_qualifier |-->| PQ_qualifier |-->| PQ_template |
 //            +--------------+   +--------------+   +-------------+
@@ -760,7 +760,7 @@ PQName *PQName::mergeAmbiguous(PQName *obj)
 
 
 void PQ_qualifier::printAmbiguities(ostream &os, int indent) const
-{                                                   
+{
   PQName const *n = this;
   genericPrintAmbiguities(n, "PQName", os, indent);
 }
@@ -853,7 +853,7 @@ void BaseClassSpec::printExtras(ostream &os, int indent) const
 void Enumerator::printExtras(ostream &os, int indent) const
 {
   if (var) {
-    ind(os, indent) << "var: " 
+    ind(os, indent) << "var: "
       << toString(var->flags) << (var->flags? " " : "")
       << var->toString() << "\n";
     PRINT_GENERIC(enumValue);
@@ -865,7 +865,7 @@ void Enumerator::printExtras(ostream &os, int indent) const
 void Declarator::printAmbiguities(ostream &os, int indent) const
 {
   genericPrintAmbiguities(this, "Declarator", os, indent);
-  
+
   // check 'next' fields
   for (Declarator *d = ambiguity; d != NULL; d = d->ambiguity) {
     xassert(this->next == d->next);
@@ -907,7 +907,7 @@ void Declarator::setDeclaratorId(PQName *n)
   else if (d->isD_bitfield()) {
     d->asD_bitfield()->name = n;
   }
-  else {                                                 
+  else {
     // getBase loop should only have stopped at D_name or D_bitfield
     xfailure("setting name of unknown base IDeclarator");
   }
@@ -1093,7 +1093,7 @@ bool Handler::isEllipsis() const
 void Expression::printAmbiguities(ostream &os, int indent) const
 {
   genericPrintAmbiguities(this, "Expression", os, indent);
-    
+
   // old
   //genericCheckNexts(this);
 }
@@ -1139,7 +1139,7 @@ void Expression::setNext(Expression *newNext)
 
 
 void Expression::printExtras(ostream &os, int indent) const
-{         
+{
   if (type) {
     ind(os, indent) << "type: " << type->toString() << "\n";
   }
@@ -1215,7 +1215,7 @@ void ArgExpression::setNext(ArgExpression *newNext)
   xassert(next == NULL);
   next = newNext;
 }
-        
+
 
 void ArgExpression::addAmbiguity(ArgExpression *alt)
 {
@@ -1244,7 +1244,7 @@ void ArgExpression::printAmbiguities(ostream &os, int indent) const
 
 // -------------------- TemplateParameter ---------------------
 bool anyHaveDefaultArgs(TemplateParameter const *list)
-{ 
+{
   for (TemplateParameter const *iter = list; iter; iter = iter->next) {
     if (iter->hasDefaultArg()) {
       return true;
