@@ -124,14 +124,14 @@ void XmlReaderManager::parseOneTagOrDatum() {
 //      if (!tag == XTOK___Link) {
     xmlUserFatalError("illegal stand-alone tag");
 //      }
-//      UnsatBiLink *ul = (UnsatBiLink*) topTemp;
-//      if (!ul->from) {
+//      UnsatBiLink *ulink = (UnsatBiLink*) topTemp;
+//      if (!ulink->from) {
 //        xmlUserFatalError("missing 'from' field on __Link tag");
 //      }
-//      if (!ul->to) {
+//      if (!ulink->to) {
 //        xmlUserFatalError("missing 'to' field on __Link tag");
 //      }
-//      unsatBiLinks.append(ul);
+//      unsatBiLinks.append(ulink);
 //      // we don't need it on the stack anymore
 //      nodeStack.pop();
 //      kindStack.pop();            // FIX: delete the return?
@@ -524,36 +524,36 @@ bool inputXmlPointerIsNull(char const * s_id) {
 
 void XmlReaderManager::satisfyLinks_Nodes() {
   FOREACH_ASTLIST(UnsatLink, unsatLinks, iter) {
-    UnsatLink const *ul = iter.data();
+    UnsatLink const *ulink = iter.data();
     void *obj;
-    if (inputXmlPointerIsNull(ul->id.c_str())) {
+    if (inputXmlPointerIsNull(ulink->id.c_str())) {
       obj = NULL;
     } else {
-      obj = id2obj.queryif(ul->id);
+      obj = id2obj.queryif(ulink->id);
       if (obj == NULL) {
-        if (!xmlDanglingPointersAllowed) xmlUserFatalError(stringc << "unsatisfied node link: " << ul->id);
+        if (!xmlDanglingPointersAllowed) xmlUserFatalError(stringc << "unsatisfied node link: " << ulink->id);
       }
     }
 
-    if (ul->embedded) {
+    if (ulink->embedded) {
       // I can assume that the kind of the object that was
       // de-serialized is the same as the target because it was
       // embedded and there is no chance for a reference/referent
       // type mismatch.
-      callOpAssignToEmbeddedObj(obj, ul->kind, ul->ptr);
+      callOpAssignToEmbeddedObj(obj, ulink->kind, ulink->ptr);
       // FIX: we should now delete obj; in fact, this should be done
       // by callOpAssignToEmbeddedObj() since it knows the type of
       // the object which is necessary to delete it of course.  I'll
       // leave this for an optimization pass which we will do later
       // to handle many of these things.
     } else {
-      if (int *kind = id2kind.queryif(ul->id)) {
-        *( (void**)(ul->ptr) ) = upcastToWantedType(obj, *kind, ul->kind);
+      if (int *kind = id2kind.queryif(ulink->id)) {
+        *( (void**)(ulink->ptr) ) = upcastToWantedType(obj, *kind, ulink->kind);
       } else {
         // no kind was registered for the object and therefore no
         // upcasting is required and there is no decision to make; so
         // just do the straight pointer assignment
-        *( (void**) (ul->ptr) ) = obj;
+        *( (void**) (ulink->ptr) ) = obj;
       }
     }
   }
@@ -563,15 +563,15 @@ void XmlReaderManager::satisfyLinks_Nodes() {
 
 void XmlReaderManager::satisfyLinks_Lists() {
   FOREACH_ASTLIST(UnsatLink, unsatLinks_List, iter) {
-    UnsatLink const *ul = iter.data();
-    xassert(ul->embedded);
+    UnsatLink const *ulink = iter.data();
+    xassert(ulink->embedded);
     // NOTE: I rely on the fact that all ASTLists just contain
     // pointers; otherwise this cast would cause problems; Note that I
     // have to use char instead of void because you can't delete a
     // pointer to void; see the note in the if below.
-    ASTList<char> *obj = reinterpret_cast<ASTList<char>*>(id2obj.queryif(ul->id));
+    ASTList<char> *obj = reinterpret_cast<ASTList<char>*>(id2obj.queryif(ulink->id));
     if (!obj) {
-      if (!xmlDanglingPointersAllowed) xmlUserFatalError(stringc << "unsatisfied List link: " << ul->id);
+      if (!xmlDanglingPointersAllowed) xmlUserFatalError(stringc << "unsatisfied List link: " << ulink->id);
       continue;
     }
 
@@ -579,7 +579,7 @@ void XmlReaderManager::satisfyLinks_Lists() {
     // double-delete errors.  It would be nice to have a non-owning list.
 
     KindCategory kindCat;
-    kind2kindCat(ul->kind, &kindCat);
+    kind2kindCat(ulink->kind, &kindCat);
     switch (kindCat) {
     default:
       xfailure("illegal list kind");
@@ -591,7 +591,7 @@ void XmlReaderManager::satisfyLinks_Lists() {
       // pointer to an ASTList, not a pointer to a pointer to an
       // ASTList, as one might expect for most other classes that were
       // used in a host class by being pointed to.
-      ASTList<char> *ptr = reinterpret_cast<ASTList<char>*>(ul->ptr);
+      ASTList<char> *ptr = reinterpret_cast<ASTList<char>*>(ulink->ptr);
       xassert(ptr->isEmpty());
       // this is particularly tricky because the steal contains a
       // delete, however there is nothing to delete, so we should be
@@ -613,7 +613,7 @@ void XmlReaderManager::satisfyLinks_Lists() {
       // FakeList and hook in all of the pointers.  This is
       // type-specific, so generated code must do it that can switch
       // on the templatized type of the FakeList.
-      *( (void**) (ul->ptr) ) = convertList2FakeList(obj, ul->kind);
+      *( (void**) (ulink->ptr) ) = convertList2FakeList(obj, ulink->kind);
       // Make the list dis-own all of its contents so it doesn't delete
       // them when we delete it.  Yes, I should have used a non-owning
       // constant-time-append list.
@@ -628,7 +628,7 @@ void XmlReaderManager::satisfyLinks_Lists() {
       // SObjList and hook in all of the pointers.  This is
       // type-specific, so generated code must do it that can switch
       // on the templatized type of the SObjList.
-      convertList2SObjList(obj, ul->kind, (void**) (ul->ptr) );
+      convertList2SObjList(obj, ulink->kind, (void**) (ulink->ptr) );
       // Make the list dis-own all of its contents so it doesn't delete
       // them when we delete it.  Yes, I should have used a non-owning
       // constant-time-append list.
@@ -643,7 +643,7 @@ void XmlReaderManager::satisfyLinks_Lists() {
       // ObjList and hook in all of the pointers.  This is
       // type-specific, so generated code must do it that can switch
       // on the templatized type of the ObjList.
-      convertList2ObjList(obj, ul->kind, (void**) (ul->ptr) );
+      convertList2ObjList(obj, ulink->kind, (void**) (ulink->ptr) );
       // Make the list dis-own all of its contents so it doesn't delete
       // them when we delete it.  Yes, I should have used a non-owning
       // constant-time-append list.
@@ -658,7 +658,7 @@ void XmlReaderManager::satisfyLinks_Lists() {
       // real ArrayStack and hook in all of the pointers.  This is
       // type-specific, so generated code must do it that can switch
       // on the templatized type of the ObjList.
-      convertList2ArrayStack(obj, ul->kind, (void**) (ul->ptr) );
+      convertList2ArrayStack(obj, ulink->kind, (void**) (ulink->ptr) );
       // Make the list dis-own all of its contents so it doesn't
       // delete them when we delete it.  Yes, I should have used a
       // non-owning constant-time-append list.
@@ -676,20 +676,20 @@ void XmlReaderManager::satisfyLinks_Lists() {
 
 void XmlReaderManager::satisfyLinks_Maps() {
   FOREACH_ASTLIST(UnsatLink, unsatLinks_NameMap, iter) {
-    UnsatLink const *ul = iter.data();
-    xassert(ul->embedded);
+    UnsatLink const *ulink = iter.data();
+    xassert(ulink->embedded);
     // NOTE: I rely on the fact that all StringRefMap-s just contain
     // pointers; otherwise this cast would cause problems; Note that I
     // have to use char instead of void because you can't delete a
     // pointer to void; see the note in the if below.
-    StringRefMap<char> *obj = reinterpret_cast<StringRefMap<char>*>(id2obj.queryif(ul->id));
+    StringRefMap<char> *obj = reinterpret_cast<StringRefMap<char>*>(id2obj.queryif(ulink->id));
     if (!obj) {
-      if (!xmlDanglingPointersAllowed) xmlUserFatalError(stringc << "unsatisfied Map link: " << ul->id);
+      if (!xmlDanglingPointersAllowed) xmlUserFatalError(stringc << "unsatisfied Map link: " << ulink->id);
       continue;
     }
 
     KindCategory kindCat;
-    kind2kindCat(ul->kind, &kindCat);
+    kind2kindCat(ulink->kind, &kindCat);
     switch (kindCat) {
     default:
       xfailure("illegal name map kind");
@@ -698,13 +698,13 @@ void XmlReaderManager::satisfyLinks_Maps() {
     case KC_StringRefMap: {
       // FIX: this would be way more efficient if there were a
       // PtrMap::steal() method: I wouldn't need this convert call.
-      convertNameMap2StringRefMap(obj, ul->kind, (void**) (ul->ptr) );
+      convertNameMap2StringRefMap(obj, ulink->kind, (void**) (ulink->ptr) );
       // TODO: delete the map ??
       break;
     }
 
     case KC_StringSObjDict: {
-      convertNameMap2StringSObjDict(obj, ul->kind, (void**) (ul->ptr) );
+      convertNameMap2StringSObjDict(obj, ulink->kind, (void**) (ulink->ptr) );
       // TODO: delete the map ??
       break;
     }
@@ -717,14 +717,14 @@ void XmlReaderManager::satisfyLinks_Maps() {
 
 //  void XmlReaderManager::satisfyLinks_Bidirectional() {
 //    FOREACH_ASTLIST(UnsatBiLink, unsatBiLinks, iter) {
-//      UnsatBiLink const *ul = iter.data();
-//      void **from = (void**)id2obj.queryif(ul->from);
+//      UnsatBiLink const *ulink = iter.data();
+//      void **from = (void**)id2obj.queryif(ulink->from);
 //      // NOTE: these are different from unidirectional links: you really
 //      // shouldn't make one unless both parties can be found.
 //      if (!from) {
 //        xmlUserFatalError("Unsatisfied bidirectional link: 'from' not found");
 //      }
-//      void *to = id2obj.queryif(ul->to);
+//      void *to = id2obj.queryif(ulink->to);
 //      if (!to) {
 //        xmlUserFatalError("Unsatisfied bidirectional link: 'to' not found");
 //      }
