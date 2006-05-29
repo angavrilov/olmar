@@ -225,7 +225,16 @@ class IncDec {
     outputXmlPointerQuoted(*out, idmgr.idPrefix(VALUE),           \
                            idmgr.uniqueId(VALUE));                \
   } while(0)
-#define printPtr(BASE, MEM)    printPtr0(MEM, (BASE)->MEM)
+
+// quarl 2006-05-28
+//    Don't print attributes of pointers which point to NULL.
+#define printPtr(BASE, MEM)                                       \
+  do {                                                            \
+    if ((BASE)->MEM) {                                            \
+      printPtr0(MEM, (BASE)->MEM);                                \
+    }                                                             \
+  } while(0)
+
 #define printPtrAST(BASE, MEM)                                    \
   do {                                                            \
     if (astVisitor && ((BASE)->MEM)) {                            \
