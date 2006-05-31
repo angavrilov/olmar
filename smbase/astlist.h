@@ -100,8 +100,8 @@ protected:
   VoidTailListIter iter;      // underlying iterator
 
 public:
+  ASTListIter()                        {} // initially done
   ASTListIter(ASTList<T> const &list) : iter(list.list) {}
-  ASTListIter(ASTList<T> const *list, bool) : iter(list ? list->list : NULL) {}
   ~ASTListIter()                       {}
 
   void reset(ASTList<T> const &list)   { iter.reset(list.list); }

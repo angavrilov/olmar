@@ -82,6 +82,7 @@ protected:
   VoidTailListIter iter;        // underlying iterator
 
 public:
+  TailListIter() {}      // initially done
   TailListIter(TailList<T> const &list) : iter(list.list) {}
   ~TailListIter()                       {}
 
@@ -108,6 +109,7 @@ protected:
   VoidTailListIter iter;        // underlying iterator
 
 public:
+  TailListIterNC() {}      // initially done
   TailListIterNC(TailList<T> &list)      : iter(list.list) {}
   ~TailListIterNC()                     {}
 
