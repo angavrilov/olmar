@@ -443,7 +443,9 @@ void *XmlReaderManager::ctorNodeFromTag(int tag) {
     }
   }
 
-  xfailure("no ctor registered for this tag");
+  xmlUserFatalError(stringc
+                    << "no ctor registered for tag " << tag << " (text='"
+                    << lexer.currentText() << "')");
 }
 
 void XmlReaderManager::registerAttribute
@@ -523,6 +525,9 @@ bool inputXmlPointerIsNull(char const * s_id) {
 }
 
 void XmlReaderManager::satisfyLinks_Nodes() {
+  // printf("## id2obj.size() = %d, id2kind.size() = %d\n",
+  //        id2obj.size(), id2kind.size());
+
   FOREACH_ASTLIST(UnsatLink, unsatLinks, iter) {
     UnsatLink const *ulink = iter.data();
     void *obj;
