@@ -518,6 +518,8 @@ void XmlReaderManager::xmlUserFatalError(char const *msg) {
 //    last.  The order we use now (lists, nodes without embedding, nodes with
 //    embedding) works for now, but the whole thing is brittle.
 
+// TODO: make separate lists for embedded and non-embedded ulinks
+
 void XmlReaderManager::satisfyLinks() {
   satisfyLinks_Lists();
   satisfyLinks_Nodes();
