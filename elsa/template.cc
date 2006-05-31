@@ -169,12 +169,22 @@ DependentQType::~DependentQType()
 {}
 
 
+bool dqt_toString_failWhenRestIsNull = false;
 string DependentQType::toCString() const
 {
   checkOkToBeHere();
   xassert(first);
-  xassert(rest && "b6160580-54bb-4f08-a032-a69eb4791f3b");
-  return stringc << first->toCString() << "::" << rest->toString();
+
+//   xassert(rest && "b6160580-54bb-4f08-a032-a69eb4791f3b");
+//   return stringc << first->toCString() << "::" << rest->toString();
+
+  // dsw: in Oink when I serialize and then de-serialize without the
+  // AST, these few links from the Typesystem into the AST are lost;
+  // therefore I need to allow them to be missing
+  if (dqt_toString_failWhenRestIsNull) {
+    xassert(rest && "b6160580-54bb-4f08-a032-a69eb4791f3b");
+  }
+  return stringc << first->toCString() << "::" << (rest ? rest->toString() : "<*unknown*>");
 }
 
 string DependentQType::toMLString() const

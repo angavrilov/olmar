@@ -141,6 +141,9 @@ bool Variable::linkerVisibleName(bool evenIfStatic) const {
 //    if (scope) oldAnswer = scope->linkerVisible();
 //    else oldAnswer = hasFlag(DF_GLOBAL);
 
+  // do not consider templates
+  if (isTemplate()) return false;
+
   // do not consider members of uninstantiated template primaries or
   // partial specializations
   if (isUninstTemplateMember()) return false;

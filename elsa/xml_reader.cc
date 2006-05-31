@@ -536,7 +536,9 @@ void XmlReaderManager::satisfyLinks_Nodes() {
     } else {
       obj = id2obj.queryif(ulink->id);
       if (obj == NULL) {
-        if (!xmlDanglingPointersAllowed) xmlUserFatalError(stringc << "unsatisfied node link: " << ulink->id);
+        if (!xmlDanglingPointersAllowed) {
+          xmlUserFatalError(stringc << "unsatisfied node link: " << ulink->id);
+        }
       }
     }
 
@@ -576,7 +578,9 @@ void XmlReaderManager::satisfyLinks_Lists() {
     // pointer to void; see the note in the if below.
     ASTList<char> *obj = reinterpret_cast<ASTList<char>*>(id2obj.queryif(ulink->id));
     if (!obj) {
-      if (!xmlDanglingPointersAllowed) xmlUserFatalError(stringc << "unsatisfied List link: " << ulink->id);
+      if (!xmlDanglingPointersAllowed) {
+        xmlUserFatalError(stringc << "unsatisfied List link: " << ulink->id);
+      }
       continue;
     }
 
@@ -689,7 +693,9 @@ void XmlReaderManager::satisfyLinks_Maps() {
     // pointer to void; see the note in the if below.
     StringRefMap<char> *obj = reinterpret_cast<StringRefMap<char>*>(id2obj.queryif(ulink->id));
     if (!obj) {
-      if (!xmlDanglingPointersAllowed) xmlUserFatalError(stringc << "unsatisfied Map link: " << ulink->id);
+      if (!xmlDanglingPointersAllowed) {
+        xmlUserFatalError(stringc << "unsatisfied Map link: " << ulink->id);
+      }
       continue;
     }
 

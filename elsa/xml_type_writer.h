@@ -112,7 +112,9 @@ class XmlTypeWriter_AstVisitor : public XmlAstWriter_AstVisitor {
      bool indent0 = false,
      bool ensureOneVisit0 = true);
 
-  virtual bool shouldSerialize(Variable const *var) {return !ttx.serializeOracle_m || ttx.serializeOracle_m->shouldSerialize(var);}
+  virtual bool shouldSerialize(Variable const *var) {
+    return !ttx.serializeOracle_m || ttx.serializeOracle_m->shouldSerialize(var);
+  }
   IdentityManager &getIdMgr() { return ttx.idmgr; }
 
   // **** visit methods
