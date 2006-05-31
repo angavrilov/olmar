@@ -11,7 +11,7 @@ void IntegrityVisitor::foundAmbiguous(void *obj, void **ambig, char const *kind)
   // check in the elaboration visitor regarding visiting certain lists
   // more than once.  Among other things, that means if there is a bug
   // along these lines, a user will discover it by seeing the
-  // unfriendly list-visit assertion failure insteead of the message
+  // unfriendly list-visit assertion failure instead of the message
   // here.  But, that stuff is wrapped up in the Daniel's lowered
   // visitor mechanism, which I don't want to mess with now.  Anyway,
   // I'm reasonably confident that this check will work properly.
@@ -54,6 +54,9 @@ bool IntegrityVisitor::visitExpression(Expression *obj)
   //
   // TODO: Make a way for ASTVisitorEx to communicate to visitors
   // whether they are in template bodies or not.
+  //
+  // 2006-05-30: Um, what was I thinking?  Why is 'inTemplate' not
+  // sufficient?
   #if 0
   if (obj->isE_grouping()) {
     xfatal(toString(loc) << ": internal error: found E_grouping after tcheck");
@@ -62,6 +65,11 @@ bool IntegrityVisitor::visitExpression(Expression *obj)
     xfatal(toString(loc) << ": internal error: found E_arrow after tcheck");
   }
   #endif // 0
+
+  // why was I not doing this before?  detects problem in/t0584.cc
+  if (!inTemplate && obj->type) {
+    checkNontemplateType(obj->type);
+  }
 
   return true;
 }

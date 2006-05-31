@@ -1633,7 +1633,14 @@ void Env::insertTemplateArgBindings
 bool Env::insertTemplateArgBindings_oneParamList
   (Scope *scope, Variable *baseV, SObjListIter<STemplateArgument> &argIter,
    SObjList<Variable> const &params)
-{
+{      
+  // accumulate type parameter bindings for cases like in/t0505.cc
+  // where later parameters refer to earlier parameters
+  //
+  // I'm not sure this is right; maybe I need to accumulate them
+  // across all the parameter lists?
+  MType typeBindings(true /*allowNonConst*/);
+
   SObjListIter<Variable> paramIter(params);
   while (!paramIter.isDone()) {
     Variable const *param = paramIter.data();
@@ -1665,6 +1672,9 @@ bool Env::insertTemplateArgBindings_oneParamList
       Variable *binding = makeVariable(param->loc, param->name, t,
                                        DF_TYPEDEF | DF_TEMPL_PARAM | DF_BOUND_TPARAM);
       addVariableToScope(scope, binding);
+      
+      // remember them in 'typeBindings' too (for local use)
+      typeBindings.setBoundValue(param->name, *sarg);
     }
     else if (!param->hasFlag(DF_TYPEDEF) &&
              (!sarg || sarg->isObject())) {
@@ -1684,7 +1694,8 @@ bool Env::insertTemplateArgBindings_oneParamList
       Type *bindType = param->type->isReference()?
         param->type :                 // reference: no need/desire to apply 'const'
         tfac.applyCVToType(param->loc, CV_CONST,    // non-reference: apply 'const'
-                           param->type, NULL /*syntax*/);
+                           param->type, NULL /*syntax*/);       
+      bindType = applyArgumentMapToType(typeBindings, bindType);  // in/t0505.cc
       Variable *binding = makeVariable(param->loc, param->name,
                                        bindType, DF_TEMPL_PARAM | DF_BOUND_TPARAM);
 
@@ -2256,7 +2267,23 @@ void Env::instantiateDefaultArgs(Variable *instV, int neededDefaults)
 
   // declScope: the scope where the function declaration appeared
   Variable *baseV = instTI->instantiationOf;
-  Scope *declScope = baseV->scope;
+  #if 0      // seems to be wrong
+    Scope *declScope = baseV->scope;
+  #else      // fixes in/t0584.cc
+    Scope *declScope = instTI->var->scope;     // scope surrounding instantiation
+    
+    // I suspect the reason I originally wrote 'baseV->scope' is I was
+    // thinking about template functions at global scope.  But for a
+    // member of a template class, I need to be pushing the template
+    // class instantiation scope, not the original template
+    // definition, because the latter has things like DQTs in it
+    // (look at gdbScopes() when this routine is running).
+    //
+    // Additional evidence to support this change comes from
+    // Env::instantiateFunctionBodyNow, from which much of the
+    // surrounding code here was copied, and uses defnScope (which is
+    // similar).
+  #endif
   xassert(declScope);
 
   // ------- BEGIN: duplicated from below -------
