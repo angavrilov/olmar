@@ -215,6 +215,7 @@ XML_OBJS += xml_file_writer.o
 XML_OBJS += xml_type_reader.o
 XML_OBJS += xml_type_writer.o
 XML_OBJS += xml_ast_reader.o
+XML_OBJS += id_obj_dict.o
 # final client
 XML_OBJS += xml_do_read.o
 

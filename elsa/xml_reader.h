@@ -7,6 +7,7 @@
 #ifndef XML_READER_H
 #define XML_READER_H
 
+#include "id_obj_dict.h"        // IdObjDict
 #include "strsobjdict.h"        // StringSObjDict
 #include "sobjstack.h"          // SObjStack
 #include "objstack.h"           // ObjStack
@@ -252,7 +253,9 @@ class XmlReaderManager {
 //    ASTList<UnsatBiLink> unsatBiLinks;
 
   // map object ids to the actual object
-  StringSObjDict<void> id2obj;
+  IdObjDict id2obj;
+  // StringSObjDict<void> id2obj;
+
   // map object ids to their kind ONLY IF there is a non-trivial
   // upcast to make at the link satisfaction point
   StringSObjDict<int> id2kind;
