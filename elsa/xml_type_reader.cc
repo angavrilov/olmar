@@ -233,7 +233,10 @@ bool XmlTypeReader::callOpAssignToEmbeddedObj(void *obj, int kind, void *target)
   case XTOK_BaseClassSubobj:
     BaseClassSubobj *obj1 = reinterpret_cast<BaseClassSubobj*>(obj);
     BaseClassSubobj *target1 = reinterpret_cast<BaseClassSubobj*>(target);
-    obj1->operator=(*target1);
+    // fprintf(stderr,
+    //         "## embed XTOK_BaseClassSubobj: obj1=%p, &obj1->parents=%p, target1=%p, &target1->parents=%p\n",
+    //         obj1, &obj1->parents, target1, &target1->parents);
+    target1->operator=(*obj1);
     return true;
     break;
 
@@ -770,7 +773,10 @@ void XmlTypeReader::registerAttr_BaseClassSubobj
 
   switch(attr) {
   default: xmlUserFatalError("illegal attribute for a BaseClassSubobj"); break;
-  case XTOK_parents: ulList(_List, parents, XTOK_List_BaseClassSubobj_parents); break;
+  case XTOK_parents:
+    // fprintf(stderr, "## registerAttr_BaseClassSubobj: id=%s, obj=%p, &obj->parents=%p\n",
+    //         strValue, obj, &obj->parents);
+    ulList(_List, parents, XTOK_List_BaseClassSubobj_parents); break;
   }
 }
 

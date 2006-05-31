@@ -7,7 +7,7 @@
 
 bool xmlDanglingPointersAllowed = true;
 
-
+// TODO: make parameter id0 a const char *
 UnsatLink::UnsatLink(void *ptr0, string const &id0, int kind0, bool embedded0)
   : ptr(ptr0), id(id0), kind(kind0), embedded(embedded0)
 {};
@@ -511,9 +511,16 @@ void XmlReaderManager::xmlUserFatalError(char const *msg) {
   xfailure("should not get here");
 }
 
+// quarl 2006-05-31:
+//    UNFORTUNATELY, the order in which we satisfy links matters when embedded
+//    objects are involved.  Embedded objects must be satisfied last, and if
+//    there are nested embedding, then the outermost object must be satisfied
+//    last.  The order we use now (lists, nodes without embedding, nodes with
+//    embedding) works for now, but the whole thing is brittle.
+
 void XmlReaderManager::satisfyLinks() {
-  satisfyLinks_Nodes();
   satisfyLinks_Lists();
+  satisfyLinks_Nodes();
   satisfyLinks_Maps();
 //    satisfyLinks_Bidirectional();
 }
@@ -528,10 +535,24 @@ void XmlReaderManager::satisfyLinks_Nodes() {
   // printf("## id2obj.size() = %d, id2kind.size() = %d\n",
   //        id2obj.size(), id2kind.size());
 
+  // satisfy non-embedded objects first, then embedded objects (see 2006-05-31
+  // comment above)
+  satisfyLinks_Nodes_1(false);
+  satisfyLinks_Nodes_1(true);
+
+  // remove the links
+  unsatLinks.deleteAll();
+}
+
+void XmlReaderManager::satisfyLinks_Nodes_1(bool processEmbedded) {
   FOREACH_ASTLIST(UnsatLink, unsatLinks, iter) {
     UnsatLink const *ulink = iter.data();
+    // fprintf(stderr, "## satisfyLinks_Nodes: processing link id=%s\n", ulink->id.c_str());
     void *obj;
     if (inputXmlPointerIsNull(ulink->id.c_str())) {
+      // Note: as of 2006-05-30, we no longer serialize "(null)" pointers, so
+      // when deserializing data that we serialized, we just get a dangling
+      // pointer which defaults to NULL.
       obj = NULL;
     } else {
       obj = id2obj.queryif(ulink->id);
@@ -543,6 +564,7 @@ void XmlReaderManager::satisfyLinks_Nodes() {
     }
 
     if (ulink->embedded) {
+      if (!processEmbedded) continue;
       // I can assume that the kind of the object that was
       // de-serialized is the same as the target because it was
       // embedded and there is no chance for a reference/referent
@@ -554,6 +576,7 @@ void XmlReaderManager::satisfyLinks_Nodes() {
       // leave this for an optimization pass which we will do later
       // to handle many of these things.
     } else {
+      if (processEmbedded) continue;
       if (int *kind = id2kind.queryif(ulink->id)) {
         *( (void**)(ulink->ptr) ) = upcastToWantedType(obj, *kind, ulink->kind);
       } else {
@@ -564,13 +587,12 @@ void XmlReaderManager::satisfyLinks_Nodes() {
       }
     }
   }
-  // remove the links
-  unsatLinks.deleteAll();
 }
 
 void XmlReaderManager::satisfyLinks_Lists() {
   FOREACH_ASTLIST(UnsatLink, unsatLinks_List, iter) {
     UnsatLink const *ulink = iter.data();
+    // fprintf(stderr, "## satisfyLinks_Lists: processing link id=%s\n", ulink->id.c_str());
     xassert(ulink->embedded);
     // NOTE: I rely on the fact that all ASTLists just contain
     // pointers; otherwise this cast would cause problems; Note that I

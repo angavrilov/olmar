@@ -322,6 +322,7 @@ class XmlReaderManager {
 
   private:
   void satisfyLinks_Nodes();
+  void satisfyLinks_Nodes_1(bool processEmbedded);
   void satisfyLinks_Lists();
   void satisfyLinks_Maps();
 //    void satisfyLinks_Bidirectional();
