@@ -63,6 +63,7 @@ public:     // types
     Iter& operator= (Iter const &obj) { CMEMB(current); return *this; }
 
     bool isDone() const { return current == NULL; }
+    void adv() { xassert(current); current = current->next; }
     Iter& next() { xassert(current); current = current->next; return *this; }
       // 'next' returns a value primarily to allow use in for-loop comma exprs
 
