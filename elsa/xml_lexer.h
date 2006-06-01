@@ -43,6 +43,7 @@ public:
   void err(char const *msg);
 
   string tokenKindDesc(int kind) const;
+  string tokenKindDescV(int kind) const;
 
   FLEX_OUTPUT_METHOD_DECLS
 };

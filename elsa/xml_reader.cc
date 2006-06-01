@@ -429,7 +429,8 @@ void XmlReaderManager::kind2kindCat(int kind, KindCategory *kindCat) {
     }
   }
 
-  xfailure("no kind category registered for this kind");
+  xfailure(stringc << "no kind category registered for kind "
+           << lexer.tokenKindDescV(kind));
 }
 
 void *XmlReaderManager::ctorNodeFromTag(int tag) {

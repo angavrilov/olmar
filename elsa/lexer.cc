@@ -8,7 +8,7 @@
 #include <stdlib.h>      // atoi
 
 
-/* 
+/*
  * Note about nonseparating tokens and the 'checkForNonsep' function:
  *
  * To diagnose and report erroneous syntax like "0x5g", which would
@@ -22,9 +22,9 @@
  * They must be separated by either whitespace, or at least one
  * separating token.  The nonseparating tokens are identifiers,
  * alphabetic keywords, and literals.  The lexer would of course never
- * yield two adjacent keywords, due to maximal munch, but classifying 
+ * yield two adjacent keywords, due to maximal munch, but classifying
  * such an event as an error is harmless.
- * 
+ *
  * By keeping track of whether the last token yielded is separating or
  * not, we'll see (e.g.) "0x5g" as two consecutive nonseparating tokens,
  * and can report that as an error.
@@ -125,7 +125,7 @@ int Lexer::tok(TokenType t)
 }
 
 
-int Lexer::svalTok(TokenType t) 
+int Lexer::svalTok(TokenType t)
 {
   checkForNonsep(t);
   updLoc();
@@ -248,7 +248,7 @@ STATICDEF void Lexer::c_tokenFunc(LexerInterface *lex)
   if (tokenFlags(tt) & TF_CPLUSPLUS) {
     // create the lexeme corresponding to the token's spelling
     StringRef str = ths->strtable.add(toString(tt));
-    
+
     // set the LexerInterface fields to yield the new token
     ths->type = TOK_NAME;
     ths->sval = (SemanticValue)str;
@@ -260,7 +260,7 @@ Lexer::NextTokenFunc Lexer::getTokenFunc() const
 {
   if (lang.recognizeCppKeywords) {
     // expected case, yield the normal tokenizer
-    return &Lexer::tokenFunc;                   
+    return &Lexer::tokenFunc;
   }
   else {
     // yield the tokenizer that maps C++ keywords into C keywords
@@ -286,6 +286,14 @@ string Lexer::tokenKindDesc(int kind) const
 {
   // static table only
   return toString((TokenType)kind);
+}
+
+string Lexer::tokenKindDescV(int kind) const
+{
+  stringBuilder s;
+  s << toString((TokenType)kind)
+    << " (" << kind << ")";
+  return s;
 }
 
 
