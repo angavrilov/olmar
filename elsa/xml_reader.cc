@@ -3,7 +3,7 @@
 #include "xml_reader.h"         // this module
 // #include "xmlhelp.h"            // xmlAttrDeQuote() etc.
 #include "exc.h"                // xBase
-
+#include "taillist.h"
 
 bool xmlDanglingPointersAllowed = true;
 
@@ -47,7 +47,11 @@ void XmlReaderManager::parseOneTopLevelTag() {
   xassert(kindStack.isEmpty()); // the stacks are synchronized
 }
 
+// TODO: shorten this function
 void XmlReaderManager::parseOneTagOrDatum() {
+  static int count=0;
+  ++count;
+
   // state: looking for a tag start
   if (lexer.haveSeenEof()) {
     xmlUserFatalError("unexpected EOF while looking for '<' of an open tag");
@@ -73,7 +77,7 @@ void XmlReaderManager::parseOneTagOrDatum() {
   // state: read a tag name
   int tag = lexer.getToken();
   // construct the tag object on the stack
-  void *topTemp;
+  void *topTemp = NULL;
   bool sawOpenTag = true;
   switch(tag) {
   default:
@@ -106,9 +110,10 @@ void XmlReaderManager::parseOneTagOrDatum() {
     // attaches attributes to the node on the top of the stack (my
     // parser is some sort of stack machine).
     xassert(topTemp);
+    // fprintf(stderr, "## parseOneTagOrDatum: sawOpenTag count=%d, node=%p\n", count, topTemp);
     nodeStack.push(topTemp);
-    // TODO: avoid allocating a pointer for ints
     kindStack.push(tag);
+    ulinkStack.push(new ASTList<UnsatLink>());
 
     // read the attributes
     bool sawContainerTag = readAttributes();
@@ -148,10 +153,17 @@ void XmlReaderManager::parseOneTagOrDatum() {
   }
   lastNode = nodeStack.pop();
   lastKind = kindStack.pop();
+  ASTList<UnsatLink> *ulinks = ulinkStack.pop();
   if (lastKind != closeTag) {
     xmlUserFatalError(stringc << "close tag " << lexer.tokenKindDescV(closeTag)
                       << " does not match open tag " << lexer.tokenKindDescV(lastKind));
   }
+
+  // quarl 2006-06-01
+  //    Hopefully, we've already satisfied most by now so this is usually
+  //    empty.  Steal the rest of them onto the list of all unsat links.
+  allUnsatLinks.concat(*ulinks);
+  delete ulinks;
 
   // state: read the '>' after a close tag
   int closeGreaterThan = lexer.getToken();
@@ -162,122 +174,203 @@ void XmlReaderManager::parseOneTagOrDatum() {
     break;
   }
 
-  // deal with list entries
-  if (closeTag == XTOK__List_Item) {
-    // save the item tag
-    ListItem *itemNode = (ListItem*)lastNode;
-    int itemKind = lastKind;
-    xassert(itemKind == XTOK__List_Item);
-
-    // what kind of thing is next on the stack?
-    if (nodeStack.isEmpty()) {
-      xmlUserFatalError("a _List_Item tag not immediately under a List");
-    }
-    void *listNode = nodeStack.top();
-    int listKind = kindStack.top();
-    KindCategory listKindCat;
-    kind2kindCat(listKind, &listKindCat);
-    if (!(listNode &&
-          (listKindCat == KC_ASTList
-           || listKindCat == KC_FakeList
-           || listKindCat == KC_ObjList
-           || listKindCat == KC_SObjList
-           || listKindCat == KC_ArrayStack)
-        )) {
-      xmlUserFatalError("a _List_Item tag not immediately under a List");
-    }
-
-    // find the Node pointed to by the item; it should have been seen
-    // by now
-    if (!itemNode->to) {
-      xmlUserFatalError("no 'to' field for this _List_Item tag");
-    }
-    void *pointedToItem = id2obj.queryif(itemNode->to);
-    if (pointedToItem) {
-      // DEBUG1
-//       cout << "parseOneTagOrDatum, itemNode->to: " << itemNode->to << endl;
-      append2List(listNode, listKind, pointedToItem);
-    } else {
-      if (!xmlDanglingPointersAllowed) xmlUserFatalError("no Node pointed to by _List_Item");
-    }
+  // quarl 2006-06-01
+  //    Append to any list/map items.
+  switch(lastKind) {
+  default:
+    // normal non-list tag; no further processing required.
+    break;
+  case XTOK__List_Item: appendListItem(); break;
+  case XTOK__NameMap_Item: appendNameMapItem(); break;
+  case XTOK__Map_Item: appendMapItem(); break;
   }
 
-  // deal with name-map entries
-  else if (closeTag == XTOK__NameMap_Item) {
-    // save the name tag
-    NameMapItem *nameNode = (NameMapItem*)lastNode;
-    int nameKind = lastKind;
-    xassert(nameKind == XTOK__NameMap_Item);
+  // quarl 2006-06-01
+  //    We had to prepend in appendListItem() due to lack of constant-time
+  //    append, so now reverse.
+  switch (kind2kindCat(lastKind)) {
+  default:
+    // nothing to do
+    break;
 
-    // what kind of thing is next on the stack?
-    if (nodeStack.isEmpty()) {
-      xmlUserFatalError("a _NameMap_Item tag not immediately under a Map");
-    }
-    void *mapNode = nodeStack.top();
-    int mapKind = kindStack.top();
-    KindCategory mapKindCat;
-    kind2kindCat(mapKind, &mapKindCat);
-    if (!(mapNode && (mapKindCat == KC_StringRefMap || mapKindCat == KC_StringSObjDict))) {
-      xmlUserFatalError("a _NameMap_Item tag not immediately under a Map");
-    }
+  case KC_FakeList:
+    reverseFakeList(*reinterpret_cast<void**>(lastNode), lastKind);
+    break;
 
-    // find the Node pointed to by the item; it should have been seen
-    // by now
-    void *pointedToItem = id2obj.queryif(nameNode->to);
-    if (pointedToItem) {
-      // DEBUG1
-//       cout << "parseOneTagOrDatum, nameNode->to: " << nameNode->to << endl;
-      insertIntoNameMap(mapNode, mapKind, nameNode->from, pointedToItem);
-    } else {
-      if (!xmlDanglingPointersAllowed) xmlUserFatalError("no Node pointed to by _NameMap_Item");
-    }
+  case KC_SObjList:
+    reinterpret_cast<SObjList<char>*>(lastNode)->reverse();
+    break;
 
-    // FIX: we should probably delete the NameMapItem
+  case KC_ObjList:
+    reinterpret_cast<ObjList<char>*>(lastNode)->reverse();
+    break;
+
+  case KC_ArrayStack:
+    // TODO: consolidate
+    break;
+  }
+}
+
+// quarl 2006-06-01
+//    FakeList strategy: since a prepend to a fakelist modifies the
+//    pointer to the fakelist, we must have a place to store the
+//    pointer.  Thus the item stored in the nodeStack is actually a
+//    pointer to a FakeList*.
+//
+//    We expect the parent to point to us, so as soon as we
+//    have an ID in readAttributes(), we'll deallocate this void*.
+
+void XmlReaderManager::appendListItem() {
+  // save the item tag
+  ListItem *itemNode = (ListItem*)lastNode;
+
+  // find the Node pointed to by the item; it should have been seen
+  // by now
+  if (itemNode->to.empty()) {
+    xmlUserFatalError("no 'to' field for this _List_Item tag");
   }
 
-  // deal with map entries
-  else if (closeTag == XTOK__Map_Item) {
-    // save the name tag
-    MapItem *nameNode = (MapItem*)lastNode;
-    int nameKind = lastKind;
-    xassert(nameKind == XTOK__Map_Item);
-
-    // what kind of thing is next on the stack?
-    if (nodeStack.isEmpty()) {
-      xmlUserFatalError("a _Map_Item tag not immediately under a Map");
-    }
-    void *mapNode = nodeStack.top();
-    int mapKind = kindStack.top();
-    KindCategory mapKindCat;
-    kind2kindCat(mapKind, &mapKindCat);
-    if (!(mapNode && (mapKindCat == KC_PtrMap))) {
-      xmlUserFatalError("a _Map_Item tag not immediately under a Map");
-    }
-
-    // find the Node-s pointed to by both the key and item; they
-    // should have been seen by now
-    void *pointedToKey = id2obj.queryif(nameNode->from);
-    void *pointedToItem = id2obj.queryif(nameNode->to);
-    if (pointedToItem) {
-      // DEBUG1
-//       cout << "parseOneTagOrDatum, nameNode->to: " << nameNode->to << endl;
-      insertIntoMap(mapNode, mapKind, pointedToKey, pointedToItem);
-    } else {
-      if (!xmlDanglingPointersAllowed) xmlUserFatalError("no Node pointed to by _Map_Item");
-    }
-
-    // FIX: we should probably delete the MapItem
+  // TODO: optimization: 99% of the time, the pointedToItem was our xml-child
+  // TODO: can just re-use UnsatLink to implement optimization
+  void *pointedToItem = id2obj.queryif(itemNode->to);
+  if (!pointedToItem) {
+    if (!xmlDanglingPointersAllowed) xmlUserFatalError("no Node pointed to by _List_Item");
+    return;
   }
 
-  // otherwise we are a normal node; just pop it off; no further
-  // processing is required
-  else {
+  // what kind of thing is next on the stack?
+  void *listNode = getTopNode0();
+  if (!listNode) {
+    xmlUserFatalError("a _List_Item tag not immediately under a List");
+  }
+  int listKind = kindStack.top();
+  KindCategory listKindCat = kind2kindCat(listKind);
+
+  // quarl 2006-06-01
+  //    For void*-based lists such as ASTList and ObjList, we can just
+  //    reinterpret the list type and append, since it's just a type-safety
+  //    wrapper with identical representation.
+  //
+  //    For others, namely FakeList and ArrayStack, we have no choice but to
+  //    do a manual virtual dispatch on listKind.
+  switch (listKindCat) {
+  default:
+    xmlUserFatalError("a _List_Item tag not immediately under a List");
+    break;
+
+  case KC_ASTList:
+    reinterpret_cast<ASTList<void>*>(listNode)->append(pointedToItem);
+    break;
+  case KC_TailList:
+    reinterpret_cast<TailList<void>*>(listNode)->append(pointedToItem);
+    break;
+  case KC_FakeList:
+    // no constant append; reversed later
+    prependToFakeList(*reinterpret_cast<void**>(listNode), pointedToItem, listKind);
+    break;
+  case KC_ObjList:
+    // no constant append; reversed later
+    reinterpret_cast<ObjList<void>*>(listNode)->prepend(pointedToItem);
+    break;
+  case KC_SObjList:
+    // no constant append; reversed later
+    reinterpret_cast<SObjList<void>*>(listNode)->prepend(pointedToItem);
+    break;
+  case KC_ArrayStack:
+    appendToArrayStack(listNode, pointedToItem, listKind);
+    break;
+  }
+
+  delete itemNode;
+}
+
+void XmlReaderManager::appendNameMapItem() {
+  // save the name tag
+  NameMapItem *nameNode = (NameMapItem*)lastNode;
+
+  // find the Node pointed to by the item; it should have been seen
+  // by now
+  // TODO: factor and optimize as above
+  void *pointedToItem = id2obj.queryif(nameNode->to);
+  if (!pointedToItem) {
+    if (!xmlDanglingPointersAllowed) xmlUserFatalError("no Node pointed to by _NameMap_Item");
+  }
+
+  void *mapNode = getTopNode0();
+  if (!mapNode) {
+    xmlUserFatalError("a _NameMap_Item tag not immediately under a Map");
+  }
+  int mapKind = kindStack.top();
+  KindCategory mapKindCat = kind2kindCat(mapKind);
+  switch (mapKindCat) {
+  default:
+    xmlUserFatalError("a _NameMap_Item tag not immediately under a Map");
+    break;
+
+  case KC_StringRefMap: {
+    char const *key = strTable(nameNode->from.c_str());
+    StringRefMap<void>* map = reinterpret_cast <StringRefMap<void>*>(mapNode);
+    if (map->get(key)) {
+      xmlUserFatalError(stringc << "duplicate name " << key << " in map");
+    }
+    map->add(key, pointedToItem);
+    break; }
+
+  case KC_StringSObjDict: {
+    string const &key = nameNode->from;
+    StringSObjDict<void>* map = reinterpret_cast <StringSObjDict<void>*>(mapNode);
+    if (map->isMapped(key)) {
+      xmlUserFatalError(stringc << "duplicate name " << key << " in map");
+    }
+    map->add(key, pointedToItem);
+    break; }
+  }
+
+  delete nameNode;
+}
+
+void XmlReaderManager::appendMapItem() {
+  // save the name tag
+  MapItem *nameNode = (MapItem*)lastNode;
+
+  // find the Node-s pointed to by both the key and item; they
+  // should have been seen by now
+  void *pointedToKey = id2obj.queryif(nameNode->from);
+  void *pointedToItem = id2obj.queryif(nameNode->to);
+  if (!pointedToItem) {
+    if (!xmlDanglingPointersAllowed) xmlUserFatalError("no Node pointed to by _Map_Item");
+  }
+  // TODO: check that pointedToItem not null?
+
+  // what kind of thing is next on the stack?
+  void *mapNode = getTopNode0();
+  if (!mapNode) {
+    xmlUserFatalError("a _NameMap_Item tag not immediately under a Map");
+  }
+  int mapKind = kindStack.top();
+  KindCategory mapKindCat = kind2kindCat(mapKind);
+
+  switch (mapKindCat) {
+  default:
+    xmlUserFatalError("a _Map_Item tag not immediately under a Map");
+    break;
+
+  case KC_PtrMap: {
+    PtrMap<void, void> *map = reinterpret_cast<PtrMap<void, void>*>(mapNode);
+    if (map->get(pointedToKey)) {
+      // there is no good way to print out the key
+      xmlUserFatalError(stringc << "duplicate key in map");
+    }
+    map->add(pointedToKey, pointedToItem);
+    break; }
   }
 }
 
 // state: read the attributes
 bool XmlReaderManager::readAttributes() {
+  size_t count = 0;
   while(1) {
+    ++count;
     int attr = lexer.getToken();
     switch(attr) {
     default: break;             // go on; assume it is a legal attribute tag
@@ -317,17 +410,55 @@ bool XmlReaderManager::readAttributes() {
     xassert(nodeStack.isNotEmpty());
     // special case the '_id' attribute
     if (attr == XTOK_DOT_ID) {
-      // the map makes a copy of this string
+      // the map makes a copy of this string (if it needs it)
       const char *id0 = lexer.currentText();
       // DEBUG1
-//       cout << "readAttributes: _id=" << id0 << endl;
+      // cout << "## readAttributes: _id=" << id0 << endl;
+
+      // quarl 2006-06-01
+      //    Important: record the kind before we call satisfyUnsatLink,
+      //    because it needs to know what kind to upcast to.
+      if (recordKind(kindStack.top())) {
+        id2kind.add(id0, kindStack.top());
+      }
+
+#if 1
+      // quarl 2006-06-01: preemptive link satisfaction
+      //    See if the parent XML node has an unsatisfied link pointing to
+      //    this one -- the common case -- so that we can get rid of the
+      //    unsatLink, saving us from having to do a more work later.  If it's
+      //    an embedded object, even better: just point to the target.
+
+      // TODO: when parsing the tag, peek to see if it's an upcoming _id for
+      // an embedded object, and if so, don't even construct one!
+
+      UnsatLink *ulink = getUnsatLink(id0);
+      if (ulink) {
+        if (count == 1 && ulink->embedded)
+        {
+          // quarl 2006-06-01 if this is the first attribute then we don't
+          // need to copy anything; just delete the temporary.
+          void *obj = nodeStack.top();
+          xassert(obj);
+          deleteObj(obj, ulink->kind);
+        } else {
+          satisfyUnsatLink(ulink, nodeStack.top());
+        }
+
+        if (ulink->embedded) {
+          // now we point directly to the place we want to write to.
+          nodeStack.nthRef(0) = ulink->ptr;
+        }
+
+        // yay, got rid of a ulink!
+        delete ulink;
+      }
+#endif
+
       if (id2obj.isMapped(id0)) {
         xmlUserFatalError(stringc << "this _id is taken: " << id0);
       }
       id2obj.add(id0, nodeStack.top());
-      if (recordKind(kindStack.top())) {
-        id2kind.add(id0, kindStack.top());
-      }
     }
     // special case the _List_Item node and its one attribute
     else if (kindStack.top() == XTOK__List_Item) {
@@ -337,7 +468,7 @@ bool XmlReaderManager::readAttributes() {
         break;
       case XTOK_item:
         static_cast<ListItem*>(nodeStack.top())->to =
-          strTable(lexer.currentText());
+          lexer.currentText();
         break;
       }
     }
@@ -349,11 +480,11 @@ bool XmlReaderManager::readAttributes() {
         break;
       case XTOK_name:
         static_cast<NameMapItem*>(nodeStack.top())->from =
-          strTable(lexer.currentText());
+          lexer.currentText();
         break;
       case XTOK_item:
         static_cast<NameMapItem*>(nodeStack.top())->to =
-          strTable(lexer.currentText());
+          lexer.currentText();
         break;
       }
     }
@@ -365,11 +496,11 @@ bool XmlReaderManager::readAttributes() {
         break;
       case XTOK_key:
         static_cast<MapItem*>(nodeStack.top())->from =
-          strTable(lexer.currentText());
+          lexer.currentText();
         break;
       case XTOK_item:
         static_cast<MapItem*>(nodeStack.top())->to =
-          strTable(lexer.currentText());
+          lexer.currentText();
         break;
       }
     }
@@ -381,11 +512,11 @@ bool XmlReaderManager::readAttributes() {
 //          break;
 //        case XTOK_from:
 //          static_cast<UnsatBiLink*>(nodeStack.top())->from =
-//            strTable(lexer.currentText());
+//            lexer.currentText();
 //          break;
 //        case XTOK_to:
 //          static_cast<UnsatBiLink*>(nodeStack.top())->to =
-//            strTable(lexer.currentText());
+//            lexer.currentText();
 //          break;
 //        }
 //      }
@@ -438,8 +569,10 @@ void *XmlReaderManager::ctorNodeFromTag(int tag) {
 
   // try each registered reader
   FOREACH_ASTLIST_NC(XmlReader, readers, iter) {
-    void *node = iter.data()->ctorNodeFromTag(tag);
+    XmlReader *r = iter.data();
+    void *node = r->ctorNodeFromTag(tag);
     if (node) {
+      xassert(node != (void*) 0xBADCAFE);
       return node;
     }
   }
@@ -475,32 +608,6 @@ void XmlReaderManager::registerStringToken(void *target, int kind, char const *y
   xfailure("no raw data handler registered for this tag");
 }
 
-void XmlReaderManager::append2List(void *list0, int listKind, void *datum0) {
-  xassert(list0);
-  ASTList<char> *list = static_cast<ASTList<char>*>(list0);
-  char *datum = (char*)datum0;
-  list->append(datum);
-}
-
-void XmlReaderManager::insertIntoNameMap(void *map0, int mapKind, StringRef name, void *datum) {
-  xassert(map0);
-  StringRefMap<char> *map = static_cast<StringRefMap<char>*>(map0);
-  if (map->get(name)) {
-    xmlUserFatalError(stringc << "duplicate name " << name << " in map");
-  }
-  map->add(name, (char*)datum);
-}
-
-void XmlReaderManager::insertIntoMap(void *map0, int mapKind, void *key, void *item) {
-  xassert(map0);
-  PtrMap<void, void> *map = static_cast<PtrMap<void, void>*>(map0);
-  if (map->get(key)) {
-    // there is no good way to print out the key
-    xmlUserFatalError(stringc << "duplicate key in map");
-  }
-  map->add(key, item);
-}
-
 void XmlReaderManager::xmlUserFatalError(char const *msg) {
   stringBuilder msg0;
   if (inputFname) {
@@ -510,6 +617,44 @@ void XmlReaderManager::xmlUserFatalError(char const *msg) {
   THROW(xBase(msg0));
   xfailure("should not get here");
 }
+
+// quarl 2006-06-01:
+//    We now maintain a list of UnsatLinks for each level of the parse stack;
+//    when we pop them we concat them to the global list.  The per-level unsat
+//    links allow us to quickly scan the parent level's unsat links and
+//    satisfy them now, yielding a big performance gain.  This is also
+//    necessary for deserializing FakeLists directly into the target location.
+//
+//    If a link is found, return the UnsatLink, which the caller must delete.
+//    Otherwise, return NULL.
+
+UnsatLink *XmlReaderManager::getUnsatLink(char const *id0)
+{
+  // this will be efficient after we convert to ArrayStack
+  if (ulinkStack.count() <= 1)
+    return NULL;
+
+  ASTList<UnsatLink> &parentUnsatLinks = * ulinkStack.nth(1);
+  FOREACH_ASTLIST_NC(UnsatLink, parentUnsatLinks, iter) {
+    UnsatLink *ulink = iter.data();
+    if (streq(ulink->id, id0)) {
+      // TODO: do a mutating list traversal so we avoid this extra O(N)
+      // removal step
+      parentUnsatLinks.removeItem(ulink);
+      return ulink;
+    }
+  }
+  return NULL;
+}
+
+void XmlReaderManager::addUnsatLink(UnsatLink *u)
+{
+  // I OWNZ U
+  // fprintf(stderr, "## addUnsatLink: u=%p, u->id=%s, u->embedded=%d\n",
+  //         u, u->id.c_str(), u->embedded);
+  ulinkStack.top()->append(u);
+}
+
 
 // quarl 2006-05-31:
 //    UNFORTUNATELY, the order in which we satisfy links matters when embedded
@@ -521,9 +666,9 @@ void XmlReaderManager::xmlUserFatalError(char const *msg) {
 // TODO: make separate lists for embedded and non-embedded ulinks
 
 void XmlReaderManager::satisfyLinks() {
-  satisfyLinks_Lists();
+  // satisfyLinks_Lists();
   satisfyLinks_Nodes();
-  satisfyLinks_Maps();
+  // satisfyLinks_Maps();
 //    satisfyLinks_Bidirectional();
 }
 
@@ -543,12 +688,16 @@ void XmlReaderManager::satisfyLinks_Nodes() {
   satisfyLinks_Nodes_1(true);
 
   // remove the links
-  unsatLinks.deleteAll();
+  allUnsatLinks.deleteAll();
 }
 
 void XmlReaderManager::satisfyLinks_Nodes_1(bool processEmbedded) {
-  FOREACH_ASTLIST(UnsatLink, unsatLinks, iter) {
+  FOREACH_ASTLIST(UnsatLink, allUnsatLinks, iter) {
     UnsatLink const *ulink = iter.data();
+
+    if (ulink->embedded != processEmbedded)
+      continue;
+
     // fprintf(stderr, "## satisfyLinks_Nodes: processing link id=%s\n", ulink->id.c_str());
     void *obj;
     if (inputXmlPointerIsNull(ulink->id.c_str())) {
@@ -565,189 +714,37 @@ void XmlReaderManager::satisfyLinks_Nodes_1(bool processEmbedded) {
       }
     }
 
-    if (ulink->embedded) {
-      if (!processEmbedded) continue;
-      // I can assume that the kind of the object that was
-      // de-serialized is the same as the target because it was
-      // embedded and there is no chance for a reference/referent
-      // type mismatch.
-      callOpAssignToEmbeddedObj(obj, ulink->kind, ulink->ptr);
-      // FIX: we should now delete obj; in fact, this should be done
-      // by callOpAssignToEmbeddedObj() since it knows the type of
-      // the object which is necessary to delete it of course.  I'll
-      // leave this for an optimization pass which we will do later
-      // to handle many of these things.
+    satisfyUnsatLink(ulink, obj);
+  }
+}
+
+void XmlReaderManager::satisfyUnsatLink(UnsatLink const *ulink, void *obj)
+{
+  if (ulink->embedded) {
+    // I can assume that the kind of the object that was
+    // de-serialized is the same as the target because it was
+    // embedded and there is no chance for a reference/referent
+    // type mismatch.
+    callOpAssignToEmbeddedObj(obj, ulink->kind, ulink->ptr);
+    // FIX: we should now delete obj; in fact, this should be done
+    // by callOpAssignToEmbeddedObj() since it knows the type of
+    // the object which is necessary to delete it of course.  I'll
+    // leave this for an optimization pass which we will do later
+    // to handle many of these things.
+    deleteObj(obj, ulink->kind);
+
+    // we should not use this obj anymore
+    id2obj.add(ulink->id, (void*) 0xBADCAFE);
+  } else {
+    if (int kind = id2kind.queryif(ulink->id)) {
+      *( (void**)(ulink->ptr) ) = upcastToWantedType(obj, kind, ulink->kind);
     } else {
-      if (processEmbedded) continue;
-      if (int kind = id2kind.queryif(ulink->id)) {
-        *( (void**)(ulink->ptr) ) = upcastToWantedType(obj, kind, ulink->kind);
-      } else {
-        // no kind was registered for the object and therefore no
-        // upcasting is required and there is no decision to make; so
-        // just do the straight pointer assignment
-        *( (void**) (ulink->ptr) ) = obj;
-      }
+      // no kind was registered for the object and therefore no
+      // upcasting is required and there is no decision to make; so
+      // just do the straight pointer assignment
+      *( (void**) (ulink->ptr) ) = obj;
     }
   }
-}
-
-void XmlReaderManager::satisfyLinks_Lists() {
-  FOREACH_ASTLIST(UnsatLink, unsatLinks_List, iter) {
-    UnsatLink const *ulink = iter.data();
-    // fprintf(stderr, "## satisfyLinks_Lists: processing link id=%s\n", ulink->id.c_str());
-    xassert(ulink->embedded);
-    // NOTE: I rely on the fact that all ASTLists just contain
-    // pointers; otherwise this cast would cause problems; Note that I
-    // have to use char instead of void because you can't delete a
-    // pointer to void; see the note in the if below.
-    ASTList<char> *obj = reinterpret_cast<ASTList<char>*>(id2obj.queryif(ulink->id));
-    if (!obj) {
-      if (!xmlDanglingPointersAllowed) {
-        xmlUserFatalError(stringc << "unsatisfied List link: " << ulink->id);
-      }
-      continue;
-    }
-
-    // 2006-05-05 turned off all 'delete obj' calls because we're getting
-    // double-delete errors.  It would be nice to have a non-owning list.
-
-    KindCategory kindCat;
-    kind2kindCat(ulink->kind, &kindCat);
-    switch (kindCat) {
-    default:
-      xfailure("illegal list kind");
-      break;
-
-    case KC_ASTList: {
-      // Recall that ASTLists are used in a class by embeding them.
-      // Therefore, a pointer to the field to be filled in is a
-      // pointer to an ASTList, not a pointer to a pointer to an
-      // ASTList, as one might expect for most other classes that were
-      // used in a host class by being pointed to.
-      ASTList<char> *ptr = reinterpret_cast<ASTList<char>*>(ulink->ptr);
-      xassert(ptr->isEmpty());
-      // this is particularly tricky because the steal contains a
-      // delete, however there is nothing to delete, so we should be
-      // ok.  If there were something to delete, we would be in
-      // trouble because you can't call delete on a pointer to an
-      // object the size of which is different from the size you think
-      // it is due to a type you cast it too.
-      ptr->steal(obj);
-      // it seems that I should not subsequently delete the list as
-      // the steal() has deleted the voidlist of the ASTList and it
-      // seems to be a bug to try to then delete the ASTList that has
-      // been stolen from
-      // Note: do not delete here.
-      break;
-    }
-
-    case KC_FakeList: {
-      // Convert the ASTList we used to store the FakeList into a real
-      // FakeList and hook in all of the pointers.  This is
-      // type-specific, so generated code must do it that can switch
-      // on the templatized type of the FakeList.
-      *( (void**) (ulink->ptr) ) = convertList2FakeList(obj, ulink->kind);
-      // Make the list dis-own all of its contents so it doesn't delete
-      // them when we delete it.  Yes, I should have used a non-owning
-      // constant-time-append list.
-      obj->removeAll_dontDelete();
-      // TODO: delete the ASTList
-      // delete obj;
-      break;
-    }
-
-    case KC_SObjList: {
-      // Convert the ASTList we used to store the SObjList into a real
-      // SObjList and hook in all of the pointers.  This is
-      // type-specific, so generated code must do it that can switch
-      // on the templatized type of the SObjList.
-      convertList2SObjList(obj, ulink->kind, (void**) (ulink->ptr) );
-      // Make the list dis-own all of its contents so it doesn't delete
-      // them when we delete it.  Yes, I should have used a non-owning
-      // constant-time-append list.
-      obj->removeAll_dontDelete();
-      // TODO: delete the ASTList
-      // delete obj;
-      break;
-    }
-
-    case KC_ObjList: {
-      // Convert the ASTList we used to store the ObjList into a real
-      // ObjList and hook in all of the pointers.  This is
-      // type-specific, so generated code must do it that can switch
-      // on the templatized type of the ObjList.
-      convertList2ObjList(obj, ulink->kind, (void**) (ulink->ptr) );
-      // Make the list dis-own all of its contents so it doesn't delete
-      // them when we delete it.  Yes, I should have used a non-owning
-      // constant-time-append list.
-      obj->removeAll_dontDelete();
-      // TODO: delete the ASTList
-      // delete obj;
-      break;
-    }
-
-    case KC_ArrayStack: {
-      // Convert the ASTList we used to store the ArrayStack into a
-      // real ArrayStack and hook in all of the pointers.  This is
-      // type-specific, so generated code must do it that can switch
-      // on the templatized type of the ObjList.
-      convertList2ArrayStack(obj, ulink->kind, (void**) (ulink->ptr) );
-      // Make the list dis-own all of its contents so it doesn't
-      // delete them when we delete it.  Yes, I should have used a
-      // non-owning constant-time-append list.
-      obj->removeAll_dontDelete();
-      // TODO: delete the ASTList
-      // delete obj;
-      break;
-    }
-
-    }
-  }
-  // remove the links
-  unsatLinks_List.deleteAll();
-}
-
-void XmlReaderManager::satisfyLinks_Maps() {
-  FOREACH_ASTLIST(UnsatLink, unsatLinks_NameMap, iter) {
-    UnsatLink const *ulink = iter.data();
-    xassert(ulink->embedded);
-    // NOTE: I rely on the fact that all StringRefMap-s just contain
-    // pointers; otherwise this cast would cause problems; Note that I
-    // have to use char instead of void because you can't delete a
-    // pointer to void; see the note in the if below.
-    StringRefMap<char> *obj = reinterpret_cast<StringRefMap<char>*>(id2obj.queryif(ulink->id));
-    if (!obj) {
-      if (!xmlDanglingPointersAllowed) {
-        xmlUserFatalError(stringc << "unsatisfied Map link: " << ulink->id);
-      }
-      continue;
-    }
-
-    KindCategory kindCat;
-    kind2kindCat(ulink->kind, &kindCat);
-    switch (kindCat) {
-    default:
-      xfailure("illegal name map kind");
-      break;
-
-    case KC_StringRefMap: {
-      // FIX: this would be way more efficient if there were a
-      // PtrMap::steal() method: I wouldn't need this convert call.
-      convertNameMap2StringRefMap(obj, ulink->kind, (void**) (ulink->ptr) );
-      // TODO: delete the map ??
-      break;
-    }
-
-    case KC_StringSObjDict: {
-      convertNameMap2StringSObjDict(obj, ulink->kind, (void**) (ulink->ptr) );
-      // TODO: delete the map ??
-      break;
-    }
-
-    }
-  }
-  // remove the links
-  unsatLinks_NameMap.deleteAll();
 }
 
 //  void XmlReaderManager::satisfyLinks_Bidirectional() {
@@ -770,85 +767,138 @@ void XmlReaderManager::satisfyLinks_Maps() {
 bool XmlReaderManager::recordKind(int kind) {
   FOREACH_ASTLIST_NC(XmlReader, readers, iter) {
     bool answer;
-    if (iter.data()->recordKind(kind, answer)) {
+    XmlReader *r = iter.data();
+    if (r->recordKind(kind, answer)) {
       return answer;
     }
   }
   THROW(xBase(stringc << "no way to decide if kind should be recorded"));
 }
 
+// Do "*target = *obj" for the right type.
+// It's okay to destroy the contents of target since it's an embedded object,
+// so it can only be used once.
+// target is deleted later in deleteObj().
 void XmlReaderManager::callOpAssignToEmbeddedObj(void *obj, int kind, void *target) {
+  xassert(obj != target);
+  KindCategory kindcat = kind2kindCat(kind);
+
+  // quarl 2006-06-01
+  //    For list items, steal obj's list into the target.  This avoids doing a
+  //    needless O(N) copy (which we aren't allowed to do anyway for owning
+  //    lists).
+  switch (kindcat) {
+  default: break;
+
+  case KC_ASTList:
+    if (!obj) return;
+    xassert(reinterpret_cast<ASTList<void>*>(target)->isEmpty());
+    reinterpret_cast<ASTList<void>*>(target)->concat(
+      *reinterpret_cast<ASTList<void>*>(obj));
+    return;
+  case KC_TailList:
+    if (!obj) return;
+    xassert(reinterpret_cast<TailList<void>*>(target)->isEmpty());
+    reinterpret_cast<TailList<void>*>(target)->concat(
+      *reinterpret_cast<TailList<void>*>(obj));
+    return;
+
+  case KC_FakeList: {
+    if (!obj) return;
+    // for fake lists, it's just a pointer location, so copy the pointer.
+    *((void**) target) = *((void**) obj);
+    return; }
+
+  case KC_ObjList:
+    if (!obj) return;
+    xassert(reinterpret_cast<ObjList<void>*>(target)->isEmpty());
+    reinterpret_cast<ObjList<void>*>(target)->concat(
+      *reinterpret_cast<ObjList<void>*>(obj));
+    return;
+  case KC_SObjList:
+    if (!obj) return;
+    xassert(reinterpret_cast<SObjList<void>*>(target)->isEmpty());
+    reinterpret_cast<SObjList<void>*>(target)->concat(
+      *reinterpret_cast<SObjList<void>*>(obj));
+    return;
+  case KC_ArrayStack:
+    // can't do it without the type, so have to use dispatch
+    break;
+
+  case KC_StringRefMap:
+    xfailure("should have been preemptively satisfied");
+    break;
+
+  case KC_StringSObjDict:
+    xfailure("should have been preemptively satisfied");
+    break;
+
+  }
+
   FOREACH_ASTLIST_NC(XmlReader, readers, iter) {
-    if (iter.data()->callOpAssignToEmbeddedObj(obj, kind, target)) {
+    XmlReader *r = iter.data();
+    if (r->callOpAssignToEmbeddedObj(obj, kind, target)) {
       return;
     }
   }
   THROW(xBase(stringc << "no way to call op assign"));
 }
 
+void XmlReaderManager::deleteObj(void *obj, int kind)
+{
+  KindCategory kindcat = kind2kindCat(kind);
+  switch (kindcat) {
+  default: break;
+
+  case KC_FakeList: {
+    // the allocated object is actually a void*
+    void **ptr = (void**) obj;
+    delete ptr;
+    return; }
+  }
+
+  // TODO
+}
+
+
 void *XmlReaderManager::upcastToWantedType(void *obj, int kind, int targetKind) {
   FOREACH_ASTLIST_NC(XmlReader, readers, iter) {
-    void *target;
-    if (iter.data()->upcastToWantedType(obj, kind, &target, targetKind)) {
+    void *target = (void*) 0xBADCAFE;
+    XmlReader *r = iter.data();
+    if (r->upcastToWantedType(obj, kind, &target, targetKind)) {
+      xassert(target != (void*) 0xBADCAFE);
       return target;
     }
   }
   THROW(xBase(stringc << "no way to upcast"));
 }
 
-void *XmlReaderManager::convertList2FakeList(ASTList<char> *list, int listKind) {
+void XmlReaderManager::prependToFakeList(void *&list, void *obj, int listKind) {
   FOREACH_ASTLIST_NC(XmlReader, readers, iter) {
-    void *target;
-    if (iter.data()->convertList2FakeList(list, listKind, &target)) {
-      return target;
-    }
-  }
-  THROW(xBase(stringc << "no converter for FakeList type"));
-}
-
-void XmlReaderManager::convertList2SObjList(ASTList<char> *list, int listKind, void **target) {
-  FOREACH_ASTLIST_NC(XmlReader, readers, iter) {
-    if (iter.data()->convertList2SObjList(list, listKind, target)) {
+    XmlReader *r = iter.data();
+    if (r->prependToFakeList(list, obj, listKind)) {
       return;
     }
   }
-  THROW(xBase(stringc << "no converter for SObjList type"));
+  THROW(xBase(stringc << "no prepender for FakeList type"));
 }
 
-void XmlReaderManager::convertList2ObjList(ASTList<char> *list, int listKind, void **target) {
+void XmlReaderManager::reverseFakeList(void *&list, int listKind) {
   FOREACH_ASTLIST_NC(XmlReader, readers, iter) {
-    if (iter.data()->convertList2ObjList(list, listKind, target)) {
+    XmlReader *r = iter.data();
+    if (r->reverseFakeList(list, listKind)) {
       return;
     }
   }
-  THROW(xBase(stringc << "no converter for ObjList type"));
+  THROW(xBase(stringc << "no reverser for FakeList type"));
 }
 
-void XmlReaderManager::convertList2ArrayStack(ASTList<char> *list, int listKind, void **target) {
+void XmlReaderManager::appendToArrayStack(void *list, void *obj, int listKind) {
   FOREACH_ASTLIST_NC(XmlReader, readers, iter) {
-    if (iter.data()->convertList2ArrayStack(list, listKind, target)) {
+    XmlReader *r = iter.data();
+    if (r->appendToArrayStack(list, obj, listKind)) {
       return;
     }
   }
-  THROW(xBase(stringc << "no converter for ArrayStack type"));
-}
-
-void XmlReaderManager::convertNameMap2StringRefMap
-  (StringRefMap<char> *map, int mapKind, void *target) {
-  FOREACH_ASTLIST_NC(XmlReader, readers, iter) {
-    if (iter.data()->convertNameMap2StringRefMap(map, mapKind, target)) {
-      return;
-    }
-  }
-  THROW(xBase(stringc << "no converter for name map type"));
-}
-
-void XmlReaderManager::convertNameMap2StringSObjDict
-  (StringRefMap<char> *map, int mapKind, void *target) {
-  FOREACH_ASTLIST_NC(XmlReader, readers, iter) {
-    if (iter.data()->convertNameMap2StringSObjDict(map, mapKind, target)) {
-      return;
-    }
-  }
-  THROW(xBase(stringc << "no converter for name map type"));
+  THROW(xBase(stringc << "no appender for ArrayStack type"));
 }

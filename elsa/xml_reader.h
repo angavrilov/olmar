@@ -15,6 +15,7 @@
 #include "strtable.h"           // StringRef
 #include "strmap.h"             // StringRefMap
 #include "xml_lexer.h"          // XmlLexer
+#include "fakelist.h"
 
 class StringTable;
 
@@ -32,68 +33,18 @@ extern bool xmlDanglingPointersAllowed;
 #define READFLAG(X) else if (streq(token, #X)) out |= (X)
 
 #define ul(FIELD, KIND) \
-  manager->unsatLinks.append \
+  manager->addUnsatLink \
     (new UnsatLink((void*) &(obj->FIELD), \
                    strValue, \
                    (KIND), \
                    false))
 
 #define ulEmbed(FIELD, KIND) \
-  manager->unsatLinks.append \
+  manager->addUnsatLink \
     (new UnsatLink((void*) &(obj->FIELD), \
                    strValue, \
                    (KIND), \
                    true))
-
-#define ulList(LIST, FIELD, KIND) \
-  manager->unsatLinks##LIST.append \
-    (new UnsatLink((void*) &(obj->FIELD), \
-                   strValue, \
-                   (KIND), \
-                   true))
-
-#define convertList(LISTTYPE, ITEMTYPE) \
-do { \
-  LISTTYPE<ITEMTYPE> *ret = reinterpret_cast<LISTTYPE<ITEMTYPE>*>(target); \
-  xassert(ret->isEmpty()); \
-  FOREACH_ASTLIST_NC(ITEMTYPE, reinterpret_cast<ASTList<ITEMTYPE>&>(*list), iter) { \
-    ret->prepend(iter.data()); \
-  } \
-  ret->reverse(); \
-} while(0)
-
-// same as above for members that are pointers to lists rather than
-// embedded lists
-#define convertListPtr(LISTTYPE, ITEMTYPE) \
-do { \
-  LISTTYPE<ITEMTYPE> **ret = reinterpret_cast<LISTTYPE<ITEMTYPE>**>(target); \
-  xassert(*ret); \
-  xassert((*ret)->isEmpty()); \
-  FOREACH_ASTLIST_NC(ITEMTYPE, reinterpret_cast<ASTList<ITEMTYPE>&>(*list), iter) { \
-    (*ret)->prepend(iter.data()); \
-  } \
-  (*ret)->reverse(); \
-} while(0)
-
-#define convertArrayStack(LISTTYPE, ITEMTYPE) \
-do { \
-  LISTTYPE<ITEMTYPE> *ret = reinterpret_cast<LISTTYPE<ITEMTYPE>*>(target); \
-  xassert(ret->isEmpty()); \
-  FOREACH_ASTLIST_NC(ITEMTYPE, reinterpret_cast<ASTList<ITEMTYPE>&>(*list), iter) { \
-    ret->push(*iter.data()); \
-  } \
-} while(0)
-
-#define convertNameMap(MAPTYPE, ITEMTYPE) \
-do { \
-  MAPTYPE<ITEMTYPE> *ret = reinterpret_cast<MAPTYPE<ITEMTYPE>*>(target); \
-  xassert(ret->isEmpty()); \
-  for(StringRefMap<ITEMTYPE>::Iter \
-        iter(reinterpret_cast<StringRefMap<ITEMTYPE>&>(*map)); \
-      !iter.isDone(); iter.adv()) { \
-    ret->add(iter.key(), iter.value()); \
-  } \
-} while(0)
 
 // there are 3 categories of kinds of Tags
 enum KindCategory {
@@ -102,6 +53,7 @@ enum KindCategory {
 
   // list
   KC_ASTList,
+  KC_TailList,
   KC_FakeList,
   KC_ObjList,
   KC_SObjList,
@@ -122,33 +74,30 @@ enum KindCategory {
 // hold the name while the value contained by it is being parsed.
 // Then it is deleted.
 struct ListItem {
-  StringRef to;
-  ListItem() : to(NULL) {}
+  string to;
 };
 
 // the <_NameMap_Item> </_NameMap_Item> tag is parsed into this class
 // to hold the name while the value contained by it is being parsed.
 // Then it is deleted.
 struct NameMapItem {
-  StringRef from;
-  StringRef to;
-  NameMapItem() : from(NULL), to(NULL) {}
-  // FIX: do I destruct/free() the name when I destruct the object?
+  string from;
+  string to;
 };
 
 // the <_Map_Item> </_Map_Item> tag is parsed into this class
 // to hold the name while the value contained by it is being parsed.
 // Then it is deleted.
 struct MapItem {
-  StringRef from;
-  StringRef to;
-  MapItem() : from(NULL), to(NULL) {}
-  // FIX: do I destruct/free() the name when I destruct the object?
+  string from;
+  string to;
 };
 
 // datastructures for dealing with unsatisified links; FIX: we can
 // do the in-place recording of a lot of these unsatisified links
 // (not the ast links)
+
+// TODO: make ptr a 'void **'
 
 // An unsatisfied link from an object A to another B
 struct UnsatLink {
@@ -166,6 +115,25 @@ struct UnsatLink {
 //    char const *to;
 //    UnsatBiLink() : from(NULL), to(NULL) {}
 //  };
+
+// TODO: use an array of vtables for each tag, then we don't need this manual
+// dispatch stuff.
+
+// struct XmlKind {
+//   virtual void *construct() = 0;
+//   virtual bool upcastTo(void *obj, void *&target, XmlKind const &targetKind)
+//   { xfailure("cannot upcast from this type"); }
+//   virtual bool prependToFakeList(void *&list, void *obj, int objKind) { return false; }
+//   virtual bool appendToArrayStack(void *list, void *obj, int objKind) { return false; }
+//   class
+
+// };
+
+// template <class T>
+// struct XmlKindT : XmlKind {
+//   virtual void *construct() { return new T(); }
+
+// };
 
 // A subclass fills-in the methods that need to know about individual
 // tags.
@@ -209,16 +177,29 @@ class XmlReader {
   // needed because of multiple inheritance
   virtual bool callOpAssignToEmbeddedObj(void *obj, int kind, void *target) = 0;
   virtual bool upcastToWantedType(void *obj, int kind, void **target, int targetKind) = 0;
-  // all lists are stored as ASTLists; convert to the real list
-  virtual bool convertList2FakeList  (ASTList<char> *list, int listKind, void **target) = 0;
-  virtual bool convertList2SObjList  (ASTList<char> *list, int listKind, void **target) = 0;
-  virtual bool convertList2ObjList   (ASTList<char> *list, int listKind, void **target) = 0;
-  virtual bool convertList2ArrayStack(ASTList<char> *list, int listKind, void **target) = 0;
-  // all name maps are stored as StringRefMaps; convert to the real name maps
-  virtual bool convertNameMap2StringRefMap
-    (StringRefMap<char> *map, int mapKind, void *target) = 0;
-  virtual bool convertNameMap2StringSObjDict
-    (StringRefMap<char> *map, int mapKind, void *target) = 0;
+  virtual bool prependToFakeList(void *&list, void *obj, int listKind) { return false; }
+  virtual bool reverseFakeList(void *&list, int listKind) { return false; }
+  virtual bool appendToArrayStack(void *list, void *obj, int listKind) { return false; }
+
+protected:
+
+  // TODO: use pushAlt() so we avoid extra object creation
+  template <class T>
+  static
+  void appendToArrayStack0(void *arrayStack, void *obj)
+  { static_cast<ArrayStack<T>*>(arrayStack)->push(* static_cast<T*>(obj));
+    delete static_cast<T*>(obj); }
+
+  template <class T>
+  static
+  void prependToFakeList0(void *&list, void *obj)
+  { list = static_cast<FakeList<T>*>(list)->prepend(static_cast<T*>(obj)); }
+
+  template <class T>
+  static
+  void reverseFakeList0(void *&list)
+  { list = static_cast<FakeList<T>*>(list)->reverse(); }
+
 };
 
 // XmlReader-s register themselves with the Manager which tries them
@@ -231,6 +212,7 @@ class XmlReaderManager {
   public:
   char const *inputFname;       // just for error messages
   XmlLexer &lexer;              // a lexer on a stream already opened from the file
+  // TODO: partition StringTables as much as possible
   StringTable &strTable;        // for canonicalizing the StringRef's in the input file
 
   private:
@@ -239,17 +221,18 @@ class XmlReaderManager {
   void *lastNode;
   int lastKind;
   // parsing stack
+  // TODO: combine these into one stack
+  // TODO: use an ArrayStack instead of linked list stack.
   SObjStack<void> nodeStack;
   IntStack<int> kindStack;
+  SObjStack<ASTList<UnsatLink> > ulinkStack;
 
   // **** Satisfying links
 
-  public:
+protected:
   // Since AST nodes are embedded, we have to put this on to a
   // different list than the ususal pointer unsatisfied links.
-  ASTList<UnsatLink> unsatLinks;
-  ASTList<UnsatLink> unsatLinks_List;
-  ASTList<UnsatLink> unsatLinks_NameMap;
+  ASTList<UnsatLink> allUnsatLinks;
 //    ASTList<UnsatBiLink> unsatBiLinks;
 
   // map object ids to the actual object
@@ -297,8 +280,28 @@ class XmlReaderManager {
   void parseOneTagOrDatum();
   bool readAttributes();
 
+  void appendListItem();
+  void appendNameMapItem();
+  void appendMapItem();
+
+public:
+  void *getNodeById(char const *id) { return id2obj.queryif(id); }
+
+  // add an UnsatLink to the current stack node's unsatLinks.  Owns ulinks.
+  void addUnsatLink(UnsatLink *ulink);
+
+private:
+  void *getTopNode0() { return nodeStack.isEmpty() ? NULL : nodeStack.top(); }
+
+  // try to find a link from topmost list of unsatLinks.
+  UnsatLink *getUnsatLink(char const *id0);
+
+  // satisfy a single UnsatLink
+  void satisfyUnsatLink(UnsatLink const *ulink, void *obj);
+
   // disjunctive dispatch to the list of readers
   void kind2kindCat(int kind, KindCategory *kindCat);
+  KindCategory kind2kindCat(int kind) { KindCategory kindCat; kind2kindCat(kind, &kindCat); return kindCat; }
   void *ctorNodeFromTag(int tag);
   void registerAttribute(void *target, int kind, int attr, char const *yytext0);
   void registerStringToken(void *target, int kind, char const *yytext0);
@@ -316,6 +319,13 @@ class XmlReaderManager {
   // return the top of the stack: the one tag that was parsed
   void *getLastNode() {return lastNode;}
   int getLastKind() {return lastKind;}
+  // peek at nth item (linear time)
+  void *getNthNode(int which) { return nodeStack.nth(which); }
+  int getNthKind(int which) { return kindStack.nth(which); }
+
+  // peek, with assertion for kind
+  void *getNthNode(int which, int kind)
+  { xassert(getNthKind(which) == kind); return getNthNode(which); }
 
   // **** satisfying links
   public:
@@ -334,15 +344,11 @@ class XmlReaderManager {
   private:
   // convert nodes
   void callOpAssignToEmbeddedObj(void *obj, int kind, void *target);
+  void deleteObj(void *obj, int kind);
   void *upcastToWantedType(void *obj, int kind, int targetKind);
-  // convert lists
-  void *convertList2FakeList (ASTList<char> *list, int listKind);
-  void convertList2SObjList  (ASTList<char> *list, int listKind, void **target);
-  void convertList2ObjList   (ASTList<char> *list, int listKind, void **target);
-  void convertList2ArrayStack(ASTList<char> *list, int listKind, void **target);
-  // convert maps
-  void convertNameMap2StringRefMap  (StringRefMap<char> *map, int listKind, void *target);
-  void convertNameMap2StringSObjDict(StringRefMap<char> *map, int listKind, void *target);
+  void prependToFakeList(void *&list, void *obj, int listKind);
+  void reverseFakeList(void *&list, int listKind);
+  void appendToArrayStack(void *list, void *obj, int listKind);
 };
 
 #endif // XML_READER_H

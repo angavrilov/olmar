@@ -33,16 +33,8 @@ class XmlAstReader : public XmlReader {
   // convert nodes
   virtual bool callOpAssignToEmbeddedObj(void *obj, int kind, void *target);
   virtual bool upcastToWantedType(void *obj, int kind, void **target, int targetKind);
-  // all lists are stored as ASTLists; convert to the real list
-  virtual bool convertList2FakeList  (ASTList<char> *list, int listKind, void **target);
-  virtual bool convertList2SObjList  (ASTList<char> *list, int listKind, void **target);
-  virtual bool convertList2ObjList   (ASTList<char> *list, int listKind, void **target);
-  virtual bool convertList2ArrayStack(ASTList<char> *list, int listKind, void **target);
-  // all name maps are stored as StringRefMaps; convert to the real name maps
-  virtual bool convertNameMap2StringRefMap
-    (StringRefMap<char> *map, int mapKind, void *target);
-  virtual bool convertNameMap2StringSObjDict
-    (StringRefMap<char> *map, int mapKind, void *target);
+  virtual bool prependToFakeList(void *&list, void *obj, int listKind);
+  virtual bool reverseFakeList(void *&list, int listKind);
 
 #include "xml_ast_reader_0decl.gen.h"
 };

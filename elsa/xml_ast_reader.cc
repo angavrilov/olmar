@@ -6,27 +6,6 @@
 #include "xmlhelp.h"            // toXml_int etc.
 #include "xml_enum.h"           // XTOK_*
 
-bool XmlAstReader::convertList2SObjList(ASTList<char> *list, int listKind, void **target) {
-  return false;
-}
-
-bool XmlAstReader::convertList2ObjList(ASTList<char> *list, int listKind, void **target) {
-  return false;
-}
-
-bool XmlAstReader::convertList2ArrayStack(ASTList<char> *list, int listKind, void **target) {
-  return false;
-}
-
-bool XmlAstReader::convertNameMap2StringRefMap(StringRefMap<char> *map, int mapKind, void *target) {
-  return false;
-}
-
-bool XmlAstReader::convertNameMap2StringSObjDict(StringRefMap<char> *map, int mapKind, void *target)
-{
-  return false;
-}
-
 void *XmlAstReader::ctorNodeFromTag(int tag) {
   switch(tag) {
   default: return NULL;

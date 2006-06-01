@@ -23,14 +23,7 @@ class XmlFileReader : public XmlReader {
   virtual bool recordKind(int kind, bool& answer);
   virtual bool callOpAssignToEmbeddedObj(void *obj, int kind, void *target);
   virtual bool upcastToWantedType(void *obj, int kind, void **target, int targetKind);
-  virtual bool convertList2FakeList  (ASTList<char> *list, int listKind, void **target);
-  virtual bool convertList2SObjList  (ASTList<char> *list, int listKind, void **target);
-  virtual bool convertList2ObjList   (ASTList<char> *list, int listKind, void **target);
-  virtual bool convertList2ArrayStack(ASTList<char> *list, int listKind, void **target);
-  virtual bool convertNameMap2StringRefMap
-    (StringRefMap<char> *map, int mapKind, void *target);
-  virtual bool convertNameMap2StringSObjDict
-    (StringRefMap<char> *map, int mapKind, void *target);
+  virtual bool appendToArrayStack(void *arrayStack, void *obj, int listKind);
 };
 
 #endif // XML_FILE_READER_H
