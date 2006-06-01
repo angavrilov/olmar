@@ -9,6 +9,8 @@
 #ifndef CCLANG_H
 #define CCLANG_H
 
+#include "str.h"                // string
+
 
 // This type is used for options that nominally either allow or
 // disallow some syntax, but can also trigger a warning.  Values of
@@ -20,6 +22,8 @@ enum Bool3 {
 };
 
 
+// NOTE: be sure to add a line to the body of toString() if you add
+// another flag
 class CCLang {
 public:
   // catch-call for behaviors that are unique to C++ but aren't
@@ -264,6 +268,10 @@ public:      // funcs
 
   void ANSI_Cplusplus();    // settings for ANSI C++ 98
   void GNU_Cplusplus();     // settings for GNU C++
+
+  // dsw: I regret having to mention all of the flags yet one more
+  // place, however I think I need this.
+  string toString();
 };
 
 bool handleExternInline_asPrototype();

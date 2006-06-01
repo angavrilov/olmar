@@ -331,6 +331,13 @@ void doit(int argc, char **argv)
     exit(0);
   }
 
+  // dump out the lang settings if the user wants them
+  if (tracingSys("printLang")) {
+    cout << "language settings:\n";
+    cout << lang.toString();
+    cout << endl;
+  }
+
   // --------------- parse --------------
   TranslationUnit *unit;
   int parseWarnings = 0;
