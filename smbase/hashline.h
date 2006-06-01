@@ -29,7 +29,7 @@ class HashLineMap {
     int ppLine;              // pp source line where it appears
     int origLine;            // orig line it names
     char const *origFname;   // orig fname it names
-    
+
   public:
     HashLine()
       : ppLine(0), origLine(0), origFname(NULL) {}
@@ -38,6 +38,9 @@ class HashLineMap {
     HashLine(HashLine const &obj)
       : DMEMB(ppLine), DMEMB(origLine), DMEMB(origFname) {}
   };
+
+public:
+  char const *canonizeFilename(char const *fname);
 
 private:    // data
   // name of the pp file; this is needed for queries to lines
@@ -79,7 +82,7 @@ public:     // funcs
   void map(int ppLine, int &origLine, char const *&origFname) const;
   int mapLine(int ppLine) const;           // returns 'origLine'
   char const *mapFile(int ppLine) const;   // returns 'origFname'
-  
+
   // for curiosity, find out how many unique filenames are recorded in
   // the 'filenames' dictionary
   int numUniqueFilenames() { return filenames.size(); }

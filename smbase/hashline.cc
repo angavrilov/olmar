@@ -17,6 +17,18 @@ HashLineMap::HashLineMap(rostring pf)
 HashLineMap::~HashLineMap()
 {}
 
+// TODO: this would be more time and space efficient with a StringTable.
+char const *HashLineMap::canonizeFilename(char const *fname)
+{
+  // map 'fname' to a canonical reference
+  string *canon = filenames.queryif(fname);
+  if (!canon) {
+    // add a new one
+    canon = new string(fname);
+    filenames.add(fname, canon);
+  }
+  return canon->c_str();
+}
 
 void HashLineMap::addHashLine(int ppLine, int origLine, char const *origFname)
 {
@@ -25,13 +37,7 @@ void HashLineMap::addHashLine(int ppLine, int origLine, char const *origFname)
   prev_ppLine = ppLine;
 
   // map 'origFname' to a canonical reference
-  string *canon = filenames.queryif(origFname);
-  if (!canon) {
-    // add a new one
-    canon = new string(origFname);
-    filenames.add(origFname, canon);
-  }
-  origFname = canon->c_str();
+  origFname = canonizeFilename(origFname);
 
   // add the entry to the array
   directives.push(HashLine(ppLine, origLine, origFname));
