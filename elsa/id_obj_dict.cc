@@ -19,8 +19,8 @@ bool atoiFull(char const *p, unsigned &result)
 
 // static
 bool IdObjDict::parseId(char const *id,
-                                          char prefix[3],
-                                          unsigned &idnum)
+                        char prefix[3],
+                        unsigned &idnum)
 {
   if (!isupper(id[0]) || !isupper(id[1]))
     return false;
