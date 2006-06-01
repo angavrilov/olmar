@@ -154,7 +154,7 @@ void string::write(ostream &os) const
 
 
 void string::selfCheck() const
-{ 
+{
   if (s != emptyString) {
     checkHeapNode(s);
   }
@@ -227,11 +227,27 @@ stringBuilder::stringBuilder(char const *str, int len)
 
 stringBuilder& stringBuilder::operator=(char const *src)
 {
+#if 1
+  // quarl 2006-06-01
+  //    This implementation avoids re-allocation unless necessary.
+  if (s != src) {
+    int srclen = strlen(src)+1;
+    if (srclen > size) { // need to re-allocate?
+      delete s;
+      s = new char[ srclen ];
+    }
+    xassert(s);
+    memcpy(s, src, srclen); // copy string including NULL
+    end = s + srclen - 1; // point to NULL
+  }
+  return *this;
+#else
   if (s != src) {
     kill();
     dup(src);
   }
   return *this;
+#endif
 }
 
 
@@ -243,7 +259,7 @@ stringBuilder& stringBuilder::setlength(int newlen)
 }
 
 
-void stringBuilder::adjustend(char* newend) 
+void stringBuilder::adjustend(char* newend)
 {
   xassert(s <= newend  &&  newend < s + size);
 
@@ -283,7 +299,7 @@ stringBuilder& stringBuilder::indent(int amt)
   memset(end, ' ', amt);
   end += amt;
   *end = 0;
-  
+
   return *this;
 }
 
@@ -416,7 +432,7 @@ string stringf(char const *format, ...)
   va_end(args);
   return ret;
 }
- 
+
 
 // this should eventually be put someplace more general...
 #ifndef va_copy
@@ -429,7 +445,7 @@ string stringf(char const *format, ...)
 
 
 string vstringf(char const *format, va_list args)
-{                                  
+{
   // estimate string length
   va_list args2;
   va_copy(args2, args);
@@ -482,7 +498,7 @@ int main()
   test(1);
 
   cout << "stringf: " << stringf("int=%d hex=%X str=%s char=%c float=%f",
-                                 5, 0xAA, "hi", 'f', 3.4) << endl;            
+                                 5, 0xAA, "hi", 'f', 3.4) << endl;
 
   cout << "tests passed\n";
 
