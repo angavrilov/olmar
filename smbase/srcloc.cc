@@ -617,7 +617,7 @@ void SourceLocManager::loadFile(FileData *fileData)
   // an assertion failure instead of being a user error because the
   // client code can check this before calling into the
   // SourceLocManager and provide a better error message there
-  xassert(!findFile(fileData->name));
+  xassert(!findFile(fileData->name.c_str()));
 
   // finish off the fileData->hashLines object; FIX: there is probably
   // a better place for this, but I'm not sure where
@@ -737,7 +737,7 @@ SourceLocManager::File *SourceLocManager::findFileWithLoc(SourceLoc loc)
     int cmp = file->cmpLoc(loc);
 
     if (cmp == 0) {
-      xassert(file->hasLoc(loc));
+      // xassert(file->hasLoc(loc));
       return file;
     } else if (cmp > 0) {
       right = mid - 1;

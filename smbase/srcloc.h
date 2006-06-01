@@ -91,15 +91,14 @@ public:      // types
   // SourceLocManager when de-serializing it from XML.
   class FileData {
     public:
-    char const *name;
+    string name;
     int numChars;
     int numLines;
     ArrayStack<unsigned char> *lineLengths;
     HashLineMap *hashLines;
 
     FileData()
-      : name(NULL)
-      , numChars(-1)
+      : numChars(-1)
       , numLines(-1)
       , lineLengths(NULL)
       , hashLines(NULL)
@@ -110,7 +109,7 @@ public:      // types
       // NOTE: hashLines is nullable, so says Scott, so it is not on
       // the list of things that have to be there for the object to be
       // complete
-      return name && numChars>=0 && numLines>=0 && lineLengths;
+      return !name.empty() && numChars>=0 && numLines>=0 && lineLengths;
     }
   };
 
