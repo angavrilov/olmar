@@ -182,7 +182,7 @@ public:
   void selfCheck() const                { mut.selfCheck(); }
 };
 
-#define SMUTATE_EACH_SOBJLIST(T, list, iter) \
+#define SMUTATE_EACH_OBJLIST(T, list, iter) \
   for(SObjListMutator< T > iter(list); !iter.isDone(); iter.adv())
 
 
