@@ -57,6 +57,7 @@ void IdSObjDict::add(char const *id, void *obj)
   unsigned idnum;
 
   if (parseId(id, prefix, idnum)) {
+    // TODO: use something better than a hash table for the prefix, e.g. a trie
     ObjIdArray * a = objectsById.queryif(prefix);
     if (!a) {
       a = new ObjIdArray(max((unsigned)64, 2*idnum));
