@@ -7,8 +7,7 @@
 
 bool xmlDanglingPointersAllowed = true;
 
-// TODO: make parameter id0 a const char *
-UnsatLink::UnsatLink(void *ptr0, string const &id0, int kind0, bool embedded0)
+UnsatLink::UnsatLink(void *ptr0, char const *id0, int kind0, bool embedded0)
   : ptr(ptr0), id(id0), kind(kind0), embedded(embedded0)
 {};
 

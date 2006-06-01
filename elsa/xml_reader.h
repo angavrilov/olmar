@@ -156,7 +156,7 @@ struct UnsatLink {
   string id;                    // id of B
   int kind;                     // type of B (roll-our-own-RTTI)
   bool embedded;                // B embedded into A or pointed at?
-  UnsatLink(void *ptr0, string const &id0, int kind0, bool embedded0);
+  UnsatLink(void *ptr0, char const *id0, int kind0, bool embedded0);
 };
 
 //  // datastructures for dealing with unsatisified links where neither
