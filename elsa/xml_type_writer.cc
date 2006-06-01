@@ -488,7 +488,21 @@ void XmlTypeWriter::toXml_EnumType_Value(void /*EnumType::Value*/ *eValue0) {
     printStrRef(name, eValue->name);
     printPtr(eValue, type);
     printXml_int(value, eValue->value);
-    printPtr(eValue, decl);
+
+    // quarl 2006-05-31
+    //    'decl' might be pointing at a Variable A which we have linked with
+    //    another variable B, but we are serializing variable B and not A.
+    //    See 'make oink-check-srz-multi-enum', which fails if we just
+    //    serialize 'decl' directly.
+    //    
+    //    One solution would be to add a union-find to variables so that we
+    //    can follow and find the linked target. TODO.
+    //
+    //    For now we simply lose the 'decl' in such situations.
+    if (!serializeOracle || serializeOracle->shouldSerialize(eValue->decl)) {
+      printPtr(eValue, decl);
+    }
+
     tagPrinter.tagEnd();
   }
 
