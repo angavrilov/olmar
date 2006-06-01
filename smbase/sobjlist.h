@@ -122,7 +122,7 @@ public:
 
   // debugging: no invariants beyond VoidList
   void selfCheck() const                { list.selfCheck(); }
-  
+
   // but export the additional checks for cases where they apply anyway
   void checkHeapDataPtrs() const        { list.checkHeapDataPtrs(); }
   void checkUniqueDataPtrs() const      { list.checkUniqueDataPtrs(); }
@@ -182,7 +182,7 @@ public:
   void selfCheck() const                { mut.selfCheck(); }
 };
 
-#define SMUTATE_EACH_OBJLIST(T, list, iter) \
+#define SMUTATE_EACH_SOBJLIST(T, list, iter) \
   for(SObjListMutator< T > iter(list); !iter.isDone(); iter.adv())
 
 
