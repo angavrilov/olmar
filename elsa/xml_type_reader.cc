@@ -2,7 +2,7 @@
 
 #include "xml_type_reader.h"    // this module
 #include "variable.h"           // Variable
-#include "strtokp.h"            // StrtokParse
+#include "strtokpc.h"           // StrtokParseC
 #include "cc_flags.h"           // fromXml(DeclFlags &out, rostring str)
 #include "xmlhelp.h"            // fromXml_int() etc.
 #include "xml_enum.h"           // XTOK_*
@@ -19,10 +19,9 @@ void fromXml(CompoundType::Keyword &out, rostring str) {
 }
 
 void fromXml(FunctionFlags &out, rostring str) {
-  // TODO: get rid of StrtokParse
-  StrtokParse tok(str.c_str(), "|");
-  for (int i=0; i<tok; ++i) {
-    char const * const token = tok[i];
+  StrtokParseC tok(str.c_str());
+  char const *token;
+  while ( (token = tok.nextToken('|')) != NULL ) {
     if(0) xfailure("?");
     READFLAG(FF_NONE);
     READFLAG(FF_METHOD);
