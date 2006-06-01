@@ -445,8 +445,7 @@ void *XmlReaderManager::ctorNodeFromTag(int tag) {
   }
 
   xmlUserFatalError(stringc
-                    << "no ctor registered for tag " << tag << " (text='"
-                    << lexer.currentText() << "')");
+                    << "no ctor registered for tag " << lexer.tokenKindDescV(tag));
 }
 
 void XmlReaderManager::registerAttribute
