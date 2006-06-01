@@ -48,6 +48,7 @@ public:
   int count() const                     { return list.count(); }
   bool isEmpty() const                  { return list.isEmpty(); }
   bool isNotEmpty() const               { return list.isNotEmpty(); }
+  T *&nthRef(int which)                 { return (T*&)list.nthRef(which); }
   T *nth(int which)                     { return (T*)list.nth(which); }
   T const *nthC(int which) const        { return (T const*)list.nth(which); }
   T *first()                            { return (T*)list.first(); }
