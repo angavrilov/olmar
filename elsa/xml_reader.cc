@@ -108,6 +108,7 @@ void XmlReaderManager::parseOneTagOrDatum() {
     // parser is some sort of stack machine).
     xassert(topTemp);
     nodeStack.push(topTemp);
+    // TODO: avoid allocating a pointer for ints
     kindStack.push(new int(tag));
 
     // read the attributes
