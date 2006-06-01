@@ -82,6 +82,7 @@ bool XmlTypeReader::kind2kindCat(int kind, KindCategory *kindCat) {
   case XTOK_SimpleType:
   case XTOK_CompoundType:
   case XTOK_EnumType:
+  case XTOK_EnumType_Value:
   case XTOK_TypeVariable:
   case XTOK_PseudoInstantiation:
   case XTOK_DependentQType:
