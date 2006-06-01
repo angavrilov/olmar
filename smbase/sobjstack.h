@@ -23,6 +23,10 @@ public:       // funcs
   T const *topC() const                 { return list.firstC(); }
   T *top()                              { return list.first(); }
 
+  // get nth item (linear time)
+  T *nth(int which)                     { return list.nth(which); }
+  T *&nthRef(int which)                 { return list.nthRef(which); }
+
   T *pop()                              { return list.removeAt(0); }
   void push(T *item)                    { list.prepend(item); }
 
