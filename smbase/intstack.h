@@ -24,6 +24,9 @@ public:       // funcs
 
   T top()                               { return list.first(); }
 
+  // peek at nth item (linear time)
+  T nth(int which)                      { return list.nth(which); }
+
   T pop()                               { return list.removeAt(0); }
   void delPop()                         { list.deleteAt(0); }
   void push(T item)                     { list.prepend(item); }
