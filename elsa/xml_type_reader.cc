@@ -10,7 +10,7 @@
 
 // fromXml for enums
 
-void fromXml(CompoundType::Keyword &out, rostring str) {
+void fromXml(CompoundType::Keyword &out, char const *str) {
   if(0) xfailure("?");
   READENUM(CompoundType::K_STRUCT);
   READENUM(CompoundType::K_CLASS);
@@ -18,8 +18,8 @@ void fromXml(CompoundType::Keyword &out, rostring str) {
   else xfailure("bad enum string");
 }
 
-void fromXml(FunctionFlags &out, rostring str) {
-  StrtokParseC tok(str.c_str());
+void fromXml(FunctionFlags &out, char const *str) {
+  StrtokParseC tok(str);
   char const *token;
   while ( (token = tok.nextToken('|')) != NULL ) {
     if(0) xfailure("?");
@@ -37,7 +37,7 @@ void fromXml(FunctionFlags &out, rostring str) {
   }
 }
 
-void fromXml(ScopeKind &out, rostring str) {
+void fromXml(ScopeKind &out, char const *str) {
   if(0) xfailure("?");
   READENUM(SK_UNKNOWN);
   READENUM(SK_GLOBAL);
@@ -50,7 +50,7 @@ void fromXml(ScopeKind &out, rostring str) {
   else xfailure("bad enum string");
 }
 
-void fromXml(STemplateArgument::Kind &out, rostring str) {
+void fromXml(STemplateArgument::Kind &out, char const *str) {
   if(0) xfailure("?");
   READENUM(STemplateArgument::STA_NONE);
   READENUM(STemplateArgument::STA_TYPE);
