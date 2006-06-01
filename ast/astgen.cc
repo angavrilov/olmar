@@ -1026,6 +1026,7 @@ class XmlParserGen {
      ASTList<CtorArg> const *childArgs = NULL,
      ASTList<Annotation> const *childDecls = NULL);
   void emitXmlParser_ASTList(ListClass const *type);
+  void emitXmlParser_FakeList(ListClass const *type);
 
   public:
   void emitXmlParserImplementation();
@@ -2605,21 +2606,21 @@ void XmlParserGen::emitXmlField_AttributeParseRule
   }
   else if (isListType(type)) {
     parser1_defs << "  case XTOK_" << name << ":\n";
-    parser1_defs << "    manager->unsatLinks_List.append(new UnsatLink("
+    parser1_defs << "    manager->addUnsatLink(new UnsatLink("
                  << "(void*) &(obj->" << name << "), strValue, "
                  << "XTOK_List_" << baseName << "_" << name << ", true));\n";
     parser1_defs << "    break;\n";
   }
   else if (isFakeListType(type)) {
     parser1_defs << "  case XTOK_" << name << ":\n";
-    parser1_defs << "    manager->unsatLinks_List.append(new UnsatLink("
+    parser1_defs << "    manager->addUnsatLink(new UnsatLink("
                  << "(void*) &(obj->" << name << "), strValue, "
                  << "XTOK_List_" << baseName << "_" << name << ", true));\n";
     parser1_defs << "    break;\n";
   }
   else if (isTreeNode(type) || (isTreeNodePtr(type))) {
     parser1_defs << "  case XTOK_" << name << ":\n";
-    parser1_defs << "    manager->unsatLinks.append(new UnsatLink("
+    parser1_defs << "    manager->addUnsatLink(new UnsatLink("
                  << "(void*) &(obj->" << name << "), strValue,"
                  << "XTOK_" << extractNodeType(type) << ", false));\n";
     parser1_defs << "    break;\n";
@@ -2627,7 +2628,7 @@ void XmlParserGen::emitXmlField_AttributeParseRule
   else if (isPtrKind(type)) {
     // catch-all for objects
     parser1_defs << "  case XTOK_" << name << ":\n";
-    parser1_defs << "    manager->unsatLinks.append(new UnsatLink("
+    parser1_defs << "    manager->addUnsatLink(new UnsatLink("
                  << "(void*) &(obj->" << name << "), strValue,"
                  << "XTOK_" << extractNodeType(type) << ", false));\n";
     parser1_defs << "    break;\n";
@@ -2635,7 +2636,7 @@ void XmlParserGen::emitXmlField_AttributeParseRule
     // embedded thing
     rostring kind = amod->getModSuffixFromPrefix("xmlEmbed");
     parser1_defs << "  case XTOK_" << name << ":\n";
-    parser1_defs << "    manager->unsatLinks" << kind << ".append(new UnsatLink("
+    parser1_defs << "    manager->addUnsatLink(new UnsatLink("
                  << "(void*) &(obj->" << name << "), strValue,"
                  << "XTOK" << kind << "_" << baseName << "_" << name << ", true));\n";
     parser1_defs << "    break;\n";
@@ -2752,9 +2753,23 @@ void XmlParserGen::emitXmlParser_ASTList(ListClass const *cls)
   // only one rule as lists are homogeneous
   xassert(isTreeNode(cls->elementClassName));
   parser2_ctorCalls << "    case XTOK_" << name << ":\n"
-    // NOTE: yes, this should say 'new ASTList' even in the case of
-    // FakeLists; ASTLists are also used as "generic lists".
                     << "      return new ASTList<" << cls->elementClassName << ">();\n"
+                    << "      break;\n";
+}
+
+void XmlParserGen::emitXmlParser_FakeList(ListClass const *cls)
+{
+  // quarl 2006-06-01
+  //    We deserialize directly into FakeLists, so return an empty FakeList
+  //    (i.e. NULL).  (We used to first deserialize into an ASTList and then
+  //    convert, but we no longer do that.)
+
+  // TODO: this doesn't need to be a 'string'
+  string name = stringc << "List_" << cls->classAndMemberName;
+  // only one rule as lists are homogeneous
+  xassert(isTreeNode(cls->elementClassName));
+  parser2_ctorCalls << "    case XTOK_" << name << ":\n"
+                    << "      return new FakeList<" << cls->elementClassName << "> *;\n"
                     << "      break;\n";
 }
 
@@ -2801,12 +2816,13 @@ void XmlParserGen::emitXmlParserImplementation()
     tokensOut << "  List_" << cls->classAndMemberName << "\n";
     parser1_defs << "  case XTOK_List_" << cls->classAndMemberName << ": *kindCat = ";
     if (cls->lkind == LK_FakeList) {
+      emitXmlParser_FakeList(cls);
       parser1_defs << "KC_FakeList";
     } else if (cls->lkind == LK_ASTList) {
+      emitXmlParser_ASTList(cls);
       parser1_defs << "KC_ASTList";
     } else xfailure("illegal list kind");
     parser1_defs << "; break;\n";
-    emitXmlParser_ASTList(cls);
   }
 
   parser1_defs << "  }\n";
@@ -2904,30 +2920,30 @@ void XmlParserGen::emitXmlParserImplementation()
   parser1_defs << "  }\n";
   parser1_defs << "}\n";
 
-  // generate generic FakeList reverse
-  parser1_defs << "bool XmlAstReader::convertList2FakeList";
-  parser1_defs << "(ASTList<char> *list, int listKind, void **target) {\n";
+  // generate generic FakeList
+  parser1_defs << "bool XmlAstReader::prependToFakeList(void *&list, void *obj, int listKind) {\n";
   parser1_defs << "  switch(listKind) {\n";
   parser1_defs << "  default: return false; // we did not find a matching tag\n";
   FOREACH_ASTLIST(ListClass, listClasses, iter) {
     ListClass const *cls = iter.data();
     if (cls->lkind != LK_FakeList) continue;
     parser1_defs << "  case XTOK_List_" << cls->classAndMemberName << ": {\n";
-    parser1_defs << "    xassert(list);\n";
-    parser1_defs << "    FakeList<" << cls->elementClassName << "> *ret = NULL;\n";
-    parser1_defs << "    FakeList<" << cls->elementClassName << "> *prev = NULL;\n";
-    parser1_defs << "    FOREACH_ASTLIST_NC(" << cls->elementClassName << ",\n";
-    parser1_defs << "                       reinterpret_cast<ASTList<" << cls->elementClassName << ">&>(*list),\n";
-    parser1_defs << "                       iter) {\n";
-    parser1_defs << "      if (prev) {\n";
-    parser1_defs << "        prev->first()->next = iter.data();\n";
-    parser1_defs << "        prev = FakeList<" << cls->elementClassName << ">::makeList(prev->first()->next);\n";
-    parser1_defs << "      } else {\n";
-    parser1_defs << "        ret = FakeList<" << cls->elementClassName << ">::makeList(iter.data());\n";
-    parser1_defs << "        prev = ret;\n";
-    parser1_defs << "      }\n";
-    parser1_defs << "    }\n";
-    parser1_defs << "    *target = ret;";
+    parser1_defs << "    prependToFakeList0<" << cls->elementClassName << ">(list, obj);\n";
+    parser1_defs << "    break;\n";
+    parser1_defs << "  }\n";
+  }
+  parser1_defs << "  }\n";
+  parser1_defs << "  return true;\n";
+  parser1_defs << "}\n";
+
+  parser1_defs << "bool XmlAstReader::reverseFakeList(void *&list, int listKind) {\n";
+  parser1_defs << "  switch(listKind) {\n";
+  parser1_defs << "  default: return false; // we did not find a matching tag\n";
+  FOREACH_ASTLIST(ListClass, listClasses, iter) {
+    ListClass const *cls = iter.data();
+    if (cls->lkind != LK_FakeList) continue;
+    parser1_defs << "  case XTOK_List_" << cls->classAndMemberName << ": {\n";
+    parser1_defs << "    reverseFakeList0<" << cls->elementClassName << ">(list);\n";
     parser1_defs << "    break;\n";
     parser1_defs << "  }\n";
   }
