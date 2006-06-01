@@ -1,6 +1,6 @@
 
 // quarl 2006-05-30
-//    IdObjDict is a data structure with the same interface as
+//    IdSObjDict is a data structure with the same interface as
 //    StringSObjDict<void> (actually subset), but optimized for the case where
 //    most (or all) ids are of the form "XY1234" (with the integer IDs densely
 //    increasing).
@@ -22,7 +22,7 @@
 #include "strsobjdict.h"        // StringSObjDict
 #include "array.h"              // GrowArray
 
-class IdObjDict {
+class IdSObjDict {
   typedef GrowArray<void *> ObjIdArray;
   StringObjDict<ObjIdArray> objectsById;
   StringSObjDict<void> objectsOther;

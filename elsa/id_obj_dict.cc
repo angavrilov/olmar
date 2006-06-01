@@ -18,7 +18,7 @@ bool atoiFull(char const *p, unsigned &result)
 }
 
 // static
-bool IdObjDict::parseId(char const *id,
+bool IdSObjDict::parseId(char const *id,
                         char prefix[3],
                         unsigned &idnum)
 {
@@ -34,7 +34,7 @@ bool IdObjDict::parseId(char const *id,
   return true;
 }
 
-void *IdObjDict::queryif(char const *id)
+void *IdSObjDict::queryif(char const *id)
 {
   char prefix[3];
   unsigned idnum;
@@ -51,7 +51,7 @@ void *IdObjDict::queryif(char const *id)
   }
 }
 
-void IdObjDict::add(char const *id, void *obj)
+void IdSObjDict::add(char const *id, void *obj)
 {
   char prefix[3];
   unsigned idnum;

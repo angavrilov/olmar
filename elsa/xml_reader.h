@@ -7,10 +7,10 @@
 #ifndef XML_READER_H
 #define XML_READER_H
 
-#include "id_obj_dict.h"        // IdObjDict
-#include "strsobjdict.h"        // StringSObjDict
+#include "id_obj_dict.h"        // IdSObjDict
+#include "strintdict.h"         // StringIntDict
 #include "sobjstack.h"          // SObjStack
-#include "objstack.h"           // ObjStack
+#include "intstack.h"           // IntStack
 #include "astlist.h"            // ASTList
 #include "strtable.h"           // StringRef
 #include "strmap.h"             // StringRefMap
@@ -240,7 +240,7 @@ class XmlReaderManager {
   int lastKind;
   // parsing stack
   SObjStack<void> nodeStack;
-  ObjStack<int> kindStack;
+  IntStack<int> kindStack;
 
   // **** Satisfying links
 
@@ -253,12 +253,13 @@ class XmlReaderManager {
 //    ASTList<UnsatBiLink> unsatBiLinks;
 
   // map object ids to the actual object
-  IdObjDict id2obj;
+  IdSObjDict id2obj;
   // StringSObjDict<void> id2obj;
 
   // map object ids to their kind ONLY IF there is a non-trivial
   // upcast to make at the link satisfaction point
-  StringSObjDict<int> id2kind;
+  StringIntDict<int> id2kind;
+  // StringSObjDict<int> id2kind;
 
   public:
   XmlReaderManager(XmlLexer &lexer0, StringTable &strTable0)

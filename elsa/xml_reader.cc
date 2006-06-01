@@ -61,7 +61,7 @@ void XmlReaderManager::parseOneTagOrDatum() {
     break;
   case XTOK_NAME:
     // this is raw data in between tags
-    registerStringToken(nodeStack.top(), *kindStack.top(), lexer.currentText());
+    registerStringToken(nodeStack.top(), kindStack.top(), lexer.currentText());
     return;
     break;
   case 0:                     // eof
@@ -109,7 +109,7 @@ void XmlReaderManager::parseOneTagOrDatum() {
     xassert(topTemp);
     nodeStack.push(topTemp);
     // TODO: avoid allocating a pointer for ints
-    kindStack.push(new int(tag));
+    kindStack.push(tag);
 
     // read the attributes
     bool sawContainerTag = readAttributes();
@@ -148,7 +148,7 @@ void XmlReaderManager::parseOneTagOrDatum() {
     xmlUserFatalError("too many close tags");
   }
   lastNode = nodeStack.pop();
-  lastKind = *kindStack.pop();
+  lastKind = kindStack.pop();
   if (lastKind != closeTag) {
     xmlUserFatalError(stringc << "close tag " << lexer.tokenKindDesc(closeTag)
                       << " does not match open tag " << lexer.tokenKindDesc(lastKind));
@@ -175,7 +175,7 @@ void XmlReaderManager::parseOneTagOrDatum() {
       xmlUserFatalError("a _List_Item tag not immediately under a List");
     }
     void *listNode = nodeStack.top();
-    int listKind = *kindStack.top();
+    int listKind = kindStack.top();
     KindCategory listKindCat;
     kind2kindCat(listKind, &listKindCat);
     if (!(listNode &&
@@ -215,7 +215,7 @@ void XmlReaderManager::parseOneTagOrDatum() {
       xmlUserFatalError("a _NameMap_Item tag not immediately under a Map");
     }
     void *mapNode = nodeStack.top();
-    int mapKind = *kindStack.top();
+    int mapKind = kindStack.top();
     KindCategory mapKindCat;
     kind2kindCat(mapKind, &mapKindCat);
     if (!(mapNode && (mapKindCat == KC_StringRefMap || mapKindCat == KC_StringSObjDict))) {
@@ -248,7 +248,7 @@ void XmlReaderManager::parseOneTagOrDatum() {
       xmlUserFatalError("a _Map_Item tag not immediately under a Map");
     }
     void *mapNode = nodeStack.top();
-    int mapKind = *kindStack.top();
+    int mapKind = kindStack.top();
     KindCategory mapKindCat;
     kind2kindCat(mapKind, &mapKindCat);
     if (!(mapNode && (mapKindCat == KC_PtrMap))) {
@@ -326,12 +326,12 @@ bool XmlReaderManager::readAttributes() {
         xmlUserFatalError(stringc << "this _id is taken: " << id0);
       }
       id2obj.add(id0, nodeStack.top());
-      if (recordKind(*kindStack.top())) {
+      if (recordKind(kindStack.top())) {
         id2kind.add(id0, kindStack.top());
       }
     }
     // special case the _List_Item node and its one attribute
-    else if (*kindStack.top() == XTOK__List_Item) {
+    else if (kindStack.top() == XTOK__List_Item) {
       switch(attr) {
       default:
         xmlUserFatalError("illegal attribute for _List_Item");
@@ -343,7 +343,7 @@ bool XmlReaderManager::readAttributes() {
       }
     }
     // special case the _NameMap_Item node and its one attribute
-    else if (*kindStack.top() == XTOK__NameMap_Item) {
+    else if (kindStack.top() == XTOK__NameMap_Item) {
       switch(attr) {
       default:
         xmlUserFatalError("illegal attribute for _NameMap_Item");
@@ -359,7 +359,7 @@ bool XmlReaderManager::readAttributes() {
       }
     }
     // special case the _Map_Item node and its one attribute
-    else if (*kindStack.top() == XTOK__Map_Item) {
+    else if (kindStack.top() == XTOK__Map_Item) {
       switch(attr) {
       default:
         xmlUserFatalError("illegal attribute for _Map_Item");
@@ -375,7 +375,7 @@ bool XmlReaderManager::readAttributes() {
       }
     }
 //      // special case the __Link node and its attributes
-//      else if (*kindStack.top() == XTOK___Link) {
+//      else if (kindStack.top() == XTOK___Link) {
 //        switch(attr) {
 //        default:
 //          xmlUserFatalError("illegal attribute for __Link");
@@ -392,7 +392,7 @@ bool XmlReaderManager::readAttributes() {
 //      }
     // not a built-in attribute or tag
     else {
-      registerAttribute(nodeStack.top(), *kindStack.top(), attr, lexer.currentText());
+      registerAttribute(nodeStack.top(), kindStack.top(), attr, lexer.currentText());
     }
   }
   if (!nodeStack.isEmpty()) {
@@ -580,8 +580,8 @@ void XmlReaderManager::satisfyLinks_Nodes_1(bool processEmbedded) {
       // to handle many of these things.
     } else {
       if (processEmbedded) continue;
-      if (int *kind = id2kind.queryif(ulink->id)) {
-        *( (void**)(ulink->ptr) ) = upcastToWantedType(obj, *kind, ulink->kind);
+      if (int kind = id2kind.queryif(ulink->id)) {
+        *( (void**)(ulink->ptr) ) = upcastToWantedType(obj, kind, ulink->kind);
       } else {
         // no kind was registered for the object and therefore no
         // upcasting is required and there is no decision to make; so
