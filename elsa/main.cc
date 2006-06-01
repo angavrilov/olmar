@@ -337,6 +337,11 @@ void doit(int argc, char **argv)
     cout << lang.toString();
     cout << endl;
   }
+  if (tracingSys("printTracers")) {
+    cout << "tracing flags:\n\t";
+    printTracers(std::cout, "\n\t");
+    cout << endl;
+  }
 
   // --------------- parse --------------
   TranslationUnit *unit;
