@@ -52,6 +52,23 @@ void VoidTailList::insertAt(void *newitem, int index)
 
 void VoidTailList::concat(VoidTailList &srcList)
 {
+#if 1
+  // quarl 2006-06-01: alter representation directly; VoidList::concat() would
+  // take O(N) to find the tail.
+  if (srcList.top) {
+    if (top) {
+      tail->next = srcList.top;
+    } else {
+      top = srcList.top;
+    }
+
+    tail = srcList.tail; xassert(tail);
+    srcList.top = NULL;
+    srcList.tail = NULL;
+  } else {
+    // nothing to do
+  }
+#else
   // grab what will be the tail of the concatenated list
   VoidNode *catTail = srcList.top? srcList.tail : tail;
 
@@ -61,6 +78,7 @@ void VoidTailList::concat(VoidTailList &srcList)
   // fix tails
   tail = catTail;
   srcList.tail = NULL;
+#endif
 }
 
 void VoidTailList::adjustTail()
