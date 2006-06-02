@@ -23,11 +23,65 @@
 #include "array.h"              // GrowArray
 
 class IdSObjDict {
-  typedef GrowArray<void *> ObjIdArray;
-  StringObjDict<ObjIdArray> objectsById;
+  class Prefix {
+    typedef short int16_t;
+    int16_t prefix;
+  public:
+    Prefix() : prefix(0) {}
+    Prefix(char const *p) { set(p); }
+    void set(char const *p) { prefix = *reinterpret_cast<int16_t const*>(p); }
+    bool operator==(Prefix o) const { return prefix == o.prefix; }
+    void selfCheck() { xassert(prefix); }
+  };
+
+  struct IdNode {
+    void *object;
+    Prefix prefix;
+    IdNode *next;
+
+    IdNode() { memset(this, 0, sizeof(*this)); }
+  };
+
+  // mini memory pool
+  class IdNodePool {
+    enum { PAGE_SIZE = 63 };
+    struct Page {
+      IdNode nodes[PAGE_SIZE];
+      Page *next;
+      Page() : next(0) {}
+    };
+    Page pages, *curPage;
+    IdNode *nextInPage;
+
+  public:
+    IdNodePool() { curPage=&pages; nextInPage=curPage->nodes; }
+    IdNode *alloc() {
+      if (nextInPage == curPage->nodes+PAGE_SIZE) {
+        curPage->next = new Page;
+        nextInPage = curPage->nodes;
+      }
+      return nextInPage++;
+    }
+    ~IdNodePool() {
+      Page *p = pages.next;
+      while (p) {
+        Page *next = p->next;
+        delete p;
+        p = next;
+      }
+    }
+
+  } pool;
+
+  // the data structure is an array of IdNodes.  Usually there is only 1
+  // object per id, only rarely is there more than one prefix per id.  In that
+  // case we use a linked list.
+
+  GrowArray<IdNode> objectsById;
   StringSObjDict<void> objectsOther;
 
 public:
+  IdSObjDict() : objectsById(64) {}
   void *queryif(char const *id);
   void *queryif(string const &id) { return queryif(id.c_str()); }
   void add(char const *id, void *obj);
@@ -35,7 +89,7 @@ public:
   bool isMapped(char const *id) { return queryif(id) != NULL; }
 
 protected:
-  static bool parseId(char const *id, char prefix[3], unsigned &idnum);
+  static bool parseId(char const *id, Prefix &prefix, unsigned &idnum);
 };
 
 #endif
