@@ -88,6 +88,8 @@ void XmlReaderManager::parseOneTagOrDatum() {
     break;
   // ListItem: a list element
   case XTOK__List_Item:
+    // TODO: avoid creating ListItems by just appending to the list above us
+    // in the stack.
     topTemp = new ListItem();
     break;
   // NameMapItem: a name-map element
