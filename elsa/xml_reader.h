@@ -9,8 +9,7 @@
 
 #include "id_obj_dict.h"        // IdSObjDict
 #include "strintdict.h"         // StringIntDict
-#include "sobjstack.h"          // SObjStack
-#include "intstack.h"           // IntStack
+#include "array.h"              // ArrayStack
 #include "astlist.h"            // ASTList
 #include "strtable.h"           // StringRef
 #include "strmap.h"             // StringRefMap
@@ -220,12 +219,15 @@ class XmlReaderManager {
   // for extracting the top of the tree
   void *lastNode;
   int lastKind;
+
   // parsing stack
-  // TODO: combine these into one stack
-  // TODO: use an ArrayStack instead of linked list stack.
-  SObjStack<void> nodeStack;
-  IntStack<int> kindStack;
-  SObjStack<ASTList<UnsatLink> > ulinkStack;
+  struct ParseStackItem {
+    void *object;
+    int kind;
+    ASTList<UnsatLink> ulinks;
+  };
+
+  ArrayStack<ParseStackItem> parseStack;
 
   // **** Satisfying links
 
@@ -291,7 +293,7 @@ public:
   void addUnsatLink(UnsatLink *ulink);
 
 private:
-  void *getTopNode0() { return nodeStack.isEmpty() ? NULL : nodeStack.top(); }
+  void *getTopNode0() { return parseStack.isEmpty() ? NULL : parseStack.top().object; }
 
   // try to find a link from topmost list of unsatLinks.
   UnsatLink *getUnsatLink(char const *id0);
@@ -315,13 +317,13 @@ private:
   // report an error to the user with source location information
   void xmlUserFatalError(char const *msg) NORETURN;
   // are we at the top level during parsing?
-  bool atTopLevel() {return nodeStack.isEmpty();}
+  bool atTopLevel() {return parseStack.isEmpty();}
   // return the top of the stack: the one tag that was parsed
   void *getLastNode() {return lastNode;}
   int getLastKind() {return lastKind;}
   // peek at nth item (linear time)
-  void *getNthNode(int which) { return nodeStack.nth(which); }
-  int getNthKind(int which) { return kindStack.nth(which); }
+  void *getNthNode(int which) { return parseStack.nth(which).object; }
+  int getNthKind(int which) { return parseStack.nth(which).kind; }
 
   // peek, with assertion for kind
   void *getNthNode(int which, int kind)
