@@ -23,6 +23,7 @@ protected:
 
 private:
   ASTList(ASTList const &obj);          // not allowed
+  void operator=(ASTList const &obj);   // not allowed
 
 public:
   ASTList()                             : list() {}
