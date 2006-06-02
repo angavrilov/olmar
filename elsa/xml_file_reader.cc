@@ -14,7 +14,7 @@ void *XmlFileReader::ctorNodeFromTag(int tag) {
     return new SourceLocManager::FileData();
     break;
   case XTOK_LineLengths:
-    // NOTE: This is not technically a list object has it does not
+    // NOTE: This is not technically a list object as it does not
     // have list item children, only data; it is a regular node that
     // happens to be a list of data.
     return new ArrayStack<unsigned char>;
