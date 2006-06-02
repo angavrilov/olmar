@@ -638,12 +638,11 @@ UnsatLink *XmlReaderManager::getUnsatLink(char const *id0)
     return NULL;
 
   ASTList<UnsatLink> &parentUnsatLinks = parseStack.nth(1).ulinks;
-  FOREACH_ASTLIST_NC(UnsatLink, parentUnsatLinks, iter) {
-    UnsatLink *ulink = iter.data();
+  for (ASTListMutator<UnsatLink> mut(parentUnsatLinks); !mut.isDone(); mut.adv()) {
+    UnsatLink *ulink = mut.data();
     if (streq(ulink->id, id0)) {
-      // TODO: do a mutating list traversal so we avoid this extra O(N)
-      // removal step
-      parentUnsatLinks.removeItem(ulink);
+      // remove this ulink; caller deletes
+      mut.remove();
       return ulink;
     }
   }
