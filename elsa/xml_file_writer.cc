@@ -70,13 +70,16 @@ void XmlFileWriter::toXml_lineLengths(SourceLocManager::File *file)
   XmlTagPrinter tagPrinter(*this);
   if (writingP()) {
     unsigned char *lineLengths = file->serializationOnly_get_lineLengths();
+    int lineLengthsSize = file->serializationOnly_get_lineLengthsSize();
     // NOTE: can't do this since we would have to implement dispatch on
     // a pointer to unsigned chars, which is too general; we need
     // LineLengths to be their own class.
 //    openTagWhole(LineLengths, lineLengths);
     tagPrinter.readyTag("LineLengths");
     *out << "<LineLengths _id=";
-    outputXmlPointerQuoted(*out, "FI", idmgr.uniqueId(lineLengths)) << '>';
+    outputXmlPointerQuoted(*out, "FI", idmgr.uniqueId(lineLengths));
+    *out << " size='" << lineLengthsSize;
+    *out << "'>";
 
     // **** sub-data
     // Note: This simple whitespace-separated list is the suggested
@@ -85,7 +88,6 @@ void XmlFileWriter::toXml_lineLengths(SourceLocManager::File *file)
     //
     // Note also that I do not bother to indent blocks of data between
     // tags, just the tags themselves.
-    int lineLengthsSize = file->serializationOnly_get_lineLengthsSize();
     for (int i=0; i<lineLengthsSize; ++i) {
       if (i%20 == 0) *out << '\n';
       else *out << ' ';

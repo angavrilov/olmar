@@ -84,10 +84,15 @@ bool XmlFileReader::registerAttribute(void *target0, int kind, int attr, char co
   }
 
   case XTOK_LineLengths: {
-    // currently unused so I turned it off to avoid the compiler warning
-//      ArrayStack<unsigned char> *obj = (ArrayStack<unsigned char>*)target0;
+    ArrayStack<unsigned char> *lineLengths = (ArrayStack<unsigned char>*)target0;
     switch(attr) {
     default: xmlUserFatalError("illegal attribute for a LineLengths tag"); break;
+    case XTOK_size: {
+      // quarl 2006-06-01: 'size' is an optional hint to reserve N elements in
+      // the ArrayStack.
+      int size; fromXml_int(size, strValue);
+      lineLengths->ensureAtLeast(size);
+      break; }
     }
     break;
   }

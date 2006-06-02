@@ -16,6 +16,7 @@ HashLine
 ppLine
 origLine
 origFname
+size
 
 # Some containers; I no longer care about order
 #   ObjList
