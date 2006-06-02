@@ -6,7 +6,8 @@
 
 #include "xassert.h"      // xassert
 #include <stdlib.h>       // qsort
-
+#include <string.h>       // memcpy
+#include <new.h>          // new
 
 // -------------------- Array ----------------------
 // This is the same as C++'s built-in array, but automatically deallocates.
@@ -53,8 +54,16 @@ public:
 //
 // class T must have:
 //   T::T();           // default ctor for making arrays
-//   operator=(T&);    // assignment for copying to new storage
 //   T::~T();          // dtor for when old array is cleared
+//
+// to use copyFrom, T must have:
+//   T::operator=(T const&);
+//
+// quarl 2006-06-01
+//   GrowArray uses malloc/free and manually calls T() and ~T(), so that we
+//   don't need to have T::operator=(T&); this is also faster since we only do
+//   a shallow copy.
+
 template <class T>
 class GrowArray {
 private:     // data
@@ -131,6 +140,38 @@ public:      // funcs
       arr[i] = val;
     }
   }
+
+private:
+  // call T constructor on [p, end)
+  static void ctor(T* p, T *end) {
+    for (; p < end; ++p) {
+      ::new(static_cast<void*>(p)) T();
+    }
+  }
+
+  // call T destructor on [p, end)
+  static void dtor(T* p, T *end) {
+    for (; p < end; ++p) {
+      p->~T();
+    }
+  }
+
+  // shallow copy data from src to dest
+  static void copy(T *dest, T *src, size_t count) {
+    memcpy(dest, src, sizeof(T)*count);
+  }
+
+  // uninitialized alloc
+  static T *alloc(size_t count) {
+    void *m = malloc(sizeof(T)*count);
+    if (!m) throw bad_alloc();
+    return (T*) m;
+  }
+
+  // dealloc
+  static void dealloc(T *ary) {
+    free(ary);
+  }
 };
 
 
@@ -139,7 +180,9 @@ GrowArray<T>::GrowArray(int initSz)
 {
   sz = initSz;
   if (sz > 0) {
-    arr = new T[sz];
+    // arr = new T[sz];
+    arr = alloc(sz);
+    ctor(arr, arr+sz);
   }
   else {
     arr = NULL;
@@ -151,7 +194,9 @@ template <class T>
 GrowArray<T>::~GrowArray()
 {
   if (arr) {
-    delete[] arr;
+    // delete[] arr;
+    dtor(arr, arr+sz);
+    dealloc(arr);
   }
 }
 
@@ -175,21 +220,34 @@ void GrowArray<T>::setSize(int newSz)
 
     // make new
     sz = newSz;
+
     if (sz > 0) {
-      arr = new T[sz];
+      // arr = new T[sz];
+      arr = alloc(sz);
     }
     else {
       arr = NULL;
     }
 
-    // copy elements in common
-    for (int i=0; i<sz && i<oldSz; i++) {
-      arr[i] = oldArr[i];
+    // // copy elements in common
+    // for (int i=0; i<sz && i<oldSz; i++) {
+    //   arr[i] = oldArr[i];
+    // }
+
+    if (sz < oldSz) {
+      // shrinking; copy elements to keep and destroy the rest
+      copy(arr, oldArr, sz);
+      dtor(oldArr + sz, oldArr + oldSz);
+    } else if (sz > oldSz) {
+      // expanding; copy elements and construct new ones
+      copy(arr, oldArr, oldSz);
+      ctor(arr + oldSz, arr + sz);
     }
 
     // get rid of old
     if (oldArr) {
-      delete[] oldArr;
+      // delete[] oldArr;
+      dealloc(oldArr);
     }
   }
 }
@@ -265,6 +323,8 @@ public:
     { return operator[](len-1); }
   T &top()
     { return operator[](len-1); }
+  T &nth(int which)
+    { return operator[](len-1-which); }
 
   // alternate interface, where init/deinit is done explicitly
   // on returned references
