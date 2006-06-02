@@ -216,6 +216,81 @@ void VoidTailList::selfCheck() const
 }
 
 
+// --------------- VoidTailListMutator ------------------
+VoidTailListMutator&
+  VoidTailListMutator::operator=(VoidTailListMutator const &obj)
+{
+  // we require that the underlying lists be the same
+  // because we can't reset the 'list' reference if they
+  // aren't
+  xassert(&list == &obj.list);
+
+  prev = obj.prev;
+  current = obj.current;
+
+  return *this;
+}
+
+
+void VoidTailListMutator::insertBefore(void *item)
+{
+  if (prev == NULL) {
+    // insert at start of list
+    list.prepend(item);
+    reset();
+  }
+  else {
+    current = new VoidNode(item, current);
+    if (list.tail == current)
+      list.tail = current;
+    prev->next = current;
+  }
+}
+
+
+void VoidTailListMutator::insertAfter(void *item)
+{
+  xassert(!isDone());
+  current->next = new VoidNode(item, current->next);
+  if (list.tail == current) {
+    list.tail = current->next;
+  }
+}
+
+
+void VoidTailListMutator::append(void *item)
+{
+  xassert(isDone());
+  insertBefore(item);
+  adv();
+}
+
+
+void *VoidTailListMutator::remove()
+{
+  xassert(!isDone());
+  void *retval = data();
+  if (prev == NULL) {
+    // removing first node
+    list.top = current->next;
+    delete current;
+    current = list.top;
+    if (current == NULL) {
+      list.tail = NULL;
+    }
+  }
+  else {
+    current = current->next;
+    delete prev->next;   // old 'current'
+    prev->next = current;
+    if (current == NULL) {
+      list.tail = prev;
+    }
+  }
+  return retval;
+}
+
+
 // --------------------- test code ------------------
 #ifdef TEST_VDTLLIST
 
