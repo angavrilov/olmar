@@ -3049,6 +3049,47 @@ static bool compatibleParamCounts(FunctionType *ft1, FunctionType *ft2)
 }
 
 
+// The ANSI C99 standard, 6.7.2p4, explains that each enumerated type
+// is "compatible with" some implementation-defined integral type.  A
+// little experimentation with GCC 3.4.3 suggests that its rule is to
+// use 'unsigned int' if there are no negative enumerators, and
+// 'signed int' otherwise.  Emulating this behavior is necessary to
+// parse examples like in/c/k0013.c.
+static SimpleTypeId normalizeEnumToInteger(Type *t)
+{
+  if (t->isCVAtomicType()) {
+    AtomicType *at = t->asCVAtomicType()->atomic;
+    if (at->isSimpleType()) {
+      return at->asSimpleType()->type;
+    }
+    else if (at->isEnumType()) {
+      EnumType *et = at->asEnumType();
+      if (et->hasNegativeValues) {
+        return ST_INT;
+      }
+      else {
+        return ST_UNSIGNED_INT;
+      }
+    }
+  }
+  
+  // not an enum or integral type
+  return ST_ERROR;
+}
+
+static bool compatibleEnumAndIntegerTypes(Type *t1, Type *t2)
+{
+  SimpleTypeId nt1 = normalizeEnumToInteger(t1);
+  if (nt1 == ST_ERROR) {
+    return false;
+  }
+
+  SimpleTypeId nt2 = normalizeEnumToInteger(t2);
+
+  return nt1 == nt2;
+}
+
+
 // possible outcomes:
 //   - error, make up a dummy variable
 //   - create new declaration
@@ -3309,6 +3350,12 @@ Variable *Env::createDeclaration(
         //
         // TODO: tighten all this down; I don't like leaving such big
         // holes in what is being checked....
+        msg = stringc << msg << " (allowed due to C func param compatibility)";
+        warning(msg);
+      }
+      else if (!lang.isCplusplus &&
+               compatibleEnumAndIntegerTypes(prior->type, type)) {
+        msg = stringc << msg << " (allowed due to C enum/int compatibility)";
         warning(msg);
       }
       else {

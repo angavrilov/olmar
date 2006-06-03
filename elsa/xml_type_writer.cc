@@ -238,6 +238,7 @@ void XmlTypeWriter::toXml(AtomicType *atom) {
       // * members
       printEmbed(e, valueIndex);
       printXml_int(nextValue, e->nextValue);
+      printXml_bool(hasNegativeValues, e->hasNegativeValues);
       tagPrinter.tagEnd();
     }
 

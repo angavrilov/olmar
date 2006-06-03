@@ -578,6 +578,7 @@ void XmlTypeReader::registerAttr_EnumType(EnumType *obj, int attr, char const *s
   default: xmlUserFatalError("illegal attribute for a EnumType"); break;
   case XTOK_valueIndex: ulEmbed(valueIndex, XTOK_NameMap_EnumType_valueIndex); break;
   case XTOK_nextValue: fromXml_int(obj->nextValue, strValue); break;
+  case XTOK_hasNegativeValues: fromXml_bool(obj->hasNegativeValues, strValue); break;
   }
 }
 

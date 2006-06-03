@@ -11,3 +11,8 @@ enum MyEnum { DUMMY_WHICH_MUST_BE_NEGATIVE = -1, DUMMY2 };
 extern int foo;
 
 enum MyEnum foo = DUMMY2;
+
+// related: the unsigned version when no negative enumerators
+enum E2 { blah };
+extern unsigned int e2;
+enum E2 e2;

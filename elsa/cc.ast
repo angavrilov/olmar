@@ -757,6 +757,9 @@ class TemplateParameter (SourceLoc loc)(TemplateParameter /*nullable*/ next) {
   // type parameter; when present, 'name' is what the template code
   // will use to refer to the actual argument type; when present,
   // 'defaultType' provides a default argument
+  //
+  // 'name' can be NULL after parsing, but the type checker sticks
+  // in a synthesized name, so after tchecking it is never NULL
   -> TP_type(StringRef /*nullable*/ name,
              ASTTypeId /*nullable*/ defaultType);
 

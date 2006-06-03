@@ -1117,6 +1117,10 @@ EnumType::Value *EnumType::addValue(StringRef name, int value, Variable *decl)
   // the Value objects.  Daniel pointed out this was quadratic b/c
   // I was using 'append()'.  Since I never used the list anyway,
   // I just dropped it in favor of the dictionary (only).
+  
+  if (value < 0) {
+    hasNegativeValues = true;
+  }
 
   return v;
 }

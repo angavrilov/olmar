@@ -545,9 +545,11 @@ public:     // types
 public:     // data
   StringObjDict<Value> valueIndex;    // values in this enumeration
   int nextValue;                      // next value to assign to elements automatically
+  bool hasNegativeValues;             // true iff some 'value' is negative
 
 public:     // funcs
-  EnumType(StringRef n) : NamedAtomicType(n), nextValue(0) {}
+  EnumType(StringRef n) 
+    : NamedAtomicType(n), nextValue(0), hasNegativeValues(false) {}
   ~EnumType();
 
   // AtomicType interface

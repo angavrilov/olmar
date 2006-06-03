@@ -276,6 +276,9 @@ bool handleExternInline_asWeakStaticInline() {
 // -------------------------- toString ---------------------
 
 string CCLang::toString() {
+  // SGM: TODO: This should be done using a macro so each flag name
+  // only has to be appear once.
+
   stringBuilder str;
   str << "isCplusplus " << isCplusplus << '\n';
   str << "declareGNUBuiltins " << declareGNUBuiltins << '\n';
