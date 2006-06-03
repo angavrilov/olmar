@@ -791,6 +791,13 @@ void XmlReaderManager::callOpAssignToEmbeddedObj(void *obj, int kind, void *targ
   //    For list items, steal obj's list into the target.  This avoids doing a
   //    needless O(N) copy (which we aren't allowed to do anyway for owning
   //    lists).
+  // quarl 2006-06-02
+  //    If any of these target->isEmpty() assertions are failing, something is
+  //    wrong: since these lists are embedded (since we're in
+  //    callOpAssignToEmbeddedObj()), it should not be possible to have two
+  //    objects referring to the same one.  The most likely error is that the
+  //    data member is actually a pointer to a list rather than an embedded
+  //    list.
   switch (kindcat) {
   default: break;
 
