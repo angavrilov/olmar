@@ -151,6 +151,12 @@ bool Variable::linkerVisibleName(bool evenIfStatic) const {
   // it seems that we should not consider typedefs to be linker-visible
   if (hasFlag(DF_TYPEDEF)) return false;
 
+  // quarl 2006-06-03: Don't consider inline functions to be linker-visible.
+  // (In the future, it would be nice to have DF_INLINE be implied by
+  // DF_STATIC, but that needs to wait for DF_STATIC to not be overloaded as
+  // DF_STATIC_MEMBER.)
+  if (hasFlag(DF_INLINE) && !hasFlag(DF_GNU_EXTERN_INLINE)) return false;
+
   bool newAnswer;
   // FIX: what the heck was this?  Some attempt to treat struct
   // members as linkerVisibleName-s?  This doesn't work because there
