@@ -49,6 +49,7 @@ public:
   int count() const                     { return list.count(); }
   bool isEmpty() const                  { return list.isEmpty(); }
   bool isNotEmpty() const               { return list.isNotEmpty(); }
+  T *&nthRef(int which)                 { return (T*&)list.nthRef(which); }
   T *nth(int which)                     { return (T*)list.nth(which); }
   T const *nthC(int which) const        { return (T const*)list.nth(which); }
   T *first()                            { return (T*)list.first(); }
@@ -71,7 +72,7 @@ public:
 
   // list-as-set: selectors
   int indexOf(T const *item) const      { return list.indexOf((void*)item); }
-  int indexOfF(void *item) const        { return list.indexOfF((void*)item); }
+  int indexOfF(T const *item) const     { return list.indexOfF((void*)item); }
   bool contains(T const *item) const    { return list.contains((void*)item); }
 
   // list-as-set: mutators

@@ -70,7 +70,7 @@ public:
 
   // list-as-set: selectors
   int indexOf(T const *item) const      { return list.indexOf((void*)item); }
-  int indexOfF(void *item) const        { return list.indexOfF((void*)item); }
+  int indexOfF(T const *item) const     { return list.indexOfF((void*)item); }
   bool contains(T const *item) const    { return list.contains((void*)item); }
 
   // list-as-set: mutators
@@ -123,7 +123,7 @@ public:
 
   // debugging: no invariants beyond VoidList
   void selfCheck() const                { list.selfCheck(); }
-
+  
   // but export the additional checks for cases where they apply anyway
   void checkHeapDataPtrs() const        { list.checkHeapDataPtrs(); }
   void checkUniqueDataPtrs() const      { list.checkUniqueDataPtrs(); }
