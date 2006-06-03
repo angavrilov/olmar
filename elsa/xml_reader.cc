@@ -821,7 +821,7 @@ void XmlReaderManager::callOpAssignToEmbeddedObj(void *obj, int kind, void *targ
     return;
   case KC_SObjList:
     if (!obj) return;
-    xassert(reinterpret_cast<SObjList<void>*>(target)->isEmpty());
+    xassert(reinterpret_cast<SObjList<void>*>(target)->isEmpty() && "61010461-dc93-4312-bca7-219392176c22");
     reinterpret_cast<SObjList<void>*>(target)->concat(
       *reinterpret_cast<SObjList<void>*>(obj));
     return;
