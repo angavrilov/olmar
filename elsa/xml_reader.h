@@ -227,7 +227,7 @@ class XmlReaderManager {
     ASTList<UnsatLink> ulinks;
   };
 
-  ArrayStack<ParseStackItem> parseStack;
+  BitwiseArrayStack<ParseStackItem> parseStack;
 
   // **** Satisfying links
 
