@@ -77,7 +77,7 @@ class IdSObjDict {
   // object per id, only rarely is there more than one prefix per id.  In that
   // case we use a linked list.
 
-  GrowArray<IdNode> objectsById;
+  BitwiseGrowArray<IdNode> objectsById;
   StringSObjDict<void> objectsOther;
 
 public:
