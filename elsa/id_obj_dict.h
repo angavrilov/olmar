@@ -20,7 +20,7 @@
 
 #include "strobjdict.h"         // StringObjDict
 #include "strsobjdict.h"        // StringSObjDict
-#include "array.h"              // GrowArray
+#include "bitwise_array.h"      // BitwiseGrowArray
 
 class IdSObjDict {
   class Prefix {

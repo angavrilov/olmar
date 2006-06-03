@@ -9,7 +9,7 @@
 
 #include "id_obj_dict.h"        // IdSObjDict
 #include "strintdict.h"         // StringIntDict
-#include "array.h"              // ArrayStack
+#include "bitwise_array.h"      // BitwiseArrayStack
 #include "astlist.h"            // ASTList
 #include "strtable.h"           // StringRef
 #include "strmap.h"             // StringRefMap
