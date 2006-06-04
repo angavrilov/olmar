@@ -1896,8 +1896,6 @@ bool ElabVisitor::visitExpression(Expression *e)
     return false;
   }
 
-  // e->type is NULL when we're inside a compound initializer array index?
-  // see in/c/k0016.c
   xassert (e->type && "48c58fcf-900a-4b17-bf13-17a2c93d799d");
 
   // don't elaborate template-dependent expressions

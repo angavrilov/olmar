@@ -961,7 +961,11 @@ Type *E_binary::itcheck_complex_arith(Env &env)
 }
 
 
-static void compile_time_compute_int_expr(Env &env, Expression *e, int &x, char *error_msg) {
+// in/c/k00016.c: this function takes a reference to 'e' because it
+// invokes the type checker, which (due to disambiguation) may need to
+// change it to a different value, which in turn must be propagated to
+// the caller
+static void compile_time_compute_int_expr(Env &env, Expression *&e, int &x, char *error_msg) {
   e->tcheck(env, e);
   if (!e->constEval(env, x)) env.error(error_msg);
 }
