@@ -474,6 +474,13 @@ public:      // funcs
   // not exist (this is a query on 'dataMembers')
   int getDataMemberPosition(StringRef name) const;
 
+  // return the offset in bytes of 'dataMember' in this struct;
+  // fail an assertion if it is not present (why does this function
+  // take a Variable* and the previous one a StringRef?  I'm not
+  // sure, I think Variable* is better, but don't want to mess with
+  // the other one right now)
+  int getDataMemberOffset(Variable *dataMember) const;
+
   // add to 'bases'; incrementally maintains 'virtualBases'
   virtual void addBaseClass(BaseClass * /*owner*/ newBase);
 

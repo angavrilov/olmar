@@ -701,6 +701,24 @@ int CompoundType::getDataMemberPosition(StringRef name) const
 }
 
 
+// TODO: Does this handle members of base classes correctly?  What
+// about virtual inheritance?
+int CompoundType::getDataMemberOffset(Variable *dataMember) const
+{
+  int offset = 0;
+  SFOREACH_OBJLIST(Variable, dataMembers, iter) {
+    if (iter.data() == dataMember) {
+      return offset;
+    }
+    offset += iter.data()->type->reprSize();
+  }
+
+  xfailure(stringc << "getDataMemberOffset: no such member: "
+                   << dataMember->name);
+  return 0;  // silence warning
+}
+
+
 void CompoundType::addBaseClass(BaseClass * /*owner*/ newBase)
 {
   xassert(newBase->access != AK_UNSPECIFIED);
