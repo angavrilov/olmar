@@ -128,7 +128,8 @@ class MemberInit {
   public(xml_TY) CompoundType *base = NULL;
 
   // the constructor used to initialize the member or subobject
-  // (can't call it "ctor".. that's an astgen keyword.. doh)
+  // (can't call it "ctor".. that's an astgen keyword.. doh),
+  // or NULL for non-CompoundTypes
   public(xml_TY,xmlShouldSerialize) Variable *ctorVar = NULL;
 
   public void printExtras(ostream &os, int indent) const;

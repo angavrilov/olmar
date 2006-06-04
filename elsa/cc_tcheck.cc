@@ -1530,6 +1530,10 @@ Type *TS_name::itcheck(Env &env, DeclFlags dflags)
     // in C, we never look at a class scope unless the name is
     // preceded by "." or "->", which it certainly is not in a TS_name
     // (in/c/dC0013.c)
+    //
+    // this is actually done below as well for E_variable; for the
+    // moment I'm refraining from factoring it for fear of
+    // destabilizing things..
     lflags |= LF_SKIP_CLASSES;
   }
 
@@ -5414,6 +5418,14 @@ Type *E_variable::itcheck_var_set(Env &env, Expression *&replacement,
     candidates.add(v);
   }
   else {
+    // in/c/k0015.c: in C, struct members are only visible after the
+    // "." or "->" (which is not E_variable)
+    //
+    // this is done above for TS_name as well..
+    if (!env.lang.isCplusplus) {
+      flags |= LF_SKIP_CLASSES;
+    }
+
     // do lookup normally
     env.lookupPQ(candidates, name, flags);
 
