@@ -1103,6 +1103,7 @@ failparse k0095.cc "templatized enum parameter"
 testparse k0096.cc "statement expression returning struct"
 testparse k0097.cc "function pointer template"
 failparse k0098.cc "ambiguous operator cast"
+failparse k0099.cc "partial specialization lookup"
 
 ### </quarl-testcases-c++>
 

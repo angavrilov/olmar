@@ -1643,7 +1643,7 @@ void Env::insertTemplateArgBindings
 bool Env::insertTemplateArgBindings_oneParamList
   (Scope *scope, Variable *baseV, SObjListIter<STemplateArgument> &argIter,
    SObjList<Variable> const &params)
-{      
+{
   // accumulate type parameter bindings for cases like in/t0505.cc
   // where later parameters refer to earlier parameters
   //
@@ -1682,7 +1682,7 @@ bool Env::insertTemplateArgBindings_oneParamList
       Variable *binding = makeVariable(param->loc, param->name, t,
                                        DF_TYPEDEF | DF_TEMPL_PARAM | DF_BOUND_TPARAM);
       addVariableToScope(scope, binding);
-      
+
       // remember them in 'typeBindings' too (for local use)
       typeBindings.setBoundValue(param->name, *sarg);
     }
@@ -1704,7 +1704,7 @@ bool Env::insertTemplateArgBindings_oneParamList
       Type *bindType = param->type->isReference()?
         param->type :                 // reference: no need/desire to apply 'const'
         tfac.applyCVToType(param->loc, CV_CONST,    // non-reference: apply 'const'
-                           param->type, NULL /*syntax*/);       
+                           param->type, NULL /*syntax*/);
       bindType = applyArgumentMapToType(typeBindings, bindType);  // in/t0505.cc
       Variable *binding = makeVariable(param->loc, param->name,
                                        bindType, DF_TEMPL_PARAM | DF_BOUND_TPARAM);
@@ -2281,7 +2281,7 @@ void Env::instantiateDefaultArgs(Variable *instV, int neededDefaults)
     Scope *declScope = baseV->scope;
   #else      // fixes in/t0584.cc
     Scope *declScope = instTI->var->scope;     // scope surrounding instantiation
-    
+
     // I suspect the reason I originally wrote 'baseV->scope' is I was
     // thinking about template functions at global scope.  But for a
     // member of a template class, I need to be pushing the template
@@ -2632,7 +2632,7 @@ Variable *Env::instantiateClassTemplate
   primary = primary->skipAlias();
 
   TemplateInfo *primaryTI = primary->templateInfo();
-  xassert(primaryTI->isPrimary());
+  xassert(primaryTI->isPrimary() && "60a04156-a119-4c6c-8c04-bca58e69dee1");
 
   // the arguments should be concrete
   xassert(!containsVariables(origPrimaryArgs));
