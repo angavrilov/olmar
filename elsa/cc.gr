@@ -2390,6 +2390,9 @@ nonterm(/*fakelist*/TemplateParameter*) TemplateParameterList {
 nonterm ClassOrTypename {
   -> "class";
   -> "typename";
+  
+  -> "template" "<" plist:TemplateParameterList ">" "class"
+     { xfailure("unimplemented: templatized template arguments (25eb7000-851c-4028-b762-4e365a5b10bf)"); }
 }
 
 nonterm(ASTTypeId*) DefaultTypeOpt {

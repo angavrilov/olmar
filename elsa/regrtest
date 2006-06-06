@@ -1104,6 +1104,7 @@ testparse k0096.cc "statement expression returning struct"
 testparse k0097.cc "function pointer template"
 failparse k0098.cc "ambiguous operator cast"
 failparse k0099.cc "partial specialization lookup"
+failparse k0100.cc "templatized template arguments"
 
 ### </quarl-testcases-c++>
 
