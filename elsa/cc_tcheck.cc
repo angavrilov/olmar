@@ -5903,7 +5903,7 @@ Expression *makeConvertedArg(Env &env, Expression * const arg,
     // TODO
     break;
   case ImplicitConversion::IC_AMBIGUOUS:
-    xfailure("IC_AMBIGUOUS -- what does this mean here?");
+    xfailure("IC_AMBIGUOUS -- what does this mean here? (25f0c1af-5aea-4528-b994-ccaac0b3a8f1)");
     break;
   default:
     xfailure("shouldn't reach here");
