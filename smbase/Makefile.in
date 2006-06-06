@@ -138,6 +138,7 @@ OBJS := \
   strdict.o \
   strhash.o \
   stringset.o \
+  strtable.o \
   strtokp.o \
   strutil.o \
   svdict.o \
