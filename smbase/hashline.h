@@ -10,7 +10,7 @@
 #ifndef HASHLINE_H
 #define HASHLINE_H
 
-#include "strobjdict.h"     // StringObjDict
+#include "strtable.h"       // StringTable
 #include "array.h"          // ArrayStack
 
 // map from lines in some given pp source file to lines in
@@ -47,10 +47,8 @@ private:    // data
   // before any #line is encountered
   string ppFname;
 
-  // map for canonical storage of orig filenames; I don't rely on
-  // an external string table because I don't want the extra
-  // dependency
-  StringObjDict<string> filenames;
+  // map for canonical storage of orig filenames
+  StringTable filenames;
 
 public:
 // dsw: it is a real pain to do de-serialization without making this
@@ -85,13 +83,12 @@ public:     // funcs
 
   // for curiosity, find out how many unique filenames are recorded in
   // the 'filenames' dictionary
-  int numUniqueFilenames() { return filenames.size(); }
+  // int numUniqueFilenames() { return filenames.size(); }
 
   // XML serialization only
   string &serializationOnly_get_ppFname() { return ppFname; }
   void serializationOnly_set_ppFname(string const &ppFname0) { ppFname = ppFname0; }
   ArrayStack<HashLine> &serializationOnly_get_directives() { return directives; }
-  StringObjDict<string> &serializationOnly_get_filenames() { return filenames; }
 };
 
 #endif // HASHLINE_H

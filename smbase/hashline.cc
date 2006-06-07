@@ -17,17 +17,10 @@ HashLineMap::HashLineMap(rostring pf)
 HashLineMap::~HashLineMap()
 {}
 
-// TODO: this would be more time and space efficient with a StringTable.
 char const *HashLineMap::canonizeFilename(char const *fname)
 {
   // map 'fname' to a canonical reference
-  string *canon = filenames.queryif(fname);
-  if (!canon) {
-    // add a new one
-    canon = new string(fname);
-    filenames.add(fname, canon);
-  }
-  return canon->c_str();
+  return filenames(fname);
 }
 
 void HashLineMap::addHashLine(int ppLine, int origLine, char const *origFname)
@@ -190,7 +183,7 @@ int main()
   query(hl, 102, 102, "foo.i");
   // ...
 
-  printf("unique filenames: %d\n", hl.numUniqueFilenames());
+  // printf("unique filenames: %d\n", hl.numUniqueFilenames());
   printf("hashline seems to work\n");
 
   return 0;
