@@ -110,7 +110,7 @@ astgen: $(ASTGEN_OBJS) ast.ast.cc $(LIBSMBASE)
 example.cc: astgen example.ast
 	./astgen example.ast
 
-exampletest: exampletest.o example.o asthelp.o locstr.o strtable.o $(LIBSMBASE)
+exampletest: exampletest.o example.o asthelp.o locstr.o $(LIBSMBASE)
 	$(CXX) -o $@ $^
 
 # simple extension
