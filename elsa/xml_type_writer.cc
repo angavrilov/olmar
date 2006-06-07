@@ -657,6 +657,13 @@ void XmlTypeWriter::toXml(STemplateArgument *sta) {
     case STemplateArgument::STA_REFERENCE:
     case STemplateArgument::STA_POINTER:
     case STemplateArgument::STA_MEMBER:
+      // quarl 2006-06-07
+      //    Added this assertion because otherwise, since the matching trav()
+      //    call below would be out of sync, we would create a file with
+      //    dangling pointers.  See elsa/in/t0561.cc,
+      //    oink/Test/templatized_on_func1.cc, which now fail on serialization
+      //    instead of on deserialization.
+      xassert(!serializeOracle || serializeOracle->shouldSerialize(sta->value.v) && "750e1581-41c2-4079-b8e1-482a5c78404e");
       printPtrUnion(sta, value.v, v);
       break;
 
