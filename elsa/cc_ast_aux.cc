@@ -803,8 +803,14 @@ bool TypeSpecifier::canBeTypeParam() const
     return true;
   }
 
+  // quarl 2006-06-06
+  //    cppstd 14.1 para 2 "typename followed by a qualified-name denotes the
+  //    type in a non-type parameter-declaration."  If the specifier is
+  //    qualified, then "typename" is not used as a type param.
   if (isTS_name() &&
-      asTS_nameC()->typenameUsed) {
+      asTS_nameC()->typenameUsed &&
+      !asTS_nameC()->name->hasQualifiers())
+  {
     return true;
   }
 
