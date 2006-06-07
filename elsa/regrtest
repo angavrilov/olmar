@@ -1106,6 +1106,7 @@ failparse k0098.cc "ambiguous operator cast"
 failparse k0099.cc "partial specialization lookup"
 failparse k0100.cc "templatized template parameter list"
 testparse k0101.cc "typename ParameterDeclaration in TemplateParameterList"
+failparse k0102.cc "template parameter template-instantiated on another template parameter"
 
 ### </quarl-testcases-c++>
 

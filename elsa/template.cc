@@ -4034,7 +4034,8 @@ STemplateArgument Env::applyArgumentMapToExpression
     // name refers directly to a template parameter
     xassert(evar->name->isPQ_name());     // no qualifiers
     ret = map.getBoundValue(evar->var->name, tfac);
-    xassert(ret.hasValue());              // map should bind it
+    xassert(ret.hasValue()                // map should bind it
+            && "64103c40-efae-4068-b4b1-5492a549b00c");
   }
   else {
     // name must refer to a qualified name involving the template
