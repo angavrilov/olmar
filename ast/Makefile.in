@@ -137,7 +137,6 @@ LIB_OBJS := \
   embedded.o \
   asthelp.o \
   xmlhelp.o \
-  strtable.o \
   locstr.o
 -include $(ASTGEN_OBJS:.o=.d)
 
