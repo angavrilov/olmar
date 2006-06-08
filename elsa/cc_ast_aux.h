@@ -153,7 +153,7 @@ public:
 // one; it found 21 true hits and 4 false hits when I ran this one as
 // a check on the implementation below.
 // grep -n -e '\bVariable[a-zA-Z]*[ ]*\*' *.ast
-// 
+//
 // The Types were found by this grep:
 // grep -n -e '\bType[a-zA-Z]*[ ]*\*' *.ast
 class RealVarAndTypeASTVisitor : private ASTVisitor {
@@ -161,10 +161,12 @@ class RealVarAndTypeASTVisitor : private ASTVisitor {
   public:
   class VariableVisitor {
     public:
+    virtual ~VariableVisitor() {}
     virtual void visitVariable(Variable *var) = 0;
   };
   class TypeVisitor {
     public:
+    virtual ~TypeVisitor() {}
     virtual void visitType(Type *type) = 0;
   };
 
