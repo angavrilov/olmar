@@ -413,10 +413,12 @@ void XmlTypeWriter::toXml_Variable_properties(Variable *var) {
   printPtr(var, overload);
   printPtr(var, scope);
 
-  // these three fields are an abstraction; here we pretend they are
+  // these fields are abstractions; however here we pretend they are
   // real
   AccessKeyword access = var->getAccess();
   printXml(access, access);
+  bool real = var->getReal();
+  printXml_bool(real, real);
   ScopeKind scopeKind = var->getScopeKind();
   printXml(scopeKind, scopeKind);
   int parameterOrdinal = var->getParameterOrdinal();

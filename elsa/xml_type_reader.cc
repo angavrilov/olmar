@@ -486,12 +486,17 @@ bool XmlTypeReader::registerAttr_Variable_super(Variable *obj, int attr, char co
   case XTOK_overload: ul(overload, XTOK_OverloadSet); break;
   case XTOK_scope: ul(scope, XTOK_Scope); break;
 
-  // these three fields are an abstraction; here we pretend they are
+  // these fields are abstractions; however here we pretend they are
   // real
   case XTOK_access:
     AccessKeyword access;
     fromXml(access, strValue);
     obj->setAccess(access);
+    break;
+  case XTOK_real:
+    bool real;
+    fromXml_bool(real, strValue);
+    obj->setReal(real);
     break;
   case XTOK_scopeKind:
     ScopeKind scopeKind;

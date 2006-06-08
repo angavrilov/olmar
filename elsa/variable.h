@@ -125,8 +125,12 @@ private:      // data
   // wasted storage, but that is a fairly big change, and for the
   // moment these localized hacks will suffice.
 
-  // bits 0-7: result of 'getAccess()'
+  // bits 0-3: result of 'getAccess()'
+  //   dsw: AccessKeyword only needs 2 bits, leaving 4-2 = 2 extra bits
+  // bits 4-7: result of 'getReal()'
+  //   dsw: bool only needs 1 bit, leaving 4-1 = 3 extra bits
   // bits 8-15: result of 'getScopeKind()'
+  //   dsw: scopeKind only needs 3 bits, leaving 8-3 = 5 extra bits
   // bits 16-31: result of 'getParameterOrdinal()' or 'getBitfieldSize()'
   unsigned intData;
 
@@ -190,12 +194,22 @@ public:
   AccessKeyword getAccess() const;
   void setAccess(AccessKeyword k);
 
+  // dsw: true iff this variable is "real" code: not part of an
+  // uninstantiated template; this flag is set by the
+  // markRealVariables() function
+  bool getReal() const;
+  void setReal(bool r);
+
   // kind of scope in which the name is declared; initially this
   // is SK_UNKNOWN
   //
   // 2005-03-02: It appears that this quantity is never actually used;
   // furthermore, I think it is computable (mainly from 'scope').  So,
   // it is a candidate for removal at some point.
+  //
+  // dsw: there would be no way to get the scope kind for a Variable
+  // in a non-isPermanentScope(), since such scopes do not persist and
+  // the variables in them do not get a pointer to them
   ScopeKind getScopeKind() const;
   void setScopeKind(ScopeKind k);
 

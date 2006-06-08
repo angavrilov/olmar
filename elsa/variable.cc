@@ -225,12 +225,25 @@ bool Variable::isClass() const
 
 AccessKeyword Variable::getAccess() const
 {
-  return (AccessKeyword)(intData & 0xFF);
+  return (AccessKeyword)(intData & 0xF);
 }
 
 void Variable::setAccess(AccessKeyword k)
 {
-  intData = (intData & ~0xFF) | (k & 0xFF);
+  intData = (intData & ~0xF) | (k & 0xF);
+}
+
+
+bool Variable::getReal() const
+{
+  int r = ((intData & 0xF0) >> 4);
+  return r ? 1 : 0;
+}
+
+void Variable::setReal(bool r0)
+{
+  int r = r0 ? 1 : 0;
+  intData = (intData & ~0xF0) | ((r << 4) & 0xF0);
 }
 
 

@@ -1319,4 +1319,194 @@ string TA_templateUsed::argString() const
 }
 
 
+// ----------------- RealVarAndTypeASTVisitor ----------------
+
+void RealVarAndTypeASTVisitor::visitVariable(Variable *var) {
+  if (variableVisitor) variableVisitor->visitVariable(var);
+}
+
+void RealVarAndTypeASTVisitor::visitType(Type *type) {
+  if (typeVisitor) typeVisitor->visitType(type);
+}
+
+// **** visit methods
+
+// class BaseClassSpec {
+//   public(xml_TY) CompoundType *type = NULL;
+// }
+
+bool RealVarAndTypeASTVisitor::visitFunction(Function *obj) {
+  visitVariable(obj->retVar);
+  visitVariable(obj->receiver);
+  visitType(obj->funcType);
+  return true;
+}
+
+bool RealVarAndTypeASTVisitor::visitPQName(PQName *obj) {
+  if (obj->isPQ_variable()) {
+    visitVariable(obj->asPQ_variable()->var);
+  }
+//   else if (obj->isPQ_qualifier()) {
+    // dsw: Ok, it seems that this is supposed to sometimes be a
+    // template even for an instantiated instance (in/t0057.cc).  Is
+    // it possible for this variable to 1) not be a template primary
+    // and 2) also not get visited somehow else?
+//     visitVariable(obj->asPQ_qualifier()->qualifierVar);
+//   }
+  return true;
+}
+
+bool RealVarAndTypeASTVisitor::visitHandler(Handler *obj) {
+  visitVariable(obj->globalVar);
+  return true;
+}
+
+bool RealVarAndTypeASTVisitor::visitExpression(Expression *obj) {
+  if (obj->isE_new()) {
+    E_new *enew = obj->asE_new();
+    visitVariable(enew->heapVar);
+    visitVariable(enew->ctorVar);
+  } else if (obj->isE_throw()) {
+    visitVariable(obj->asE_throw()->globalVar);
+  } else if (obj->isE_this()) {
+    visitVariable(obj->asE_this()->receiver);
+  } else if (obj->isE_variable()) {
+    E_variable *evar = obj->asE_variable();
+    visitVariable(evar->var);
+    visitVariable(evar->nondependentVar);
+  } else if (obj->isE_constructor()) {
+    visitVariable(obj->asE_constructor()->ctorVar);
+  } else if (obj->isE_fieldAcc()) {
+    visitVariable(obj->asE_fieldAcc()->field);
+  }
+  visitType(obj->type);
+  return true;
+}
+
+bool RealVarAndTypeASTVisitor::visitMemberInit(MemberInit *obj) {
+  visitVariable(obj->member);
+  visitVariable(obj->ctorVar);
+//   public(xml_TY) CompoundType *base = NULL;
+  return true;
+}
+
+bool RealVarAndTypeASTVisitor::visitTypeSpecifier(TypeSpecifier *obj) {
+  if (obj->isTS_name()) {
+    TS_name *tsn = obj->asTS_name();
+    visitVariable(tsn->var);
+    visitVariable(tsn->nondependentVar);
+  }
+  if (obj->isTS_type()) {
+    visitType(obj->asTS_type()->type);
+  }
+//   -> TS_elaborated {
+//        public(xml_TY) NamedAtomicType *atype = NULL;
+//      }
+//   -> TS_classSpec {
+//        public(xml_TY) CompoundType *ctype = NULL;
+//      }
+//   -> TS_enumSpec {
+//        public(xml_TY) EnumType *etype = NULL;
+//      }
+  return true;
+}
+
+bool RealVarAndTypeASTVisitor::visitEnumerator(Enumerator *obj) {
+  visitVariable(obj->var);
+  return true;
+}
+
+bool RealVarAndTypeASTVisitor::visitDeclarator(Declarator *obj) {
+  visitVariable(obj->var);
+  visitType(obj->type);
+  return true;
+}
+
+bool RealVarAndTypeASTVisitor::visitInitializer(Initializer *obj) {
+  if (obj->isIN_ctor()) {
+    visitVariable(obj->asIN_ctor()->ctorVar);
+  }
+  return true;
+}
+
+bool RealVarAndTypeASTVisitor::visitTemplateParameter(TemplateParameter *obj) {
+  // this one is a bit outlandish as the whole point is to avoid
+  // templates, so it should probably never be called
+  visitVariable(obj->var);
+  return true;
+}
+
+#ifdef GNU_EXTENSION
+bool RealVarAndTypeASTVisitor::visitASTTypeof(ASTTypeof *obj) {
+  visitType(obj->type);
+  return true;
+}
+#endif // GNU_EXTENSION
+
+// ---------------- ReachableVarsTypeVisitor --------------
+
+bool ReachableVarsTypePred::operator() (Type const *t0) {
+  Type *t = const_cast<Type *>(t0);
+  if (t->isFunctionType()) {
+    // visit the function param variables
+    SFOREACH_OBJLIST_NC(Variable, t->asFunctionType()->params, iter) {
+      variableVisitor.visitVariable(iter.data());
+    }
+  }
+//   else if (t->isCompoundType()) {
+//     // visit all the variables in the CompoundType superclass
+//     CompoundType *ct = t->asCompoundType();
+//     SObjList<BaseClassSubobj const> subobjs;
+//     ct->getSubobjects(subobjs);
+//     bool sawMyself = false;
+//     SFOREACH_OBJLIST(BaseClassSubobj const, subobjs, iter) {
+//       CompoundType *ct1 = iter.data()->ct;
+//       if (ct1 == ct) sawMyself = true;
+//       if (seenCpdTypes.contains(ct1)) continue;
+//       seenCpdTypes.add(ct1);
+//       for(StringRefMap<Variable>::Iter iter2(ct1->getVariableIter());
+//           !iter2.isDone(); iter2.adv()) {
+// //       SFOREACH_OBJLIST(Variable, ct1->variables, iter) {
+//         // FIX: this can be a template member
+//         variableVisitor.visitVariable(iter2.value());
+//       }
+//     }
+//     xassert(sawMyself);         // make sure we visited ourself
+//   }
+  return false;                 // dummy value; just means keep searching
+}
+
+void ReachableVarsTypeVisitor::visitType(Type *type) {
+  if (!type) return;
+  if (seenTypes.contains(type)) return;
+  seenTypes.add(type);
+  visitTypeIdem(type);
+  ReachableVarsTypePred tPred(*variableVisitor, seenCpdTypes);
+  bool sat = type->anyCtorSatisfies(tPred);
+  xassert(!sat);                // the point was just to visit anyway
+}
+
+void ReachableVarsVariableVisitor::visitVariable(Variable *var) {
+  if (!var) return;
+  if (seenVariables.contains(var)) return;
+  seenVariables.add(var);
+  xassert(!var->isTemplate());
+  xassert(!var->isUninstTemplateMember());
+  visitVariableIdem(var);
+  typeVisitor->visitType(var->type);
+}
+
+void MarkRealVars::visitVariableIdem(Variable *var) {
+  xassert(!var->getReal());     // if this visit is idempotent, this should always be false
+  var->setReal(true);
+}
+
+void markRealVariables(TranslationUnit *tunit) {
+  ReachableVarsTypeVisitor doNothing_tv(NULL); // a placeholder
+  MarkRealVars markReal_vv(&doNothing_tv); // actually mark variables
+  doNothing_tv.variableVisitor = &markReal_vv;
+  RealVarAndTypeASTVisitor vis(&markReal_vv, &doNothing_tv);
+  tunit->traverse(vis.loweredVisitor);
+}
+
 // EOF

@@ -67,7 +67,8 @@ value
 defaultParamType
 funcDefn
 scope
-intData
+# should no longer be using this: intData
+real
 usingAlias_or_parameterizedEntity
 templInfo
 canAcceptNames

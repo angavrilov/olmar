@@ -628,6 +628,11 @@ void doit(int argc, char **argv)
     }
   }
 
+  // mark "real" (non-template) variables as such
+  if (!tracingSys("parseXml")) {
+    markRealVariables(unit);
+  }
+
   // more integrity checking
   {
     SectionTimer timer(integrityTime);
