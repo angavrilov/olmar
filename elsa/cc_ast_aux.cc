@@ -1490,7 +1490,7 @@ void ReachableVarsVariableVisitor::visitVariable(Variable *var) {
   if (!var) return;
   if (seenVariables.contains(var)) return;
   seenVariables.add(var);
-  xassert(!var->isTemplate());
+  xassert(!var->isTemplate() && "ee42ebc5-7154-4ace-be35-c2090a2821c5");
   xassert(!var->isUninstTemplateMember());
   visitVariableIdem(var);
   typeVisitor->visitType(var->type);

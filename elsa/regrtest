@@ -1109,7 +1109,9 @@ testparse k0101.cc "typename ParameterDeclaration in TemplateParameterList"
 failparse k0102.cc "template parameter template-instantiated on another template parameter"
 failparse k0103.cc "'duplicate definition' from 'using' declaration"
 failparse k0104.cc "restrict reference"
+failparse k0105.cc "function pointer dependent type"
 failparse k0106.cc "anonymous struct in anonymous union"
+
 
 ### </quarl-testcases-c++>
 
