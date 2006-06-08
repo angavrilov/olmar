@@ -66,10 +66,6 @@ xmlUniqueId_t uniqueIdAST(void const * const obj) {
 //   else return "false";
 // }
 
-void fromXml_bool(bool &b, const char *str) {
-  b = streq(str, "true");
-}
-
 
 // string toXml_int(int i) {
 //   return stringc << i;

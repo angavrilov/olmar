@@ -50,7 +50,7 @@ ostream &outputXmlPointerQuoted(ostream &out, char const *label, xmlUniqueId_t i
 // string xmlPrintPointer(char const *label, xmlUniqueId_t id);
 
 
-// 2006-05-05 these used to take an rostring, but I changed them to const char
+// quarl 2006-05-05 These used to take an rostring, but I changed them to const char
 // *, because these functions are performance-critical and they were not
 // strings until now, so don't allocate a string just to call these functions.
 
@@ -61,7 +61,11 @@ ostream &outputXmlPointerQuoted(ostream &out, char const *label, xmlUniqueId_t i
 
 // string toXml_bool(bool b);
 static inline const char * toXml_bool(bool b) { return b ? "true" : "false"; }
-void fromXml_bool(bool &b, const char *str);
+
+static inline
+bool fromXml_bool(const char *str) { return streq(str, "true"); }
+static inline
+void fromXml_bool(bool &b, const char *str) { b = fromXml_bool(str); }
 
 // string toXml_int(int i);
 static inline int toXml_int(int i) { return i; }
