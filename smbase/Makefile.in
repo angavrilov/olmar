@@ -67,6 +67,11 @@ objlist.h: xobjlist.h
 	m4 -Dm4_output=objlist.h --prefix-builtins xobjlist.h > objlist.h
 	chmod a-w objlist.h
 
+strobjdict.h strsobjdict.h strintdict.h: xstrobjdict.h
+	rm -f $@
+	m4 -Dm4_output=$@ --prefix-builtins $< > $@
+	chmod a-w $@
+
 
 # ----------------------- malloc ------------------------
 # Doug Lea's malloc:

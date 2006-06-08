@@ -1,24 +1,29 @@
 // strobjdict.h            see license.txt for copyright and terms of use
 // dictionary of objects, indexed by string (case-sensitive)
 // (c) Scott McPeak, 2000
+// NOTE: automatically generated from xstrobjdict.h -- do not edit directly
 
-#ifndef __STROBJDICT_H
-#define __STROBJDICT_H
+// quarl 2006-06-08
+//    created xstrobjdict.h to generate strobjdict.h, strsobjdict.h, and new
+//    file strintdict.h
+
+#ifndef STROBJDICT_H
+#define STROBJDICT_H
 
 #include "svdict.h"    // StringVoidDict
 
 void qsortStringArray(char const **strings, int size); // strutil.h
 
-
-// the dictionary object is considered to own all of the things
-// contained, so constness means constness of the contained objects
-// as well as the mapping from strings to them
+// since the dictionary does not own the pointed-to objects,
+// it has the same constness model as StringVoidDict, namely
+// that const means the *mapping* is constant but not the
+// pointed-to objects
 
 template <class T>
 class StringObjDict {
 public:     // types
   // 'foreach' iterator functions
-  typedef bool (*ForeachCFn)(string const &key, T const *value, void *extra);
+  typedef bool (*ForeachCFn)(string const &key, T const * value, void *extra);
   typedef bool (*ForeachFn)(string const &key, T * /*serf*/ value, void *extra);
 
   // external iterator
@@ -35,9 +40,12 @@ public:     // types
     Iter& next() { iter.next(); return *this; }
 
     string const &key() const { return iter.key(); }
-    T const *&value() const { return (T const *&)iter.value(); }
+    T const * &value() const { return (T const * &)iter.value(); }
+
+    int private_getCurrent() const { return iter.private_getCurrent(); }
   };
   friend class Iter;
+  typedef Iter IterC;
 
   class SortedKeyIter {
   private:     // data
@@ -66,7 +74,7 @@ public:     // types
     {
       int i = 0;
       // delegate to the other Iter class
-      for(Iter iter(map); !iter.isDone(); iter.next()) {
+      for(IterC iter(map); !iter.isDone(); iter.next()) {
 //          xassert(i<numEntries);
         sortedKeys[i++] = iter.key().c_str();
       }
@@ -89,8 +97,8 @@ public:     // types
 //        xassert(map.isMapped(key));
       return key;
     }
-    T const *value() const {
-      return (T const *)map.queryfC(key());
+    T const * value() const {
+      return (T const * )map.queryfC(key());
     }
   };
 
@@ -98,41 +106,50 @@ private:    // data
   // underlying dictionary functionality
   StringVoidDict dict;
 
+public:     // funcs
+  StringObjDict() : dict() {}
+  ~StringObjDict() { empty(); }
+
 private:    // funcs
   // disallowed
   StringObjDict(StringObjDict const &obj);
   StringObjDict& operator= (StringObjDict const &obj);
   bool operator== (StringObjDict const &obj) const;
 
-public:     // funcs
-  StringObjDict() : dict() {}
-  ~StringObjDict() { empty(); }
-
   // due to similarity with StringVoidDict, see svdict.h for
   // details on these functions' interfaces
 
+public:
   // ------- selectors ---------
   int size() const                                     { return dict.size(); }
 
   bool isEmpty() const                                 { return dict.isEmpty(); }
   bool isNotEmpty() const                              { return !isEmpty(); }
 
-  bool queryC(char const *key, T const *&value) const  { return dict.query(key, (void*&)value); }
-  bool query(char const *key, T *&value)               { return queryC(key, (T const*&)value); }
+  bool queryC(char const *key, T const * &value) const  { return dict.query(key, (void*&)value); }
+  bool query(char const *key, T * &value)               { return queryC(key, (T const * &)value); }
 
-  T const *queryfC(char const *key) const              { return (T const *)dict.queryf(key); }
-  T * /*serf*/ queryf(char const *key)                 { return (T*)dict.queryf(key); }
-  T * /*serf*/ queryif(char const *key)                { return (T*)dict.queryif(key); }
+  T const * queryfC(char const *key) const              { return (T const *)dict.queryf(key); }
+  T * /*serf*/ queryf(char const *key)                 { return (T *)dict.queryf(key); }
+  T * /*serf*/ queryif(char const *key)                { return (T *)dict.queryif(key); }
 
   bool isMapped(char const *key) const                 { return dict.isMapped(key); }
 
   // -------- mutators -----------
-  void add(char const *key, T *value)                  { dict.add(key, (void*)value); }
-
-  T * /*owner*/ remove(char const *key)                { return (T*)dict.remove(key); }
+  void add(char const *key, T * value)                  { dict.add(key, (void*)value); }
+  T * /*owner*/ remove(char const *key)                { return (T *)dict.remove(key); }
   void deleteAt(char const *key)                       { deleteObject(remove(key)); }
 
   void empty()               { dict.emptyAndDel((StringVoidDict::DelFn)deleteObject); }
+
+  // -------- parallel interface for 'rostring' --------
+  bool query(rostring key, T * &value) const { return query(key.c_str(), value); }
+  T * queryf(rostring key) const             { return queryf(key.c_str()); }
+  T * queryif(rostring key) const            { return queryif(key.c_str()); }
+  bool isMapped(rostring key) const         { return isMapped(key.c_str()); }
+  void add(rostring key, T * value)          { dict.add(key, (void*)value); }
+  T * modify(rostring key, T * newValue)      { return modify(key.c_str(), newValue); }
+  T * remove(rostring key)                   { return remove(key.c_str()); }
 
   // --------- iters -------------
   void foreachC(ForeachCFn func, void *extra=NULL) const
@@ -141,14 +158,15 @@ public:     // funcs
     { dict.foreach((StringVoidDict::ForeachFn)func, extra); }
 
   // ------------ misc --------------
-  static void deleteObject(T *obj);
+  static void deleteObject(T * obj);
+  // debugging
+  int private_getTopAddr() const { return dict.private_getTopAddr(); }
 };
 
-
 template <class T>
-STATICDEF void StringObjDict<T>::deleteObject(T *obj)
+STATICDEF void StringObjDict<T>::deleteObject(T * obj)
 {
   delete obj;
 }
 
-#endif // __STROBJDICT_H
+#endif // STROBJDICT_H
