@@ -3397,6 +3397,13 @@ Variable *Env::createDeclaration(
       prior->clearFlag(DF_EXTERN);
       prior->clearFlag(DF_FORWARD); // dsw: I added this
 
+      // dsw: if the prior declaration was DF_INLINE then it stays
+      // that way; if it was not and the definition is DF_INLINE, then
+      // we propagate DF_INLINE to the prior
+      if (dflags & DF_INLINE) {
+        prior->setFlag(DF_INLINE);
+      }
+
       // kc: If we are now defining a previously prototyped function,
       // propagate the 'extern inline'
       if (dflags & DF_GNU_EXTERN_INLINE) {
