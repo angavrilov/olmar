@@ -243,7 +243,7 @@ protected:
 
   // map object ids to their kind ONLY IF there is a non-trivial
   // upcast to make at the link satisfaction point
-  StringIntDict<int> id2kind;
+  StringIntDict id2kind;
   // StringSObjDict<int> id2kind;
 
   public:
