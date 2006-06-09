@@ -127,8 +127,9 @@ private:      // data
 
   // bits 0-3: result of 'getAccess()'
   //   dsw: AccessKeyword only needs 2 bits, leaving 4-2 = 2 extra bits
-  // bits 4-7: result of 'getReal()'
-  //   dsw: bool only needs 1 bit, leaving 4-1 = 3 extra bits
+  // bit 4: result of 'getReal()'
+  // bit 5: result of 'getMaybeUsedAsAlias()'
+  // bit 6-7: 2 bits reserved
   // bits 8-15: result of 'getScopeKind()'
   //   dsw: scopeKind only needs 3 bits, leaving 8-3 = 5 extra bits
   // bits 16-31: result of 'getParameterOrdinal()' or 'getBitfieldSize()'
@@ -199,6 +200,15 @@ public:
   // markRealVariables() function
   bool getReal() const;
   void setReal(bool r);
+
+  // dsw: true iff this variable may be used as an alias of another;
+  // that is, if there is another variable that getUsingAlias()
+  // returns this variable; this flag is set by setUsingAlias() when
+  // called on the other variable, however it is never unset if
+  // setUsingAlias(NULL) is called later as we don't know how many
+  // variables may be using us as an alias
+  bool getMaybeUsedAsAlias() const;
+  void setMaybeUsedAsAlias(bool r);
 
   // kind of scope in which the name is declared; initially this
   // is SK_UNKNOWN

@@ -498,6 +498,11 @@ bool XmlTypeReader::registerAttr_Variable_super(Variable *obj, int attr, char co
     fromXml_bool(real, strValue);
     obj->setReal(real);
     break;
+  case XTOK_maybeUsedAsAlias:
+    bool maybeUsedAsAlias;
+    fromXml_bool(maybeUsedAsAlias, strValue);
+    obj->setMaybeUsedAsAlias(maybeUsedAsAlias);
+    break;
   case XTOK_scopeKind:
     ScopeKind scopeKind;
     fromXml(scopeKind, strValue);

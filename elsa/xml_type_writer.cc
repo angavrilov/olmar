@@ -419,11 +419,14 @@ void XmlTypeWriter::toXml_Variable_properties(Variable *var) {
   printXml(access, access);
   bool real = var->getReal();
   printXml_bool(real, real);
+  bool maybeUsedAsAlias = var->getMaybeUsedAsAlias();
+  printXml_bool(maybeUsedAsAlias, maybeUsedAsAlias);
   ScopeKind scopeKind = var->getScopeKind();
   printXml(scopeKind, scopeKind);
   int parameterOrdinal = var->getParameterOrdinal();
   printXml_int(parameterOrdinal, parameterOrdinal);
-
+  // dsw: FIX: usingAlias_or_parameterizedEntity is actually an
+  // implicit union of two fields and should be serialized that way
   printPtr(var, usingAlias_or_parameterizedEntity);
   printPtr(var, templInfo);
 

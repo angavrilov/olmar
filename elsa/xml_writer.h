@@ -226,12 +226,18 @@ class IncDec {
                            idmgr.uniqueId(VALUE));                \
   } while(0)
 
+#define printPtr1(NAME, VALUE)                                    \
+  if (!serializeOracle ||                                         \
+      serializeOracle->shouldSerialize(VALUE)) {                  \
+    printPtr0(NAME, VALUE);                                       \
+  }
+
 // quarl 2006-05-28
 //    Don't print attributes of pointers which point to NULL.
 #define printPtr(BASE, MEM)                                       \
   do {                                                            \
     if ((BASE)->MEM) {                                            \
-      printPtr0(MEM, (BASE)->MEM);                                \
+      printPtr1(MEM, (BASE)->MEM);                                \
     }                                                             \
   } while(0)
 
@@ -245,7 +251,7 @@ class IncDec {
     }                                                             \
   } while(0)
 // print an embedded thing
-#define printEmbed(BASE, MEM)  printPtr0(MEM, (&((BASE)->MEM)))
+#define printEmbed(BASE, MEM)  printPtr1(MEM, (&((BASE)->MEM)))
 
 // for unions where the member name does not match the xml name and we
 // don't want the 'if'

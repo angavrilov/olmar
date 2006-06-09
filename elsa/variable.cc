@@ -236,14 +236,27 @@ void Variable::setAccess(AccessKeyword k)
 
 bool Variable::getReal() const
 {
-  int r = ((intData & 0xF0) >> 4);
+  int r = ((intData & 0x10) >> 4);
   return r ? 1 : 0;
 }
 
 void Variable::setReal(bool r0)
 {
   int r = r0 ? 1 : 0;
-  intData = (intData & ~0xF0) | ((r << 4) & 0xF0);
+  intData = (intData & ~0x10) | ((r << 4) & 0x10);
+}
+
+
+bool Variable::getMaybeUsedAsAlias() const
+{
+  int r = ((intData & 0x20) >> 5);
+  return r ? 1 : 0;
+}
+
+void Variable::setMaybeUsedAsAlias(bool r0)
+{
+  int r = r0 ? 1 : 0;
+  intData = (intData & ~0x20) | ((r << 5) & 0x20);
 }
 
 
@@ -598,6 +611,9 @@ bool Variable::isTemplateTypeParam() const
 Variable *Variable::getUsingAlias() const
 {
   if (!isTemplateParam()) {
+    if (usingAlias_or_parameterizedEntity) {
+      xassert(usingAlias_or_parameterizedEntity->getMaybeUsedAsAlias());
+    }
     return usingAlias_or_parameterizedEntity;
   }
   else {
@@ -609,6 +625,9 @@ void Variable::setUsingAlias(Variable *target)
 {
   xassert(!isTemplateParam());
   usingAlias_or_parameterizedEntity = target;
+  if (usingAlias_or_parameterizedEntity) {
+    usingAlias_or_parameterizedEntity->setMaybeUsedAsAlias(true);
+  }
 }
 
 

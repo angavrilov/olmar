@@ -69,6 +69,7 @@ funcDefn
 scope
 # should no longer be using this: intData
 real
+maybeUsedAsAlias
 usingAlias_or_parameterizedEntity
 templInfo
 canAcceptNames
