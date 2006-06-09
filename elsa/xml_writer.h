@@ -241,6 +241,10 @@ class IncDec {
     }                                                             \
   } while(0)
 
+// NOTE: don't do this as there is no shouldSerialize infrastructre
+// for AST nodes
+//       if (!serializeOracle ||
+//           serializeOracle->shouldSerialize((BASE)->MEM)) {
 #define printPtrAST(BASE, MEM)                                    \
   do {                                                            \
     if (astVisitor && ((BASE)->MEM)) {                            \
@@ -250,20 +254,28 @@ class IncDec {
                              uniqueIdAST((BASE)->MEM));           \
     }                                                             \
   } while(0)
+
 // print an embedded thing
-#define printEmbed(BASE, MEM)  printPtr1(MEM, (&((BASE)->MEM)))
+#define printEmbed(BASE, MEM) printPtr1(MEM, (&((BASE)->MEM)))
 
 // for unions where the member name does not match the xml name and we
 // don't want the 'if'
 #define printPtrUnion(BASE, MEM, NAME)                            \
   do {                                                            \
-    newline();                                                    \
-    *out << #NAME "=";                                            \
-    outputXmlPointerQuoted(*out, idmgr.idPrefix((BASE)->MEM),     \
-                           idmgr.uniqueId((BASE)->MEM));          \
+    if (!serializeOracle ||                                       \
+        serializeOracle->shouldSerialize((BASE)->MEM)) {          \
+      newline();                                                  \
+      *out << #NAME "=";                                          \
+      outputXmlPointerQuoted(*out, idmgr.idPrefix((BASE)->MEM),   \
+                             idmgr.uniqueId((BASE)->MEM));        \
+    }                                                             \
   } while(0)
 
 // this is only used in one place
+// NOTE: don't do this as there is no shouldSerialize infrastructre
+// for AST nodes
+//       if (!serializeOracle ||
+//           serializeOracle->shouldSerialize((BASE)->MEM)) {
 #define printPtrASTUnion(BASE, MEM, NAME)                         \
   do {                                                            \
     if (astVisitor) {                                             \
