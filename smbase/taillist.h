@@ -30,7 +30,7 @@ public:
   ~TailList()                            {  }
 
   // ctor to make singleton list; often quite useful
-  TailList(T *elt)                       : list() { prepend(elt); }
+  TailList(T *elt)                       : list() { prepend((void*)elt); }
 
   // stealing ctor; among other things, since &src->list is assumed to
   // point at 'src', this class can't have virtual functions;
@@ -50,10 +50,10 @@ public:
   T const *lastC() const                { return (T const*)list.last(); }
 
   // insertion
-  void prepend(T *newitem)              { list.prepend(newitem); }
-  void append(T *newitem)               { list.append(newitem); }
+  void prepend(T *newitem)              { list.prepend((void*)newitem); }
+  void append(T *newitem)               { list.append((void*)newitem); }
   void appendAll(TailList<T> &tail)     { list.appendAll(tail.list); }
-  void insertAt(T *newitem, int index)  { list.insertAt(newitem, index); }
+  void insertAt(T *newitem, int index)  { list.insertAt((void*)newitem, index); }
   void concat(TailList<T> &tail)         { list.concat(tail.list); }
 
   // removal
@@ -68,8 +68,8 @@ public:
   bool contains(T const *item) const    { return list.contains((void*)item); }
 
   // list-as-set: mutators
-  bool prependUnique(T *newitem)        { return list.prependUnique(newitem); }
-  bool appendUnique(T *newitem)         { return list.appendUnique(newitem); }
+  bool prependUnique(T *newitem)        { return list.prependUnique((void*)newitem); }
+  bool appendUnique(T *newitem)         { return list.appendUnique((void*)newitem); }
 
   // debugging: two additional invariants
   void selfCheck() const                { list.selfCheck(); }
