@@ -266,6 +266,30 @@ void Variable::setMaybeUsedAsAlias(bool r0)
   intData = (intData & ~0x20) | ((r << 5) & 0x20);
 }
 
+bool Variable::getUser1() const
+{
+  int r = ((intData & 0x40) >> 6);
+  return r ? 1 : 0;
+}
+
+void Variable::setUser1(bool r0)
+{
+  int r = r0 ? 1 : 0;
+  intData = (intData & ~0x40) | ((r << 6) & 0x40);
+}
+
+bool Variable::getUser2() const
+{
+  int r = ((intData & 0x80) >> 7);
+  return r ? 1 : 0;
+}
+
+void Variable::setUser2(bool r0)
+{
+  int r = r0 ? 1 : 0;
+  intData = (intData & ~0x80) | ((r << 7) & 0x80);
+}
+
 
 ScopeKind Variable::getScopeKind() const
 {
@@ -586,6 +610,17 @@ int Variable::overloadSetSize() const
   return overload? overload->count() : 1;
 }
 
+bool Variable::isPureVirtualMethod() const
+{
+  bool ret = type && type->isMethod() && value;
+  // FIX: figure out how to add these assertions without having to
+  // include cc_ast.h
+//   if (ret) {
+//     xassert(value->isE_intLit());
+//     xassert(value->asE_intLit()->i == 0);
+//   }
+  return ret;
+}
 
 bool Variable::isMemberOfTemplate() const
 {

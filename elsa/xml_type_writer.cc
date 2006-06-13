@@ -413,18 +413,28 @@ void XmlTypeWriter::toXml_Variable_properties(Variable *var) {
   printPtr(var, overload);
   printPtr(var, scope);
 
-  // these fields are abstractions; however here we pretend they are
-  // real
+  // **** these fields are abstractions; however here we pretend they
+  // are real
   AccessKeyword access = var->getAccess();
   printXml(access, access);
   bool real = var->getReal();
   printXml_bool(real, real);
   bool maybeUsedAsAlias = var->getMaybeUsedAsAlias();
   printXml_bool(maybeUsedAsAlias, maybeUsedAsAlias);
+
+  // dsw: perhaps these should instead be serialized by the client
+  // code as they would have more meaningful names
+  bool user1 = var->getUser1();
+  printXml_bool(user1, user1);
+  bool user2 = var->getUser2();
+  printXml_bool(user2, user2);
+
   ScopeKind scopeKind = var->getScopeKind();
   printXml(scopeKind, scopeKind);
   int parameterOrdinal = var->getParameterOrdinal();
   printXml_int(parameterOrdinal, parameterOrdinal);
+  // **** end abstract fields
+
   // dsw: FIX: usingAlias_or_parameterizedEntity is actually an
   // implicit union of two fields and should be serialized that way
   printPtr(var, usingAlias_or_parameterizedEntity);

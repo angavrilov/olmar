@@ -129,7 +129,8 @@ private:      // data
   //   dsw: AccessKeyword only needs 2 bits, leaving 4-2 = 2 extra bits
   // bit 4: result of 'getReal()'
   // bit 5: result of 'getMaybeUsedAsAlias()'
-  // bit 6-7: 2 bits reserved
+  // bit 6: result of 'getUser1()'
+  // bit 7: result of 'getUser2()'
   // bits 8-15: result of 'getScopeKind()'
   //   dsw: scopeKind only needs 3 bits, leaving 8-3 = 5 extra bits
   // bits 16-31: result of 'getParameterOrdinal()' or 'getBitfieldSize()'
@@ -210,6 +211,12 @@ public:
   bool getMaybeUsedAsAlias() const;
   void setMaybeUsedAsAlias(bool r);
 
+  // dsw: these two flags are for use by an analysis
+  bool getUser1() const;
+  void setUser1(bool r);
+  bool getUser2() const;
+  void setUser2(bool r);
+
   // kind of scope in which the name is declared; initially this
   // is SK_UNKNOWN
   //
@@ -272,6 +279,9 @@ public:
   // number of elements in the overload set, or 1 if there is no
   // overload set
   int overloadSetSize() const;
+
+  // true if this a pure virtual non-static member function (method)
+  bool isPureVirtualMethod() const;
 
   // true if this is a member of a template (uninstantiated template)
   bool isMemberOfTemplate() const;
