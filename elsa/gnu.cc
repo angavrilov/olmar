@@ -390,7 +390,7 @@ void Env::addGNUBuiltins()
 
     // ------------------------------------------------
     // group 3: "There are also built-in versions of the ISO C99 functions ..."
-    
+
     // 3.1 list
     "cosf",
     "cosl",
@@ -446,10 +446,10 @@ void Env::addGNUBuiltins()
     "tanhf",
     "tanhl",
     "tanl",
-    
+
     // gcc-3.4.3 seems to have this, though it is not documented
     "modff",
-    
+
     // same for these
     "huge_val",
     "huge_valf",
@@ -458,7 +458,7 @@ void Env::addGNUBuiltins()
 
     // ------------------------------------------------
     // group 4: "The ISO C90 functions ..."
-    
+
     // this is the 3.1 list, with things prototyped above commented
     "abs",
     "cos",
@@ -517,6 +517,9 @@ void Env::addGNUBuiltins()
     //"memset",
     "modf",
     "pow",
+    "powi", 
+    "powif",
+    "powil",
     //"printf",
     "putchar",
     "puts",
@@ -618,9 +621,9 @@ void Env::addGNUBuiltins()
     makeImplicitDeclFuncVar(str(stringc << "__builtin_" << arr[i]));
   }
 
-  // initialize 'complexComponentFields'  
+  // initialize 'complexComponentFields'
   for (int axis=0; axis<=1; axis++) {
-    for (int prec=0; prec<=2; prec++) {                                 
+    for (int prec=0; prec<=2; prec++) {
       StringRef n = axis==0? string_realSelector : string_imagSelector;
       Type *t = env.getSimpleType(constructFloatingType(prec, axis));
       Variable *v = makeVariable(SL_INIT, n, t, DF_BUILTIN | DF_MEMBER);
@@ -637,7 +640,7 @@ ASTTypeof *ASTTypeof::tcheck(Env &env, DeclFlags dflags)
     mid_tcheck(env, dflags);
     return this;
   }
-  
+
   return resolveAmbiguity(this, env, "ASTTypeof", false /*priority*/, dflags);
 }
 
@@ -839,7 +842,7 @@ Type *E_gnuCond::itcheck_x(Env &env, Expression *&replacement)
 Type *E_addrOfLabel::itcheck_x(Env &env, Expression *&replacement)
 {
   // TODO: check that the label exists in the function
-  
+
   // type is void*
   return env.makePtrType(env.getSimpleType(ST_VOID));
 }
@@ -955,7 +958,7 @@ Type *E_binary::itcheck_complex_arith(Env &env)
       axis = 2/*complex*/;
       break;
   }
-  
+
   // result id
   return env.getSimpleType(constructFloatingType(prec, axis));
 }
@@ -1043,7 +1046,7 @@ void TS_typeof::print(PrintEnv &env)
 void ASTTypeof::printAmbiguities(ostream &os, int indent) const
 {
   genericPrintAmbiguities(this, "TypeSpecifier", os, indent);
-    
+
   // sm: what was this here for?
   //genericCheckNexts(this);
 }
@@ -1052,7 +1055,7 @@ void ASTTypeof::printAmbiguities(ostream &os, int indent) const
 void ASTTypeof::addAmbiguity(ASTTypeof *alt)
 {
   //genericAddAmbiguity(this, alt);
-  
+
   // insert 'alt' at the head of the 'ambiguity' list
   xassert(alt->ambiguity == NULL);
   alt->ambiguity = ambiguity;
@@ -1068,7 +1071,7 @@ void S_function::iprint(PrintEnv &env)
 
 
 void S_rangeCase::iprint(PrintEnv &env)
-{                    
+{
   TreeWalkDebug treeDebug("S_rangeCase::iprint");
   *env.out << "case";
   exprLo->print(env);
@@ -1192,7 +1195,7 @@ void SubscriptDesignator::print(PrintEnv &env)
 void Designator::printAmbiguities(ostream &os, int indent) const
 {
   genericPrintAmbiguities(this, "Designator", os, indent);
-  
+
   genericCheckNexts(this);
 }
 
