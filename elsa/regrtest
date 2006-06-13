@@ -981,6 +981,7 @@ testparse_special ansi d0121.cc
 #failparse d0123.cc "from the kernel; works in C mode but in C++ mode can't convert void* to function pointer"
 testparse d0124.cc
 testparse d0125.cc # __builtin_va_copy
+testparse d0126.cc
 
 testparse k0001.cc #"left side of .* must be a class or reference to a class"
 testparse k0002.cc #"template function declared in another class (as a friend)"
