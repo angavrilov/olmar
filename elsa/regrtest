@@ -1112,7 +1112,7 @@ failparse k0104.cc "restrict reference"
 failparse k0105.cc "function pointer dependent type"
 failparse k0106.cc "anonymous struct in anonymous union"
 failparse k0107.cc "inline explicit instantiation"
-
+failparse k0108.cc "explicit instantiation of constructor"
 
 ### </quarl-testcases-c++>
 
