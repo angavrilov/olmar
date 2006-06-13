@@ -2488,6 +2488,8 @@ nonterm(TemplateArgument*) TemplateArgument {
 nonterm(TopForm*) ExplicitInstantiation {
   -> "template" d:BlockDeclaration
        { return new TF_explicitInst(loc, DF_NONE, d); }
+  -> "inline" "template" d:BlockDeclaration
+       { xfailure("unimplemented: inline explicit instantiations (c24a5f9c-edbd-4945-a56a-ed73a1d6a0fa)"); }
 }
 
 // ------ A.13 Exception handling ------
