@@ -127,7 +127,7 @@ public:      // data
   // built for parameters of function types, but the functions
   // themselves appear here so the parameters are reachable (NOTE:
   // at the moment, I don't think anyone is using this information)
-  ArrayStack<Variable*> madeUpVariables;
+  ArrayStack<Variable*> &madeUpVariables;
 
   // ---- BEGIN: special names ----
   // name under which conversion operators are looked up
@@ -285,9 +285,10 @@ private:     // funcs
   void mergeDefaultArguments(SourceLoc loc, Variable *prior, FunctionType *type);
 
 public:      // funcs
-  Env(StringTable &str, CCLang &lang, TypeFactory &tfac,
-      TranslationUnit *tunit0 /*TODO: eliminate this!*/);
-  virtual ~Env();      // 'virtual' only to silence stupid warning; destruction is not part of polymorphic contract
+  Env(StringTable &str, CCLang &lang, TypeFactory &tfac, ArrayStack<Variable*> &madeUpVariables0);
+
+  // 'virtual' only to silence stupid warning; destruction is not part of polymorphic contract
+  virtual ~Env();
 
   // this function kicks off type checking for a translation unit;
   // it is not recursive (it should *not* call itself for namespaces)

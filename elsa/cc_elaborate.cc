@@ -94,10 +94,9 @@ StringRef ElabVisitor::makeCatchClauseVarName()
 }
 
 
-Variable *ElabVisitor::makeVariable(SourceLoc loc, StringRef name,
-                                    Type *type, DeclFlags dflags)
+Variable *ElabVisitor::makeVariable(SourceLoc loc, StringRef name, Type *type, DeclFlags dflags)
 {
-  return tfac.makeVariable(loc, name, type, dflags, tunit /*doh!*/);
+  return tfac.makeVariable(loc, name, type, dflags);
 }
 
 

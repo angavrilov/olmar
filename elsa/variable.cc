@@ -150,12 +150,19 @@ bool Variable::linkerVisibleName(bool evenIfStatic) const {
 
   // it seems that we should not consider typedefs to be linker-visible
   if (hasFlag(DF_TYPEDEF)) return false;
+  // nor namespaces, such as '<globalScope>'
+  if (hasFlag(DF_NAMESPACE)) return false;
 
   // quarl 2006-06-03: Don't consider inline functions to be linker-visible.
   // (In the future, it would be nice to have DF_INLINE be implied by
   // DF_STATIC, but that needs to wait for DF_STATIC to not be overloaded as
   // DF_STATIC_MEMBER.)
   if (hasFlag(DF_INLINE) && !hasFlag(DF_GNU_EXTERN_INLINE)) return false;
+
+  // dsw: nothing starting with __builtin_va is linker-visible
+  static char *builtin_va_prefix = "__builtin_va";
+  static int builtin_va_prefix_len = strlen(builtin_va_prefix);
+  if (name && 0==strncmp(name, builtin_va_prefix, builtin_va_prefix_len)) return false;
 
   bool newAnswer;
   // FIX: what the heck was this?  Some attempt to treat struct

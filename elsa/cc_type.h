@@ -1258,8 +1258,7 @@ public:
   //     or neither.
   //   - Variable is used by Type and vice-versa.. they could have
   //     both been defined in cc_type.h
-  virtual Variable *makeVariable(SourceLoc L, StringRef n,
-                                 Type *t, DeclFlags f, TranslationUnit *tunit)=0;
+  virtual Variable *makeVariable(SourceLoc L, StringRef n, Type *t, DeclFlags f)=0;
 
 
   // ---- convenience functions ----
@@ -1311,8 +1310,7 @@ public:    // funcs
   virtual PointerToMemberType *makePointerToMemberType
     (NamedAtomicType *inClassNAT, CVFlags cv, Type *atType);
 
-  virtual Variable *makeVariable(SourceLoc L, StringRef n,
-                                 Type *t, DeclFlags f, TranslationUnit *tunit);
+  virtual Variable *makeVariable(SourceLoc L, StringRef n, Type *t, DeclFlags f);
 };
 
 

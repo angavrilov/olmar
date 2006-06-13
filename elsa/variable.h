@@ -196,8 +196,8 @@ public:
   void setAccess(AccessKeyword k);
 
   // dsw: true iff this variable is "real" code: not part of an
-  // uninstantiated template; this flag is set by the
-  // markRealVariables() function
+  // uninstantiated template; this flag is set by the visitRealVarsF()
+  // function when called with a MarkRealVars visitor.
   bool getReal() const;
   void setReal(bool r);
 

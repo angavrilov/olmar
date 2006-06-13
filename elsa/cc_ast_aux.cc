@@ -1496,16 +1496,27 @@ void ReachableVarsVariableVisitor::visitVariable(Variable *var) {
   typeVisitor->visitType(var->type);
 }
 
+void VisitRealVars::visitVariableIdem(Variable *var) {
+  xassert(var->getReal());     // if this visit is idempotent, this should always be false
+  if (visitVarFunc) visitVarFunc(var);
+}
+
 void MarkRealVars::visitVariableIdem(Variable *var) {
   xassert(!var->getReal());     // if this visit is idempotent, this should always be false
   var->setReal(true);
 }
 
-void markRealVariables(TranslationUnit *tunit) {
-  ReachableVarsTypeVisitor doNothing_tv(NULL); // a placeholder
-  MarkRealVars markReal_vv(&doNothing_tv); // actually mark variables
-  doNothing_tv.variableVisitor = &markReal_vv;
-  RealVarAndTypeASTVisitor vis(&markReal_vv, &doNothing_tv);
+void visitRealVarsF(ArrayStack<Variable*> &madeUpVariables, VisitRealVars &visitReal) {
+  RealVarAndTypeASTVisitor vis(&visitReal, &visitReal.doNothing_tv);
+  FOREACH_ARRAYSTACK_NC(Variable*, madeUpVariables, iter) {
+    Variable **varPtr = iter.data();
+    if (!(*varPtr)->getReal()) continue;
+    visitReal.visitVariable(*varPtr);
+  }
+}
+
+void visitRealVarsF(TranslationUnit *tunit, VisitRealVars &visitReal) {
+  RealVarAndTypeASTVisitor vis(&visitReal, &visitReal.doNothing_tv);
   tunit->traverse(vis.loweredVisitor);
 }
 

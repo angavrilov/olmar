@@ -293,7 +293,7 @@ int throwClauseSerialNumber = 0; // don't make this a member of Env
 
 int Env::anonCounter = 1;
 
-Env::Env(StringTable &s, CCLang &L, TypeFactory &tf, TranslationUnit *tunit0)
+Env::Env(StringTable &s, CCLang &L, TypeFactory &tf, ArrayStack<Variable*> &madeUpVariables0)
   : ErrorList(),
 
     env(*this),
@@ -311,7 +311,7 @@ Env::Env(StringTable &s, CCLang &L, TypeFactory &tf, TranslationUnit *tunit0)
     str(s),
     lang(L),
     tfac(tf),
-    madeUpVariables(),
+    madeUpVariables(madeUpVariables0),
 
     // some special names; pre-computed (instead of just asking the
     // string table for it each time) because in certain situations
@@ -360,8 +360,6 @@ Env::Env(StringTable &s, CCLang &L, TypeFactory &tf, TranslationUnit *tunit0)
 
     // builtin{Un,Bin}aryOperator[] start as arrays of empty
     // arrays, and then have things added to them below
-
-    tunit(tunit0),
 
     // (in/t0568.cc) apparently GCC and ICC always delay, so Elsa will
     // too, even though I think that the only programs for which eager
@@ -985,9 +983,7 @@ void Env::tcheckTranslationUnit(TranslationUnit *tunit)
 Variable *Env::makeVariable(SourceLoc L, StringRef n, Type *t, DeclFlags f)
 {
   if (!ctorFinished) {
-    // the 'tunit' is NULL for the Variables introduced before analyzing
-    // the user's input
-    Variable *v = tfac.makeVariable(L, n, t, f, NULL);
+    Variable *v = tfac.makeVariable(L, n, t, f);
 
     // such variables are entered into a special list, as long as
     // they're not function parameters (since parameters are reachable
@@ -1001,7 +997,7 @@ Variable *Env::makeVariable(SourceLoc L, StringRef n, Type *t, DeclFlags f)
 
   else {
     // usual case
-    return tfac.makeVariable(L, n, t, f, tunit);
+    return tfac.makeVariable(L, n, t, f);
   }
 }
 

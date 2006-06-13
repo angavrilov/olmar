@@ -2924,7 +2924,7 @@ PointerToMemberType *BasicTypeFactory::makePointerToMemberType
 
 
 Variable *BasicTypeFactory::makeVariable(
-  SourceLoc L, StringRef n, Type *t, DeclFlags f, TranslationUnit *)
+  SourceLoc L, StringRef n, Type *t, DeclFlags f)
 {
   // I will turn this on from time to time as a way to check that
   // Types are always capable of printing themselves.  It should never

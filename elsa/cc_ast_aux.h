@@ -272,20 +272,37 @@ class ReachableVarsVariableVisitor : public RealVarAndTypeASTVisitor::VariableVi
   virtual void visitVariableIdem(Variable *var) {}; // only visits each Variable once
 };
 
-// mark reachable vars as real
-class MarkRealVars : public ReachableVarsVariableVisitor {
-  // tor
+// visit all the real vars
+class VisitRealVars : public ReachableVarsVariableVisitor {
   public:
-  explicit MarkRealVars(RealVarAndTypeASTVisitor::TypeVisitor *typeVisitor0)
-    : ReachableVarsVariableVisitor(typeVisitor0)
+  // type
+  typedef void visitVarFunc_t(Variable *);
+
+  // data
+  ReachableVarsTypeVisitor doNothing_tv; // a placeholder
+  visitVarFunc_t *visitVarFunc;
+
+  // tor
+  explicit VisitRealVars(visitVarFunc_t *visitVarFunc0 = NULL)
+    : ReachableVarsVariableVisitor(&doNothing_tv)
+    , doNothing_tv(this)
+    , visitVarFunc(visitVarFunc0)
   {}
-  virtual ~MarkRealVars() {}
 
   // methods
   virtual void visitVariableIdem(Variable *var); // only visits each Variable once
 };
 
-// mark "real" (non-template) variables as such
-void markRealVariables(TranslationUnit *tunit);
+// mark reachable vars as real
+class MarkRealVars : public VisitRealVars {
+  // tor
+  public:
+  explicit MarkRealVars() : VisitRealVars(NULL) {}
+  // methods
+  virtual void visitVariableIdem(Variable *var); // only visits each Variable once
+};
+
+void visitRealVarsF(ArrayStack<Variable*> &madeUpVariables, VisitRealVars &visitReal);
+void visitRealVarsF(TranslationUnit *tunit, VisitRealVars &visitReal);
 
 #endif // CC_AST_AUX_H
