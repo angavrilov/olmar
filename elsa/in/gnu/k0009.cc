@@ -6,6 +6,8 @@
 //   ;,
 // k0009.cc:9:21: Parse error (state 706) at __attribute__
 
+// ERR-MATCH: a86c8a1e-2cd7-41bd-8a23-f9049358c166
+
 namespace g
 {
 }
