@@ -1072,7 +1072,7 @@ failparse k0067.cc "constructor using volatile reference"
 failparse k0068.cc "explicitly named constructor"
 failparse k0008.cc "template parameterized by function pointer"
 failparse k0069.cc "friend class as template parameter"
-failparse k0070.cc "scoping via template instantiation with all parameters defaulted"
+testparse k0070.cc #"scoping via template instantiation with all parameters defaulted"
 failparse k0071.cc "compound initializer for struct which was earlier forward-declared as class"
 failparse k0072.cc "template <class T> void foo(S1<T> s1, const typename T::T2 t2) {}"
 failparse k0073.cc "compound initializer for instantiated template struct"
@@ -1117,7 +1117,7 @@ failparse k0108.cc "explicit instantiation of constructor"
 failparse k0109.cc "instantiating template member function"
 failparse k0110.cc "calling template dtor with template arguments"
 failparse k0111.cc "duplicate template specialization/definition of static data"
-failparse k0112.cc "template instantiation with all default args"
+testparse k0112.cc #"template instantiation with all default args"
 
 ### </quarl-testcases-c++>
 

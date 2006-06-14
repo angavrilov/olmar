@@ -1823,19 +1823,35 @@ Scope *Env::lookupOneQualifier_useArgs(
       anyTemplates = true;
     }
 
+    // TODO: distinguish better between empty template argument list "<>" and
+    // template argument list not existing.
+
     if (qualVar->hasFlag(DF_SELFNAME) && sargs.isEmpty()) {
       // it's a reference to the class I'm in (testcase: t0168.cc)
-    }
+    } else {
+      // check template argument compatibility
+      if (ct->isTemplate()) {
+        if (sargs.isEmpty()) {
+          // quarl 2006-06-14
+          //    It's permissible for the template argument list to be empty
+          //    (as "<>"), because all template parameters may have default
+          //    values.  It will be checked in
+          //    Env::insertTemplateArgBindings_oneParamList.
 
-    // check template argument compatibility
-    else if (sargs.isNotEmpty()) {
-      if (!ct->isTemplate()) {
-        error(stringc
-          << "class `" << qual << "' isn't a template");
-        // recovery: use the scope anyway
+          // error(stringc
+          //   << "class `" << qual
+          //   << "' is a template, you have to supply template arguments");
+          // // recovery: use the scope anyway
+        }
+      } else if (!ct->isTemplate()) {
+        if (sargs.isNotEmpty()) {
+          error(stringc
+                << "class `" << qual << "' isn't a template");
+          // recovery: use the scope anyway
+        }
       }
 
-      else {
+      if (ct->isTemplate()) {
         if ((lflags & LF_DECLARATOR) &&
             containsVariables(sargs)) {    // fix t0185.cc?  seems to...
           // Since we're in a declarator, the template arguments are
@@ -1905,13 +1921,6 @@ Scope *Env::lookupOneQualifier_useArgs(
 
         ct = inst->type->asCompoundType();
       }
-    }
-
-    else if (ct->isTemplate()) {
-      error(stringc
-        << "class `" << qual
-        << "' is a template, you have to supply template arguments");
-      // recovery: use the scope anyway
     }
 
     // TODO: actually check that there are the right number
@@ -3068,7 +3077,7 @@ static SimpleTypeId normalizeEnumToInteger(Type *t)
       }
     }
   }
-  
+
   // not an enum or integral type
   return ST_ERROR;
 }
