@@ -1117,6 +1117,7 @@ failparse k0108.cc "explicit instantiation of constructor"
 failparse k0109.cc "instantiating template member function"
 failparse k0110.cc "calling template dtor with template arguments"
 failparse k0111.cc "duplicate template specialization/definition of static data"
+failparse k0112.cc "template instantiation with all default args"
 
 ### </quarl-testcases-c++>
 
