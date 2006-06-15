@@ -6,6 +6,8 @@
 
 // from sigc++-2.0/sigc++/functors/slot.h
 
+//ERR-MATCH: fc042c37-50e2-4596-8460-c095e7ac892b
+
 template <class T>
 struct S1 {
     template <class T2>

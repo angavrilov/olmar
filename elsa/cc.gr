@@ -653,6 +653,10 @@ nonterm(PQName*) NAD2 {
        { return new PQ_name(loc, n); }
   -> on:OperatorFunctionId
        { return new PQ_operator(loc, on, str(on->getOperatorName())); }
+  -> on:OperatorFunctionId "<" list:TemplateArgumentListOpt ">"
+       { xfailure("unimplemented: templatized operator (fc042c37-50e2-4596-8460-c095e7ac892b)"); }
+  -> "template" on:OperatorFunctionId "<" list:TemplateArgumentListOpt ">"
+       { xfailure("unimplemented: templatized operator (fc042c37-50e2-4596-8460-c095e7ac892b)"); }
 
   // qualifier names
   -> n:Identifier "<" list:TemplateArgumentListOpt ">" "::" rest:NAD1
