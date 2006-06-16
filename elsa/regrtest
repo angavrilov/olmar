@@ -1119,6 +1119,7 @@ failparse k0110.cc "calling template dtor with template arguments"
 failparse k0111.cc "duplicate template specialization/definition of static data"
 testparse k0112.cc #"template instantiation with all default args"
 failparse k0113.cc "calling templatized operator-overloaded function"
+failparse k0114.cc "template parameterized on function (not function pointer)"
 
 ### </quarl-testcases-c++>
 

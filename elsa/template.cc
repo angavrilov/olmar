@@ -3775,6 +3775,8 @@ bool Env::mergeTemplateInfos(Variable *prior, TemplateInfo *dest,
 // the return value is the type with substitutions performed.
 Type *Env::applyArgumentMapToType(MType &map, Type *origSrc)
 {
+  xassert(origSrc && "6ccc991e-bd8a-47d8-8f5c-e75d7065a29d");
+
   // my intent is to not modify 'origSrc', so I will use 'src', except
   // when I decide to return what I already have, in which case I will
   // use 'origSrc'
