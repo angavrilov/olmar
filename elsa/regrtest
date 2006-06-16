@@ -1262,6 +1262,7 @@ if $use_gnu; then
   failparse gnu/k0007.cc "__builtin_frame_address"
   failparse gnu/k0008.c "declared extern inline, defined extern inline, defined non-extern-inline"
   failparse gnu/k0009.cc "namespace attribute strong"
+  failparse gnu/k0010.c "nested K&R function"
 
 else # tests that only pass when not in gnu mode
   testparse t0228b.cc
