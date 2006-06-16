@@ -139,7 +139,9 @@ nonterm(Expression*) ConditionalExpression {
 nonterm(Statement*) Statement {
   -> f:FunctionDefinition
        { return new S_function(loc, f); }
-  // in/gnu/k0010.c
+  // quarl 2006-06-15
+  //    nested K&R functions; unimplemented for now but I guess we just need
+  //    to do the same as above?  see in/gnu/k0010.c
   -> k:KandRFunctionDefinition
        { xfailure("unimplemented: nested K&R function definition (d00aa531-ca12-4d72-9caf-ca9db9941179)"); }
 }
