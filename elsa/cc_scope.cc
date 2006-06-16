@@ -1213,7 +1213,8 @@ string Scope::fullyQualifiedName()
 
 void Scope::setParameterizedEntity(Variable *entity)
 {
-  xassert(!parameterizedEntity);             // should do this only once
+  xassert(!parameterizedEntity &&            // should do this only once
+          "4d621e9b-fdc9-4646-918c-76bd950d191c");             
   xassert(isTemplateScope());                // doesn't make sense otherwise
 
   parameterizedEntity = entity;

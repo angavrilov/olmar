@@ -1121,6 +1121,7 @@ testparse k0112.cc #"template instantiation with all default args"
 failparse k0113.cc "calling templatized operator-overloaded function"
 failparse k0114.cc "template parameterized on function (not function pointer)"
 failparse k0115.cc "using own member function"
+failparse k0116.cc "template parameter default instantiating template class"
 
 ### </quarl-testcases-c++>
 
