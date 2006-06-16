@@ -1571,3 +1571,65 @@ if [ $contin = 1 ]; then
   fi
 fi
 
+
+######################################################################
+##
+## Top bugs affecting Debian packages
+##     See also:
+##       http://www.quarl.org/~quarl/debsec/output/status/elsa_1.errors
+##
+## 1. [k0105.cc] internal error: found dependent type `(dependent)' in non-template
+##   Seen 3466 times
+##   299 affected packages
+##   289 source packages
+##
+## 2. [k0059.cc] can only delete pointers, not `QGuardedPtr<class QPopupMenu /*anon*/>'
+##   Seen 149 times
+##   137 affected packages
+##   9 source packages
+##
+## 3. [k0075.cc] Assertion failed: argType != NULL && "52291632-1792-4e5c-b5b8-9e6240b75a91", file template.cc line 1346
+##   Seen 912 times
+##   70 affected packages
+##   32 source packages
+##
+## 4. [k0060.cc] field `KInetSocketAddress::d' ambiguously refers to elements of multiple base class subobjects
+##   Seen 69 times
+##   69 affected packages
+##   1 source packages
+##
+## 5. [k0064.cc] duplicate definition for `kRestoreMainWindows' of type `void ()()'; previous at [INPUT]
+##   Seen 1023 times
+##   59 affected packages
+##   55 source packages
+##
+## 6. [k0072.cc] Assertion failed: e != NULL && "ceae1527-94a7-480d-9134-5dbd8cbfb2aa", file cc.gr line 1240
+##   Seen 78 times
+##   16 affected packages
+##   5 source packages
+##
+## 7. [k0081.cc] could not evaluate default argument `iterator_traits<In /*anon*/>::value_type': attempt to extract member `value_type' from non-class `iterator_traits<In /*anon*/>'
+##   Seen 1101 times
+##   16 affected packages
+##   14 source packages
+##
+## 8. [k0086.cc] unimplemented: template.cc:4029: applyArgumentMap: dep-expr is not E_variable
+##   Seen 121 times
+##   15 affected packages
+##   16 source packages
+##
+## 9. [k0087.cc] no viable candidate for function call; arguments:
+##   Seen 153 times
+##   15 affected packages
+##   16 source packages
+##
+## 10. [gnu/k0006.cc] there is no function called `__offsetof__'
+##   Seen 364 times
+##   14 affected packages
+##   14 source packages
+##
+## 11. [k0100.cc] Assertion failed: unimplemented: templatized template parameter list (25eb7000-851c-4028-b762-4e365a5b10bf), file cc.gr line 2399
+##   Seen 402 times
+##   13 affected packages
+##   17 source packages
+##
