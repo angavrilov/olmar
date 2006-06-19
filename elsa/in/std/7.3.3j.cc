@@ -31,4 +31,3 @@ void k(D* p /*27:11*/)
   p->g(1);               // calls B::g(int)
   p->g('a');             // calls D::g(char)
 }
- 

@@ -11,4 +11,3 @@ void foo()
   a->~A();
   (*a).~A();    // equivalent
 }
- 

@@ -7,4 +7,3 @@ int main() {
   C c;
   g(c, 1);
 }
- 

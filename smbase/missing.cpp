@@ -23,4 +23,3 @@ int missing_stricmp(char const *s1, char const *s2)
   // one or both are at the null terminator
   return *s1 - *s2;
 }
- 

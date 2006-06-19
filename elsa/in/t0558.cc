@@ -20,4 +20,3 @@ void foo()
   A<int> a;
   a.g();
 }
- 

@@ -12,4 +12,3 @@ void foo(int x)
     glorf(2);
   }
 }
- 

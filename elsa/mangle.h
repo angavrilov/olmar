@@ -37,4 +37,3 @@ void mangleSTemplateArgs(stringBuilder &sb, ObjList<STemplateArgument> const &ar
 
 
 #endif // MANGLE_H
- 

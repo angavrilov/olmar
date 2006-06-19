@@ -34,4 +34,3 @@ void foo()
 
   copyIndexPtrArray(p, a);
 }
- 

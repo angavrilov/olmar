@@ -8,4 +8,3 @@ EST_Chunk *EST_Chunk::operator & ()
 {
   return this;
 }
- 

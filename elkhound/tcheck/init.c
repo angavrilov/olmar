@@ -12,4 +12,3 @@ struct S { int i; float f; };
 struct S s = { 4, 5.6 };
 struct S t = { 4, 5.6, 8 };       // ERROR(3)
 
- 

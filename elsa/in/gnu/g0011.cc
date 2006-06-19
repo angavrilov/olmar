@@ -3,4 +3,3 @@
 // from Kevin Millikin
 
 void foo(const int __attribute__ ((__unused__)) x) { return; }
- 

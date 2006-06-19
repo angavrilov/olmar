@@ -10,4 +10,3 @@ template<class T> struct F {
 };
 
 E<A> q;
- 

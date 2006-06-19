@@ -33,4 +33,3 @@ void C::bar()
 }
 
 // EOF
- 

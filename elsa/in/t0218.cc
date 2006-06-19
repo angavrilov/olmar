@@ -18,4 +18,3 @@ struct A {
 
 
 // EOF
- 

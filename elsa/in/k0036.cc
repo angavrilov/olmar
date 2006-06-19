@@ -45,4 +45,3 @@ int main()
   g(a);
   g("blah");
 }
- 

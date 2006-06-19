@@ -7,4 +7,3 @@ int f(B&);                         // line 6
 
 int i = __testOverload(f(b), 6);   // Calls f(B&), an exact match, rather than
                                    // f(A&), a conversion
- 

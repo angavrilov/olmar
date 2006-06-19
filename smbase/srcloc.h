@@ -333,4 +333,3 @@ void fromXml(SourceLoc &out, string str);
 
 
 #endif // SRCLOC_H
- 

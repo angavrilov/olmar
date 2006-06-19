@@ -12,4 +12,3 @@ struct S1 {
 };
 
 S1 S1::foo[];
- 

@@ -592,4 +592,3 @@ check: all mlsstr
 # test for rcptr
 trcptr: rcptr.h trcptr.cc
 	$(CXX) -o $@ trcptr.cc
- 

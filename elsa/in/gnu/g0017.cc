@@ -8,4 +8,3 @@ extern "C" {
 extern int isatty (int __fd) throw () ;
 }
 extern int isatty  ( int )  ;
- 

@@ -31,4 +31,3 @@ public:
 
 
 template void A<int>::h(int);
- 

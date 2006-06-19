@@ -9,4 +9,3 @@ struct A {};
 A<ONE> a1;
 
 //ERROR(1): A<2> a2;
- 

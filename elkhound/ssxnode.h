@@ -19,4 +19,3 @@ public:
 };
 
 #endif // SSXNODE_H
- 

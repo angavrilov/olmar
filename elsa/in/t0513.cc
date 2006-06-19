@@ -35,4 +35,3 @@ struct real_value {
 extern char test_real_width [
   sizeof(struct real_value) <= (((128 + (8 * 4)) + 32)/(8 * 4) + (((128 + (8 * 4)) + 32)%(8 * 4) ? 1 : 0))*sizeof(long) ? 1 : -1
 ];
- 

@@ -14,4 +14,3 @@ void foo()
     // ambiguities at the outer level
     (x)(y)*(x)(y)*(x)(y)*(x)(y)*(x)(y)*(x)(y)*(x)(y);
 }
- 

@@ -35,4 +35,3 @@ void g()
   // what about 'zoo'?  gcc and icc again say no
   //ERROR(2): zoo(p);
 }
- 

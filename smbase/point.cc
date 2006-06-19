@@ -13,4 +13,3 @@ stringBuilder& operator<< (stringBuilder &sb, fpoint const &pt)
 {
   return sb << "(" << pt.x << ", " << pt.y << ")";
 }
- 

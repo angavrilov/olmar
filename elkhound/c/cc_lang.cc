@@ -18,4 +18,3 @@ void CCLang::ANSI_Cplusplus()
   recognizeCppKeywords = true;
 }
 
- 

@@ -25,4 +25,3 @@ int canRead(int fd);
 #endif
 
 #endif // UNIXUTIL_H
- 

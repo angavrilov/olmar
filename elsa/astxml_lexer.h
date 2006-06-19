@@ -42,4 +42,3 @@ class AstXmlLexer : private yyFlexLexer {
 };
 
 #endif // ASTXML_LEXER_H
- 

@@ -23,4 +23,3 @@ int main() {
   struct oink o = (struct oink) {i:7, b:{x:8, y:9.8}};
   return 0;
 }
- 

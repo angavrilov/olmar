@@ -15,4 +15,3 @@ taken from gcc's headers since I'm using gcc's "cpp" command
 and it knows where to find its own compiler-specific headers.
 But I'm supplying a -I pointing at this directory, so anything
 here takes precedence.
- 

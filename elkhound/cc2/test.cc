@@ -12,4 +12,3 @@ int main()
   cout << "test.cc works\n";
   return 0;
 }
- 

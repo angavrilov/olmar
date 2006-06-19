@@ -31,4 +31,3 @@ elsa/index.html for more info on what to do with it.
 If you run into problems you can email me: smcpeak@cs.berkeley.edu
 But be aware I'm usually pretty busy so responses may take a couple
 of days.
- 

@@ -6,4 +6,3 @@ class B;
 
 template <int z, int t> 
 class B {};
- 

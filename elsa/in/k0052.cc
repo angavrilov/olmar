@@ -18,4 +18,3 @@ int main() {
     S2 s2;
     return foo(&s2);
 }
- 

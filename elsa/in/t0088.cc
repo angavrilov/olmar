@@ -21,4 +21,3 @@ class nsRuleNode {
                                     const RuleDetail& aRuleDetail,
                                     PRBool aInherited);
 };
- 

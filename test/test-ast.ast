@@ -189,4 +189,3 @@ string AccessMod::getModSuffixFromPrefix(char const *mod) const
 option ocamlVisitor;
 option visitor ASTVisitor;
 option xmlVisitor ToXmlASTVisitor;
- 

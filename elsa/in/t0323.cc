@@ -12,4 +12,3 @@ struct B {
     return x;
   }
 };
- 

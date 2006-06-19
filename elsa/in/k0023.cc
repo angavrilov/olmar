@@ -7,4 +7,3 @@
 template<class T> struct S1 {
     typedef void * (S1<T>::*funcType)();
 };
- 

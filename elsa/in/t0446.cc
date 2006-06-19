@@ -7,4 +7,3 @@ int foo(T t)
   return t? t->something() : 0;
 }
 
- 

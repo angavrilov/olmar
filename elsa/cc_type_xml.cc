@@ -1628,4 +1628,3 @@ void TypeXmlReader::registerAttr_InheritedTemplateParams
     ul(enclosing, XTOK_CompoundType); break;
   }
 }
- 

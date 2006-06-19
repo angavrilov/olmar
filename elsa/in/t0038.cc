@@ -14,4 +14,3 @@ class StringDict {
   Iter getIter();
 };
      
- 

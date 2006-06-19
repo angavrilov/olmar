@@ -26,4 +26,3 @@ int foo()
   A_int a;
   return a.x;    //ERRORIFMISSING(1): error 1 is still bad even without this
 }
- 

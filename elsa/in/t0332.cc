@@ -11,4 +11,3 @@ void foo()
   f("whatever");
 }
 
- 

@@ -6,4 +6,3 @@ enum { eHTMLTag_text=5 };
 class nsVoidArray;
 
 nsVoidArray* mObservers[PRInt32(eHTMLTag_text - 1)  + 1];
- 

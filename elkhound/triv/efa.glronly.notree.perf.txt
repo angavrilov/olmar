@@ -388,4 +388,3 @@ triv/efa.in/1000000.in: %%% progress: 1188ms: parsing...
 triv/efa.in/1000000.in: %%% progress: 3477ms: done parsing (2289 ms, 2285_475097 cycles)
 triv/efa.in/1000000.in: stack nodes: 3, max stack nodes: 7
 triv/efa.in/1000000.in: tree nodes: 0
- 

@@ -7,4 +7,3 @@ extern inline void read_lock(rwlock_t *rw)
   if (__builtin_constant_p( rw )) {
   }
 }
- 

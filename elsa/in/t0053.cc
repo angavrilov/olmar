@@ -38,4 +38,3 @@ int N::Foo::Bar::g()
 {
   return E1_VAL;
 }
- 

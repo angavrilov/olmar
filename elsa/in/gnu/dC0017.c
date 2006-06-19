@@ -7,4 +7,3 @@ void f() {
   __alignof__(INT /*type*/);
   __alignof__(i /*expr*/);
 }
- 

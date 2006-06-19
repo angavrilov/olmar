@@ -68,4 +68,3 @@ public:     // funcs
 
 
 #endif // __RCPTR_H
- 

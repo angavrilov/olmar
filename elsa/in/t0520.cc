@@ -9,4 +9,3 @@ int foo()
 {
   A < __cause_xfailure(1) > (1);
 }
- 

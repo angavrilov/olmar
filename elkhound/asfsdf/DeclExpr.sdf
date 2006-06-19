@@ -14,4 +14,3 @@ exports
     "L" Declarator "R" -> Declarator
     Id                 -> Expr
     Expr "L" Expr "R"  -> Expr
- 

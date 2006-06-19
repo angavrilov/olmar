@@ -21,4 +21,3 @@ int f()
   return deref(p);
 }
 
- 

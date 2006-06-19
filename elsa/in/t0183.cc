@@ -10,4 +10,3 @@
 
 template<class T>
 int nothing(T &s);
- 

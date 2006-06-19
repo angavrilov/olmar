@@ -45,4 +45,3 @@ extern SimpleReportError simpleReportError;
 
 
 #endif // REPORTERR_H
- 

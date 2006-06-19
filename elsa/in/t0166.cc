@@ -10,4 +10,3 @@ struct D : B, C {
   A *a;       // B::A or C::A?  but same type!
 };
 
- 

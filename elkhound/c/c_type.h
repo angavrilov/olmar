@@ -424,4 +424,3 @@ public:
 
 
 #endif // C_TYPE_H
- 

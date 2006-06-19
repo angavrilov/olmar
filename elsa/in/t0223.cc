@@ -11,4 +11,3 @@ C<T> foo(T *x)
 {
   return C<T>(x);
 }
- 

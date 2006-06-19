@@ -11,4 +11,3 @@ void stringBuilder::foo(Manipulator manip)
 {
   manip (*this);
 }
- 

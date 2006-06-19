@@ -187,4 +187,3 @@ int main()
 }
 
 #endif // TEST_HASHLINE
- 

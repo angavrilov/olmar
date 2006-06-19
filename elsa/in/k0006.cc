@@ -7,4 +7,3 @@
 enum E {
     a = __alignof__(int)
 };
- 

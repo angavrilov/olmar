@@ -12,4 +12,3 @@ struct C {
   foo(x,y);
 }
 
- 

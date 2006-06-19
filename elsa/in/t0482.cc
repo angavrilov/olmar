@@ -16,4 +16,3 @@ void *bar()
   int y = 0;
   return new (x)(y);     // parenthesized type-id x, new-initializer
 }
- 

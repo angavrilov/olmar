@@ -68,4 +68,3 @@ public:      // funcs
 
 #endif // __BIT2D_H
 
- 

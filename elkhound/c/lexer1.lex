@@ -337,4 +337,3 @@ int lexer1_lex(Lexer1 &lexer, FILE *inputFile)
 #endif // 0
 
 
- 

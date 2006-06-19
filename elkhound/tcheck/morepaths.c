@@ -16,4 +16,3 @@ void append(struct Node *head, struct Node *toAdd)
 
   //p = toAdd;
 }
- 

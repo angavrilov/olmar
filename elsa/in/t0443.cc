@@ -25,4 +25,3 @@ struct B {
   typedef typename U::T2 V;
   typedef Vector<List<C<V> > > W;
 };
- 

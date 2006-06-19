@@ -108,4 +108,3 @@ stringBuilder& operator<< (stringBuilder &sb, fpoint const &pt);
 
 #endif // ___POINT_H
 
- 

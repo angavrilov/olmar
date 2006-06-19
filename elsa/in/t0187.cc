@@ -21,4 +21,3 @@ int foo()
   return d.c.a;     // refers to B::a, since C<B> inherits B
 }
 
- 

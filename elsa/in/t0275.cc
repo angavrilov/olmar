@@ -35,4 +35,3 @@ int N::B<T>::f(barf)
   return 3;
 }
 
- 

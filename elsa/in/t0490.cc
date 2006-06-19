@@ -35,4 +35,3 @@ int f(int const x)
 
   //ERROR(2): g(x);      // wrong only if we remember 'x' is const
 }
- 

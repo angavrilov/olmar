@@ -321,4 +321,3 @@ static void   rtc_exit (void)
 
 int init_module(void)                                   ; extern inline __init_module_func_t __init_module_inline(void) { return  rtc_init ; } ;
 void cleanup_module(void)                                   ; extern inline __cleanup_module_func_t __cleanup_module_inline(void) { return  rtc_exit ; } ;
- 

@@ -16,4 +16,3 @@ struct A {
 void f() {
   A<int, 16> a;
 }
- 

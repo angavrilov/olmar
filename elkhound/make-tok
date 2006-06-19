@@ -79,4 +79,3 @@ while (defined($line = <STDIN>)) {
 
 print STDERR ("error: did not find end of $enumName");
 exit(2);
- 

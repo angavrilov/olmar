@@ -24,4 +24,3 @@ int A<T>::baz()
 {
   return 4;
 }
- 

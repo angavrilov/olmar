@@ -7,4 +7,3 @@ struct A : public B {
   typedef B S;
   A() : S() {}
 };
- 

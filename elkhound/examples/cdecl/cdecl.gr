@@ -190,4 +190,3 @@ nonterm[StringRef] TypeName {
   -> L2_INT        [ return intType; ]
 }
 
- 

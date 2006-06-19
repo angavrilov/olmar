@@ -26,4 +26,3 @@ void char2()
 
 
 // EOF
- 

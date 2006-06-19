@@ -14,4 +14,3 @@ void sprintf( const char* cformat, ... )
     void* value2 = __builtin_va_arg(ap, void*);
     __builtin_va_end( ap );
 }
- 

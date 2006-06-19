@@ -21,4 +21,3 @@ struct A<int, int> {
 };
 
 A<char, char> a;
- 

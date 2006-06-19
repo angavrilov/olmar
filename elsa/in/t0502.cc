@@ -40,4 +40,3 @@ struct D {
 // case, I am not going to add a test requiring that Elsa diagnose it,
 // even though right now it does (the standard allows both behaviors)
 
- 

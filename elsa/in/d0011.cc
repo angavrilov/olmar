@@ -13,4 +13,3 @@ int main () {
   A y;
   D::g(y, f(x));
 }
- 

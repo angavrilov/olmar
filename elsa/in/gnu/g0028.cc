@@ -12,4 +12,3 @@ static long double infinity3() throw()
 
 static double quiet_NaN() throw()
 { return __builtin_nan (""); }
- 

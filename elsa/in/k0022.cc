@@ -59,4 +59,3 @@ int b()
   int x;
   return bar(x);
 }
- 

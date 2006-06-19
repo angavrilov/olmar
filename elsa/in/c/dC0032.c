@@ -27,4 +27,3 @@ int main() {
   int x = sizeof(struct foo);
   return 0;
 }
- 

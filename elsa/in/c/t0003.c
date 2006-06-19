@@ -6,4 +6,3 @@ char const *foo()
   return __func__;
 }
 
- 

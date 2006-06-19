@@ -16,4 +16,3 @@ int main() {
     // invalid, rejected by gcc-3.4.3
     //ERROR(1): int ** pointer_array3 = new (int*)[42];
 }
- 

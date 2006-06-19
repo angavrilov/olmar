@@ -22,4 +22,3 @@ namespace B {
     int n = j;                   // D::j hides B::j             line 22
   }
 }
- 

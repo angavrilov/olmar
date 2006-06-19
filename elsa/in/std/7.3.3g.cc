@@ -27,4 +27,3 @@ void bar()
                         // that is, for A::f(int) and A::f(char).
   f('a');               // calls f(char)
 }
- 

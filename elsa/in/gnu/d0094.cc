@@ -9,4 +9,3 @@ void f(size_t buf_len)
   unsigned char label[buf_len];
   sizeof(label);
 }
- 

@@ -32,4 +32,3 @@ void foo()
   open<ACE_PI_Control_Block>();
 }
 
- 

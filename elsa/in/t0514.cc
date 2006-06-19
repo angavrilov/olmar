@@ -15,4 +15,3 @@ void bar()
   int *p = 0;
   foo(p);
 }
- 

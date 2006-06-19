@@ -105,4 +105,3 @@ void f()
   __testOverload(c==c, BUILTIN);
   __testOverload(c!=c, BUILTIN);
 }
- 

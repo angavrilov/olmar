@@ -23,4 +23,3 @@ extern int yydebug;
 #endif // __cplusplus
 
 #endif // BCPARSE_H
- 

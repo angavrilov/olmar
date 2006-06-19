@@ -38,4 +38,3 @@
   printf("illegal character: %c\n", yytext[0]);
   /* but continue anyway */
 }
- 

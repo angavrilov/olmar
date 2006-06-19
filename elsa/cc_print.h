@@ -379,4 +379,3 @@ void printSTemplateArgument(PrintEnv &env, STemplateArgument const *sta);
   } while(0)
 
 #endif // CC_PRINT_H
- 

@@ -9,4 +9,3 @@ struct S y[10] = {1,2,3};
 int z = 5;
 
 int main() { return 0; }
- 

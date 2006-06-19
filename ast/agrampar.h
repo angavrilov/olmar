@@ -69,4 +69,3 @@ ASTSpecFile *readAbstractGrammar(char const *fname);
 
 
 #endif // AGRAMPAR_H
- 

@@ -21,4 +21,3 @@ void f()
   S1<int> s;
   s.operator int*();
 }
- 

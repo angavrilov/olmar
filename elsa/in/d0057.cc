@@ -16,4 +16,3 @@ template<class T> T g(T x) {
 int main() {
   f<int>(3);
 }
- 

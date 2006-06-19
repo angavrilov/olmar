@@ -8,4 +8,3 @@ struct B {
 void f(const B& b) {
   B _b(b);
 }
- 

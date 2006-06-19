@@ -140,4 +140,3 @@ class TemplateArgument {
 class NamespaceDecl {
   pure_virtual void print(PrintEnv &env);
 }
- 

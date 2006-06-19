@@ -8,4 +8,3 @@ int foo(register a)
   return a;
 }
 
- 

@@ -14,4 +14,3 @@ struct C : A, B {};
 struct D : C {
   int f();
 };
- 

@@ -10,4 +10,3 @@ class N::A {
   Int i;          // refer back to N, even out of line
 };
 
- 

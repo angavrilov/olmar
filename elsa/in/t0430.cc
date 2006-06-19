@@ -25,4 +25,3 @@ void goo()
   B b;
   foo(b);
 }
- 

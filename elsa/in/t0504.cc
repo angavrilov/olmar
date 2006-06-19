@@ -27,4 +27,3 @@ A<int>::B<float,int> ab_spec;
 
 // make sure we're getting the spec; the primary doesn't have INT
 A<int>::B<float,int>::INT some_global_int;
- 

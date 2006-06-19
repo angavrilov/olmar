@@ -6,4 +6,3 @@ exports
     "X" -> S
     S "X" -> S
     S S S "X" -> S
- 

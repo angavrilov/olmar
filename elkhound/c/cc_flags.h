@@ -332,4 +332,3 @@ inline CVFlags uberCVFlags(UberModifiers m)
 
 
 #endif // CC_FLAGS_H
- 

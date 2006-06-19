@@ -9,4 +9,3 @@ class test {
 };
 
 test<int> ff;
- 

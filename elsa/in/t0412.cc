@@ -17,4 +17,3 @@ void foo()
   int x;
   bar(x);
 }
- 

@@ -2,4 +2,3 @@
 // pathological case testing precedence of "::"
 
 mytype ::foo () {}
- 

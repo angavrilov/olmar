@@ -128,4 +128,3 @@ void genericSetNext(NODE *main, NODE *newNext)
     genericSetNext(main->ambiguity, newNext);     // recursively set them all
   }
 }
- 

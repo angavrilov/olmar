@@ -20,4 +20,3 @@ int main() {
   // OFF ERROR(1): int *zp3 = f3( (int const) y);
   // OFF ERROR(2): int *zp3 = f3( (int const) y);
 }
- 

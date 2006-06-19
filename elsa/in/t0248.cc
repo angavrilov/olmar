@@ -28,4 +28,3 @@ int A<float>::g()
 }
 
 
- 

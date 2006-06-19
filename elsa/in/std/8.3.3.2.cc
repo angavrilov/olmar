@@ -22,4 +22,3 @@ void foo()
   (obj.*pmf)(7);       // call a function member of obj
                        // with the argument 7
 }
- 

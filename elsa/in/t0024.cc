@@ -10,4 +10,3 @@ public:
     Int x;
   }
 };
- 

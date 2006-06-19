@@ -19,4 +19,3 @@ int main() {
     intFunc(c |= FOO);
 }
 
- 

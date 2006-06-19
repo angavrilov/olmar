@@ -9,4 +9,3 @@ struct Outer {
 template <class T>
 struct Outer::A
 {};
- 

@@ -25,4 +25,3 @@ void OwnerHashTable
 {
   HashTableIter iter (table);
 }
- 

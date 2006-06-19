@@ -1095,4 +1095,3 @@ to create enum constructors and their callbacks:
 (*** Local Variables: ***)
 (*** compile-command : "ocamlc.opt -c cctypes.ml" ***)
 (*** End: ***)
- 

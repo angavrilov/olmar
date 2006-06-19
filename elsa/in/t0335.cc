@@ -14,4 +14,3 @@ void foo()
 // definition appears (e.g. in another translation unit) with
 // trivial destructor
 //class A {};
- 

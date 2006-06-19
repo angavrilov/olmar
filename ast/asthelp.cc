@@ -131,4 +131,3 @@ void xmlPrintPointer(ostream &os, char const *label, void const *p)
 
 
 // EOF
- 

@@ -15,4 +15,3 @@ struct A : public B<char> {
     f(1);
   }
 };
- 

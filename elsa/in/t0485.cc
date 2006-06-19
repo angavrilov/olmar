@@ -33,4 +33,3 @@ void foo()
   a.f(x);      // uses specialization
   a.f(y);      // uses primary
 }
- 

@@ -105,4 +105,3 @@ void f1()
   cp->*apm;
   adp->*apm;
 }
- 

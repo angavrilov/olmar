@@ -13,4 +13,3 @@ public:
   //ERROR(1): int g(int);
   //ERROR(2): char g(int);
 };
- 

@@ -34,4 +34,3 @@ int func2()
   return *(f.x);    // should be type 'float'
 }
 
- 

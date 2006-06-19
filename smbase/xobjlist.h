@@ -383,4 +383,3 @@ void multiIterName<T>::normalize()
 
 
 #endif // includeLatch
- 

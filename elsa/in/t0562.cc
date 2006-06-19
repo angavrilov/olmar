@@ -20,4 +20,3 @@ void foo()
   
   a == "foo";
 }
- 

@@ -3,4 +3,3 @@
 
 template<typename foo>
 class bar;
- 

@@ -9,4 +9,3 @@ long (*func(var))[42]
 {
     return 0;
 }
- 

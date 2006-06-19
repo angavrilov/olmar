@@ -584,4 +584,3 @@ bool anyType(CType *)
 
 
 // EOF
- 

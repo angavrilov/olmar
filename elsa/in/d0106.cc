@@ -19,4 +19,3 @@ template<class T> class A {
 
 template<>
 int A<int>::s = 0;
- 

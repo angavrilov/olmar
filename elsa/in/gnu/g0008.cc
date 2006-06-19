@@ -14,4 +14,3 @@ void f()
   // even though it is a C99 feature.
   char const *h = __func__;                   // not in (ANSI) C++
 }
- 

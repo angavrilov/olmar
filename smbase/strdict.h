@@ -143,4 +143,3 @@ public:
 };
 
 #endif // __STRDICT_H
- 

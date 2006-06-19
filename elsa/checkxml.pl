@@ -67,4 +67,3 @@ runtest qw(perl ./astxml_check2 -d outdir), @firstHundred;
 # Right now just print out the AST and the types; later we will try to
 # parse the types back in.
 runtest qw(perl ./astxml_check3 -d outdir), @typeTests;
- 

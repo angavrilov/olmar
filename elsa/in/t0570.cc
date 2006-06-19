@@ -33,4 +33,3 @@ void goo()
   // but this is ok
   g<int>(i,j);
 }
- 

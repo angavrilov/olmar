@@ -15,4 +15,3 @@ void foo()
   f<a>();          // one level
   f<aa>();         // two levels
 }
- 

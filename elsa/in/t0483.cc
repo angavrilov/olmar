@@ -21,4 +21,3 @@ void foo(D &d)
 }
 
 
- 

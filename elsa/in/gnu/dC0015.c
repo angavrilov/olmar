@@ -5,4 +5,3 @@ void i2o_lan_handle_event()
     int data[max_evt_data_size];
   } *evt;
 }
- 

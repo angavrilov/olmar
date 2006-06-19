@@ -358,4 +358,3 @@ int main()
 }
 
 #endif // TEST_CCSSTR
- 

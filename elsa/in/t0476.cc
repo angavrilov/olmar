@@ -11,4 +11,3 @@ struct A {
 template <class T>
 void A<T>::foo(A::INT i)    // 'typename' keyword is *not* required here
 {}
- 

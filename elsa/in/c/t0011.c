@@ -28,4 +28,3 @@ int g(int);
 int h();
 
 int h(int, int);
- 

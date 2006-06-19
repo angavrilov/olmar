@@ -6,4 +6,3 @@ class C {};
 
 // should use the default argument
 C<> x;
- 

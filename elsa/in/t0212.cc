@@ -23,4 +23,3 @@ int main() {
   b.ab.f();
   return 0;
 }
- 

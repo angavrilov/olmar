@@ -15,4 +15,3 @@ void foo()
   typedef F<char_type> f;
   typedef I<char_type> i;
 }
- 

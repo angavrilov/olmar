@@ -8,4 +8,3 @@ struct pci_device_info {
 static struct pci_device_info __devices_0000 []
 __attribute__ ((__section__ (".data.init")))  = { };
 
- 

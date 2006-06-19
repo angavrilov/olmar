@@ -21,4 +21,3 @@ struct S2 {
 
 void S2::f(int const number) {
 }
- 

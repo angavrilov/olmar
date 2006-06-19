@@ -9,4 +9,3 @@ int g(char(*)[10]);
 int g(char[5][10]);       // same as g(char(*)[10]);
 int g(char[7][10]);       // same as g(char(*)[10]);
 int g(char(*)[20]);       // different from as g(char(*)[10]);
- 

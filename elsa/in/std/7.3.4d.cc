@@ -18,4 +18,3 @@ void f() {
   g();                 // okay: name g refers to the same entity
   //ERROR(2): h();     // error: name h found in two namespaces
 }
- 

@@ -144,4 +144,3 @@ SourceFile *SourceFileList::open(char const *fname)
 // the global list
 // (not thread-safe)
 SourceFileList sourceFileList;
- 

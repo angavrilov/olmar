@@ -6,4 +6,3 @@ int foo()
   // implicit decl
   return not_declared();
 }
- 

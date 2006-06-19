@@ -14,4 +14,3 @@ void my_error(int severity, ...) {
     va_list ap;
     ( ap  = ((__gnuc_va_list) /*__builtin_next_arg*/foo (  severity ))) ;
 }
- 

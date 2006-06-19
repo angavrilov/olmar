@@ -26,4 +26,3 @@ void foo()
   c.f(a2);
   c.f(a3);
 }
- 

@@ -89,4 +89,3 @@ public:     // funcs
 };
 
 #endif // LEXERINT_H
- 

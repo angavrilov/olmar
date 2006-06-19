@@ -17,4 +17,3 @@ void f()
   //ERROR(1): b;        // ambiguous
   c;        // from second one
 }
- 

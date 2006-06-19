@@ -550,4 +550,3 @@ check: semgrep all
 checkxml:
 	$(MAKE) -f checkxml.mk
 
- 

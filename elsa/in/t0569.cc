@@ -27,4 +27,3 @@ void foo()
   f(e);
   h(e);
 }
- 

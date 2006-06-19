@@ -49,4 +49,3 @@ void reversePostorder(NextPtrList &order, TF_func const &func)
   SObjSet<Statement const*> seen, seenCont;
   rp_dfs(order, func.body, false /*isContinue*/, seen, seenCont);
 }
- 

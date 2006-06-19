@@ -22,4 +22,3 @@ void A::g(const int &)
 {
   //ERROR(1): d;    // method is static
 }
- 

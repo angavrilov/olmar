@@ -15,4 +15,3 @@ void foo()
   a.operator int* ();
 }
 
- 

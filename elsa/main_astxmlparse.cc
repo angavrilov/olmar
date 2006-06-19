@@ -123,4 +123,3 @@ TranslationUnit *astxmlparse(StringTable &strTable, char const *inputFname)
 
   return tunit;
 }
- 

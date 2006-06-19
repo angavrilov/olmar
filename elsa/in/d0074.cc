@@ -33,4 +33,3 @@ class A {
 public:typedef unsigned short char_type;
   typedef nsWritingIterator < char_type > iterator;
 };
- 

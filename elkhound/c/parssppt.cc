@@ -167,4 +167,3 @@ bool treeMain(ParseTreeAndTokens &ptree, int argc, char **argv,
   maybeUseTrivialActions(ptree);
   return toplevelParse(ptree, positionalArg);
 }
- 

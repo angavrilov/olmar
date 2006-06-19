@@ -102,4 +102,3 @@ typename BitStrMap<T>::Node *BitStrMap<T>::getTop()
 
 
 #endif // BITSTRMAP_H
- 

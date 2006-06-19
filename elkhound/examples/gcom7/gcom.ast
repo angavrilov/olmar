@@ -66,4 +66,3 @@ class GCom {
   -> G_stmt(BExp b, Stmt s);
   -> G_seq(GCom g1, GCom g2);
 }
- 

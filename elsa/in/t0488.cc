@@ -15,4 +15,3 @@ void g(C *c, int i)
 {
   f(i, c, i, 1);
 }
- 

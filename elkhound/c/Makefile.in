@@ -147,4 +147,3 @@ toolclean: clean
 
 check:
 	@echo "The C parser doesn't have an independent 'make check'."
- 

@@ -10,4 +10,3 @@ template<bool t> class C {
     }
 };
 template class C<true>;
- 

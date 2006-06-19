@@ -28,4 +28,3 @@ int main() {
 
     S1 s1(strings);
 }
- 

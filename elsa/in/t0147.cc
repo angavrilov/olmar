@@ -18,4 +18,3 @@ void f1()
   // needs B to inherit A::operator int& ()
   assign(b, 3);
 }
- 

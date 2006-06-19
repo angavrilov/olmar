@@ -7,4 +7,3 @@ struct ip_opts {
     : ip_opts(other.ip_opts)
   {}
 };
- 

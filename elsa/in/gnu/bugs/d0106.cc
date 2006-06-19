@@ -16,4 +16,3 @@ template<class T> class A {
 
 //template<>    <-- this is what is missing
 int A<int>::s = 0;
- 

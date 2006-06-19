@@ -25,4 +25,3 @@ void trashingDeleteArr(void *blk, size_t size);
   void operator delete[](void *blk, size_t size) { trashingDeleteArr(blk, size); }
 
 #endif // TRDELETE_H
- 

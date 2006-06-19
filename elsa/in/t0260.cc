@@ -34,4 +34,3 @@ struct A {
 
 
 // EOF
- 

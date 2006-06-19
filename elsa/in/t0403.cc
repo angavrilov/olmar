@@ -35,4 +35,3 @@ asm("collectLookupResults "
     "operator-=17 foo=6 s=20");
 
 // EOF
- 

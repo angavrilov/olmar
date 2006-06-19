@@ -8,4 +8,3 @@ struct Foo {
   Foo x;
   int q;
 };
- 

@@ -13,4 +13,3 @@ void foo(int c, A *a)
   (c? (void*)0 : a)->x;
   (c? a : (void*)0)->x;
 }
- 

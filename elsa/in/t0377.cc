@@ -14,4 +14,3 @@ void bar()
   foo(3);          // N::foo
   foo(4,5);        // ::foo
 }
- 

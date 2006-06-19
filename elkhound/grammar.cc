@@ -1289,4 +1289,3 @@ void Grammar::emitSelfCC(ostream &os) const
   // todo: more
 }
 #endif // 0
- 

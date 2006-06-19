@@ -42,4 +42,3 @@ int bar(int d2)
 //  {
 //    __lhs.swap(__rhs);
 //  }
- 

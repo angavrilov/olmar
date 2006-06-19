@@ -52,4 +52,3 @@ void callbar()
   a.bar();
 }
 
- 

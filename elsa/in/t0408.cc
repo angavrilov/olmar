@@ -17,4 +17,3 @@ void foo()
 
 asm("collectLookupResults foo=5 a=12 foo=6 ap=11");
 
- 

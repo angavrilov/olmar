@@ -39,4 +39,3 @@ namespace std {
     _Rb_tree_impl < _Compare > _M_impl;
   };
 }
- 

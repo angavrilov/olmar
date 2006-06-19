@@ -6,4 +6,3 @@
 // SE_STRINGLIT."
 char *a = "hello";
 char const *b = "hello";
- 

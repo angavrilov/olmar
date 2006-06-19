@@ -10,4 +10,3 @@ int main() {
   B<A> x;
   g(f(x), 1);
 }
- 

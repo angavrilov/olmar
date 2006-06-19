@@ -127,4 +127,3 @@ public:
 template <class TP>
 inline ostream& operator<<(ostream& o, const omanip<TP>& m)
 { return (*m._f)(o, m._a); }
- 

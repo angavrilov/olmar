@@ -53,4 +53,3 @@ public:
 
 
 #endif // OOBJMAP_H
- 

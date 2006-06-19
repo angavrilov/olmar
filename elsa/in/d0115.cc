@@ -11,4 +11,3 @@ typedef basic_string<char> string;
 class CoderInfo {
   CoderInfo (std::string &name);
 };
- 

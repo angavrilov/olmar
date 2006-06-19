@@ -9,4 +9,3 @@ template <class T2>
 struct B<T2*> {
   void g(B<T2*> &);
 };
- 

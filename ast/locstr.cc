@@ -80,4 +80,3 @@ void fromXml(LocString &out, rostring str)
 
 
 // EOF
- 

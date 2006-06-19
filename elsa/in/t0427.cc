@@ -32,4 +32,3 @@ struct D2 : D1 {
     return s.x;
   }
 };
- 

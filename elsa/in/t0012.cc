@@ -44,4 +44,3 @@ int foo(Foo * const ths);
 
 // what about this?
 Foo * const arf;
- 

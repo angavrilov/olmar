@@ -56,4 +56,3 @@ double zoo(double x)
   // the non-template
   return sqrt<>(x);
 }
- 

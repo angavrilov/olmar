@@ -2,4 +2,3 @@
 // literals are 'char (nonconst) []' in C
 char *a = "hello";
 char const *b = "hello";
- 

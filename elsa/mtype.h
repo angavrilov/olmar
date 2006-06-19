@@ -238,4 +238,3 @@ public:      // funcs
 
 
 #endif // MTYPE_H
- 

@@ -24,4 +24,3 @@ extern int yydebug;
 #endif // __cplusplus
 
 #endif // TRIVBISON_H
- 

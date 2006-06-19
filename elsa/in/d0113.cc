@@ -42,4 +42,3 @@ template<class C, class tr>
   // what the heck is going on?
 //    tr::a();
 }
- 

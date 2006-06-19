@@ -12,4 +12,3 @@ void f()
   //ERROR(2): using X::s;       // error: X::s is a class member
                                 // and this is not a member declaration.
 }
- 

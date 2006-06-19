@@ -21,4 +21,3 @@ int foo<float>(float t);
 //ERROR(1): template
 //ERROR(1): int foo<double>(char t);
 
- 

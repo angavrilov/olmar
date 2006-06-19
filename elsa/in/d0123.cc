@@ -6,4 +6,3 @@ struct inode *iget(struct super_block *sb, unsigned long ino)
 {
   return iget4(sb, ino, ((void *)0), ((void *)0));
 }
- 

@@ -18,4 +18,3 @@ void f()
   F f;
   f.A::a = 1;        // OK, A::a is a member of F
 }
- 

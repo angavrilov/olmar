@@ -22,4 +22,3 @@ enum ASTXMLTokenType {
   XTOK_GREATERTHAN,         // ">"
   XTOK_EQUAL,               // "="
   XTOK_SLASH,               // "/"
- 

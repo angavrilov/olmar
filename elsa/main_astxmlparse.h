@@ -9,4 +9,3 @@ class StringTable;
 TranslationUnit *astxmlparse(StringTable &strTable, char const *inputFname);
 
 #endif // MAIN_ASTXMLPARSE_H
- 

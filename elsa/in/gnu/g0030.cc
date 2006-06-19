@@ -13,4 +13,3 @@ struct A {
 };
 
 extern template class A<int>;
- 

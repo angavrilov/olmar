@@ -17,4 +17,3 @@ void foo()
 
   f(list, 3);
 }
- 

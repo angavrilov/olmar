@@ -27,4 +27,3 @@ struct D : A<float> {
     A<float> a;
   }
 };
- 

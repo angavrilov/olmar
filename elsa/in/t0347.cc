@@ -25,4 +25,3 @@ void foo()
   // believe it to be legal (and Elsa allows it)
   b == q;
 }
- 

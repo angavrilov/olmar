@@ -3,4 +3,3 @@
 
 typedef void voidfn ();
 extern volatile voidfn fatal;
- 

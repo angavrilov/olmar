@@ -33,4 +33,3 @@ namespace NS3 {
 namespace NS4 {
     int NS3::S::foo() { return 0; }
 }
- 

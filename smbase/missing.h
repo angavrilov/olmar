@@ -9,4 +9,3 @@
 int missing_stricmp(char const *s1, char const *s2);
 
 #endif // __MISSING_H
- 

@@ -10,4 +10,3 @@ template<typename funcType>
 void generate(funcType func) {
     func();
 }
- 

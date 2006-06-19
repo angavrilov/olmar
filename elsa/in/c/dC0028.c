@@ -7,4 +7,3 @@ long numeric_out () {
     .__d
     );
 }
- 

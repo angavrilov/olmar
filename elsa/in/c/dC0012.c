@@ -11,4 +11,3 @@ void irda_device_unregister_dongle_R40b68423(struct dongle_reg *dongle)
   struct dongle *node;
   dongle->type;
 }
- 

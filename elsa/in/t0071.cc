@@ -8,4 +8,3 @@ public:
   
   typedef enum E { a,b,c } E;
 };
- 

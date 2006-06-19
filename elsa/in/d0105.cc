@@ -8,4 +8,3 @@ template<class V>
 struct D : C<V> {
   typename C<V>::A x;
 };
- 

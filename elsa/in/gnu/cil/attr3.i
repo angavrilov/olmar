@@ -807,4 +807,3 @@ extern int __attribute__((a( 7 )))   * __attribute__((a( 6 )))   (__attribute__(
 int __attribute__((a( 7 )))   * __attribute__((a( 6 )))   (__attribute__((a( 4 )))   * __attribute__((a( 3 )))   (__attribute__((a( 1 )))   x3)(int __attribute__((a( 2 )))   x))(float __attribute__((a( 5 )))  ) {
   return & x2;
 }
- 

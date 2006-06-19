@@ -176,4 +176,3 @@ NODE *resolveImplIntAmbig(Env &env, NODE *node)
 
 
 #endif // IMPLINT_H
- 

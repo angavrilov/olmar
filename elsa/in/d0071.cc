@@ -4,4 +4,3 @@ void g() {
   const int x = 3;
   m(x, 4);
 }
- 

@@ -358,4 +358,3 @@ AssocKind whichKind(LocString * /*owner*/ kind)
   xbase(stringc << kind->locString()
                 << ": invalid associativity kind: " << *kind);
 }
- 

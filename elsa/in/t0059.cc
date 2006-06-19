@@ -21,4 +21,3 @@ struct nsReadableFragment
         return ulong(char_ptr(mFragmentIdentifier)-char_ptr(0));
       }
   };
- 

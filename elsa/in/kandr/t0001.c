@@ -8,4 +8,3 @@ int foo(a,b,c)
 {
   return a + (int)b + *c;
 }
- 

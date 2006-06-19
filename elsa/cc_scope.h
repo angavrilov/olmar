@@ -347,4 +347,3 @@ public:      // funcs
 
 
 #endif // CC_SCOPE_H
- 

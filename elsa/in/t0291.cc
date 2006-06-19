@@ -21,4 +21,3 @@ class B {
     return i;
   }
 };
- 

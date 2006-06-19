@@ -5,4 +5,3 @@ template <
   class T                  //ERRORIFMISSING(1): required
 >
 class C {};
- 

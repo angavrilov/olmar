@@ -19,4 +19,3 @@ public:
 void walkExpression(ExpressionVisitor &vis, Expression const *root);
 
 #endif // EXPRVISIT_H
- 

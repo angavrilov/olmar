@@ -13,4 +13,3 @@ int main() {
     // actually, this is invalid, and is rejected by gcc-3.4.3
     //ERROR(1): (n) + (sizeof(struct {}));
 }
- 

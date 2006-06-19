@@ -72,4 +72,3 @@ void defaultWarningPrinter(WarnLevel level, char const *message);
 
 #endif // __WARN_H
 
- 

@@ -34,4 +34,3 @@ void f()
   __testOverload(foo(y), 14);       // use 1
   __testOverload(foo(z), 21);       // use 2
 }
- 

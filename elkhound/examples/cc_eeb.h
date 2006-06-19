@@ -42,4 +42,3 @@ public:
 };
 
 #endif // CC_EEB_H
- 

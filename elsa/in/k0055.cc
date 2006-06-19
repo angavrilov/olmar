@@ -37,4 +37,3 @@ int main()
     return s2.foo();
 }
 
- 

@@ -20,4 +20,3 @@ int main()
   // this one looks ambiguous at first blush
   int fileno(FILE *f);
 }
- 

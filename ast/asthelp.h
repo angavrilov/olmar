@@ -414,4 +414,3 @@ FakeList<T> * /*owner*/ cloneFakeList(FakeList<T> const *src)
 
 
 #endif // ASTHELP_H
- 

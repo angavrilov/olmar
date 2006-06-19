@@ -23,4 +23,3 @@ extern __inline__ __u16 __swab16p(__u16 *x)
       __fswab16(( *( x ) ))
   )  ;
 }
- 

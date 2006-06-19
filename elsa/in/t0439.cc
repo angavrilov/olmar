@@ -15,4 +15,3 @@ int f()
   a.x = 5;
   return a.x;
 }
- 

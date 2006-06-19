@@ -8,4 +8,3 @@ void f(State &e)
 {
   e |= goodbit;
 }
- 

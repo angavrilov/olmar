@@ -58,4 +58,3 @@ mylabel:
 
   4;   // dummy for 'try' CFG targets
 }
- 

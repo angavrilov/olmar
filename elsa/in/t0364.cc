@@ -47,4 +47,3 @@ void S::bar()
 
 
 // EOF
- 

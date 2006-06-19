@@ -7,4 +7,3 @@
 NonterminalInfo nontermMap[] = {};
 
 int nontermMapLength = 0;
- 

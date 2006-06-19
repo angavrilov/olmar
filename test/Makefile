@@ -146,4 +146,3 @@ clean:
 	rm -f test_cc_ast_gen.ml
 	rm -f test_cc_ast_gen_type.ml
 	rm -f *.cmi *.cmo
- 

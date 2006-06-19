@@ -57,4 +57,3 @@ clean:
 
 toolclean: clean
 	rm -f arithyy.cc
- 

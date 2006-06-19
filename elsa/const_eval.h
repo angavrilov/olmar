@@ -126,4 +126,3 @@ public:
 };
 
 #endif // CONST_EVAL_H
- 

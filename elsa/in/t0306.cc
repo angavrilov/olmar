@@ -11,4 +11,3 @@ void foo(bool b)
 
   f(b? 0 : a);
 }
- 

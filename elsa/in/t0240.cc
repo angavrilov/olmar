@@ -19,4 +19,3 @@ void f()
   A *a;
   func(a);
 }
- 

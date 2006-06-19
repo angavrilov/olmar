@@ -346,4 +346,3 @@ int ff()
   BB b;
   return a-b;     // overloaded operator call
 };
- 

@@ -56,4 +56,3 @@ void foo()
   a.call_h();
   a.call_j();
 }
- 

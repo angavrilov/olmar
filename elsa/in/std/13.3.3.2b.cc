@@ -21,4 +21,3 @@ void g(const X& a, X b)
     a.f();                         // Calls X::f() const
     b.f();                         // Calls X::f()
 }
- 

@@ -119,4 +119,3 @@ public:     // funcs
 
 
 #endif // __STRSOBJDICT_H
- 

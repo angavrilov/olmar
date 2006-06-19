@@ -796,4 +796,3 @@ CValue Expression::constEvalCast(ConstEval &env, ASTTypeId const *ctype,
 
 
 // EOF
- 

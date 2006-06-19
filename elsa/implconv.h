@@ -92,4 +92,3 @@ void test_getImplicitConversion(
 
 
 #endif // IMPLCONV_H
- 

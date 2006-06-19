@@ -62,4 +62,3 @@ string AstXmlLexer::tokenKindDesc(int kind) const
   xassert(tokenNames[kind]);     // make sure the tokenNames array grows with the enum
   return tokenNames[kind];
 }
- 

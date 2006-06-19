@@ -25,4 +25,3 @@ void f(A const &aref)
 
 
 
- 

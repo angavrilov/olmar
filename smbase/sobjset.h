@@ -54,4 +54,3 @@ public:
 
 
 #endif // SOBJSET_H
- 

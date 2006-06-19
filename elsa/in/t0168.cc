@@ -13,4 +13,3 @@ void f()
 {
   nsWritingIterator<int> w;
 }
- 

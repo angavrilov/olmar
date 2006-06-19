@@ -28,4 +28,3 @@ void bar()
 asm("collectLookupResults p1=14 foo=5 p2=17 foo=6 foo=5 foo=6");
 
 // EOF
- 

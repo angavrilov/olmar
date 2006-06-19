@@ -11,4 +11,3 @@ void foo(double a)
   S y((int)a);   // object declaration
   S z = int(a);  // object declaration
 }
- 

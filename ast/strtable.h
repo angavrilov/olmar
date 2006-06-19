@@ -110,4 +110,3 @@ public:     // funcs
 
 
 #endif // STRTABLE_H
- 

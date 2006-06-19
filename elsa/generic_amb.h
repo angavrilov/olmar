@@ -273,4 +273,3 @@ NODE *swap_then_resolveAmbiguity(
 
 
 #endif // GENERIC_AMB_H
- 

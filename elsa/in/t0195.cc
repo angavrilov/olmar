@@ -15,4 +15,3 @@ void f()
   //ERROR(1): i = int(4,5);
 }
 
- 

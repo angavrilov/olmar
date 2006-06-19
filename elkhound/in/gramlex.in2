@@ -15,4 +15,3 @@ fun foo {
 fun bar = 5;
 
 end of gramlex.in2
- 

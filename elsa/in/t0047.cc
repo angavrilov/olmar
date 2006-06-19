@@ -11,4 +11,3 @@ void Shuffle(T *array, unsigned int size)
     swap(array[size], array[getRandom(0, size)]);
   }
 }
- 

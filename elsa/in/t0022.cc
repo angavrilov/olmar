@@ -7,4 +7,3 @@ struct BF {
   int /*anon*/ : 7;
   //ERROR(1):  /*anon*/ : 7;  // missing type--parse error
 };
- 

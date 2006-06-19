@@ -15,4 +15,3 @@ void func()
   i = f.hash.x;    // make sure 'hash' is a variable, not a type
 }
 
- 

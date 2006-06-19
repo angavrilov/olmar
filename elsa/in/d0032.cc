@@ -4,4 +4,3 @@ void f() {
   static A a;
   A a2;
 }
- 

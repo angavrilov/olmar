@@ -26,4 +26,3 @@ void foo(A &a)
 {
   f(a);
 }
- 

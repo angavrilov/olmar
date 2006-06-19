@@ -29,4 +29,3 @@ nonterm[int] F {
   -> id           [ return 0; ]
 }
 
- 

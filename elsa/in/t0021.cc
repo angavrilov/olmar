@@ -25,4 +25,3 @@ typedef int x;
 
 //ERROR(2): typedef double x;
 
- 

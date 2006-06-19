@@ -236,4 +236,3 @@ class XmlReaderManager {
 };
 
 #endif // XML_H
- 

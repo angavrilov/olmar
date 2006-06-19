@@ -81,4 +81,3 @@ public:      // funcs
   for(StringSet::Iter iter(list); !iter.isDone(); iter.next())
 
 #endif // STRINGSET_H
- 

@@ -16,4 +16,3 @@ C<float,float> *p;
 
 // and also use the specialization
 C<int,float> *q;
- 

@@ -22,4 +22,3 @@ A<T>& A<T>::append(T* t, size_type n)
 
 
 // EOF
- 

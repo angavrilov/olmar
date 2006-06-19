@@ -32,4 +32,3 @@ public:
     : Base(obj.ptrField)
   {}
 };
- 

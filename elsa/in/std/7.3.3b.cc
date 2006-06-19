@@ -18,4 +18,3 @@ class D2 : public B {
   using B::x;              // OK: x is a union member of base B
   //ERROR(1): using C::g;              // error: C isn't a base of D2
 };
- 

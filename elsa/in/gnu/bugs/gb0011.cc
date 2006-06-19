@@ -22,4 +22,3 @@ int A::f(int x, int xx)
 {
   return 2;
 }
- 

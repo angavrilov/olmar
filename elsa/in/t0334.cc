@@ -24,4 +24,3 @@ void foo()
   // illegal b/c a temporary gets bound to a non-const reference
   //ERROR(1): f2(r);
 }
- 

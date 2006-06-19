@@ -38,4 +38,3 @@ void f()
   // only use lookup in global
   a.::A3::foo();
 }
- 

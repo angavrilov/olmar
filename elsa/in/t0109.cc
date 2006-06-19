@@ -21,4 +21,3 @@ void f()
   // should be an error b/c Zoo is incomplete
   //ERROR(2): new Zoo;
 }
- 

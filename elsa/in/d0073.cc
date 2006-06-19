@@ -10,4 +10,3 @@ int main() {
   A x;
   f(x);
 }
- 

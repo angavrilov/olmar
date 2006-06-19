@@ -7,4 +7,3 @@ template<class C> struct A {
 template<class C> struct B : A<C> {
   typename A<C>::Iter &operator = (const typename A<C>::Iter &orig) {}
 };
- 

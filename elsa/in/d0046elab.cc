@@ -16,4 +16,3 @@ struct B<T2 *> {
   inline B(B<T2*> const &__other) {
   }
 };
- 

@@ -10,4 +10,3 @@ struct B {
 void f() {
   B<int> b;
 }
- 

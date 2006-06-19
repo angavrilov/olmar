@@ -35,4 +35,3 @@ string toXml_SourceLoc(SourceLoc loc);
 void fromXml_SourceLoc(SourceLoc &loc, rostring str);
 
 #endif // XMLHELP_H
- 

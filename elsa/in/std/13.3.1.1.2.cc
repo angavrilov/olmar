@@ -13,4 +13,3 @@ struct A {
 // in this context
 //int i = a(1);                        // Calls f1 via pointer returned from
                                      // conversion function
- 

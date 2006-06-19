@@ -11,4 +11,3 @@ int f()
 {
   return N::x;
 }
- 

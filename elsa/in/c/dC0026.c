@@ -6,4 +6,3 @@ void pack12 (p, n, last)
      register /*implicit-int*/ n;
      int last;
 {}
- 

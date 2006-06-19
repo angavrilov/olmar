@@ -8,4 +8,3 @@ void f(T t) {
   C& c;
   c.T::g();
 }
- 

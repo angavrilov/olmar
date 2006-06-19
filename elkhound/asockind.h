@@ -22,4 +22,3 @@ enum AssocKind {
 string toString(AssocKind k);
 
 #endif // ASOCKIND_H
- 

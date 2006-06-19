@@ -32,4 +32,3 @@ void foo()
 
   a.g(&x);      // instantiate A<int>::g<float>
 }
- 

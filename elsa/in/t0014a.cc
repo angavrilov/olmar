@@ -4,4 +4,3 @@ int main()
   x = int(6);
   p = new int[x];
 }
- 

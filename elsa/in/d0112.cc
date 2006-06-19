@@ -8,4 +8,3 @@ struct _Alloc_traits
 {
   typedef typename _Allocator::rebind < _Tp >::other allocator_type;
 };
- 

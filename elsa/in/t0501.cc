@@ -7,4 +7,3 @@ struct A {
     friend class A<T>;
   };
 };
- 

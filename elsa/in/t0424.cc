@@ -12,4 +12,3 @@ struct D : public B {
     f(1);
   }
 };
- 

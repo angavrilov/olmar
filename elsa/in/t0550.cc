@@ -11,4 +11,3 @@ void foo(A<int const> &a)
 {
   f(a);
 }
- 

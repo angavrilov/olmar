@@ -399,4 +399,3 @@ int ssh_read_confirmation(const char *prompt, int from_stdin)
     fclose(f);
   return 1/*TRUE*/;
 }
- 

@@ -29,4 +29,3 @@ void foo(B &b)
 {
   b[0];     // translated to *(a+0), but with '+' as built-in
 }
- 

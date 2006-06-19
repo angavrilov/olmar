@@ -78,4 +78,3 @@ float z;
 
   // function that returns a pointer to a fn; isFunction = 1
   int (*  fn(char)  )(int);
- 

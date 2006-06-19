@@ -20,4 +20,3 @@ template <class T>
 A<T>::A<T>(int*) {}
 
 
- 

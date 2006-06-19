@@ -22,4 +22,3 @@ struct B A<T>::b2;
 
 template <class T>
 B A<T>::b3;
- 

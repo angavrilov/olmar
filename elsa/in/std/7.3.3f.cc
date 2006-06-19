@@ -24,4 +24,3 @@ class X : public B {
   using B::i;
   //ERROR(2): using B::i;         // error: double member declaration
 };
- 

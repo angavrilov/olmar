@@ -20,4 +20,3 @@ struct D : B, C {
 int f(D* d) {
   //ERROR(1): return d->x();            // ambiguous: B::x or C::x
 }
- 

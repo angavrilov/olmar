@@ -185,4 +185,3 @@ nonterm[StringRef] Name {
   -> n:L2_VARIABLE_NAME     [ return n; ]
   -> n:L2_TYPE_NAME         [ return n; ]
 }
- 

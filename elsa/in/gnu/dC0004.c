@@ -11,4 +11,3 @@ int main() {
   const struct qstr *x =
     &(const struct qstr) { "bdev:", 5, 0 };
 }
- 

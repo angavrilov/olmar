@@ -422,4 +422,3 @@ type castKeyword =
 (*** Local Variables: ***)
 (*** compile-command : "ocamlc.opt -c cc_ml_types.ml" ***)
 (*** End: ***)
- 

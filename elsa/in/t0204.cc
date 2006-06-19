@@ -17,4 +17,3 @@ namespace N
 
 // but where we instantiate, 'anotherint' is not visible
 N::C<char> c;
- 

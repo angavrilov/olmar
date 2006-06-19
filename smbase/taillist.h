@@ -129,4 +129,3 @@ public:
   for(TailListIterNC<T> iter(list); !iter.isDone(); iter.adv())
 
 #endif // TailLIST_H
- 

@@ -18,4 +18,3 @@ gcc -MM "$@" |
 # obsolete:
 #   - make the .d file itself depend on the same things the .o does
 #  -e 's@^\(.*\)\.o:@\1.d \1.o:@'
- 

@@ -22,4 +22,3 @@ int foo() {
   (s->templfunc<1>)(2);
 }
 
- 

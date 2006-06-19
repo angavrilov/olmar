@@ -32,4 +32,3 @@ public:       // funcs
 };
 
 #endif // OBJSTACK_H
- 

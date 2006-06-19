@@ -30,4 +30,3 @@ int main()
   
   f<2, int>(y);             // use specialziation
 }
- 

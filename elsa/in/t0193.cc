@@ -34,4 +34,3 @@ operator+ (int __n,
 {
   return __normal_iterator < _Iterator > (__i.base () + __n);
 }
- 

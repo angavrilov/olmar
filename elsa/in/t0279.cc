@@ -9,4 +9,3 @@ int main()
   __checkCalleeDefnLine(f(1), 4);                // non-template
   __checkCalleeDefnLine(f('c'), 5);              // template
 }
- 

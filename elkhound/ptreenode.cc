@@ -153,4 +153,3 @@ void PTreeNode::addAlternative(PTreeNode *alt)
   
   alternativeCount++;
 }
- 

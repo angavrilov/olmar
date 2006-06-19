@@ -30,4 +30,3 @@ string Variable::toString() const
   // 'flags', etc.).
   return type->toCString(name? name : "");
 }
- 

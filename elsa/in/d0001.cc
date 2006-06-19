@@ -11,4 +11,3 @@ void f () {
   //int *m;
   C::strcmp(k, m);
 }
- 

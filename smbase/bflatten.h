@@ -59,4 +59,3 @@ T *writeThenRead(T &obj)
 }
 
 #endif // BFLATTEN_H
- 

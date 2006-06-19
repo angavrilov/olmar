@@ -400,4 +400,3 @@ Boolean ssh_read_confirmation(const char *prompt, Boolean from_stdin)
     fclose(f);
   return 1/*TRUE*/;
 }
- 

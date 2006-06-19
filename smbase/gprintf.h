@@ -35,4 +35,3 @@ int general_printf(Gprintf_output_function output,
 #endif
 
 #endif /* GPRINTF_H */
- 

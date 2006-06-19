@@ -6,4 +6,3 @@ namespace std {
   using ::ptrdiff_t;
   using std::ptrdiff_t;
 }
- 

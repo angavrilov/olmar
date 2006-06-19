@@ -14,4 +14,3 @@ namespace Q {
 namespace R {
   //ERROR(2): void Q::V::g() { /*...*/ }  // error: R doesn't enclose Q
 }
- 

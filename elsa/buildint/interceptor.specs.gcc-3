@@ -18,4 +18,3 @@
 
 *cc1plus_options:
 + ---build_interceptor-orig_filename=%i
- 

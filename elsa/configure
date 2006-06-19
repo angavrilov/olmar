@@ -2,4 +2,3 @@
 # thunk
 
 exec perl -wS ./configure.pl ${1+"$@"}
- 

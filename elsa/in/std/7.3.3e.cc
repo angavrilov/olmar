@@ -18,4 +18,3 @@ void h()
   X::f();            // calls ::f
   X::g();            // calls A::g
 }
- 

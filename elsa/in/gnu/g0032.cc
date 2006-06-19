@@ -13,4 +13,3 @@ struct A {
   
   int adjacent_$$_dollars;
 };
- 

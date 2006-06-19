@@ -8,4 +8,3 @@ template < class _Oper,
            class _Dom1,
            class _Dom2 > 
 class _BinClos;
- 

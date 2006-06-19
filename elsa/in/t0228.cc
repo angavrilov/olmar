@@ -18,4 +18,3 @@ void f()
   // in the presence of GNU
   //ERROR - OFF - (2): char arr3[];
 }
- 

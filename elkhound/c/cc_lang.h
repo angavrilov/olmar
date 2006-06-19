@@ -23,4 +23,3 @@ public:
 };
 
 #endif // CCLANG_H
- 

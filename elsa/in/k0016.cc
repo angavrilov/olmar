@@ -16,4 +16,3 @@ template <typename T> struct S {
     }
 };
 template void S<int>::foo();
- 

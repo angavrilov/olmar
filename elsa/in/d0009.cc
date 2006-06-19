@@ -9,4 +9,3 @@ struct A {
     (*this)[i];
   }
 };
- 

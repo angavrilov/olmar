@@ -14,4 +14,3 @@ class B(string name) {
   -> B_one(int y);
   -> B_two(char c);
 }
- 

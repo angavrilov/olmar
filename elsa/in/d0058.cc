@@ -67,4 +67,3 @@ int main() {
   f2<int*>(a2);                 // function template argument inference
   ffwd<A<int> >(a);             // function template argument inference
 }
- 

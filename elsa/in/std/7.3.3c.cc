@@ -14,4 +14,3 @@
 //    using A::f<double>;     // ill-formed
 //    using A::X<int>;        // ill-formed
 //  };
- 

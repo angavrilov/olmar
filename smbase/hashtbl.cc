@@ -259,4 +259,3 @@ STATICDEF bool HashTable::
 {
   return key1 == key2;
 }
- 

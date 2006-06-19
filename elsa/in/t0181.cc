@@ -6,4 +6,3 @@ struct C {
   C(T t);
 };
     
- 

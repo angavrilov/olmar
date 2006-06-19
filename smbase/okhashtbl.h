@@ -73,4 +73,3 @@ public:       // funcs
 };
 
 #endif // OKHASHTBL_H
- 

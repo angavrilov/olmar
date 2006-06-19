@@ -122,4 +122,3 @@ ObjMap<KEY,VALUE>& ObjMap<KEY,VALUE>::operator=(ObjMap const &src)
 
 
 #endif // OBJMAP_H
- 

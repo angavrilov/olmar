@@ -48,4 +48,3 @@ public:
 
   const abstract_string_type&  mString;    // type: nsACString&
 };
- 

@@ -7,4 +7,3 @@ template < class T > class nsCOMPtr {
     do_QueryInterface (mRawPtr);
   }
 };
- 

@@ -7,4 +7,3 @@ struct X {
 
   int Y;     // ok too
 };
- 

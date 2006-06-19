@@ -63,4 +63,3 @@ inline string toString(Variable const *v) { return v->toString(); }
 
 
 #endif // C_VARIABLE_H
- 

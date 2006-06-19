@@ -27,4 +27,3 @@ struct A {} __attribute__ ((aligned (__alignof (int))));
 //  struct A {} __attribute__ ((mode (__word__)));
 //  struct A {} __attribute__ ((mode (pointer)));
 //  struct A {} __attribute__ ((mode (__pointer__)));
- 

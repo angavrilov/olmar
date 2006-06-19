@@ -23,4 +23,3 @@ void foo(QArray<char> &a, char const *s)
 {
   a.duplicate(s, 5);
 }
- 

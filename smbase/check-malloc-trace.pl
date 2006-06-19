@@ -52,4 +52,3 @@ if ($verbose) {
 # for some reason, perl was complaining until I said 'STDOUT' too ..
 print STDOUT ("saw $mallocs mallocs and $frees frees" .
               ($verbose? "" : " (-v to see unfreed)") . "\n");
- 

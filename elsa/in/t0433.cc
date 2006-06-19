@@ -48,4 +48,3 @@ void g()
   int **q = 0;
   a.foo(q);
 }
- 

@@ -507,4 +507,3 @@ class FuncAnnotation {
 // or a name with some attr args (and so on recursively).  It's wrapped
 // like this so unattributed names can have a simple NULL*.
 class ThmprvAttr(StringRef name, ASTList<ThmprvAttr> args);
- 

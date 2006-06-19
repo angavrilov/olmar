@@ -35,4 +35,3 @@ void func()
   struct x x1;                  // x1 has class type B::x
 }
 
- 

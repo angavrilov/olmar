@@ -3,4 +3,3 @@
 struct B {};
 extern B b;
 B b;
- 

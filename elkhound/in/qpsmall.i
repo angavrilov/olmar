@@ -678,4 +678,3 @@ static __inline__ void atomic_sub(int i, volatile atomic_t *v)
 		:"=m" ((*(volatile struct { int a[100]; } *) v ) )
 		:"ir" (i), "m" ((*(volatile struct { int a[100]; } *) v ) ));
 }
- 

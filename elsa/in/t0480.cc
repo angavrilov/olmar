@@ -63,4 +63,3 @@ int f3(D<T> d)
 template int f3(D<A*> d);
 template int f3(D<B> d);
 template int f3(D<C> d);
- 

@@ -18,4 +18,3 @@ struct S2 {
     S2<T, U>(T t) {}
     virtual ~S2<T, U>() {}
 };
- 

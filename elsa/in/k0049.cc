@@ -13,4 +13,3 @@ int main() {
     int restrict = 1;
     return restrict == 1;
 }
- 

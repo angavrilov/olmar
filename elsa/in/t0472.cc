@@ -20,4 +20,3 @@ void foo()
 }
 
 // EOF
- 

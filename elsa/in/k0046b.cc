@@ -15,4 +15,3 @@ void f()
   // the anon struct is useless, so this is illegal
   //ERROR(1): u.foo1;
 }
- 

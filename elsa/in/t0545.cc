@@ -48,4 +48,3 @@ void bar()
 {
   Ptr<int> q((int*)0);
 }
- 

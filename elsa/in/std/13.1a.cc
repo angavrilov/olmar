@@ -10,4 +10,3 @@ class X {
     void g() const volatile;       // OK: no static g
 };
 
- 

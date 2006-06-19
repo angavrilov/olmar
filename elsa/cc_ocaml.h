@@ -50,4 +50,3 @@ value ocaml_from_Variable(const Variable &, ToOcamlData *);
 // value ocaml_from_(const  &, ToOcamlData *);
 
 #endif // CC_OCAML_H
- 

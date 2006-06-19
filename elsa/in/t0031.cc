@@ -12,4 +12,3 @@ int main()
   operator delete (x);
   operator delete[] (x);
 }
- 

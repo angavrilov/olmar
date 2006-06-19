@@ -100,4 +100,3 @@ int Flatten::readInt()
   return i;
 }
 
- 

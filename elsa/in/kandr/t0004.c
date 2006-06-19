@@ -7,4 +7,3 @@ static /*implicit-int*/ tinfomove(row, col)
 {
     return(0);
 }
- 

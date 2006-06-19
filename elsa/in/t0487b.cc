@@ -14,4 +14,3 @@ void g(C *c, int const *i)
 {
   f(c, i, 1);
 }
- 

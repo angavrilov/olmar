@@ -6,4 +6,3 @@ struct A {
   void foo(T t);
 };
 
- 

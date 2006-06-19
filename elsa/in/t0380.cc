@@ -18,4 +18,3 @@ void bar()
 }
 
 asm("collectLookupResults f=4 foo=7 y=16");
- 

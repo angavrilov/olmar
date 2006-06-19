@@ -505,4 +505,3 @@ public:       // funcs
 
 
 #endif // ARRAY_H
- 

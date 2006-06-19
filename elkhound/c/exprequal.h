@@ -8,4 +8,3 @@ class Expression;
 bool equalExpressions(Expression const *left, Expression const *right);
 
 #endif // EXPREQUAL_H
- 

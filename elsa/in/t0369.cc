@@ -59,4 +59,3 @@ void h()
   c.bar(2,3);
   c.bar(2 /*implicit*/);
 }
- 

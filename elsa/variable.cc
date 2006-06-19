@@ -689,4 +689,3 @@ Variable *OverloadSet::findByType(FunctionType const *ft) {
 
 
 // EOF
- 

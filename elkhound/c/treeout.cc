@@ -12,4 +12,3 @@ ostream &treeOut(int level)
   cout << " ";
   return cout;
 }
- 

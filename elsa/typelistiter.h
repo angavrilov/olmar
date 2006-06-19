@@ -59,4 +59,3 @@ class TypeListIter_GrowArray : public TypeListIter {
 };
 
 #endif // TYPELISTITER_H
- 

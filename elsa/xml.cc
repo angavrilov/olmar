@@ -671,4 +671,3 @@ void XmlReaderManager::convertNameMap2StringSObjDict
   }
   THROW(xBase(stringc << "no converter for name map type"));
 }
- 

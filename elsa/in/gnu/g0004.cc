@@ -8,4 +8,3 @@ void f()
   __builtin_strrchr("foo", 'o');
   __builtin_strstr("this is the haystack", "hay");
 }
- 

@@ -19,4 +19,3 @@ intfn foo;
 
 int foo(int x)
 {}
- 

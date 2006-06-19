@@ -9,4 +9,3 @@ struct B{};
 void g() {
   throw B();
 }
- 

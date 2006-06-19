@@ -27,4 +27,3 @@ void foo()
   g = x;               // local variable x, since N::x as if at toplevel
 }
 
- 

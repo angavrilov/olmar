@@ -11,4 +11,3 @@ int f()
   return CT::func1(T::func2(), T::func3());   // ambiguous: func or constructor
 }
 
- 

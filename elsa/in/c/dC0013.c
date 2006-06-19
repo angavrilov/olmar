@@ -7,4 +7,3 @@ struct net_bridge_port
   port_id port_id;
   port_id designated_port;
 };
- 

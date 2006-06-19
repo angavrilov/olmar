@@ -14,4 +14,3 @@ void foo()
   f(3, v, &varName);
   f(3, v, varName);
 }
- 

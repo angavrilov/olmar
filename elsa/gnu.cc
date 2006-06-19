@@ -1346,4 +1346,3 @@ void D_attribute::tcheck(Env &env, Declarator::Tcheck &dt)
 
 
 // EOF
- 

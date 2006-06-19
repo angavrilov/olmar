@@ -317,4 +317,3 @@ void ObjListMultiIter<T>::normalize()
 
 
 #endif // OBJLIST_H
- 

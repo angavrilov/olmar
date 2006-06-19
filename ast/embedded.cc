@@ -12,4 +12,3 @@ EmbeddedLang::EmbeddedLang(ReportError *e)
 
 EmbeddedLang::~EmbeddedLang()
 {}
- 

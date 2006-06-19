@@ -8,4 +8,3 @@ void foo(int c)
 
   c? f1 : f2;
 }
- 

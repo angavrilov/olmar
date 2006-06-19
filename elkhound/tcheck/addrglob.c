@@ -33,4 +33,3 @@ int *zoo()
 
 int ug thmprv_attr(misspelled);     // ERROR(2)
 
- 

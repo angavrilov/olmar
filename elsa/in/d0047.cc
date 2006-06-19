@@ -11,4 +11,3 @@ struct E {
 
 // replacing int with a struct maintains the error
 E<int> q = new int;                 // (1)
- 

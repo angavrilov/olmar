@@ -11,4 +11,3 @@ extern void *__builtin_alloca (unsigned int);
 int f() {
   char *pwd=(char*)__builtin_alloca(3);
 }
- 

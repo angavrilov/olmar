@@ -16,4 +16,3 @@ void bar() throw(Exc);
 
 //ERROR(1): void bar();    // conflicting declaration
 
- 

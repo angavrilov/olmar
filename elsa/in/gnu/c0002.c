@@ -6,4 +6,3 @@ enum Blah;
 enum Blah {x};
 //ERROR(1): enum Blah {y};
 enum Blah;
- 

@@ -3,4 +3,3 @@
 // at class
 
 template <class T> struct E : public T::B {};
- 

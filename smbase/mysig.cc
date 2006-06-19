@@ -212,4 +212,3 @@ int main()
 #endif // TEST_MYSIG
 
 #endif     // cygwin
- 

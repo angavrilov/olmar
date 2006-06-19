@@ -25,4 +25,3 @@ int main()
     S2<int> x;
     return foo<int>();
 }
- 

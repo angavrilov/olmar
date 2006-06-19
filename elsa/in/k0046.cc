@@ -18,4 +18,3 @@ int main () {
     //ERROR(5): dynamic_cast<struct { int x; }*>(0);
     //ERROR(6): reinterpret_cast<struct { int x; }*>(0);
 }
- 

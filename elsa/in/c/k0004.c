@@ -8,4 +8,3 @@ typedef void (*func) ();
 struct S {
     func (*proc);
 };
- 

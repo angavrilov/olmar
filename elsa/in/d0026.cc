@@ -7,4 +7,3 @@ struct C {
   typedef F<char_type> f;       // commenting this line out fixes it!
   typedef I<char_type> i;
 };
- 

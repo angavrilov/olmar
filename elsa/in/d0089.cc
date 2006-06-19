@@ -6,4 +6,3 @@
 
 extern const int png_pass_start[7];
 const int png_pass_start[] = {0, 4, 0, 2, 0, 1, 0};
- 

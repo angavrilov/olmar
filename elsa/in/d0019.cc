@@ -18,4 +18,3 @@ int s(N *lhs, N *rhs) {
   C<N> (d (rhs));
   return 0;
 }
- 

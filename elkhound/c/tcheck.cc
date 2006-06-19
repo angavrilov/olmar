@@ -1788,4 +1788,3 @@ void IN_compound::tcheck(Env &env, Type const *type)
                     << type->toString());
   }
 }
- 

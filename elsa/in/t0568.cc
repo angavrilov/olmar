@@ -45,4 +45,3 @@ T Min (const T & x, const T & y, int z = 15)
 {
   return x + z;
 }
- 

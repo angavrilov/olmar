@@ -11,4 +11,3 @@ struct B {
     return *this;
   }
 };
- 

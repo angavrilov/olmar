@@ -16,4 +16,3 @@ struct A {
   // this line has the MemberDeclaration problem
   friend INT (::f(int));
 };
- 

@@ -7,4 +7,3 @@ int main() {
   while (whatever) 14;
   while (bool cond = whatever) 15;
 }
- 

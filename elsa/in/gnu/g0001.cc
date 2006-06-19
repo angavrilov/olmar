@@ -3,4 +3,3 @@
 // I think this is a gnu thing
 
 int * __restrict__ x;
- 

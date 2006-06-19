@@ -7,4 +7,3 @@ class string_char_traits {};
 
 /* should say "template <>" here */
 class string_char_traits<char> {};
- 

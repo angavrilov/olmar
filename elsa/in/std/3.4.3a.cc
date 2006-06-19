@@ -14,4 +14,3 @@ int main()
   //ERROR1: A b;                // ill-formed: A does not name a type
 }
 
- 

@@ -6,4 +6,3 @@ template<class T, int I> T g(A<T*, I+1> a, T i[I]);
 //  }
 
 // try instantiating it as well
- 

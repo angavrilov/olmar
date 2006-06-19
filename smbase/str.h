@@ -347,4 +347,3 @@ string vstringf(char const *format, va_list args);
 
 
 #endif // STR_H
- 

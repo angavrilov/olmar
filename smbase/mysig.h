@@ -48,4 +48,3 @@ void printSegfaultAddrs();
 #endif // __cplusplus
 
 #endif // MYSIG_H
- 

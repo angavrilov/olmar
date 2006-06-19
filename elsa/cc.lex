@@ -487,4 +487,3 @@ PPCHAR        ([^\\\n]|{BACKSL}{NOTNL})
   yyterminate();
 }
 #endif // 0
- 

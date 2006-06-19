@@ -29,4 +29,3 @@ void foo()
 //ERROR(5): long long long long LLLL;
 //ERROR(6): long long long long long LLLL;
 
- 

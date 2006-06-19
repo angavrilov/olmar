@@ -28,4 +28,3 @@ messages < _CharT >::open (const basic_string <char >&__s,
                            const char *__dir) const
 {
 }
- 

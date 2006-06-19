@@ -6,4 +6,3 @@ exec >parse.log 2>&1
 for fn in `cat /home/scott/bld/openssl-0.9.7/allifiles`; do
   ./test-parse -tr c_lang $fn
 done
- 

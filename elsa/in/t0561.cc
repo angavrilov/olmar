@@ -35,4 +35,3 @@ A<((&(f2)))> af7;
 // ICC accepts them, and I see no justification in the standard for
 // rejecting.
 
- 

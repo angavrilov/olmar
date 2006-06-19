@@ -38,4 +38,3 @@ public:
   // a ctor declaration
   static Foo(u_short);
 };
- 

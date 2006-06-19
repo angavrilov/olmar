@@ -199,4 +199,3 @@ void f()
   __getStandardConversion((Foo)0, (bool)0, SC_ERROR);
 
 }
- 

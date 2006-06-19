@@ -20,4 +20,3 @@ public:
 };
 
 #endif // __GROWBUF_H
- 

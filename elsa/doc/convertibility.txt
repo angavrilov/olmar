@@ -621,4 +621,3 @@ reject the pair (the pair does not lead to an instantiation).  I pity
 the fool whose code this breaks.  I'd be surprised if such code even
 exists, outside C++ test suites.
 
- 

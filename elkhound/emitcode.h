@@ -37,4 +37,3 @@ stringBuilder &restoreLine(stringBuilder &sb);
 
 
 #endif // EMITCODE_H
- 

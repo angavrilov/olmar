@@ -121,4 +121,3 @@
 "_Imaginary"           return tok(TOK_IMAGINARY);
 
   /* EOF */
- 

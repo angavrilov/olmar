@@ -26,4 +26,3 @@ void f(Foo *, int) {}
 //ERROR(2): void f(Foo *) {}     // duplicate definition
 
 
- 

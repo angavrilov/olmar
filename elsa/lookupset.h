@@ -100,4 +100,3 @@ public:
 
 
 #endif // LOOKUPSET_H
- 

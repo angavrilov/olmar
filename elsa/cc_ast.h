@@ -20,4 +20,3 @@
 #include "cc.ast.gen.h"     // Elsa's name for the C++ AST declarations file
 
 #endif // CC_AST_H
- 

@@ -22,4 +22,3 @@ A<typename B<V>::I> B<V>::f()
 template <class V>
 A2<typename B<V>::I, float> B<V>::g()
 {}
- 

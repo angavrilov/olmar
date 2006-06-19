@@ -2,4 +2,3 @@
 
 template < class charT > struct string_char_traits {};
 struct string_char_traits <char > {};
- 

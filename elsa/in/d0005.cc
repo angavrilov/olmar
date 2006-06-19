@@ -6,4 +6,3 @@ template <class T> T m () {}
 void r() {
   g(m<int*>());
 }
- 

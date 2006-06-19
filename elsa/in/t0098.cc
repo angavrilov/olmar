@@ -8,4 +8,3 @@ class A {
 
 int A::foo(int,int)
 {}
- 

@@ -8,4 +8,3 @@ void f()
   // this is not a legal type
   //ERROR(2): char arr3[];
 }
- 

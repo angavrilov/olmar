@@ -11,4 +11,3 @@ void parport_pc_write_data(unsigned char d) {
 }
 
 
- 

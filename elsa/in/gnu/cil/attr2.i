@@ -816,4 +816,3 @@ int main() {
   functional();
   do_exit(5);
 }
- 

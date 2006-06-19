@@ -10,4 +10,3 @@ void remote_lookup (int tracknum, long int offset[tracknum]);
 void remote_lookup (int tracknum, long int offset[tracknum])
 {}
 
- 

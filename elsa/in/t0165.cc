@@ -12,4 +12,3 @@ class nsCOMPtr<int> {
   // nsCOMPtr === nsCOMPtr<int>
   nsCOMPtr(nsCOMPtr<int> &blah);
 };
- 

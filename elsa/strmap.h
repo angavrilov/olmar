@@ -16,4 +16,3 @@ class StringRefMap : public PtrMap<char const, VALUE> {
 };
 
 #endif // STRMAP_H
- 

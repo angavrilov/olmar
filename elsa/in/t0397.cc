@@ -35,4 +35,3 @@ void foo(A a, A b, A c)
 
 template<class T>
 void g(T x, T y, T z) {}
- 

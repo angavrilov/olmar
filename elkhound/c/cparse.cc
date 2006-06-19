@@ -73,4 +73,3 @@ void ParseEnv::declareClassTag(StringRef tagName)
     addType(tagName);
   }
 }
- 

@@ -43,4 +43,3 @@ int main() {
   int /*$tainted*/ x;
   if (C a = x) {}
 }
- 

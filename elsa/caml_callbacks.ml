@@ -20,4 +20,3 @@ let _ = Gc.set {(Gc.get ()) with
 		  (* Gc.verbose = 0x037;  *)
 		  Gc.space_overhead = 200;
 	       }
- 

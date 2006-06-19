@@ -9,4 +9,3 @@ typedef I I;
 // me verify that "I" maps to "int"
 I x;
 
- 

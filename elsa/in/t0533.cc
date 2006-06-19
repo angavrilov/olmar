@@ -20,4 +20,3 @@ void foo()
   __checkType(p-i, (char*)0);
   __checkType(p-p, (int)0);
 }
- 

@@ -9,4 +9,3 @@ class Anon_class_1 {
 class {
   int y;
 } z;
- 

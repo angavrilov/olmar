@@ -18,4 +18,3 @@ int main() {
   a.x;
   b.y;
 }
- 

@@ -7,4 +7,3 @@ int f(int (*)(int)) {}
 
 int f(int (*)(int *)) {}
 int f(int (*)(const int *)) {}    // different
- 

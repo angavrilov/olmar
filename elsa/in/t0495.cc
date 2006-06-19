@@ -15,4 +15,3 @@ int f()
 {
   return A<int,int>::some_type(A<x,y>::i);
 }
- 

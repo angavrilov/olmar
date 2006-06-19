@@ -15,4 +15,3 @@ struct Foo {
   } hash;
 //    Foo(Foo &other) : hash(other.hash) {}
 };
- 

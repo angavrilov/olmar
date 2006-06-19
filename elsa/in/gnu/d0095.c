@@ -11,4 +11,3 @@ int main(int argc) {
   (argc ? ((void*)0) : a          ) -> x;
   (argc ? a          : ((void*)0) ) -> x;
 }
- 

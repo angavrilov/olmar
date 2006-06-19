@@ -18,4 +18,3 @@ void prog ()
     //f (1);                           // OK: call f(int, int)
     //f ();                            // Error: f(int, int) or f()?
 }
- 

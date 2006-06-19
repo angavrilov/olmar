@@ -17,4 +17,3 @@
   // would transition to that state (from the given source state)
   Symbol const *inverseTransitionC(ItemSet const *source,
                                    ItemSet const *target) const;
- 

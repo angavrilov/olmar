@@ -12,4 +12,3 @@ struct A {
 template <class T>
 void A<T>::append(T* t)
 {}
- 

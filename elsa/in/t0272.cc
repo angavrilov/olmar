@@ -44,4 +44,3 @@ template class Derived<float>;
 
 
 
- 

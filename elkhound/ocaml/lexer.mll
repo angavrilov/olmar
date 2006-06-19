@@ -69,4 +69,3 @@ rule readToken = parse
   | '('                 { LPAREN }
   | ')'                 { RPAREN }
   | eof                 { EOF }
- 

@@ -185,4 +185,3 @@ public:
 };
 
 #endif // __SVDICT_H
- 

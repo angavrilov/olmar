@@ -93,4 +93,3 @@ typedef ASTSimpleLeaf<string, AST_NAME> ASTNameLeaf;
 
 
 #endif // __GRAMAST_H
- 

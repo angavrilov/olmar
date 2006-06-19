@@ -8,4 +8,3 @@ template <class T>
 class allocator {};
 
 extern template class allocator<char>;
- 

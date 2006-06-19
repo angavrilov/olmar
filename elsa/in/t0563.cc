@@ -41,4 +41,3 @@ void goo(A *a, int i, float f)
   //ERROR(2): g(a,i,f);
 }
 
- 

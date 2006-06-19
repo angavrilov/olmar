@@ -7,4 +7,3 @@ class TPoint {
   int f()
     { return TPoint<num>(3,3); }
 };
- 

@@ -39,4 +39,3 @@ void printPath(int index, Expression const *ths);
 int numPathsThrough(Statement const *stmt);
 
 #endif // PATHS_H
- 
