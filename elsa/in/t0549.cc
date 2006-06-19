@@ -45,3 +45,4 @@ struct B {
 };
 
 B<A> b;
+ 

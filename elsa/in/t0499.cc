@@ -10,3 +10,4 @@ void foo()
 {
   f(true? aa : a);
 }
+ 

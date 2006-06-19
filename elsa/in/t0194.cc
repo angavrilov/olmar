@@ -25,3 +25,4 @@ int *f()
 // cppstd 7.3.3 para 5 disallows this
 //ERROR(1): using N::C<float>;
 
+ 

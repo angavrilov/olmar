@@ -19,3 +19,4 @@ struct S {
 
 struct U{};
 S<U> x;
+ 

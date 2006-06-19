@@ -24,3 +24,4 @@ struct nsCachedStyleData
     return (*(gInfo+aSID)).mIsReset;
   };
 };
+ 

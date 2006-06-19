@@ -18,3 +18,4 @@ nonterm Ep{->  "+" T Ep;  -> empty; }
 nonterm T  ->  F Tp ;
 nonterm Tp{->  "*" F Tp;  -> empty; }
 nonterm F {->  "(" E ")"; -> "id"; }
+ 

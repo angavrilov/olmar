@@ -13,3 +13,4 @@ int N::f()
   // that it can, similar to how class methods work
   return x;
 }
+ 

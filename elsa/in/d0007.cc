@@ -6,3 +6,4 @@ void f ();
 int main () {
   f (g ());
 }
+ 

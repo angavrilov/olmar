@@ -20,3 +20,4 @@ void f()
 }
 
 int x =  ((int) &((U1 *)0)->foo2);
+ 

@@ -4,3 +4,4 @@ template <class T> class R {
   f<T> m;
 };
 int d(R<int>&);
+ 

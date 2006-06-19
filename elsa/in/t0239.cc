@@ -21,3 +21,4 @@ void f()
   foo(f);      // use primary
   foo(i);      // use specialization
 }
+ 

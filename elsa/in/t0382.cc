@@ -36,3 +36,4 @@ void bar()
 
   int y = N::e;   // must explicitly qualify
 }
+ 

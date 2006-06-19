@@ -34,3 +34,4 @@ void foo()
   int Base::*bptr2;
   another(bptr2);
 }
+ 

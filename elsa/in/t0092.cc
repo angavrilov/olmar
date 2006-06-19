@@ -3,3 +3,4 @@
 
 // apparently this is legal; cppstd is unclear IMO
 char *s = "foo""bar";
+ 

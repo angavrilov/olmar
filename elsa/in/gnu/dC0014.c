@@ -28,3 +28,4 @@ typedef fooint long /*omitted declarator*/;
 typedef fooint long blah;
 
 
+ 

@@ -99,3 +99,4 @@ myLabel: x=y;         // labeled statement
   int j;                // simple decl
   int k=6;              // initializing decl
 }
+ 

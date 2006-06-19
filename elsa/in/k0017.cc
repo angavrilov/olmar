@@ -11,3 +11,4 @@ using namespace std;
 using namespace ::std;
 
 //ERROR(1): using namespace BogusNamespace;
+ 

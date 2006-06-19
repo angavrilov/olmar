@@ -10,3 +10,4 @@ int (foo) (c)
     int c;
 {
 }
+ 

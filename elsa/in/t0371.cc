@@ -21,3 +21,4 @@ void bar(N::A &a)
   // interestingly, gcc does not like this syntax, though icc does
   foo<int>(a, 3);
 }
+ 

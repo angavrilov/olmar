@@ -18,3 +18,4 @@ void f()
   B<int> b;
   b.operator A<int>* ();
 }
+ 

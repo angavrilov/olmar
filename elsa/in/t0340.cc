@@ -20,3 +20,4 @@ int A::y(val);
 //ERROR(1): int A::z(int);
 
 // EOF
+ 

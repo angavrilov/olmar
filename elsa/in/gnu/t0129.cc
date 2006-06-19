@@ -8,3 +8,4 @@ int main() {
   } f;
   f = (struct foo) {q, 4};
 }
+ 

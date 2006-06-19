@@ -9,3 +9,4 @@ void foo()
   __checkType('ab', (int)0);
   __checkType(L'a', (wchar_t)0);
 }
+ 

@@ -15,3 +15,4 @@ void A::bar() const
   // again..
   __testOverload(foo(), 5);
 }
+ 

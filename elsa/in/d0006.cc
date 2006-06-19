@@ -7,3 +7,4 @@ void f () {
   int m[1];
   C::strcmp(k, m);
 }
+ 

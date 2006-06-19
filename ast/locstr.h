@@ -69,3 +69,4 @@ void fromXml(LocString &out, rostring str);
 
 
 #endif // LOCSTR_H
+ 

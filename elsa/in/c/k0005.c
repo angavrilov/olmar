@@ -11,3 +11,4 @@ void foo()
         enum option { a=2 };
     }
 }
+ 

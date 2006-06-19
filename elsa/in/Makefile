@@ -24,3 +24,4 @@ t0539_%.cc: t0539.cc
 	rm -f $@
 	cpp -C $^ -DSEL=$* >$@
 	chmod a-w $@
+ 

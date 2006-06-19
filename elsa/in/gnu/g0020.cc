@@ -18,3 +18,4 @@ void foo()
   SignalProc s;
   xxxsignal(1, s);
 }
+ 

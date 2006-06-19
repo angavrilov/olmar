@@ -23,3 +23,4 @@ int Foo::f(int arr2[5])
 {
   return 6;
 }
+ 

@@ -11,3 +11,4 @@ class Stack : private List {
 
 Stack::Stack() : List()
 {}
+ 

@@ -4,3 +4,4 @@
 while read; do
   ./test-ver "$REPLY" | tee -a results
 done
+ 

@@ -7,3 +7,4 @@ struct category {
   struct cat_item   {
   }
 };
+ 

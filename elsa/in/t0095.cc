@@ -5,3 +5,4 @@ union F {
   F(){}
   int foo();
 };
+ 

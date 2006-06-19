@@ -15,3 +15,4 @@ void foo()
   
   typeid(i).name();
 }
+ 

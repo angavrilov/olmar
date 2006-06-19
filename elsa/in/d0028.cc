@@ -4,3 +4,4 @@ struct N {
     new S[2];
   }
 };
+ 

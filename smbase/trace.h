@@ -82,3 +82,4 @@ extern bool ignoreTraceEnvVar;    // initially false
 
 
 #endif // TRACE_H
+ 

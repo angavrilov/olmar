@@ -10,3 +10,4 @@ struct B<T2*> {
     return A(3);
   }
 };
+ 

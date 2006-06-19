@@ -8,3 +8,4 @@ class Foo {
 class Bar {
   int x;
 };
+ 

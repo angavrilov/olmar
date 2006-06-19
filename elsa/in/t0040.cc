@@ -9,3 +9,4 @@ int main()
   char *delim;
   tok = strtok(((char *)0) , delim);
 }
+ 

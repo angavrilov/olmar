@@ -37,3 +37,4 @@
   void operator delete[](void* ptr, void*) throw();
 
 #endif // __NEW_H
+ 

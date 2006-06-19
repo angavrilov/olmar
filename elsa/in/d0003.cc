@@ -5,3 +5,4 @@ struct nsAString {
     Assign (aReadable);
   }
 };
+ 

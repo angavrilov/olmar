@@ -41,3 +41,4 @@ void f()
   
   //ERROR(1): Foo g(3);  // error
 }
+ 

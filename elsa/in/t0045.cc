@@ -19,3 +19,4 @@ class D4 : virtual B
 class D5 : B
 {};
 
+ 

@@ -36,3 +36,4 @@ inline T *transferOwnership(T *&ptr)
 
 
 #endif // __UTIL_H
+ 

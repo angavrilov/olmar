@@ -14,3 +14,4 @@ __default_alloc_template<__threads, __inst>::_Obj* volatile
 __default_alloc_template<__threads, __inst> ::_S_free_list[
     16
 ] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, };
+ 

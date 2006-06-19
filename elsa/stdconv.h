@@ -148,3 +148,4 @@ inline bool isReferenceCompatibleWith(CType *t1, CType *t2)
 
   
 #endif // STDCONV_H
+ 

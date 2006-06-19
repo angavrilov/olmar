@@ -87,3 +87,4 @@ void defaultWarningPrinter(WarnLevel /*level*/, char const *message)
 // module will be easily evident, and it is a very simple
 // module, so it isn't worth it to separately test
 
+ 

@@ -70,3 +70,4 @@
 50: should be: 8.62369e+19
 50: MISMATCH in number of parse trees
 50: tree nodes: 606728
+ 

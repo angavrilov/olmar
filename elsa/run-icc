@@ -11,3 +11,4 @@ source /opt/intel/bin/iccvars.sh
 
 echo /opt/intel/bin/icpc -o /dev/null -c -xc++ -w "$@"
 exec /opt/intel/bin/icpc -o /dev/null -c -xc++ -w "$@"
+ 

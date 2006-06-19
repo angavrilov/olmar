@@ -8,3 +8,4 @@ typedef int PRInt32;
 const   PRInt32 kDefaultStringSize = 64;
 enum  eCharSize {eOneByte=0,eTwoByte=1};
 char mBuffer[kDefaultStringSize<<eTwoByte];
+ 

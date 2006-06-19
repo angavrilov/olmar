@@ -18,8 +18,11 @@ ssh-add.c
 /*
  * $Id$
  * $Log$
- * Revision 1.1  2006/04/11 14:33:50  tews
- * Initial revision
+ * Revision 1.2  2006/06/19 14:24:57  tews
+ * * add one space to every file to move into the main trunc
+ *
+ * Revision 1.1.1.1  2006/04/11 14:33:50  tews
+ * import elsa 2005.08.22b
  *
  * Revision 1.1  2002/08/11 00:17:28  scott
  * removed some obsolete files, moved more input to in/
@@ -965,3 +968,4 @@ int main(int ac, char **av)
   ssh_user_free(user, FALSE);
   exit(EXIT_STATUS_OK);
 }
+ 

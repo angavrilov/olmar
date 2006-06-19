@@ -14,3 +14,4 @@ typedef int fooint;
 namespace NS {
     using ::fooint;
 }
+ 

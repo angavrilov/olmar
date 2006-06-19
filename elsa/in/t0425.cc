@@ -14,3 +14,4 @@ struct A<int, U> {
 };
 
 A<char,char> a;
+ 

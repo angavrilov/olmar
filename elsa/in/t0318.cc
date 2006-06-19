@@ -10,3 +10,4 @@ struct A {
 S A::x;
 
 // EOF
+ 

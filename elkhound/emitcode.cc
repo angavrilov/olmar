@@ -107,3 +107,4 @@ stringBuilder &restoreLine(stringBuilder &sb)
   return os << hashLine() << line
             << " \"" << os.getFname() << "\"\n";
 }
+ 

@@ -11,3 +11,4 @@ int main() {
   (1, A(arg));   // test the ctor call alone
   a = A(arg);
 }
+ 

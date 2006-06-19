@@ -54,3 +54,4 @@ void foo()
   
   //ERROR(1): C<-6,int> c2;    // lines 12,13 are same type then
 }
+ 

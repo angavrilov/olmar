@@ -3,3 +3,4 @@ struct stat {};
 void f() {
   struct stat st;
 }
+ 

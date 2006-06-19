@@ -23,3 +23,4 @@ int main()
     C<int> b;
     return 0;
 }
+ 

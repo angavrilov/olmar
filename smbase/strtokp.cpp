@@ -104,3 +104,4 @@ int StrtokParse::offset(int which) const
 {
   return tokv(which) - (char const*)buf;
 }
+ 

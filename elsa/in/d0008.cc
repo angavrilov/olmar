@@ -42,3 +42,4 @@ void f()
   //   B* is one of the allowed params of 'g'
   g(r);
 }
+ 

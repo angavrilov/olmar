@@ -59,3 +59,4 @@ void f()
   a2.foo(i);
   a2.foo(f);
 }
+ 

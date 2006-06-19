@@ -4,3 +4,4 @@
 for fn in `cat /home/scott/bld/mozilla-1.0/allifiles`; do
   ./test-parse $fn
 done
+ 

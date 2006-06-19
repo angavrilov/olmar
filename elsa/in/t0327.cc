@@ -16,3 +16,4 @@ void foo()
   int i;
   f(i); 
 }
+ 

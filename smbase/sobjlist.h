@@ -310,3 +310,4 @@ void SObjListMultiIter<T>::normalize()
 
 
 #endif // SOBJLIST_H
+ 

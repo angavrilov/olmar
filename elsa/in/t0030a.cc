@@ -4,3 +4,4 @@ class {
 } xx;
 // anonymous enum
 enum { whazza, whozza, howza } futza;
+ 

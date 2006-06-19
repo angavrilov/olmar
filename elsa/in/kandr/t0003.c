@@ -5,3 +5,4 @@ static /*implicit-int*/ tinfoclose()
 {
     return(0);
 }
+ 

@@ -8,3 +8,4 @@ char c;        // "default argument promotions" make this int
 {
   return 0;
 }
+ 

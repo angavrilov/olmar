@@ -11,3 +11,4 @@ void foo()
 
   //ERROR(3): template <class T> void bar2(T t);
 }
+ 

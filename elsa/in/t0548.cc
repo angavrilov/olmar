@@ -139,3 +139,4 @@ int A<T>::B<S>::h()
 
 // force it to find the definition
 template int A<int>::B<float>::h();
+ 

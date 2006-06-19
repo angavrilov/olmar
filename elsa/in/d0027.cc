@@ -4,3 +4,4 @@ struct C {
 };
 C f = new B;
 C f2(new B);
+ 

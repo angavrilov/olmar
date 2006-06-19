@@ -94,3 +94,4 @@ class RHSElt {
   -> RH_forbid(LocString tokName);
 }
 
+ 

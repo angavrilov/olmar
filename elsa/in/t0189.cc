@@ -15,3 +15,4 @@ int foo()
   return b.x;
 }
 
+ 

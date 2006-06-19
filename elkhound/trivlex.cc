@@ -27,3 +27,4 @@ void trivialLexer(char const *fname, Lexer2 &dest)
   }
   dest.addEOFToken();
 }
+ 

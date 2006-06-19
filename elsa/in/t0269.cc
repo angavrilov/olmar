@@ -19,3 +19,4 @@ void f(A<char> &a)
 
   A<char>(a).func(3);
 }
+ 

@@ -23,3 +23,4 @@ typename A<S,T>::int_type  A<S,T>::foo2(char      c)  {}
 
 template <class S, class T>
 typename A<S,T>::int_type  A<S,T>::foo3(char_type c)  {}
+ 

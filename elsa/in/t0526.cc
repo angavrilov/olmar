@@ -17,3 +17,4 @@ void foo()
 
   f(__PRETTY_FUNCTION__);
 }
+ 

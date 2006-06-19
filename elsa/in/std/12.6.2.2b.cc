@@ -5,3 +5,4 @@ struct B: public virtual A {};
 struct C: public A, public B { C(); };
 //ERROR1: C::C(): A() {}           // ill-formed: which A?
 
+ 

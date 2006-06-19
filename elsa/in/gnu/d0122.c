@@ -20,3 +20,4 @@ const char __module_parm_desc_aic7xxx[] __attribute__((section(".modinfo"))) =
 	options aic7xxx='\"verbose.no_probe.tag_info:{{}.{}.{..10}}.seltime:1\"'
 "
   ;
+ 

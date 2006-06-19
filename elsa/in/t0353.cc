@@ -67,3 +67,4 @@ void f()
   a.foo(f);
   a.foo(f2);
 }
+ 

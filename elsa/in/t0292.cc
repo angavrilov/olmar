@@ -4,3 +4,4 @@
 class A {
   operator int (void);
 };
+ 

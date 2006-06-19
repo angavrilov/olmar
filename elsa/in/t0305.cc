@@ -9,3 +9,4 @@ void f()
   time_t tt;
   tt = time((time_t)0 );
 }
+ 

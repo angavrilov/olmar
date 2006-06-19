@@ -30,3 +30,4 @@ void h(struct Frozz { int y; } *q);
 
 //ERROR(1): Frozz *qq;
 
+ 

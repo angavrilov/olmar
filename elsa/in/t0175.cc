@@ -9,3 +9,4 @@ class C {
 
 template <class T>
 int C<T>::x = 0;
+ 

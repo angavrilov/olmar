@@ -36,3 +36,4 @@ int main() {
 // OFF ERROR(1): int *zp1c = f(yp);
 // OFF ERROR(2): int *zp1d = f4(yp);
 }
+ 

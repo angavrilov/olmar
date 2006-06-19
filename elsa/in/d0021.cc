@@ -4,3 +4,4 @@ template <> struct C <S> {};
 struct G {
   C<S> m;
 };
+ 

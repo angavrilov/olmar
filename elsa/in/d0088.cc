@@ -5,3 +5,4 @@ struct A {
    static const int a=64;
    int b[a];                    // const eval of 'a' here
 };
+ 

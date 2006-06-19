@@ -30,3 +30,4 @@ void foo()
 
   g();      // needs all defaults
 }
+ 

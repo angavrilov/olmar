@@ -19,3 +19,4 @@ struct A f() {
   struct A a6 = a5;             // IN_expr
   return a2;
 }
+ 

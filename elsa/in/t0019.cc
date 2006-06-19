@@ -38,3 +38,4 @@ public:
   // this one won't work because the virtual is missing along one path
   //ERROR(2): int f4() { return x; }    // ambiguous
 };
+ 

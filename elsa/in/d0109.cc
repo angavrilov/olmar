@@ -9,3 +9,4 @@ namespace Magick {
   using MagickLib::NoiseType;
   using MagickLib::NoiseType;
 }
+ 

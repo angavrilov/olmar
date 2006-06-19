@@ -15,3 +15,4 @@ void g() {
   A<int, double> a;
   f(a);
 }
+ 

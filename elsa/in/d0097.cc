@@ -5,3 +5,4 @@ int main() {
     int x;
   } A;
 }
+ 

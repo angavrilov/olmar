@@ -31,3 +31,4 @@ int main() {
   int /*$untainted*/ b;
   b = __checkCalleeDefnLine(g(a2), 21);
 }
+ 

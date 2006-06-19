@@ -11,3 +11,4 @@ int foo()
 {
     int size = sizeof(array);
 }
+ 

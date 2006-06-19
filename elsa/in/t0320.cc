@@ -12,3 +12,4 @@ void foo(char const &c)
 }
 
 // EOF
+ 

@@ -4,3 +4,4 @@
 struct A {};
 template <class T> class C {};
 template class C<A>;            // explicit template instantiation
+ 

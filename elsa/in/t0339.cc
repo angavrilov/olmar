@@ -22,3 +22,4 @@ void bar()
 }
 
 asm("collectLookupResults foo=4 g=9 foo=4 g=9 foo2=11 g=8 foo3=12 g=7 foo=4 g=9");
+ 

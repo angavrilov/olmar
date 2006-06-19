@@ -259,3 +259,4 @@ void CCLang::MSVC_bug_compatibility()
 
 
 // EOF
+ 

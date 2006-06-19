@@ -32,3 +32,4 @@ void f()
   //f(1);                  // error: ambiguous: D::f(int) or E::f(int)?
   //f('a');                // OK: D::f(char)
 }
+ 

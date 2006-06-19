@@ -15,3 +15,4 @@ void f()
   // elaborated
   a.operator *();
 }
+ 

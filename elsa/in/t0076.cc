@@ -4,3 +4,4 @@
 extern "C" int x;
 
 int x;
+ 

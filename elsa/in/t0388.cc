@@ -4,3 +4,4 @@
 struct A {
   template <class T> friend class B;
 };
+ 

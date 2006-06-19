@@ -29,3 +29,4 @@ void X::g() const volatile { this; }
 //ERROR(7): void X::g() {}                   // redefinition
 //ERROR(8): void X::g() const {}             // redefinition
 //ERROR(9): void X::g() const volatile {}    // redefinition
+ 

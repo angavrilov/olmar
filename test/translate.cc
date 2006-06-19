@@ -22,3 +22,4 @@ int main(){
 /*** Local Variables: ***/
 /*** compile-command: "make -C ../smbase; g++ -o translate translate.cc -g -Wall -Wno-deprecated -I../smbase ../smbase/libsmbase.a; ./translate" ***/
 /*** End: ***/
+ 

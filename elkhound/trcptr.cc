@@ -130,3 +130,4 @@ int main()
   printf("%d Foos leaked\n", Foo::count);
   return Foo::count;
 }
+ 

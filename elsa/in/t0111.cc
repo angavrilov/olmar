@@ -31,3 +31,4 @@ void g()
   typedef int blah[30];
   A<blah> a;
 }
+ 

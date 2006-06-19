@@ -2,3 +2,4 @@
 // minimal ast test file
 
 class C(int x);
+ 

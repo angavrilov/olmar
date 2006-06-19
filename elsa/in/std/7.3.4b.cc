@@ -14,3 +14,4 @@ void f()
   using namespace N;
   //ERROR(1):   i = 7;           // error: both M::i and N::i are visible
 }
+ 

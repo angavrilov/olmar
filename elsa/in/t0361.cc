@@ -30,3 +30,4 @@ int C::bar()
   return ret;
 }
 
+ 

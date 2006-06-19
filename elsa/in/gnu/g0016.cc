@@ -29,3 +29,4 @@ int isatty  ( int )  ;
 # 9 "again.h"
 
 int isatty  ( int )  ;
+ 

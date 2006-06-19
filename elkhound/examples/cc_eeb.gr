@@ -18,3 +18,4 @@ nonterm(Node*) E {
   -> e1:E "+" e2:E       { return new PlusNode(e1, e2); }
   -> b:"b"               { return new LeafNode(b); }
 }
+ 

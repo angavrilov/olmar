@@ -5,3 +5,4 @@ void foo()
 {
   __cause_xfailure();
 }
+ 

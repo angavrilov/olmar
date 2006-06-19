@@ -10,3 +10,4 @@ template <class> struct S1;
 
 typedef S1<int> s1;
 
+ 

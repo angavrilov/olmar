@@ -16,3 +16,4 @@ void foo(S const &src)
   S s(src);      // calls compiler-supplied implicit copy ctor
 }
 
+ 

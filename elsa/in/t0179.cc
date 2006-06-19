@@ -15,3 +15,4 @@ typedef int myint;
 template <>
 struct A<int, B<myint> >
 {};
+ 

@@ -68,3 +68,4 @@ public:      // funcs
 };
 
 #endif // SMIN_H
+ 

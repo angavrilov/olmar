@@ -49,3 +49,4 @@ void bar(int x)
   __checkType(x? p : pc, (const void *)0);
   __checkType(x? pc : p, (const void *)0);
 }
+ 

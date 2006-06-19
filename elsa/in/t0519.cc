@@ -6,3 +6,4 @@ void foo()
   x;   // preceding error
   __cause_xfailure();
 }
+ 

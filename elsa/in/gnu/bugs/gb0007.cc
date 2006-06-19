@@ -6,3 +6,4 @@
 struct A {
   friend A::A(int);
 };
+ 

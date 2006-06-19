@@ -20,3 +20,4 @@ int main() {
     B<int> b;
     return b.foo();
 }
+ 

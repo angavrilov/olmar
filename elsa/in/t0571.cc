@@ -17,3 +17,4 @@ void foo()
   U *u = 0;
   destroy(u);
 }
+ 

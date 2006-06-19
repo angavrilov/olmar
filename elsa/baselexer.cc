@@ -172,3 +172,4 @@ BaseLexer::NextTokenFunc BaseLexer::getTokenFunc() const
 
 
 // EOF
+ 

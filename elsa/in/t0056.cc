@@ -26,3 +26,4 @@ int main()
   int x = f.d;     // 'f.d' has type 'int'
   return x;
 }
+ 

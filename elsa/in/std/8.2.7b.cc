@@ -2,3 +2,4 @@
 
 class C {};
 void h(int *(C[10]));
+ 

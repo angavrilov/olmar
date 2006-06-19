@@ -26,3 +26,4 @@ void foo()
   find(d);     // overload resolution; need to cast to Base
   //find(d2);
 }
+ 

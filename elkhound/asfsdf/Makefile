@@ -55,3 +55,4 @@ efa.notree.perf.txt:
 %.csv: %.txt
 	cat $^ | grep cycles | \
 	perl -p -e 's/^[^:]*\D(\d+)\D.*: cycles: (\d+)$$/$$1, $$2/' >$@
+ 

@@ -40,3 +40,4 @@ int main()
   X x;
   x.foo();
 }
+ 

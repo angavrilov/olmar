@@ -11,3 +11,4 @@ template <int n>
 struct C {
   typedef B<A<n+1> > V;
 };
+ 

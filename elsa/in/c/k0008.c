@@ -20,3 +20,4 @@ int main()
     int foo;
     return (func (func (func (func (foo))))) + 0;
 }
+ 

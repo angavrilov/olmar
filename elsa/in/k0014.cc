@@ -22,3 +22,4 @@ int main() {
     C<int> c1;
     C<long> c2(c1);
 }
+ 

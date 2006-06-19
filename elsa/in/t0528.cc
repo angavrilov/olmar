@@ -11,3 +11,4 @@ struct A {
 struct B {
   friend A::A(int);
 };
+ 

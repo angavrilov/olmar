@@ -23,3 +23,4 @@ int A_int::g(int)
 {
   return 2;
 }
+ 

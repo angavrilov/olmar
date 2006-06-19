@@ -8,3 +8,4 @@ int *f(int) {}
 int main() {
   int *x = f(3);
 }
+ 

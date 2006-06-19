@@ -10,3 +10,4 @@ int main() {
   foo(s);
   foo(s);
 }
+ 

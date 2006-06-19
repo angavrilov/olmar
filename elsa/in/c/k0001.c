@@ -11,3 +11,4 @@ typedef int fooint;
 // in ANSI mode
 //ERROR(1): typedef fooint long /*omitted*/;
 //ERROR(2): typedef fooint long blah;
+ 

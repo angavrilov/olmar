@@ -74,3 +74,4 @@ void f()
 {
   A<int,float> a;
 }
+ 

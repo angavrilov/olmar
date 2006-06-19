@@ -20,3 +20,4 @@ int foo2 asm ("myfoo2") __attribute__((blah)) = 3;
 int foo3(int, float) asm("myfoo3");
 int foo4(int, float) asm("myfoo4") __attribute__((blah));
 
+ 

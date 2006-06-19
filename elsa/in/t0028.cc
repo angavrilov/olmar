@@ -91,3 +91,4 @@ T const *ArrayMap<T>::lookupC(int id) const
   validate(id);
   return map[id];
 }
+ 

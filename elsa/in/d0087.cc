@@ -10,3 +10,4 @@ struct X {
 
 // another ansi-only rule
 //ERROR(2): int arr[0];
+ 

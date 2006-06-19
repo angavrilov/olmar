@@ -77,3 +77,4 @@ string astTypeToString(int type)
   xfailure("bad type code");
   return NULL;   // silence warning
 }
+ 

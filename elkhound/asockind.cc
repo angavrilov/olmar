@@ -17,3 +17,4 @@ string toString(AssocKind k)
   xassert((unsigned)k < NUM_ASSOC_KINDS);
   return string(arr[k]);
 }
+ 

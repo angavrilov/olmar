@@ -7,3 +7,4 @@ int foo()
 {
   asm("oof");
 }
+ 

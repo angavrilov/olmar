@@ -30,3 +30,4 @@ void foo()
                        
   //ERROR(1): (obj->*pmf)(7);      // wrong, LHS of ->* must be pointer
 }
+ 

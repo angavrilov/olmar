@@ -3,3 +3,4 @@ struct A{};
 void f() {
   A const &a = A();
 }
+ 

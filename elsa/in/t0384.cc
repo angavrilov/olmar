@@ -59,3 +59,4 @@ class QCollection
   typedef void *Item;
   void inSort (QCollection::Item);
 };
+ 

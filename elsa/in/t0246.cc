@@ -19,3 +19,4 @@ void foo2()
   A<int*> a;
   a.method();
 }
+ 

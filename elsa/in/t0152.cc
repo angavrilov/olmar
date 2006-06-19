@@ -37,3 +37,4 @@ public:
     return BeginReading(temp)[ i ];
   }
 };
+ 

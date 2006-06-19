@@ -29,3 +29,4 @@ void g()
   B<A> &y;
   func(y);     // should call first 'func'
 }
+ 

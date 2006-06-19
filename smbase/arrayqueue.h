@@ -178,3 +178,4 @@ bool ArrayQueue<T>::contains(T const &t) const
 
 
 #endif // ARRAYQUEUE_H
+ 

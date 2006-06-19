@@ -15,3 +15,4 @@ int main()
   return A::template B<int>::foo();
 }
 
+ 

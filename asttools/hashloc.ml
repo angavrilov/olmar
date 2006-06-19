@@ -937,3 +937,4 @@ Printexc.catch main ()
 (*** Local Variables: ***)
 (*** compile-command: "ocamlc.opt -o hashloc -I ../elsa hashloc.ml" ***)
 (*** End: ***)
+ 

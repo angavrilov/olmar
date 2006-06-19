@@ -11,3 +11,4 @@ void foo()
 {
   A<int> x;
 }
+ 

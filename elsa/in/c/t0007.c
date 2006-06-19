@@ -9,3 +9,4 @@ void f(int sz)
 // not ok for globals
 int blah;
 //ERROR(1): int dorf[blah];
+ 

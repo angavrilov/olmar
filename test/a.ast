@@ -30,3 +30,4 @@ option ocamlVisitor;
 /// Local Variables: ///
 /// compile-command : "../ast/astgen a.ast" ///
 /// End: ///
+ 

@@ -65,3 +65,4 @@ public:
 
 
 #endif // SOBJSTACK_H
+ 

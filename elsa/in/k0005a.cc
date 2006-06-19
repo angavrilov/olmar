@@ -43,3 +43,4 @@ template <typename T>
 struct S6 : S5<T> {
     S6<T> (S5<T> &) {}
 };
+ 

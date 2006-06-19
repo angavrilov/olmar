@@ -24,3 +24,4 @@ void f()
   s.whatever;
 }
 
+ 

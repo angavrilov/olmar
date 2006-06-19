@@ -56,3 +56,4 @@ int foo ( )
   return sizeof(Mystruct);
 }
 
+ 

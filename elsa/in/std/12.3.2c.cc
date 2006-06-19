@@ -14,3 +14,4 @@ void f()
   //ERROR(1): &ac.operator int*i;    // parse error
   
 }
+ 

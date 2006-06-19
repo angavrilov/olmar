@@ -16,3 +16,4 @@ struct D:C {
     return *this;
   }
 };
+ 

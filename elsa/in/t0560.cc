@@ -6,3 +6,4 @@ struct A {
 };
 
 struct B : A {};
+ 

@@ -10,3 +10,4 @@ int foo2()
 {
   return ::operator new(4);
 }
+ 

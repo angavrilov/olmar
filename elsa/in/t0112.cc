@@ -49,3 +49,4 @@ class nsSharedBufferHandle : SomeBase<CharT>
           return 1;
         }
   };
+ 

@@ -18,3 +18,4 @@ void foo()
 }
 
 struct S {};
+ 

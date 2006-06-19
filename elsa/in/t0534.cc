@@ -36,3 +36,4 @@ void foo()
 
   j(u, i);
 }
+ 

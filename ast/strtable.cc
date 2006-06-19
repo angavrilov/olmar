@@ -122,3 +122,4 @@ void StringTable::xfer(Flatten &flat, StringRef &ref)
     flat.xferCharString(const_cast<char*&>(ref));
   }
 }
+ 

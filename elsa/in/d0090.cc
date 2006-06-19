@@ -10,3 +10,4 @@ char hostname[64 + 1];
 int main() {
   sizeof(hostname);
 }
+ 

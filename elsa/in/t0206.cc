@@ -8,3 +8,4 @@ int main() {
   int A::*q;
   //ERROR(1): int & A::*q2;                 // illegal
 }
+ 

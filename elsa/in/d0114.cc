@@ -13,3 +13,4 @@ template<class T> struct B {
 
 // this is valid
 template<class T> typename B<T>::S B<T>::find(T*, int) {}
+ 

@@ -5,3 +5,4 @@ ttputc(c)
 {
     return 3;
 }
+ 

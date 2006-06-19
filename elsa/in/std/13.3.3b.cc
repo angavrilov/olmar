@@ -22,3 +22,4 @@ void f() {                           // line 9
                                      // &i->int* is better than &i->const int*
                                      // and c->int is better than c->short
 }
+ 

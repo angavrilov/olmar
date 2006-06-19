@@ -44,3 +44,4 @@ double A::B::g()
   return ::x;
 }
 
+ 

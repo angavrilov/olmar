@@ -17,3 +17,4 @@ void f()
 
   typename N::C();        // constructor call to make a temporary
 }
+ 

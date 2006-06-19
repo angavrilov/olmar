@@ -21,3 +21,4 @@ void foo()
   A<float> b;
   //ERROR(1): b.f(p);
 }
+ 

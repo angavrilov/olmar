@@ -85,3 +85,4 @@ void Conditions::parse(Production const *prod, char const *conditionText)
 
   conditions.append(new ExprCondition(transferOwnership(expr)));
 }
+ 

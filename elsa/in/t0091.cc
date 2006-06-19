@@ -44,3 +44,4 @@ void g()
   uintArr x;
   x.~uintArr();
 }
+ 

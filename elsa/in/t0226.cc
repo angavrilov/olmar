@@ -15,3 +15,4 @@ void foo()
   //ERROR(1): a.operator char* ();     // not declared
 }
 
+ 

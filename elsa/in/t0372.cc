@@ -27,3 +27,4 @@ void bar()
   templ2(3,4);
   templ2<int>(3,4);
 }
+ 

@@ -38,3 +38,4 @@ struct nsDependentCSubstring:nsACString {
      // call
       : mString (aStart.string ()) {}
 };
+ 

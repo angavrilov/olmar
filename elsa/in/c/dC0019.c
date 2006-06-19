@@ -4,3 +4,4 @@ void CreateArray() {
   // this is from k0035.cc  
   x = (x) + (sizeof(struct {}));
 }
+ 

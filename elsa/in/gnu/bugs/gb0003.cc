@@ -10,3 +10,4 @@ int g()
 {
   return f < 0;
 }
+ 

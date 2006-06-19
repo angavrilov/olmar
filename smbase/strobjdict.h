@@ -95,3 +95,4 @@ STATICDEF void StringObjDict<T>::deleteObject(T *obj)
 }
 
 #endif // __STROBJDICT_H
+ 

@@ -8,3 +8,4 @@ template <class T> class A;
 
 // too many parameters
 //ERROR(2): template <class S, class T> class A;
+ 

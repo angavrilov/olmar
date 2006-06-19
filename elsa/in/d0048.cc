@@ -7,3 +7,4 @@ struct C : B {
 };
 
 struct D : C {};
+ 

@@ -11,3 +11,4 @@ for fn in `cat /home/scott/bld/mozilla-1.0/allifiles`; do
     echo "$fn: error (code $?)"
   fi
 done
+ 

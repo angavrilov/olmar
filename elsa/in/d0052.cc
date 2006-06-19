@@ -6,3 +6,4 @@ int main() {
   if (A *a = 0) {
   }
 }
+ 

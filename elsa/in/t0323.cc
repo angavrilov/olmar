@@ -12,3 +12,4 @@ struct B {
     return x;
   }
 };
+ 

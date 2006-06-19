@@ -51,3 +51,4 @@ template int operator+ (int x, B<float> t);
 
 
 // EOF
+ 

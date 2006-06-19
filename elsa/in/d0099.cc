@@ -3,3 +3,4 @@
 class X {
     friend void operator << (int &i, const X &x) { };
 };
+ 

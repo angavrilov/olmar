@@ -33,3 +33,4 @@ int main() {
   A<int*, 0/*NULL*/> b;
   g(b, y);
 }
+ 

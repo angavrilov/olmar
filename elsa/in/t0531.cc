@@ -23,3 +23,4 @@ void foo(B &b)
   //ERROR(1): a = 2;
 }
 
+ 

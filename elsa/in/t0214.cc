@@ -18,3 +18,4 @@ struct B {
 int main() {
   B b;
 }
+ 

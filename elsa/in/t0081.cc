@@ -5,3 +5,4 @@ int f(register int a)
 {
   return a;
 }
+ 

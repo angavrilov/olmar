@@ -9,3 +9,4 @@ struct D : B {
   using B::f;
   //ERROR(1): using B::f;
 };
+ 

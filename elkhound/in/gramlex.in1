@@ -13,3 +13,4 @@ include("something unterminated
 
 /* unterminated comment
    2nd line, last of file
+ 

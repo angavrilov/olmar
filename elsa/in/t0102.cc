@@ -8,3 +8,4 @@ int main() {
   int y = *(*g)[1];
   return 0;
 }
+ 

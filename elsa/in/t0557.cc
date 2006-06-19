@@ -15,3 +15,4 @@ namespace N {
 using namespace N;
 
 template struct B<int>;
+ 

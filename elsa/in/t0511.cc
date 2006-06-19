@@ -626,3 +626,4 @@ struct A {
                  "S", (typename T::INT)0);
   }
 };
+ 

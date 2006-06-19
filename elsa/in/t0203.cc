@@ -20,3 +20,4 @@ namespace N
 }
 
 N::C<char> c;
+ 

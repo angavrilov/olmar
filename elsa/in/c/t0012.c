@@ -9,3 +9,4 @@ void f(int x)
   __checkType(x? (i+1) : j, 1);   // rval
   __checkType(x? i : (j+1), 1);   // rval
 }
+ 

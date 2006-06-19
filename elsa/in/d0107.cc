@@ -9,3 +9,4 @@ template<class T> A &operator>> (A &s, B<T> &)
   T t;
   s >> t;
 }
+ 

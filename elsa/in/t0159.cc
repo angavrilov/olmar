@@ -23,3 +23,4 @@ struct S {
 
 //ERROR(1): namespace N3 = S<int>;
 //ERROR(2): namespace N4 = S<int>::Q;
+ 

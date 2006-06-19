@@ -7,3 +7,4 @@ struct T{
 void f() {
   T x(S(1));
 }
+ 

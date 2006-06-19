@@ -296,3 +296,4 @@ string toString(UberModifiers m)
   xassert(uberModifierNames[UM_NUM_FLAGS-1] != NULL);
   return bitmapString(m, uberModifierNames, UM_NUM_FLAGS);
 }
+ 

@@ -15,3 +15,4 @@ struct S1 {
     funcType2 f2;
     funcType3 f3;
 };
+ 

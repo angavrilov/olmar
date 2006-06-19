@@ -280,3 +280,4 @@ ParseTables *EEB::makeTables()
   return new EEB_ParseTables;
 }
 
+ 

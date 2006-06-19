@@ -16,3 +16,4 @@ void foo()
   long double ld;
   a(ld, 0.5l);
 }
+ 

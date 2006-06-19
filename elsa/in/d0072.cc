@@ -19,3 +19,4 @@ void q()
   const short *iter;
   m(iter, e(iter));
 }
+ 

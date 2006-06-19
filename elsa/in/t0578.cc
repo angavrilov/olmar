@@ -34,3 +34,4 @@ int A<n>::g(int (*a)[n+1]) { return 2; }
 template <int n>
 int A<n>::g(int (*a)[n+2]) { return 2; }
 
+ 

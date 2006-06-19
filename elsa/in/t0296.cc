@@ -17,3 +17,4 @@ void foo(A const &a2)
 
   //ERROR(2): a2.f();      // cannot convert
 }
+ 

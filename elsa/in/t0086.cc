@@ -7,3 +7,4 @@ int y;
 
 #line 6 "bar.cc"
 int z;
+ 

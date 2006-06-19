@@ -22,3 +22,4 @@ using namespace N;
 void f() {
   B<int> b(1);
 }
+ 

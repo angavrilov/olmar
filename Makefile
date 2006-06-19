@@ -30,3 +30,4 @@ doc:
 	$(MAKE) -C ast doc
 	$(MAKE) -C elkhound doc
 	$(MAKE) -C elsa doc
+ 

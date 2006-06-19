@@ -62,3 +62,4 @@ public:
 };
 
 #endif // FLATTEN_H
+ 

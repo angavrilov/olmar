@@ -15,3 +15,4 @@ int f() {
   R<int> i;
   a(i.get());
 }
+ 

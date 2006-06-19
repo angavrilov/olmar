@@ -21,3 +21,4 @@ void f()
   squint = &A::sq;
   squint = &(A::sq);   // ok
 }
+ 

@@ -8,3 +8,4 @@ void f()
   func(3);
   //ERROR(1): func();     // wrong # of args
 }
+ 

@@ -13,3 +13,4 @@ char f()
   ip_opts i;
   return i.ip_opts[1];
 }
+ 

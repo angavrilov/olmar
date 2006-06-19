@@ -21,3 +21,4 @@ void foo()
   f = f3;
   f = f4;
 }
+ 

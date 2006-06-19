@@ -31,3 +31,4 @@ class Bar
 
 // force instantiation
 typedef Bar<unsigned short> blah;
+ 

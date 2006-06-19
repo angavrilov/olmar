@@ -52,3 +52,4 @@ namespace std
   //extern    // let it go through in non-gnu mode
   template class basic_streambuf < char >;
 }
+ 

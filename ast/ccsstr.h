@@ -40,3 +40,4 @@ public:
 };
 
 #endif // CCSSTR_H
+ 

@@ -8,3 +8,4 @@ for fname in *.cpp ; do
   ../../ccgr -tr sizeof ../../cc.bin $fname 2>&1 | tee out/$fname.out
 done
 
+ 

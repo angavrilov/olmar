@@ -67,3 +67,4 @@ STATICDEF Exp *Exp::mergeAlts(Exp *_p1, Exp *_p2)
   xfailure("competing trees are too similar");
   return NULL;    // silence warning
 }
+ 

@@ -40,3 +40,4 @@ void f()
   a.foo(i);
   a.foo(f);
 }
+ 

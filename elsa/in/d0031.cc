@@ -6,3 +6,4 @@ void f() {
   int x;
   x = A();
 }
+ 

@@ -16,3 +16,4 @@ struct A {
   typedef B<16> B_t;
   C<B_t::N> _c;
 };
+ 

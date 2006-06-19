@@ -3,3 +3,4 @@
 // gnu stuff.
 
 int const * const __restrict__ volatile x;
+ 

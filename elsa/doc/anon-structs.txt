@@ -43,3 +43,4 @@ DEC/Sun, and is now implemented in gcc and icc (though some versions
 of gcc require a special flag to enable), an apparently has semantics
 similar anon unions; I will implement in Elsa with warning, with flag
 in CCLang to disable.
+ 

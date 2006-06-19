@@ -28,3 +28,4 @@ void foo()
   B<int> b;
   b.f(2);
 }
+ 

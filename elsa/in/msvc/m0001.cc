@@ -9,3 +9,4 @@ public:
   // this is illegal, but allowed by MSVC
   operator==(const Integer&) const { return 0; }
 };
+ 

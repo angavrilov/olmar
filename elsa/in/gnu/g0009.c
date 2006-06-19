@@ -18,3 +18,4 @@ void f()
   char *f2 = "x" __FUNCTION__ "y";
   char *g2 = "x" __PRETTY_FUNCTION__ "y";
 }
+ 

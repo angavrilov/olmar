@@ -45,3 +45,4 @@ public:
 SimpleType fixed[] = {
   SimpleType (ST_CHAR),
 };
+ 

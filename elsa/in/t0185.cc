@@ -14,3 +14,4 @@ public:
 // what if I leave out the "template <>"?  parse error...
 template <>
 A<char>::A(const char*);
+ 

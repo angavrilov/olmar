@@ -20,3 +20,4 @@ void N::B<C>::f(C param)
 }
 
 template class N::B<int>;
+ 

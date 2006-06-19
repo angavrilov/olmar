@@ -11,3 +11,4 @@ int f() {
 // Scott's example of implicit int causing unnecessary parsing
 // ambiguities.
 int foo (int ((x))) {}
+ 

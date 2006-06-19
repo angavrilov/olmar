@@ -13,3 +13,4 @@ namespace N          // not a class scope
     return E(0);     // constructor-style cast
   }
 }
+ 

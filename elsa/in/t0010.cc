@@ -12,3 +12,4 @@ int foo ( )
 {
   pte_t * page = (pte_t *) get_pte_fast();
 }
+ 

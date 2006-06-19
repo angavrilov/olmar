@@ -3,3 +3,4 @@ void f() {
   sizeof (int[icnt]);
   __alignof__ (int[icnt]);
 }
+ 

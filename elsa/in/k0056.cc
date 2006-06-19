@@ -19,3 +19,4 @@ int main()
 {
     S1<long> s1;
 }
+ 

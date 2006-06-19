@@ -89,3 +89,4 @@ in a modular parser generator, as the spec in cc.gr broke the
 extension in annot.gr.  It would be interesting to consider trying
 to develop a scheme for static conflict resolution that had
 predictable effects across extension modules...
+ 

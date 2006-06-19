@@ -7,3 +7,4 @@ C *pc;
 int f(A *);                         // line 7
 int f(B *);                         // line 8
 int i = __testOverload(f(pc), 8);   // Calls f(B*)
+ 

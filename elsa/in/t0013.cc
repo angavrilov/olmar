@@ -24,3 +24,4 @@ int main()
   Foo x;
   x.func();
 }
+ 

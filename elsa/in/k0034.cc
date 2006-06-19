@@ -11,3 +11,4 @@ int main()
     union {int i;};
     union {int i;};
 }
+ 

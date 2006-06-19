@@ -30,3 +30,4 @@ typedef struct wf_alias {
     UCHAR8 Unused3:1 __attribute__ ((packed));
     UCHAR8 sixteen_bit_padding __attribute__ ((packed));
 } wavefront_alias;
+ 

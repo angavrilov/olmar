@@ -453,3 +453,4 @@ triv/efa.in/1000000.in: %%% progress: 3895ms: done parsing (2655 ms, 2650_396087
 triv/efa.in/1000000.in: stack nodes: 0, max stack nodes: 7
 triv/efa.in/1000000.in: detShift=0, detReduce=0, nondetShift=2000002, nondetReduce=2000003
 triv/efa.in/1000000.in: tree nodes: 0
+ 

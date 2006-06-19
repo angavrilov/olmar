@@ -113,3 +113,4 @@ template <>
 template <>
 int A_int_B_float::b10 = 10;
 
+ 

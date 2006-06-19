@@ -15,3 +15,4 @@ namespace N {
     B<int> y;                 // first instantiation
   };
 }
+ 

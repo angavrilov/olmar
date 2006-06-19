@@ -162,3 +162,4 @@ int ObjectPool<T>::freeObjectsInPool() const
 
 
 #endif // OBJPOOL_H
+ 

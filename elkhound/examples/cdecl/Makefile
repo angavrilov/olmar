@@ -51,3 +51,4 @@ cdecl: $(ELKHOUND)/glrmain.o cdecl.gr.gen.o
 
 clean:
 	rm -f cdecl *.bin *.gen.* *.o gdb.log
+ 

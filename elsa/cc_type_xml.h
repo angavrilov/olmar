@@ -185,3 +185,4 @@ class TypeXmlReader : public XmlReader {
 };
 
 #endif // CC_TYPE_XML_H
+ 

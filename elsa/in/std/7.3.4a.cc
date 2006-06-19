@@ -28,3 +28,4 @@ void f4() {
   //ERROR(2): i = 5;          // ill-formed; neither i is visible
 }
 
+ 

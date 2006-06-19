@@ -27,3 +27,4 @@ void f()
   y.fooptr2;           // type: Foo<int>*
 }
 
+ 

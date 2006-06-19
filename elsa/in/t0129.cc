@@ -34,3 +34,4 @@ enum { x =
 // type checker knows that sizes must be non-negative, so if we miss
 // one then the size will be -1 and we'll get an error
 int arr[x==55? 1 : -1];
+ 

@@ -46,3 +46,4 @@
 500: stack nodes: 3, max stack nodes: 1502
 500: num parses: 5.39497e+296
 500: tree nodes: 20959001
+ 

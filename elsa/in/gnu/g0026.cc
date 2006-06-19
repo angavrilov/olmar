@@ -32,3 +32,4 @@ copy (charT* s, size_type n, size_type pos) const
   // ...
   return n;
 }
+ 

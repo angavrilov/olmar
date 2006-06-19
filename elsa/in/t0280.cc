@@ -10,3 +10,4 @@ int main()
   f('c');              // template
   f<>(1);              // template
 }
+ 

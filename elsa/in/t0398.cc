@@ -77,3 +77,4 @@ void foo(A a, A b, A c)
 
 template<class T>
 void S<T>::g(T x, T y, T z) {}
+ 

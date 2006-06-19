@@ -48,3 +48,4 @@ template class Derived<float>;
 
 
 // EOF
+ 

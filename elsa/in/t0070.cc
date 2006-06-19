@@ -9,3 +9,4 @@ class Baz : public Bar {
   //...
 };
 
+ 

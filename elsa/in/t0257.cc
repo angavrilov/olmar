@@ -9,3 +9,4 @@ struct A {
 };
 
 template struct A<char>;
+ 

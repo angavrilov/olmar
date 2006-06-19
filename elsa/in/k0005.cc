@@ -26,3 +26,4 @@ template<class T> struct S3 {
 };
 
 S3<int> s3;
+ 

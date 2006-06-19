@@ -16,3 +16,4 @@ void f(A& a, int b) {
   a.operator<<(b);
   a << b;
 }
+ 

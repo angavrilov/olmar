@@ -9,3 +9,4 @@ class OwnerHashTable {
 public:
   friend class OwnerHashTableIter<T>;
 };
+ 

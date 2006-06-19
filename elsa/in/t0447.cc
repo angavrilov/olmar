@@ -27,3 +27,4 @@ void bar()
   foo(bp);
 }
 
+ 

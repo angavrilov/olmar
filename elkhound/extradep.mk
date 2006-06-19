@@ -9,3 +9,4 @@ useract.o: glrconfig.h
 cc2/cc2.gr.gen.o: glrconfig.h
 cc2/cc2main.o: glrconfig.h
 cc2/cc2main.o: cc2/cc2.gr.gen.h
+ 

@@ -12,3 +12,4 @@ void g(C *c, int i)
 {
   f(c, i, 1);
 }
+ 

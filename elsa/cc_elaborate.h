@@ -299,3 +299,4 @@ public:
 
 
 #endif // CC_ELABORATE_H
+ 

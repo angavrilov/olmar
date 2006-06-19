@@ -850,3 +850,4 @@ class NamespaceDecl {
 //*** Local Variables: ***//
 //*** compile-command : "../ast/astgen test-cc.ast" ***//
 //*** End: ***//
+ 

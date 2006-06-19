@@ -6,3 +6,4 @@ typedef unsigned int size_t;
 struct String {
   static void *operator new(size_t size) throw() { return 0; }
 };
+ 

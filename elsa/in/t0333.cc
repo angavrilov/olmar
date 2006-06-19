@@ -8,3 +8,4 @@ struct A {
 struct B {
   friend int A::foo() const;
 };
+ 

@@ -19,3 +19,4 @@ int Foo::f()
 // no!
 //ERROR(3): int i(void = 4);
 
+ 

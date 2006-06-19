@@ -7,3 +7,4 @@ struct A {
 int main() {
   struct A a = { .y /*no = or : here*/ 3, .x 8 };
 }
+ 

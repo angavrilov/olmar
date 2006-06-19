@@ -81,3 +81,4 @@ int foo() {
     { typedef int F[1 - 2 * !(sizeof(lzo_uint32) == 4)]; };
     { typedef int F[1 - 2 * !(sizeof(unsigned char *) == sizeof(const unsigned char *))]; };
 }
+ 

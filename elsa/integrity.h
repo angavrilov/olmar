@@ -24,3 +24,4 @@ public:      // funcs
 };
 
 #endif // INTEGRITY_H
+ 

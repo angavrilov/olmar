@@ -35,3 +35,4 @@ const inline func5(param)
 {
     return param;
 }
+ 

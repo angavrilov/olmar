@@ -6,3 +6,4 @@ namespace __gnu_cxx
 {
   extern "C" int __uselocale;
 }
+ 

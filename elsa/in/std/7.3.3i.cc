@@ -25,3 +25,4 @@ void h()
   //ERROR(2): void f(int);    // error:
                               // f(int) conflicts with C::f(int) and B::f(int)
 }
+ 

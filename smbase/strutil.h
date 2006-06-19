@@ -119,3 +119,4 @@ string chomp(rostring src);
 
 
 #endif // STRUTIL_H
+ 

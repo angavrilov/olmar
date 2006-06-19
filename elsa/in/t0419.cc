@@ -10,3 +10,4 @@ template <class T>
 void f(const T & t) {
   B b(t);
 }
+ 

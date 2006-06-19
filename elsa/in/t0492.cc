@@ -7,3 +7,4 @@ struct A {
     friend struct A;
   };
 };
+ 

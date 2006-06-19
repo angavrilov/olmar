@@ -27,3 +27,4 @@ class strstreambase : virtual public ios {
 class ostrstream : public strstreambase, public ostream {
     __ssize_t   pcount() { return ((strstreambuf*)_strbuf)->pcount(); }
 };
+ 

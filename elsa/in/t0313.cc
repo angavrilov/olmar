@@ -19,3 +19,4 @@ int f()
   return buf? 1 : 2;
 }
 
+ 

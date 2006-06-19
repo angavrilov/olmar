@@ -21,3 +21,4 @@ int foo()
   A<int>::B b;
   return b.x;
 }
+ 

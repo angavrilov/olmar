@@ -15,3 +15,4 @@ void foo()
 {
   A<int>::array[0] = A<int>::array[1];
 }
+ 

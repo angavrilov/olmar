@@ -21,3 +21,4 @@ void bar()
   foo(s);
 }
 
+ 

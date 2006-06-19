@@ -34,3 +34,4 @@ int main() {
     s1.func3(3);
     return s1.func2();
 }
+ 

@@ -388,3 +388,4 @@ efa.in/1000000.in: %%% progress: 1205ms: parsing...
 efa.in/1000000.in: %%% progress: 1784ms: done parsing (579 ms, 578_054220 cycles)
 efa.in/1000000.in: stack nodes: 3, max stack nodes: 4
 efa.in/1000000.in: tree nodes: 0
+ 

@@ -24,3 +24,4 @@ void f()
   Ptr p;
   func(p->x);
 }
+ 

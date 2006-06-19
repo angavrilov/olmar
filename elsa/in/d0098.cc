@@ -12,3 +12,4 @@ struct B : A {
     enum E a;
   }
 };
+ 

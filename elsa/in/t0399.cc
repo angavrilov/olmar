@@ -18,3 +18,4 @@ void foo()
   
   x = B::A::i;
 }
+ 

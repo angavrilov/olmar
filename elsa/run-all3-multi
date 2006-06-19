@@ -39,3 +39,4 @@ fi
 
 echo "icc: $icc  gcc: $gcc  elsa: $elsa"
 
+ 

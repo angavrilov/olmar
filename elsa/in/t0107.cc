@@ -13,3 +13,4 @@ Foo<T> & Foo<T>::get()
 
 // bad interpretation, ruled out by unparenthesized greater-than
 //Foo<   T > &Foo < T   >::get()
+ 

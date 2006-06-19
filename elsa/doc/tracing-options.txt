@@ -59,3 +59,4 @@ xmlPrintAST
 xmlPrintAST-indent
 xmlPrintAST-lowered
 xmlPrintAST-types
+ 

@@ -21,3 +21,4 @@ struct S {
 template<typename T> T bar() {
     return foo<T>(0);
 }
+ 

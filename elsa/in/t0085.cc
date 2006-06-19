@@ -12,3 +12,4 @@ public:
 
   typedef int x;    // this is what sets x's qtype
 };
+ 

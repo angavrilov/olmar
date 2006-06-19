@@ -6,3 +6,4 @@ A g() {
   A o;
   return f(o);
 }
+ 

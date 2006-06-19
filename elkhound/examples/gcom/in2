@@ -4,3 +4,4 @@ do x < 10 ->
   x := x + 1
 od;
 print x
+ 

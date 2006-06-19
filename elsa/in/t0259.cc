@@ -27,3 +27,4 @@ int bar(T *t)
 {
   return 2;
 }
+ 

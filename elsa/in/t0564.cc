@@ -12,3 +12,4 @@ void foo()
 {
   N::A<const class B> blah;
 }
+ 

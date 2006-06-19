@@ -7,3 +7,4 @@ public:
   void foo(  int (T::*mf)()  )
   {  }
 };
+ 

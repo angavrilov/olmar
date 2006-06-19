@@ -8,3 +8,4 @@ class Lexer2;
 void trivialLexer(char const *fname, Lexer2 &dest);
 
 #endif // TRIVLEX_H
+ 

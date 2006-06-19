@@ -9,3 +9,4 @@ void bar()
 {
   typename A::foo();
 }
+ 

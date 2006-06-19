@@ -12,3 +12,4 @@ enum F0 {
 struct S {
     F flags;
 };
+ 

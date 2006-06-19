@@ -7,3 +7,4 @@ extern "C" {
   int printf(char const *fmt, ...);
   int rand();
 }
+ 

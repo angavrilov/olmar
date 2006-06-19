@@ -13,3 +13,4 @@ struct B {
 void g() {
   B<A> b;
 }
+ 

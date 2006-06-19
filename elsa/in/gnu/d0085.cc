@@ -4,3 +4,4 @@
 // note that the 'asm' comes after the 'throw'
 
 extern void *tmpfile (void) throw () __asm__ ("" "tmpfile64");
+ 

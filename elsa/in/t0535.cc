@@ -7,3 +7,4 @@ struct B {
   operator A ();
 };
 
+ 

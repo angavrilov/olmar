@@ -11,3 +11,4 @@ void foo(unsigned int &y)
   int const &x = y;
 }
 
+ 

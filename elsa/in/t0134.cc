@@ -110,3 +110,4 @@ void f()
   // yield int, that's ok (just change the test to match)
   __computeLUB((int)0, (Enum1)0, 0, BAD);
 }
+ 

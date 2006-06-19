@@ -36,3 +36,4 @@ int main() {
     bar2(foo1);           // questionable
     bar2(foo2);
 }
+ 

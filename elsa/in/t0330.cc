@@ -19,3 +19,4 @@ void f()
   // error: lookup in class != lookup in global
   //ERROR(1): a.A3::foo();
 }
+ 

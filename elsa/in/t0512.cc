@@ -4,3 +4,4 @@
 
 const int ConstVar(1234);
 int ArrayVar[ConstVar];
+ 

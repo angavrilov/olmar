@@ -16,3 +16,4 @@ void f()
   //ERROR(1): foo<3>4;           // syntax error, arguments must be parenthesized
   //ERROR(2): bar<>(4);          // error, bar is not a template
 }
+ 

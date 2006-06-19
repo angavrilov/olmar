@@ -30,3 +30,4 @@ basic_string < _CharT, _Alloc >::basic_string ()
 { }
 
 template class basic_string < char, allocator<char> >;
+ 

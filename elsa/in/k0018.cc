@@ -13,3 +13,4 @@ struct S {
     // to "0"
     void f(int a[] = 0 /*__null*/);
 };
+ 

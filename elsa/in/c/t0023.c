@@ -10,3 +10,4 @@ void f (y)
 //  void g (z)
 //       register /*implicit-int*/ z/*func-name*/ (y/*parameter type*/)
 //  {}
+ 

@@ -10,3 +10,4 @@ void foof()
 {
   S<foo> s;
 }
+ 

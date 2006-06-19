@@ -26,3 +26,4 @@ bool func3()
   A<int, false> a;
   return a.getF();
 }
+ 

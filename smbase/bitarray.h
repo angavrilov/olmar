@@ -129,3 +129,4 @@ string toString(BitArray const &b);
 
 
 #endif // BITARRAY_H
+ 

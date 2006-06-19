@@ -23,3 +23,4 @@ class IDeclarator {
 
   -> D_func(FakeList<PQ_name> *kAndR_params = NULL); // params if a K&R function
 }
+ 

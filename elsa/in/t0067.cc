@@ -12,3 +12,4 @@ int main()
   Foo foo;
   return *(foo.f(4));
 }
+ 

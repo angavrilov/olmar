@@ -17,3 +17,4 @@ int foo()
   N::C<int> c;
   return *(c.t);
 }
+ 

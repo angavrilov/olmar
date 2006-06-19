@@ -50,3 +50,4 @@ void f1()
   mFlags += ENUMVAL;
   mFlags -= ENUMVAL;
 }
+ 

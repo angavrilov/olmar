@@ -19,3 +19,4 @@ S (foo)(x)
 /*implint*/ functionName(paramName)
   int paramName;
 {}
+ 

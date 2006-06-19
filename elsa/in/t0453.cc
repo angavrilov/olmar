@@ -21,3 +21,4 @@ void f()
   //ERROR(5): __checkCalleeDefnLine(g(4), 1);  // wrong line
   //ERROR(6): __checkCalleeDefnLine(1+2, 1);   // not a function
 }
+ 

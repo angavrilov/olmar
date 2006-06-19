@@ -12,3 +12,4 @@ int foo()
   __cause_xfailure(x);
   return x;
 }
+ 

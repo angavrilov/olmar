@@ -17,3 +17,4 @@ int Foo::f()
   Bar *b;
   return b->x;
 }
+ 

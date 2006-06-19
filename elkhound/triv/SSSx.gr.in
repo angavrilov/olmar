@@ -21,3 +21,4 @@ nonterm S {
   -> a:S x;
   -> x;
 }
+ 

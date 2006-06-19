@@ -322,3 +322,4 @@ static void   rtc_exit (void)
 
 int init_module(void) __attribute__((alias("rtc_init"))); extern inline __init_module_func_t __init_module_inline(void) { return  rtc_init ; } ;
 void cleanup_module(void) __attribute__((alias("rtc_exit"))); extern inline __cleanup_module_func_t __cleanup_module_inline(void) { return  rtc_exit ; } ;
+ 

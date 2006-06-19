@@ -9,3 +9,4 @@ terminals {
 }
 
 nonterm foo {}
+ 

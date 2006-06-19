@@ -32,3 +32,4 @@ void foo(A *a, N::C *c)
 
 
 // EOF
+ 

@@ -25,3 +25,4 @@ void foo()
   B< A<int> > b2;     // use the specialization
   b2.g();
 }
+ 

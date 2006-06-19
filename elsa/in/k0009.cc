@@ -17,3 +17,4 @@ void bar() {
     C* c;
     foo(c);
 }
+ 

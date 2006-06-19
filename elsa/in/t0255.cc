@@ -21,3 +21,4 @@ template class A<int>;
 // requires merge of Declaration
 template
 A<int>& foo(int);
+ 

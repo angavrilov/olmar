@@ -10,3 +10,4 @@ void f()
   E e;
   arr[e];
 }
+ 

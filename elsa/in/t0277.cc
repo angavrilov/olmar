@@ -17,3 +17,4 @@ void foo(T t)
 }
 
 template void foo(int t);
+ 

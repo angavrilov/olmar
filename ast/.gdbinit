@@ -10,3 +10,4 @@ set print static-members off
 #set args ast.ast
 #set args ../parsgen/gramast.ast
 run
+ 

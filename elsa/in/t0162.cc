@@ -13,3 +13,4 @@ int foo()
 {
   return x;        // N::x
 }
+ 

@@ -61,3 +61,4 @@ void foo()
   
   // see also t0343.cc
 }
+ 

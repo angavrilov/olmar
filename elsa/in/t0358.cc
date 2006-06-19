@@ -15,3 +15,4 @@ void foo(Foo *f)
 
   3 < (Int32)(*f).Length();
 }
+ 

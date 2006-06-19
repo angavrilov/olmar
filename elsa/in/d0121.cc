@@ -16,3 +16,4 @@ void Geometry::f() {
   // causes an error message
   //ERROR(2): *this = std::string (geometry);
 }
+ 

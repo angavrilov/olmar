@@ -11,3 +11,4 @@ void NewObject(jmethodID methodID, ...)
   va_list args;
   __builtin_stdarg_start ((args), methodID);
 }
+ 

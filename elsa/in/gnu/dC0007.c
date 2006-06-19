@@ -11,3 +11,4 @@ static int sstfb_decode_var()
       /* nothing */
   }
 }
+ 

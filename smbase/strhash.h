@@ -79,3 +79,4 @@ public:
 
 
 #endif // STRHASH_H
+ 

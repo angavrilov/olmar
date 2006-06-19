@@ -19,3 +19,4 @@ int foo(struct Inner *i)
   InnerTypedef z;
   return i->x + InnerEnumerator;
 }
+ 

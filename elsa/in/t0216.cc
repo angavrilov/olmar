@@ -25,3 +25,4 @@ int main() {
   B b;
   b.abc.foo();
 }
+ 

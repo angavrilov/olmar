@@ -13,3 +13,4 @@ public:
   
   //ERROR(1): y;     // missing superclass
 };
+ 

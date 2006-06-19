@@ -280,3 +280,4 @@ int main() {
   h2(f_h2);                     // without & operator
   h2(&f_h2);                    // with & operator
 }
+ 

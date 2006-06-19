@@ -76,3 +76,4 @@ void test_b()
   b.foo(1, 2.3);
 }
 
+ 

@@ -105,3 +105,4 @@ check:
 clean:
 	rm -f *.cmo *.cmi *.d *.cmx *.dx
 	rm -f arith.ml* een.ml* lexer.ml main tobjpool
+ 

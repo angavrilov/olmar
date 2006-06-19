@@ -11,3 +11,4 @@ void foo() {
   f(g);                      // OK
 }
 
+ 

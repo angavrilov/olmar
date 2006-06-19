@@ -15,3 +15,4 @@ void foo()
   char const **cpp;
   f(cpp);
 }
+ 

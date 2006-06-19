@@ -361,3 +361,4 @@ void xferNullableSerfPtr(Flatten &flat, T *&serfPtr)
 
 
 #endif // FLATUTIL_H
+ 
