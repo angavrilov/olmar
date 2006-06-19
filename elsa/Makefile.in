@@ -257,6 +257,8 @@ cc.gr.gen.h cc.gr.gen.cc: $(CC_GR_MODS) cc_tokens.ids $(ELKHOUND)/elkhound
 CCPARSE_ML := \
   cc_ml_types.ml \
   cc_ml_constructors.ml \
+  ml_ctype.ml \
+  ml_ctype_constructors.ml \
   cc_ast_gen_type.ml \
   cc_ast_gen.ml \
   ast_marshal.ml \
@@ -267,6 +269,7 @@ CCPARSE_ML := \
 # mldeps.mk depends on $(CCPARSE_ML), but because we include mldeps.mk,
 # we have to leave out this dependency, otherwise clean will not work
 .PHONY: mldeps
+depend: mldeps
 mldeps:
 	ocamldep $(CCPARSE_ML) > mldeps.mk
 
@@ -414,6 +417,28 @@ in/big/%.i: in/big/gz/%.i.gz
 in/big: $(patsubst in/big/gz/%.i.gz,in/big/%.i,$(wildcard in/big/gz/*.gz))
 	@echo made $@
 
+.PHONY: TAGS
+DISCARDPATTERN="/old/"
+TAGS:
+	otags `find . -name \*.ml -o -name \*.mli |\
+		egrep -v $(DISCARDPATTERN)`
+	etags --append --members \
+		`find . ../ast ../elkhound ../smbase -name \*.h | \
+			egrep -v $(DISCARDPATTERN)` \
+		`find . ../ast ../elkhound ../smbase -name \*.cc | \
+			egrep -v $(DISCARDPATTERN)` \
+		`find . ../ast ../elkhound ../smbase -name \*.cpp | \
+			egrep -v $(DISCARDPATTERN)`
+
+
+all.ast: cc.ast cc_print.ast cfg.ast kandr.ast cc_elaborate.ast \
+		cc_tcheck.ast gnu.ast
+	rm -f all.ast
+	for f in $^ ; do \
+		echo "//=========================== start of $$f" >> all.ast; \
+		cat $$f >> all.ast; \
+		echo "//=========================== end  of  $$f" >> all.ast; \
+	done
 
 # ------------------ documentation ------------------
 gendoc:
@@ -524,11 +549,4 @@ check: semgrep all
 .PHONY: checkxml
 checkxml:
 	$(MAKE) -f checkxml.mk
-
-.PHONY: TAGS
-TAGS:
-	etags --members \
-		`find . ../ast ../elkhound ../smbase -name \*.h` \
-		`find . ../ast ../elkhound ../smbase -name \*.cc` \
-		`find . ../ast ../elkhound ../smbase -name \*.cpp`
 

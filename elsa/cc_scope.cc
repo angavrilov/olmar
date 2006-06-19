@@ -26,6 +26,7 @@ Scope::Scope(ScopeKind sk, int cc, SourceLoc initLoc)
     activeUsingEdges(0),
     outstandingActiveEdges(0),
     curCompound(NULL),
+    curAccess(AK_PUBLIC),
     curFunction(NULL),
     curLoc(initLoc)
 {
@@ -577,7 +578,7 @@ Variable *Scope::lookupTypeTag(StringRef name, Env &env, LookupFlags flags) cons
 
   // consider bases
   if (curCompound) {
-    FOREACH_OBJLIST(BaseClass, curCompound->bases, iter) {
+    FOREACH_OBJLIST(BaseClass, curCompound->get_bases(), iter) {
       Variable *v2 = iter.data()->ct->lookupTypeTag(name, env, flags);
       if (v2) {
         if (!v) {

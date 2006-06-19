@@ -515,7 +515,7 @@ void TypeToXml::toXml(CompoundType *cpd) {
   printXml_bool(forward, cpd->forward);
   printXml(keyword, cpd->keyword);
   printEmbed(cpd, dataMembers);
-  printEmbed(cpd, bases);
+  printEmbed(cpd, get_bases());
   printEmbed(cpd, virtualBases);
   printEmbed(cpd, subobj);
   printEmbed(cpd, conversionOperators);
@@ -530,7 +530,7 @@ void TypeToXml::toXml(CompoundType *cpd) {
   toXml_Scope_subtags(cpd);
   // * members
   travObjList_S(cpd, CompoundType, dataMembers, Variable);
-  travObjList(cpd, CompoundType, bases, BaseClass);
+  travObjList(cpd, CompoundType, get_bases(), BaseClass);
   travObjList(cpd, CompoundType, virtualBases, BaseClassSubobj);
   toXml(&cpd->subobj);          // embedded
   travObjList_S(cpd, CompoundType, conversionOperators, Variable);

@@ -841,7 +841,7 @@ void ElabVisitor::completeNoArgMemberInits(Function *ctor, CompoundType *ct)
   // NOTE: don't do this!
 //    FakeList<MemberInit> *newInits = FakeList<MemberInit>::emptyList();
   
-  FOREACH_OBJLIST(BaseClass, ct->bases, iter) {
+  FOREACH_OBJLIST(BaseClass, ct->get_bases(), iter) {
     BaseClass const *base = iter.data();
     // omit initialization of virtual base classes, whether direct
     // virtual or indirect virtual.  See cppstd 12.6.2 and the
@@ -1007,7 +1007,7 @@ MR_func *ElabVisitor::makeCopyCtorBody(CompoundType *ct, Variable *ctor)
   // then reverse it.
   FakeList<MemberInit> *inits = FakeList<MemberInit>::emptyList();
   {
-    FOREACH_OBJLIST(BaseClass, ct->bases, iter) {
+    FOREACH_OBJLIST(BaseClass, ct->get_bases(), iter) {
       BaseClass const *base = iter.data();
       // omit initialization of virtual base classes, whether direct
       // virtual or indirect virtual.  See cppstd 12.6.2 and the
@@ -1167,7 +1167,7 @@ MR_func *ElabVisitor::makeCopyAssignBody
   // and then reversed as with the copy ctor
   {
     // For each superclass, make the call to operator =.
-    FOREACH_OBJLIST(BaseClass, ct->bases, iter) {
+    FOREACH_OBJLIST(BaseClass, ct->get_bases(), iter) {
       BaseClass const *base = iter.data();
       // omit initialization of virtual base classes, whether direct
       // virtual or indirect virtual.  See cppstd 12.6.2 and the
@@ -1232,7 +1232,7 @@ void ElabVisitor::completeDtorCalls(
   // *do* have to do it in reverse.
   SObjStack<S_expr> dtorStmtsReverse;
 
-  FOREACH_OBJLIST(BaseClass, ct->bases, iter) {
+  FOREACH_OBJLIST(BaseClass, ct->get_bases(), iter) {
     BaseClass const *base = iter.data();
     // omit initialization of virtual base classes, whether direct
     // virtual or indirect virtual.  See cppstd 12.6.2 and the

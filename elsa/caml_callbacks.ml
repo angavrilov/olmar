@@ -1,10 +1,12 @@
 
 open Cc_ml_constructors
+open Ml_ctype_constructors
 open Cc_ast_gen
 open Ast_marshal
 
 let register_caml_callbacks () =
   register_cc_ml_constructor_callbacks ();
+  register_ml_ctype_constructor_callbacks ();
   register_cc_ast_callbacks();
   register_marshal_callback();
   ()

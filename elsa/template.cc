@@ -108,6 +108,14 @@ bool TypeVariable::isAssociated() const
 }
 
 
+// ocaml serialization method
+// hand written ocaml serialization function
+value TypeVariable::toOcaml(ToOcamlData *){
+  // Hendrik
+  cerr << "TypeVariable::toOcaml" << endl;
+  xassert(false);
+}
+
 // -------------------- PseudoInstantiation ------------------
 PseudoInstantiation::PseudoInstantiation(CompoundType *p)
   : NamedAtomicType(p? p->name : NULL),
@@ -156,6 +164,14 @@ void PseudoInstantiation::traverse(TypeVisitor &vis)
   vis.postvisitAtomicType(this);
 }
 
+
+// ocaml serialization method
+// hand written ocaml serialization function
+value PseudoInstantiation::toOcaml(ToOcamlData *){
+  // Hendrik
+  cerr << "PseudoInstantiation::toOcaml" << endl;
+  xassert(false);
+}
 
 // -------------------- DependentQType ------------------
 DependentQType::DependentQType(AtomicType *f)
@@ -222,6 +238,13 @@ void DependentQType::traverse(TypeVisitor &vis)
   vis.postvisitAtomicType(this);
 }
 
+// ocaml serialization method
+// hand written ocaml serialization function
+value DependentQType::toOcaml(ToOcamlData *){
+  // Hendrik
+  cerr << "DependentQType::toOcaml" << endl;
+  xassert(false);
+}
 
 // ------------------ TemplateParams ---------------
 TemplateParams::TemplateParams(TemplateParams const &obj)
@@ -4627,7 +4650,7 @@ void Env::explicitlyInstantiate(Variable *var, DeclFlags instFlags)
   // 14.7.2 para 7: instantiate all members, too
 
   // base classes
-  FOREACH_OBJLIST(BaseClass, ct->bases, baseIter) {
+  FOREACH_OBJLIST(BaseClass, ct->get_bases(), baseIter) {
     Variable *b = baseIter.data()->ct->typedefVar;
     if (b->isInstantiation()) {     // t0273.cc
       explicitlyInstantiate(b, instFlags);

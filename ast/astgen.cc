@@ -1896,7 +1896,9 @@ void CGen::emitToOcaml(ASTClass const * super, ASTClass const *sub)
 
   out << ");" << endl;
 
-  out << "  xassert(IS_OCAML_AST_VALUE(ocaml_val));\n";
+  out << "  xassert(IS_OCAML_AST_VALUE(ocaml_val));\n\n";
+
+  out << "  data->stack.remove(this);\n";
 
   out << "  CAMLreturn(ocaml_val);" << endl;
   

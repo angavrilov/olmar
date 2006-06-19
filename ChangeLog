@@ -1,3 +1,22 @@
+2006-06-19  Hendrik Tews  <tews@tandem.cs.ru.nl>
+
+	AST
+	* remove elements from the ToOcamlData stack
+
+	ELSA
+	* ocaml serialization for CType's
+	* hand translation for the CType hierarchy
+
+	* CompoundType::bases (which was of type const ObjList<BaseClass>)
+	  changed into non-const & protected
+	* use const ObjList<BaseClass> & get_bases() to access the bases
+	  list
+
+	* moved function calls out of caml_callback
+	* fixed init bug in Scope::Scope (from Scott)
+	
+
+
 2006-05-15  Hendrik Tews  <tews@localhost.localdomain>
 
 	ELSA

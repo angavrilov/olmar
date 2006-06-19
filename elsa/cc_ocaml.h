@@ -1,4 +1,4 @@
-// cc_flags.h            see license.txt for copyright and terms of use
+// cc_ocaml.h            see license.txt for copyright and terms of use
 // ocaml serialization utility functions
 
 
@@ -28,6 +28,7 @@ value ocaml_from_SourceLoc(const SourceLoc &, ToOcamlData *);
 // for flag sets
 value ocaml_from_DeclFlags(const DeclFlags &, ToOcamlData *);
 value ocaml_from_CVFlags(const CVFlags &, ToOcamlData *);
+value ocaml_from_function_flags(const FunctionFlags &f, ToOcamlData *d);
 
 // for real enums
 value ocaml_from_SimpleTypeId(const SimpleTypeId &, ToOcamlData *);
@@ -38,11 +39,12 @@ value ocaml_from_UnaryOp(const UnaryOp &, ToOcamlData *);
 value ocaml_from_EffectOp(const EffectOp &, ToOcamlData *);
 value ocaml_from_BinaryOp(const BinaryOp &, ToOcamlData *);
 value ocaml_from_CastKeyword(const CastKeyword &, ToOcamlData *);
+value ocaml_from_CompoundType_Keyword(const CompoundType::Keyword &, 
+				      ToOcamlData *);
 
 
 // Variable, CType hack
 value ocaml_from_Variable(const Variable &, ToOcamlData *);
-value ocaml_from_CType(const CType &, ToOcamlData *);
 
 
 // value ocaml_from_(const  &, ToOcamlData *);

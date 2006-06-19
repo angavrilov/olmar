@@ -37,6 +37,7 @@
 #include "exc.h"          // xBase
 #include "serialno.h"     // INHERIT_SERIAL_BASE
 #include "mflags.h"       // MatchFlags
+#include "ocamlhelp.h"    // ocaml serialization helpers
 
 class Variable;           // variable.h
 class Env;                // cc_env.h
@@ -183,6 +184,9 @@ public:     // types
     NUM_TAGS
   };
 
+protected:  // data
+  value ocaml_val;       // cache ocaml serialization result
+
 public:     // funcs
   AtomicType();
   virtual ~AtomicType();
@@ -233,6 +237,10 @@ public:     // funcs
   // toString()+newline to cout
   void gdb() const;
 
+  // ocaml serialization method
+  // define this in the real type classes derived from CType
+  virtual value toOcaml(ToOcamlData *) =0;
+
   ALLOC_STATS_DECLARE
 };
 
@@ -258,6 +266,8 @@ public:     // funcs
   virtual string toMLString() const;
   virtual int reprSize() const;
   virtual void traverse(TypeVisitor &vis);
+  // ocaml serialization method
+  virtual value toOcaml(ToOcamlData *);
 };
 
 
@@ -273,6 +283,7 @@ public:
   ~NamedAtomicType();
 
   virtual bool isNamedAtomicType() const;       // returns true
+  // ocaml serialization method stays pure
 };
 
 
@@ -283,15 +294,22 @@ public:
   AccessKeyword access;      // access mode of the inheritance
   bool isVirtual;            // true for virtual inheritance
 
+protected:  // data
+  value ocaml_val;       // cache ocaml serialization result
+
 public:
   BaseClass(BaseClass const &obj)
     : DMEMB(ct), DMEMB(access), DMEMB(isVirtual) {}
   BaseClass(CompoundType *c, AccessKeyword a, bool v)
     : ct(c), access(a), isVirtual(v) {}
+
+  virtual ~BaseClass() {};
     
   // this isn't virtual because the caller always knows the
   // dynamic type
   void traverse(TypeVisitor &vis);
+  // ocaml serialization method
+  virtual value toOcaml(ToOcamlData *);
 };
 
 // represent an instance of a base class in a particular class'
@@ -314,13 +332,15 @@ public:
     : BaseClass(c, a, v)
   {}
   BaseClassSubobj(BaseClass const &base);
-  ~BaseClassSubobj();
+  virtual ~BaseClassSubobj();
   // dsw: note: we use the implicit operator=() on this object
 
   // name and virtual address to uniquely identify this object
   string canonName() const;
 
   void traverse(TypeVisitor &vis);
+  // ocaml serialization method
+  virtual value toOcaml(ToOcamlData *);
 };
 
 // represent a user-defined compound type; the members of the
@@ -342,7 +362,12 @@ public:      // data
 
   // classes from which this one inherits; 'const' so you have to
   // use 'addBaseClass', but public to make traversal easy
-  const ObjList<BaseClass> bases;
+  // HT: changed the const bases into non-const, to ensure using
+  // addBaseClass, the field is protected now. 
+  // 
+  // this field is protected now (to ensure using addBaseClass)
+  // use getBases to access the bases list
+  // const ObjList<BaseClass> bases;
 
   // collected virtual base class subobjects
   ObjList<BaseClassSubobj> virtualBases;
@@ -386,6 +411,10 @@ public:      // data
   // itself while the latter is a PseudoInstantiation thereof
   CType *selfType;                     // (nullable serf)
 
+protected:  // data
+  value ocaml_info;       // cache ocaml serialization result
+  ObjList<BaseClass> bases;
+
 private:     // funcs
   void makeSubobjHierarchy(BaseClassSubobj *subobj, BaseClass const *newBase);
 
@@ -413,6 +442,8 @@ protected:   // funcs
 public:      // funcs
   virtual ~CompoundType();
 
+  const ObjList<BaseClass> & get_bases() { return bases;};
+  
   bool isComplete() const { return !forward; }
   
   // true if this is a class that is incomplete because it requires
@@ -509,6 +540,11 @@ public:      // funcs
   
   // true if this is an "aggregate" (8.5.1p1)
   bool isAggregate() const;
+
+  // ocaml serialization methods
+  value toCompoundInfo(ToOcamlData *);
+
+  virtual value toOcaml(ToOcamlData *);
 };
 
 string toString(CompoundType::Keyword k);
@@ -549,6 +585,8 @@ public:     // funcs
 
   Value *addValue(StringRef name, int value, /*nullable*/ Variable *d);
   Value const *getValue(StringRef name) const;
+  // ocaml serialization method
+  virtual value toOcaml(ToOcamlData *);
 };
 
 
@@ -609,6 +647,9 @@ public:     // data
   // notation instead of C notation by AtomicType::toString and
   // CType::toString
   static bool printAsML;
+
+protected:  // data
+  value ocaml_val;       // cache ocaml serialization result
 
 private:    // disallowed
   BaseType(BaseType&);
@@ -784,6 +825,10 @@ public:     // funcs
   // are *not* bound in 'map'
   bool containsVariables(MType *map = NULL) const;
 
+  // ocaml serialization method
+  // define this in the real type classes derived from CType
+  virtual value toOcaml(ToOcamlData *) =0;
+
   ALLOC_STATS_DECLARE
 };
 
@@ -812,6 +857,10 @@ string cvToString(CVFlags cv);
 // supports the use of 'CType*' in AST constructor argument lists
 string toString(CType *t);
 
+// support astgen generated ocaml serialization code
+inline value ocaml_from_CType(CType &t, ToOcamlData *d) {
+  return t.toOcaml(d);
+}
 
 // essentially just a wrapper around an atomic type, but
 // also with optional const/volatile flags
@@ -843,6 +892,8 @@ public:
   virtual bool anyCtorSatisfies(TypePred &pred) const;
   virtual CVFlags getCVFlags() const;
   virtual void traverse(TypeVisitor &vis);
+  // ocaml serialization method
+  virtual value toOcaml(ToOcamlData *);
 };
 
              
@@ -871,6 +922,8 @@ public:
   virtual bool anyCtorSatisfies(TypePred &pred) const;
   virtual CVFlags getCVFlags() const;
   virtual void traverse(TypeVisitor &vis);
+  // ocaml serialization method
+  virtual value toOcaml(ToOcamlData *);
 };
 
 
@@ -898,6 +951,8 @@ public:
   virtual bool anyCtorSatisfies(TypePred &pred) const;
   virtual CVFlags getCVFlags() const;
   virtual void traverse(TypeVisitor &vis);
+  // ocaml serialization method
+  virtual value toOcaml(ToOcamlData *);
 };
 
 
@@ -1018,6 +1073,8 @@ public:
   virtual int reprSize() const;
   virtual bool anyCtorSatisfies(TypePred &pred) const;
   virtual void traverse(TypeVisitor &vis);
+  // ocaml serialization method
+  virtual value toOcaml(ToOcamlData *);
 };
 
 
@@ -1061,6 +1118,8 @@ public:
   virtual int reprSize() const;
   virtual bool anyCtorSatisfies(TypePred &pred) const;
   virtual void traverse(TypeVisitor &vis);
+  // ocaml serialization method
+  virtual value toOcaml(ToOcamlData *);
 };
 
 
@@ -1101,6 +1160,8 @@ public:
   virtual bool anyCtorSatisfies(TypePred &pred) const;
   virtual CVFlags getCVFlags() const;
   virtual void traverse(TypeVisitor &vis);
+  // ocaml serialization method
+  virtual value toOcaml(ToOcamlData *);
 };
 
 

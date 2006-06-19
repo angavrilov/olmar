@@ -12,7 +12,6 @@ type sourceLoc = string * int * int
 (* Variable and CType hack *)
 
 type variable = unit
-type cType = unit
 
 (* DeclFlags from cc_flags.h
  *)

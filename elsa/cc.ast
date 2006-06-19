@@ -47,7 +47,8 @@ verbatim {
 }
 
 ocaml_type_verbatim {
-  open Cc_ml_types;;
+  open Cc_ml_types
+  open Ml_ctype;;
 }
 
 // use the newest astgen feature: serialize into ocaml

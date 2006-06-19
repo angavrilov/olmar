@@ -829,7 +829,7 @@ void MemberInit::tcheck(Env &env, CompoundType *enclosing)
   bool directBase = false;
   bool directVirtual = false;
   bool indirectVirtual = false;
-  FOREACH_OBJLIST(BaseClass, enclosing->bases, baseIter) {
+  FOREACH_OBJLIST(BaseClass, enclosing->get_bases(), baseIter) {
     BaseClass const *b = baseIter.data();
 
     // check for direct base

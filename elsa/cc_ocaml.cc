@@ -34,11 +34,6 @@ value ocaml_from_Variable(const Variable &, ToOcamlData *){
   return Val_unit;
 }
 
-// hand written ocaml serialization function
-value ocaml_from_CType(const CType &, ToOcamlData *){
-  return Val_unit;
-}
-
 
 // hand written ocaml serialization function
 value ocaml_from_SourceLoc(const SourceLoc &loc, ToOcamlData *d){
@@ -125,7 +120,7 @@ value ocaml_from_SourceLoc(const SourceLoc &loc, ToOcamlData *d){
 // hand written ocaml serialization function
 value ocaml_from_DeclFlags(const DeclFlags &f, ToOcamlData *d){
   CAMLparam0();
-  CAMLlocal1(result);
+  CAMLlocal2(camlf, result);
   // cout << "DeclFlags start marshal\n" << flush;
 
   static value * declFlag_from_int32_closure = NULL;
@@ -133,7 +128,9 @@ value ocaml_from_DeclFlags(const DeclFlags &f, ToOcamlData *d){
     declFlag_from_int32_closure = caml_named_value("declFlag_from_int32");
   xassert(declFlag_from_int32_closure);
 
-  result = caml_callback(*declFlag_from_int32_closure, caml_copy_int32(f));
+  camlf = caml_copy_int32(f);
+  xassert(IS_OCAML_INT32(camlf));
+  result = caml_callback(*declFlag_from_int32_closure, camlf);
   xassert(IS_OCAML_AST_VALUE(result));
 
   // cout << "DeclFlags end marshal\n" << flush;
@@ -620,19 +617,40 @@ value ocaml_from_SimpleTypeId(const SimpleTypeId &id, ToOcamlData *d){
 // hand written ocaml serialization function
 value ocaml_from_CVFlags(const CVFlags &f, ToOcamlData *d){
   CAMLparam0();
-  CAMLlocal1(result);
+  CAMLlocal2(camlf, result);
 
   static value * cVFlag_from_int32_closure = NULL;
   if(cVFlag_from_int32_closure == NULL)
     cVFlag_from_int32_closure = caml_named_value("cVFlag_from_int32");
   xassert(cVFlag_from_int32_closure);
 
-  result = caml_callback(*cVFlag_from_int32_closure, caml_copy_int32(f));
+  camlf = caml_copy_int32(f);
+  xassert(IS_OCAML_INT32(camlf));
+  result = caml_callback(*cVFlag_from_int32_closure, camlf);
   xassert(IS_OCAML_AST_VALUE(result));
 
   CAMLreturn(result);
 }
 
+
+// hand written ocaml serialization function
+value ocaml_from_function_flags(const FunctionFlags &f, ToOcamlData *d){
+  CAMLparam0();
+  CAMLlocal2(camlf, result);
+
+  static value * function_flags_from_int32_closure = NULL;
+  if(function_flags_from_int32_closure == NULL)
+    function_flags_from_int32_closure = 
+      caml_named_value("function_flags_from_int32");
+  xassert(function_flags_from_int32_closure);
+
+  camlf = caml_copy_int32(f);
+  xassert(IS_OCAML_INT32(camlf));
+  result = caml_callback(*function_flags_from_int32_closure, camlf);
+  xassert(IS_OCAML_AST_VALUE(result));
+
+  CAMLreturn(result);
+}
 
 
 
@@ -746,6 +764,7 @@ value ocaml_from_AccessKeyword(const AccessKeyword &id, ToOcamlData *d){
     return result;
 
   default:
+    cerr << "AccessKeyword out of range: " << id << endl << flush;
     xassert(false);
     break;
   }
@@ -1649,6 +1668,48 @@ value ocaml_from_CastKeyword(const CastKeyword &id, ToOcamlData *d){
   xassert(false);
 }
 
+
+
+// hand written ocaml serialization function
+value ocaml_from_CompoundType_Keyword(const CompoundType::Keyword &id, 
+				      ToOcamlData *d){
+  // don't allocate here, so don;t need the CAMLparam stuff
+
+  static value * create_K_STRUCT_constructor_closure = NULL;
+  static value * create_K_CLASS_constructor_closure = NULL;
+  static value * create_K_UNION_constructor_closure = NULL;
+
+  switch(id){
+
+  case CompoundType::K_STRUCT:
+    if(create_K_STRUCT_constructor_closure == NULL)
+      create_K_STRUCT_constructor_closure = 
+        caml_named_value("create_K_STRUCT_constructor");
+    xassert(create_K_STRUCT_constructor_closure);
+    return caml_callback(*create_K_STRUCT_constructor_closure, Val_unit);
+
+  case CompoundType::K_CLASS:
+    if(create_K_CLASS_constructor_closure == NULL)
+      create_K_CLASS_constructor_closure = 
+        caml_named_value("create_K_CLASS_constructor");
+    xassert(create_K_CLASS_constructor_closure);
+    return caml_callback(*create_K_CLASS_constructor_closure, Val_unit);
+
+  case CompoundType::K_UNION:
+    if(create_K_UNION_constructor_closure == NULL)
+      create_K_UNION_constructor_closure = 
+        caml_named_value("create_K_UNION_constructor");
+    xassert(create_K_UNION_constructor_closure);
+    return caml_callback(*create_K_UNION_constructor_closure, Val_unit);
+
+  default:
+    xassert(false);
+    break;
+  }
+
+  // not reached, the above assertion takes us out before
+  xassert(false);
+}
 
 
 

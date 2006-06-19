@@ -32,6 +32,8 @@ public:
   // true if this template parameter has been associated with
   // a specific template
   bool isAssociated() const;
+  // ocaml serialization method
+  virtual value toOcaml(ToOcamlData *);
 };
 
 
@@ -61,6 +63,8 @@ public:      // funcs
   virtual string toMLString() const;
   virtual int reprSize() const;
   virtual void traverse(TypeVisitor &vis);
+  // ocaml serialization method
+  virtual value toOcaml(ToOcamlData *);
 };
 
 
@@ -91,6 +95,8 @@ public:      // data
   virtual string toMLString() const;
   virtual int reprSize() const;
   virtual void traverse(TypeVisitor &vis);
+  // ocaml serialization method
+  virtual value toOcaml(ToOcamlData *);
 };
 
 
