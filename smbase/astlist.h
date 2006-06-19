@@ -9,20 +9,23 @@
 
 template <class T> class ASTListIter;
 template <class T> class ASTListIterNC;
+template <class T> class ASTListMutator;
 
 // a list which owns the items in it (will deallocate them), and
 // has constant-time access to the last element
 template <class T>
 class ASTList {
 private:
-  friend class ASTListIter<T>;        
+  friend class ASTListIter<T>;
   friend class ASTListIterNC<T>;
+  friend class ASTListMutator<T>;
 
 protected:
   VoidTailList list;                    // list itself
 
 private:
   ASTList(ASTList const &obj);          // not allowed
+  void operator=(ASTList const &obj);   // not allowed
 
 public:
   ASTList()                             : list() {}
@@ -51,6 +54,7 @@ public:
   // insertion
   void prepend(T *newitem)              { list.prepend(newitem); }
   void append(T *newitem)               { list.append(newitem); }
+  void appendAll(ASTList<T> &tail)      { list.appendAll(tail.list); }
   void insertAt(T *newitem, int index)  { list.insertAt(newitem, index); }
   void concat(ASTList<T> &tail)         { list.concat(tail.list); }
 
@@ -59,7 +63,8 @@ public:
   T *removeLast()                       { return (T*)list.removeLast(); }
   T *removeAt(int index)                { return (T*)list.removeAt(index); }
   void removeItem(T *item)              { list.removeItem((void*)item); }
-  
+  bool removeIfPresent(T *item)         { return list.removeIfPresent((void*)item); }
+
   // this one is awkwardly named to remind the user that it's
   // contrary to the usual intent of this class
   void removeAll_dontDelete()           { return list.removeAll(); }
@@ -67,6 +72,7 @@ public:
   // deletion
   void deleteFirst()                    { delete (T*)list.removeFirst(); }
   void deleteAll();
+  void deleteItem(T* item)              { removeItem(item); delete item; }
 
   // list-as-set: selectors
   int indexOf(T const *item) const      { return list.indexOf((void*)item); }
@@ -97,6 +103,7 @@ protected:
   VoidTailListIter iter;      // underlying iterator
 
 public:
+  ASTListIter()                        {} // initially done
   ASTListIter(ASTList<T> const &list) : iter(list.list) {}
   ~ASTListIter()                       {}
 
@@ -123,6 +130,7 @@ protected:
   VoidTailListIter iter;      // underlying iterator
 
 public:
+  ASTListIterNC()                      {} // initially done
   ASTListIterNC(ASTList<T> &list)      : iter(list.list) {}
   ~ASTListIterNC()                     {}
 
@@ -158,5 +166,60 @@ ASTList<T> *shallowCopy(ASTList<T> *src)
   return ret;
 }
 
+// for traversing the list and modifying it (nodes and/or structure)
+// NOTE: no list-modification fns should be called on 'list' while this
+//       iterator exists, and only one such iterator should exist for
+//       any given list
+template <class T>
+class ASTListMutator {
+  friend class ASTListIter<T>;
+
+protected:
+  VoidTailListMutator mut;       // underlying mutator
+
+public:
+  ASTListMutator(ASTList<T> &lst)     : mut(lst.list) { reset(); }
+  ~ASTListMutator()                    {}
+
+  void reset()                          { mut.reset(); }
+
+  // iterator copying; safe *only* until one of the mutators modifies
+  // the list structure (by inserting or removing), at which time all
+  // other iterators might be in limbo
+  ASTListMutator(ASTListMutator const &obj)             : mut(obj.mut) {}
+  ASTListMutator& operator=(ASTListMutator const &obj)  { mut = obj.mut;  return *this; }
+    // requires that 'this' and 'obj' already refer to the same 'list'
+
+  // iterator actions
+  bool isDone() const                   { return mut.isDone(); }
+  void adv()                            { mut.adv(); }
+  T *data()                             { return (T*)mut.data(); }
+  T *&dataRef()                         { return (T*&)mut.dataRef(); }
+
+  // insertion
+  void insertBefore(T *item)            { mut.insertBefore((void*)item); }
+    // 'item' becomes the new 'current', and the current 'current' is
+    // pushed forward (so the next adv() will make it current again)
+
+  void insertAfter(T *item)             { mut.insertAfter((void*)item); }
+    // 'item' becomes what we reach with the next adv();
+    // isDone() must be false
+
+  void append(T *item)                  { mut.append((void*)item); }
+    // only valid while isDone() is true, it inserts 'item' at the end of
+    // the list, and advances such that isDone() remains true; equivalent
+    // to { xassert(isDone()); insertBefore(item); adv(); }
+
+  // removal
+  T *remove()                           { return (T*)mut.remove(); }
+    // 'current' is removed from the list and returned, and whatever was
+    // next becomes the new 'current'
+
+  void deleteIt()                       { delete (T*)mut.remove(); }
+    // same as remove(), except item is deleted also
+
+  // debugging
+  void selfCheck() const                { mut.selfCheck(); }
+};
 
 #endif // ASTLIST_H

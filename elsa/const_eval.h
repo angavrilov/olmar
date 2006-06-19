@@ -99,7 +99,10 @@ public:      // funcs
 
   // convert *this and 'other' to a common type
   void applyUsualArithmeticConversions(CValue &other);
-  
+
+  // add 'offset' to the current value
+  void addOffset(int offset);
+
   // debugging
   string asString() const;
 };

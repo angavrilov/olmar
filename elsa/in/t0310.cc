@@ -177,37 +177,37 @@ void f(int x)
   LikeQuestion lq;
 
   // result is int
-  __checkType(x? i : i2, (int)0);
+  __elsa_checkType(x? i : i2, (int)0);
 
   // result is long
-  __checkType(x? i : l, (long)0);
+  __elsa_checkType(x? i : l, (long)0);
 
   // result is long
-  __checkType(x? l2 : l, (long)0);
+  __elsa_checkType(x? l2 : l, (long)0);
 
   // ambiguous
   //ERROR(4): (x? i : il);
 
   // result is int*
-  __checkType(x? pi : pi2, (int*)0);
+  __elsa_checkType(x? pi : pi2, (int*)0);
 
   // result is int*
-  __checkType(x? pi : pil, (int*)0);
+  __elsa_checkType(x? pi : pil, (int*)0);
 
   // result is long*
-  __checkType(x? pl : pil, (long*)0);
+  __elsa_checkType(x? pl : pil, (long*)0);
 
   // ambiguous
   //ERROR(8): (x? pil : pil2);
 
   // result is A*
-  __checkType(x? pa : pc, (A*)0);
+  __elsa_checkType(x? pa : pc, (A*)0);
 
   // result is B*
-  __checkType(x? pb : pd, (B*)0);
+  __elsa_checkType(x? pb : pd, (B*)0);
 
   // result is A*
-  __checkType(x? pb : pc, (A*)0);            // icc gets this wrong too
+  __elsa_checkType(x? pb : pc, (A*)0);            // icc gets this wrong too
 }
 
 

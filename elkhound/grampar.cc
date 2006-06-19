@@ -315,7 +315,9 @@ void astParseGrammar(Grammar &g, GrammarAST *ast)
       // check for already declared
       if (env.nontermDecls.isMapped(nt->name)) {
         if (!ast->allowContinuedNonterminals) {
-          astParseError(nt->name, "nonterminal already declared");
+          astParseError(nt->name, "nonterminal already declared "
+            "(if this is intentional, look up \"allow_continued_nonterminals\" "
+            "in manual.html)");
         }
         else {
           // check for consistent type

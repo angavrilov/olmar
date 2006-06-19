@@ -9,6 +9,7 @@
 #include <string.h>      // strlen
 
 Flatten::Flatten()
+  : version(0)
 {}
 
 Flatten::~Flatten()
@@ -41,6 +42,7 @@ void Flatten::xferHeapBuffer(void *&buf, int len)
   if (reading()) {
     buf = new unsigned char[len];
   }
+  xassert(len >= 0);
   xferSimple(buf, len);
 }
 

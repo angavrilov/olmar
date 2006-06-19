@@ -28,7 +28,7 @@ class Function;           // cc.ast
 class TemplateParams;     // cc_type.h
 class PQName;             // cc.ast
 class TranslationUnit;    // cc.ast.gen.h
-class ReadXML;            // xml.h
+class XmlReader;
 
 
 // information about a single scope: the names defined in it,
@@ -52,8 +52,8 @@ private:     // types
   };
 
   // needed to allow serialization and de-serialization
-  friend class TypeToXml;
-  friend class TypeXmlReader;
+  friend class XmlTypeWriter;
+  friend class XmlTypeReader;
 
 private:     // data
   // variables: name -> Variable
@@ -181,7 +181,7 @@ protected:   // funcs
 
 public:      // funcs
   Scope(ScopeKind sk, int changeCount, SourceLoc initLoc);
-  Scope(ReadXML&);
+  Scope(XmlReader&);
   virtual ~Scope();     // virtual to silence warning; destructor is not part of virtualized interface
 
   int getChangeCount() const { return changeCount; }
@@ -318,11 +318,16 @@ public:      // funcs
   // sm: TODO: Change the name so it reflects the mangling activity;
   // I want "fullyQualifiedName" to do what "fullyQualifiedCName"
   // does now.
-  string fullyQualifiedName(bool mangle = true);
+  //
+  // dsw: I made your way the only way; that is, I just inlined mangle
+  // as set to false
+  string fullyQualifiedName();
   
   // more C-like notation for a fully qualified name
-  string fullyQualifiedCName()
-    { return fullyQualifiedName(false /*mangle*/); }
+  string fullyQualifiedCName() {
+    // dsw: see the note above; these functions are now identical.
+    return fullyQualifiedName();
+  }
 
   // set 'parameterizedEntity', checking a few things in the process
   void setParameterizedEntity(Variable *entity);

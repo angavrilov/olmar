@@ -31,6 +31,13 @@ int VoidList::count() const
 // get particular item, 0 is first (item must exist)
 void *VoidList::nth(int which) const
 {
+  return const_cast<VoidList*>(this)->nthRef(which);
+}
+
+
+// get particular item, 0 is first (item must exist)
+void *&VoidList::nthRef(int which)
+{
   VoidNode *p;
   xassert(which>=0);
   for (p = top; which > 0; which--) {
@@ -172,7 +179,7 @@ void VoidList::insertSorted(void *newitem, VoidDiff diff, void *extra)
          diff(cursor->next->data, newitem, extra) < 0) {     // cursor->next < newitem
     cursor = cursor->next;
   }
-  
+
   // insert 'newitem' after 'cursor'
   VoidNode *newNode = new VoidNode(newitem);
   newNode->next = cursor->next;
@@ -275,7 +282,7 @@ void *VoidList::removeAt(int index)
   // will look for the node just before the one to delete
   index--;
 
-  VoidNode *p;	   
+  VoidNode *p;
   for (p = top; p->next && index>0;
        p = p->next, index--)
     {}
@@ -305,13 +312,13 @@ void VoidList::removeAll()
   }
 }
 
-	    
+
 void VoidList::reverse()
 {
   // transfer list to a temporary
   VoidNode *oldlist = top;
   top = NULL;
-  
+
   // prepend all nodes
   while (oldlist != NULL) {
     // take first node from oldlist
@@ -470,7 +477,7 @@ bool VoidList::isSorted(VoidDiff diff, void *extra) const
 
     prev = current;
   }
-  
+
   return true;
 }
 
@@ -499,7 +506,7 @@ void VoidList::stealTailAt(int index, VoidList &source)
     concat(source);
     return;
   }
-  
+
   // find the node in 'source' just before the first one that
   // will be transferred
   VoidNode *beforeTransfer = source.top;
@@ -507,7 +514,7 @@ void VoidList::stealTailAt(int index, VoidList &source)
   while (index--) {
     beforeTransfer = beforeTransfer->next;
   }
-  
+
   // break off the tail
   VoidNode *tailStart = beforeTransfer->next;
   beforeTransfer->next = NULL;
@@ -527,7 +534,7 @@ void VoidList::stealTailAt(int index, VoidList &source)
 
 
 void VoidList::appendAll(VoidList const &tail)
-{ 
+{
   // make a dest iter and move it to the end
   VoidListMutator destIter(*this);
   while (!destIter.isDone()) {
@@ -670,7 +677,7 @@ void VoidList::debugPrint() const
 // --------------- VoidListMutator ------------------
 VoidListMutator&
   VoidListMutator::operator=(VoidListMutator const &obj)
-{			      
+{
   // we require that the underlying lists be the same
   // because we can't reset the 'list' reference if they
   // aren't

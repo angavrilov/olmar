@@ -82,7 +82,7 @@ void f(int x, int y)
     case 6:
       // second to rvalue of third
       x = (y? toInt : i);
-      __checkType(y? toInt : i, (int)0);
+      __elsa_checkType(y? toInt : i, (int)0);
       //(elsa doesn't detect this..) ERROR(3): (y? toInt : i) = 3;
       break;
       
@@ -104,14 +104,14 @@ void f(int x, int y)
     case 10:
       // simple rval situation
       (y? 1 : 2);
-      __checkType(y? 1 : 2, (int)0);
+      __elsa_checkType(y? 1 : 2, (int)0);
       //(elsa doesn't detect) ERROR(6): (y? 1 : 2) = 10;
       break;
 
     case 11:
       // rval due to different types
       (y? i : k);
-      __checkType(y? i : k, (long)0);
+      __elsa_checkType(y? i : k, (long)0);
       //(elsa doesn't detect) ERROR(7): (y? i : k) = 11;
       break;
       

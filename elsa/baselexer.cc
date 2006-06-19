@@ -37,6 +37,8 @@ istream *BaseLexer::openFile(char const *fname)
   // doing the same, for cygwin reasons
   this->inputStream = new ifstream(fname, ios::in | ios::binary);
   if (!*inputStream) {
+    // destructor won't be called so delete here.
+    delete inputStream; inputStream = NULL;
     throw_XOpen(fname);
   }
   return inputStream;

@@ -26,6 +26,7 @@ Scope::Scope(ScopeKind sk, int cc, SourceLoc initLoc)
     activeUsingEdges(0),
     outstandingActiveEdges(0),
     curCompound(NULL),
+    curAccess(AK_PUBLIC),
     curFunction(NULL),
     curLoc(initLoc)
 {
@@ -33,7 +34,7 @@ Scope::Scope(ScopeKind sk, int cc, SourceLoc initLoc)
 }
 
 // a ctor for de-serialization
-Scope::Scope(ReadXML&)
+Scope::Scope(XmlReader&)
   : variables(),
     typeTags(),
     changeCount(0),
@@ -44,11 +45,12 @@ Scope::Scope(ReadXML&)
     namespaceVar(NULL),
     templateParams(),
     parameterizedEntity(NULL),
-    usingEdges(0),            // the arrays start as NULL b/c in the
-    usingEdgesRefct(0),       // common case the sets are empty
+    usingEdges(0),
+    usingEdgesRefct(0),
     activeUsingEdges(0),
     outstandingActiveEdges(0),
     curCompound(NULL),
+    curAccess(AK_PUBLIC),
     curFunction(NULL),
     curLoc(SL_UNKNOWN)
 {}
@@ -82,7 +84,7 @@ Scope::~Scope()
     ct->parameterizingScope = NULL;
     parameterizedEntity = NULL;     // irrelevant but harmless
   }
-  
+
   if (!unwinding()) {         // if not already raising an exception,
     xassert(!onScopeStack);   // check that we are not pointed-to
   }
@@ -145,16 +147,16 @@ bool insertUnique(StringRefMap<T> &table, char const *key, T *value,
 }
 
 
-bool Scope::isGlobalTemplateScope() const 
+bool Scope::isGlobalTemplateScope() const
 {
-  return isTemplateParamScope() && 
+  return isTemplateParamScope() &&
          (parentScope && parentScope->isGlobalScope());
 }
 
 
-bool Scope::isWithinUninstTemplate() const 
+bool Scope::isWithinUninstTemplate() const
 {
-  if (curCompound && 
+  if (curCompound &&
       curCompound->templateInfo() &&
       curCompound->templateInfo()->hasParameters()) {
     return true;
@@ -311,8 +313,10 @@ void Scope::registerVariable(Variable *v)
       // unless you are a template parameter
       //
       // sm: TODO: what is going on here?  why does this matter?  what
-      // is being set DF_GLOBAL that wouldn't otherwise?  who pays
-      // attention that flag?
+      // is being set DF_GLOBAL that wouldn't otherwise?
+      //
+      // sm: who pays attention that flag?
+      //    dsw: oink pays attention to that flag!
       || (isGlobalTemplateScope() && !v->hasFlag(DF_PARAMETER))
       ) {
     v->setFlag(DF_GLOBAL);
@@ -327,7 +331,7 @@ void Scope::addUniqueVariable(Variable *v)
   xassert(ok);
 }
 
- 
+
 // is 'ancestor' an ancestor of 'child'?
 bool hasAncestor(BaseClassSubobj const *child, BaseClassSubobj const *ancestor)
 {
@@ -339,13 +343,13 @@ bool hasAncestor(BaseClassSubobj const *child, BaseClassSubobj const *ancestor)
   if (child == ancestor) {
     return true;
   }
-  
+
   SFOREACH_OBJLIST(BaseClassSubobj, child->parents, iter) {
     if (hasAncestor(iter.data(), ancestor)) {
       return true;
     }
   }
-  
+
   return false;
 }
 
@@ -584,8 +588,8 @@ Variable *Scope::lookupTypeTag(StringRef name, Env &env, LookupFlags flags) cons
           v = v2;
         }
         else if (v != v2) {
-          env.error(stringc << "ambiguous type tag: `" << v->fullyQualifiedName()
-                            << "' vs. `" << v2->fullyQualifiedName() << "'");
+          env.error(stringc << "ambiguous type tag: `" << v->fullyQualifiedName0()
+                            << "' vs. `" << v2->fullyQualifiedName0() << "'");
         }
       }
     }
@@ -600,7 +604,7 @@ Variable *Scope::lookupSingleVariable(StringRef name, LookupFlags flags)
   if (flags & LF_QUERY_TAGS) {
     return vfilter(typeTags.get(name), flags);
   }
-      
+
   if (flags & LF_ONLY_TYPES) {
     // 3.4.4p2,3: what we are implementing is "ignoring any non-type
     // names that have been declared"; in C++ mode it does not matter
@@ -667,7 +671,7 @@ void Scope::lookup(LookupSet &set, StringRef name, Env *env, LookupFlags flags)
       }
     }
   }
-  
+
   // if we have found something, stop here, rather than considering
   // base classes
   xassert((!!v) == set.isNotEmpty());
@@ -679,15 +683,15 @@ void Scope::lookup(LookupSet &set, StringRef name, Env *env, LookupFlags flags)
   if (!curCompound) {
     return;
   }
-  
+
   // get all the subobjects (I believe we do not have to call
   // ensureClassBodyInstantiated since every context will already
   // require that 'curCompound' be complete.)
   SObjList<BaseClassSubobj const> subobjs;
   curCompound->getSubobjects(subobjs);
-  
+
   // look in each one for 'name', keeping track of which subobject
-  // we find it in, if any     
+  // we find it in, if any
   xassert(!v);
   BaseClassSubobj const *vObj = NULL;
   SFOREACH_OBJLIST(BaseClassSubobj const, subobjs, iter) {
@@ -739,7 +743,7 @@ void Scope::lookup(LookupSet &set, StringRef name, Env *env, LookupFlags flags)
       vObj = v2Obj;
     }
   }
-  
+
   // if the above search yielded something, expand it and return
   if (v) {
     set.adds(v);
@@ -788,7 +792,7 @@ bool Scope::encloses(Scope const *s) const
 
 
 bool Scope::enclosesOrEq(Scope const *s) const
-{ 
+{
   return this == s || this->encloses(s);
 }
 
@@ -887,7 +891,7 @@ void Scope::removeActiveUsingEdge(Scope *target)
         return;
       }
     }
-    
+
     xfailure("attempt to remove active-using edge not in the set");
   }
 }
@@ -1026,8 +1030,8 @@ bool Scope::foundViaUsingEdge(LookupSet &candidates, Env &env, LookupFlags flags
       }
       else {
         env.error(stringc
-          << "ambiguous lookup: `" << vfound->fullyQualifiedName()
-          << "' vs. `" << v->fullyQualifiedName() << "'");
+          << "ambiguous lookup: `" << vfound->fullyQualifiedName0()
+          << "' vs. `" << v->fullyQualifiedName0() << "'");
 
         // originally I kept going in hopes of reporting more
         // interesting things, but now that the same scope can
@@ -1130,15 +1134,9 @@ bool Scope::linkerVisible()
 }
 
 
-void fqn_STemplateArgs(stringBuilder &sb, ObjList<STemplateArgument> const &args,
-                       bool doMangle)
+void fqn_STemplateArgs(stringBuilder &sb, ObjList<STemplateArgument> const &args)
 {
-  if (!doMangle) {
-    sb << sargsToString(args);
-  }
-  else {
-    mangleSTemplateArgs(sb, args);
-  }
+  sb << sargsToString(args);
 }
 
 
@@ -1151,7 +1149,10 @@ void fqn_STemplateArgs(stringBuilder &sb, ObjList<STemplateArgument> const &args
 //
 // 8/09/04: sm: mangle=true is the original behavior of this function,
 // mangle=false is the behavior I want
-string Scope::fullyQualifiedName(bool mangle)
+//
+// 9/20/05: dsw: I inlined it with mangle=false since I didn't need
+// that other behavior.
+string Scope::fullyQualifiedName()
 {
   // 7/28/04: I just changed things so that children of the global
   // scope have a non-NULL 'parentScope', and then adjusted this
@@ -1167,10 +1168,8 @@ string Scope::fullyQualifiedName(bool mangle)
 
   stringBuilder sb;
   if (parentScope && !parentScope->isGlobalScope()) {
-    sb = parentScope->fullyQualifiedName(mangle);
-    if (!mangle) {
-      sb << "::";     // put this only *between* names, so none at start
-    }
+    sb = parentScope->fullyQualifiedName();
+    sb << "::";     // put this only *between* names, so none at start
   }
   else {
     if (!immediateGlobalScopeChild()) {
@@ -1178,9 +1177,6 @@ string Scope::fullyQualifiedName(bool mangle)
       // in a class in a function
       xfailure("fullyQualifiedName called on scope that doesn't terminate in the global scope");
     }
-  }
-  if (mangle) {
-    sb << "::";       // put this *before* names, so there is one at start
   }
 
   xassert(hasName());
@@ -1205,11 +1201,10 @@ string Scope::fullyQualifiedName(bool mangle)
         tinfo->instantiationOf->templateInfo()->isPartialSpec()) {
       // print the partial spec args first, so then the instantiation
       // args can be interpreted relative to the partial spec args
-      fqn_STemplateArgs(sb, tinfo->instantiationOf->templateInfo()->arguments,
-                        mangle);
+      fqn_STemplateArgs(sb, tinfo->instantiationOf->templateInfo()->arguments);
     }
 
-    fqn_STemplateArgs(sb, tinfo->arguments, mangle);
+    fqn_STemplateArgs(sb, tinfo->arguments);
   }
 
   return sb;
@@ -1250,7 +1245,7 @@ Variable *Scope::getScopeVariable() const
   if (curCompound) {
     return curCompound->typedefVar;
   }
-  
+
   if (isNamespace() || isGlobalScope()) {
     return namespaceVar;
   }

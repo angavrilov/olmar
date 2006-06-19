@@ -172,4 +172,15 @@ void traceAddFromEnvVar()
 }
 
 
+void printTracers(ostream &out, char *delim)
+{
+  bool first = true;
+  FOREACH_OBJLIST(string, tracers, iter) {
+    if (first) first = false;
+    else out << delim;
+    out << iter.data()->c_str();
+  }
+}
+
+
 // EOF

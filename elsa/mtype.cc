@@ -34,7 +34,7 @@ string toString(MatchFlags flags)
     "MF_ISOMORPHIC",
   };
   STATIC_ASSERT(TABLESIZE(map) == MF_NUM_FLAGS);
-  return bitmapString(flags, map, MF_NUM_FLAGS);
+  return bitmapString(flags, map, MF_NUM_FLAGS, " ");
 }
 
 

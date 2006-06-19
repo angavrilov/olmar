@@ -12,19 +12,29 @@
 #include <string.h>     // memcpy
 
 
-// this parameter controls the frequency of Markers in 
+// this parameter controls the frequency of Markers in
 // the marker index; lower period makes the index
 // faster but use more space
 enum { MARKER_PERIOD = 100 };    // 100 is about a 10% overhead
 
 
+// given an ArrayStack, copy the data into a ptr/len pair
+template <class T>
+void extractArray(T *&array, int &size, ArrayStack<T> const &src)
+{
+  size = src.length();
+  array = new T[size];
+  memcpy(array, src.getArray(), size * sizeof(T));
+}
+
+
 // ------------------------- File -----------------------
 void addLineLength(ArrayStack<unsigned char> &lengths, int len)
 {
-  while (len >= 255) {
-    // add a long-line marker, which represents 254 chars of input
-    lengths.push(255);
-    len -= 254;
+  while (len >= UCHAR_MAX) {
+    // add a long-line marker, which represents UCHAR_MAX chars of input
+    lengths.push(UCHAR_MAX);
+    len -= UCHAR_MAX;
   }
 
   // add the short count at the end
@@ -39,8 +49,12 @@ SourceLocManager::File::File(char const *n, SourceLoc aStartLoc)
 
     // valid marker/col for the first char in the file
     marker(0, 1, 0),
-    markerCol(1)
+    markerCol(1),
+    erroredNumLines(false)
 {
+  // dsw: I want a way to make sure that we never look for a file.
+  xassert(sourceLocManager->mayOpenFiles);
+
   // open in binary mode since it's too unpredictable whether
   // the lower level (e.g. cygwin) will do CRLF translation,
   // and whether that will be done consistently, if text mode
@@ -84,7 +98,7 @@ SourceLocManager::File::File(char const *n, SourceLoc aStartLoc)
     }
 
     // the code that follows can be seen as abstracting the data
-    // contained in buf[start] through buf[end-1] and adding that
+    // contained in buf[0] through buf[len-1] and adding that
     // information to the summary variables above
     char const *start = buf;      // beginning of unaccounted-for chars
     char const *p = buf;          // scan pointer
@@ -93,6 +107,7 @@ SourceLocManager::File::File(char const *n, SourceLoc aStartLoc)
     // loop over the lines in 'buf'
     while (start < end) {
       // scan to the next newline
+      xassert(start == p);
       while (p<end && *p!='\n') {
         p++;
       }
@@ -130,42 +145,145 @@ SourceLocManager::File::File(char const *n, SourceLoc aStartLoc)
   }
 
   // handle the last line; in the usual case, where a newline is
-  // the last character, the final line will have 0 length, but
-  // we encode that anyway since it helps the decode phase below
+  // the last character, the final line will have 0 length
   addLineLength(lineLengths, lineLen);
-  charOffset += lineLen;
 
   // move computed information into 'this'
   this->numChars = charOffset;
-  this->numLines = lineNum-1;
-  if (numLines == 0) {
-    // a file with no newlines
-    this->avgCharsPerLine = numChars;
-  }
-  else {
-    this->avgCharsPerLine = numChars / numLines;
-  }
+  this->numLines = lineNum;
+  xassert(numLines >= 1);
+  this->avgCharsPerLine = numChars / numLines;
 
-  this->lineLengthsSize = lineLengths.length();
-  this->lineLengths = new unsigned char[lineLengthsSize];
-  memcpy(this->lineLengths, lineLengths.getArray(),
-         lineLengthsSize * sizeof(this->lineLengths[0]));
+  extractArray(this->lineLengths, this->lineLengthsSize, lineLengths);
+  extractArray(this->index, this->indexSize, index);
 
-  this->indexSize = index.length();
-  this->index = new Marker[indexSize];
-  memcpy(this->index, index.getArray(),
-         indexSize * sizeof(this->index[0]));
-         
+  selfCheck();
+
   // 'fp' closed by the AutoFILE
 }
 
-
 SourceLocManager::File::~File()
 {
-  if (hashLines) { 
+  if (hashLines) {
     delete hashLines;
   }
   delete[] lineLengths;
+  delete[] index;
+}
+
+SourceLocManager::File::File(FileData *fileData, SourceLoc aStartLoc)
+  : name(fileData->name),
+    startLoc(aStartLoc),        // assigned by SourceLocManager
+//      hashLines(fileData->hashLines),
+    hashLines(NULL),            // dsw: initialized later
+
+    // valid marker/col for the first char in the file
+    marker(0, 1, 0),
+    markerCol(1),
+    erroredNumLines(false)
+{
+  xassert(fileData->complete());
+
+  numChars = fileData->numChars;
+  numLines = fileData->numLines;
+  xassert(numLines >= 1);
+  avgCharsPerLine = numChars / numLines;
+
+  extractArray(lineLengths, lineLengthsSize, *(fileData->lineLengths));
+
+  // make a Marker every MARKER_PERIOD lines
+  ArrayStack<Marker> index;
+  index.push(Marker(0, 1, 0));
+  int indexDelay = MARKER_PERIOD;
+  int numChars0 = 0;
+  int numLines0 = 1;
+  for(int i=0; i<lineLengthsSize; ++i) {
+    int len0 = lineLengths[i];
+    numChars0 += len0;
+    if (len0 != UCHAR_MAX) {
+      // a new line
+      ++numLines0;
+      // Scott counts newlines as out-of-band, not counted in the line
+      // lenth, so add it back in.
+      ++numChars0;
+      if (--indexDelay == 0 && i+1 < lineLengthsSize) {
+        // insert a marker to remember this location
+        index.push(Marker(numChars0, numLines0, i+1));
+        indexDelay = MARKER_PERIOD;
+      }
+    }
+  }
+  // dsw: These assertions demonstrate that something is wrong with
+  // Scott's other File ctor that counts the characters by reading in
+  // the file.  If you use a file that had no newlines in it and read
+  // it in and print it out again, the numChars serialized in the XML
+  // will be twice the length of the file.
+  //
+  // last newline doesn't count or something??
+//    --numChars0;
+//    --numLines0;
+//    xassert(numChars0 == numChars);
+//    xassert(numLines0 == numLines);
+
+  extractArray(this->index, this->indexSize, index);
+
+  selfCheck();
+}
+
+
+int SourceLocManager::File::lineLengthSum() const
+{
+  int sum = 0;
+  for (int i=0; i<lineLengthsSize; i++) {
+    sum += lineLengths[i];
+  }
+  return sum;
+}
+
+void SourceLocManager::File::selfCheck() const
+{
+  xassert(lineLengthSum() + numLines-1 == numChars);
+
+  // check the markers
+  int charOffset = 0;   // current character offset
+  int lineNum = 1;      // current line number
+  int m = 1;            // current marker to validate
+  bool foundMovableMarker = false;
+  for (int i=0; i<lineLengthsSize; i++) {
+    if (m < indexSize) {
+      if (index[m].charOffset <= charOffset) {
+        // if we just reached or exceeded the offset of marker
+        // 'm', check its stats
+        xassert(index[m].charOffset == charOffset &&
+                index[m].lineOffset == lineNum &&
+                index[m].arrayOffset == i);
+
+        // ready to check next marker
+        m++;
+      }
+    }
+
+    // I'm only about 90% sure this is the right invariant...
+    if (marker.charOffset-(markerCol-1) == charOffset) {
+      foundMovableMarker = true;
+      xassert(marker.lineOffset == lineNum &&
+              marker.arrayOffset == i);
+    }
+
+    charOffset += lineLengths[i];
+    if (lineLengths[i] < UCHAR_MAX) {
+      // account for the newline character
+      charOffset++;
+      lineNum++;
+    }
+  }
+  xassert(foundMovableMarker);
+  xassert(m == indexSize);
+
+  // marker offsets should be in increasing order
+  for (m=0; m<(indexSize-1); m++) {
+    xassert(index[m].charOffset < index[m+1].charOffset);
+  }
 }
 
 
@@ -183,7 +301,7 @@ void SourceLocManager::File::resetMarker()
 inline void SourceLocManager::File::advanceMarker()
 {
   int len = (int)lineLengths[marker.arrayOffset];
-  if (len < 255) {
+  if (len < UCHAR_MAX) {
     // normal length line
     marker.charOffset += len+1;     // +1 for newline
     marker.lineOffset++;
@@ -191,22 +309,38 @@ inline void SourceLocManager::File::advanceMarker()
     markerCol = 1;
   }
   else {
-    // fragment of a long line, representing 254 characters
-    marker.charOffset += 254;
+    // fragment of a long line, representing UCHAR_MAX characters
+    marker.charOffset += UCHAR_MAX;
     marker.arrayOffset++;
-    markerCol += 254;
+    markerCol += UCHAR_MAX;
   }
 }
 
 
 int SourceLocManager::File::lineToChar(int lineNum)
 {
-  if (lineNum == numLines+1) {
-    // end of file location
-    return numChars;
+  xassert(1 <= lineNum);
+  // xassert(lineNum <= numLines);
+
+  // If we encounter an invalid line number, don't abort fatally, just say
+  // line numbers will be wrong.  This happens often when a cpp'ed file is
+  // modified.
+  if (erroredNumLines) {
+    return 0;
   }
 
-  xassert(1 <= lineNum && lineNum <= numLines);
+  if (lineNum > numLines) {
+    fprintf(stderr,
+            "Error: invalid line number %s:%d (only %d lines exist).\n"
+            "       Line numbers will be incorrect.\n",
+            name.c_str(), lineNum, numLines);
+    if (tolerateHashlineErrors) {
+      erroredNumLines = true;
+      return 0;
+    } else {
+      throw xBase("Invalid hashline numbers found (use '-tr tolerateHashlineErrors' to ignore).");
+    }
+  }
 
   // check to see if the marker is already close
   if (marker.lineOffset <= lineNum &&
@@ -282,20 +416,20 @@ int SourceLocManager::File::lineColToChar(int lineNum, int col)
     int len = (int)lineLengths[index];
     if (col <= len) {
       // 'col' doesn't go beyond this component, we're done
-      // (even if len==255 it still works)
+      // (even if len==UCHAR_MAX it still works)
       return offset + col;
     }
-    if (len < 255) {
+    if (len < UCHAR_MAX) {
       // the line ends here, truncate and we're done
       SourceLocManager::shortLineCount++;
       return offset + len;
     }
 
     // the line continues
-    xassertdb(len == 255);
+    xassertdb(len == UCHAR_MAX);
 
-    col -= 254;
-    offset += 254;
+    col -= UCHAR_MAX;
+    offset += UCHAR_MAX;
     xassertdb(col > 0);
 
     index++;
@@ -306,14 +440,7 @@ int SourceLocManager::File::lineColToChar(int lineNum, int col)
 
 void SourceLocManager::File::charToLineCol(int offset, int &line, int &col)
 {
-  if (offset == numChars) {
-    // end of file location
-    line = numLines+1;
-    col = 1;
-    return;
-  }
-
-  xassert(0 <= offset && offset < numChars);
+  xassert(0 <= offset && offset <= numChars);
 
   // check if the marker is close enough
   if (marker.charOffset <= offset &&
@@ -367,7 +494,7 @@ void SourceLocManager::File::addHashLine
 }
 
 void SourceLocManager::File::doneAdding()
-{ 
+{
   if (hashLines) {
     hashLines->doneAdding();
   }
@@ -385,6 +512,7 @@ SourceLocManager::StaticLoc::~StaticLoc()
 
 // ----------------------- SourceLocManager -------------------
 int SourceLocManager::shortLineCount = 0;
+bool SourceLocManager::tolerateHashlineErrors = false;
 
 SourceLocManager *sourceLocManager = NULL;
 
@@ -395,13 +523,38 @@ SourceLocManager::SourceLocManager()
     statics(),
     nextLoc(toLoc(1)),
     nextStaticLoc(toLoc(0)),
+    mayOpenFiles(true),
     maxStaticLocs(100),
-    useHashLines(true)
+    useHashLines(true),
+    useOriginalOffset(true)
 {
   if (!sourceLocManager) {
     sourceLocManager = this;
   }
 
+  makeFirstStatics();
+}
+
+SourceLocManager::~SourceLocManager()
+{
+  if (sourceLocManager == this) {
+    sourceLocManager = NULL;
+  }
+}
+
+
+void SourceLocManager::reset()
+{
+  files.deleteAll();
+  recent = NULL;
+  statics.deleteAll();
+  nextLoc = toLoc(1);
+  nextStaticLoc = toLoc(0);
+  makeFirstStatics();
+}
+
+void SourceLocManager::makeFirstStatics()
+{
   // slightly clever: treat SL_UNKNOWN as a static
   SourceLoc u = encodeStatic(StaticLoc("<noloc>", 0,1,1));
   xassert(u == SL_UNKNOWN);
@@ -413,19 +566,12 @@ SourceLocManager::SourceLocManager()
   PRETEND_USED(u);
 }
 
-SourceLocManager::~SourceLocManager()
-{
-  if (sourceLocManager == this) {
-    sourceLocManager = NULL;
-  }
-}
-
 
 // find it, or return NULL
 SourceLocManager::File *SourceLocManager::findFile(char const *name)
 {
   if (!this) {
-    // it's quite common to forget to do this, and this function is 
+    // it's quite common to forget to do this, and this function is
     // almost always the one which segfaults in that case, so I'll
     // make the error message a bit nicer to save a trip through
     // the debugger
@@ -436,7 +582,7 @@ SourceLocManager::File *SourceLocManager::findFile(char const *name)
     return recent;
   }
 
-  FOREACH_OBJLIST_NC(File, files, iter) {
+  FOREACH_OBJARRAYSTACK_NC(File, files, iter) {
     if (iter.data()->name.equals(name)) {
       return recent = iter.data();
     }
@@ -463,6 +609,50 @@ SourceLocManager::File *SourceLocManager::getFile(char const *name)
 }
 
 
+// load a file from a FileData object
+void SourceLocManager::loadFile(FileData *fileData)
+{
+  xassert(fileData);
+  // we should be loading a new file; dsw: I think this should remain
+  // an assertion failure instead of being a user error because the
+  // client code can check this before calling into the
+  // SourceLocManager and provide a better error message there
+  xassert(!findFile(fileData->name.c_str()));
+
+  // finish off the fileData->hashLines object; FIX: there is probably
+  // a better place for this, but I'm not sure where
+//    if (fileData->hashLines) {
+//      FOREACH_ARRAYSTACK_NC(HashLineMap::HashLine, fileData->hashLines->directives, iter) {
+//        HashLineMap::HashLine *line = iter.data();
+//        char const * const origFname = line->origFname;
+//        StringObjDict<string> &filenames = fileData->hashLines->serializationOnly_get_filenames();
+//        // load the 'filenames' dictionary with the origFnames of the FileDatas.
+//        string *canon = filenames.queryif(origFname);
+//        if (!canon) {
+//          canon = new string(origFname);
+//          filenames.add(origFname, canon);
+//        }
+//        line->origFname = canon->c_str();
+//      }
+//    }
+
+  // convert the FileData object to a File
+  File *f = new File(fileData, nextLoc);
+  files.append(f);
+  if (fileData->hashLines) {
+    FOREACH_ARRAYSTACK_NC(HashLineMap::HashLine, fileData->hashLines->directives, iter) {
+      HashLineMap::HashLine *line = iter.data();
+      f->addHashLine(line->ppLine, line->origLine, line->origFname);
+    }
+    f->doneAdding();
+  }
+
+  // bump 'nextLoc' according to how long that file was,
+  // plus 1 so it can own the position equal to its length
+  nextLoc = toLoc(f->startLoc + f->numChars + 1);
+}
+
+
 SourceLoc SourceLocManager::encodeOffset(
   char const *filename, int charOffset)
 {
@@ -483,13 +673,8 @@ SourceLoc SourceLocManager::encodeLineCol(
   File *f = getFile(filename);
 
   // map from a line number to a char offset
-  #if 1  // new
-    int charOffset = f->lineColToChar(line, col);
-    return toLoc(toInt(f->startLoc) + charOffset);
-  #else  // old
-    int charOffset = f->lineToChar(line);
-    return toLoc(toInt(f->startLoc) + charOffset + (col-1));
-  #endif
+  int charOffset = f->lineColToChar(line, col);
+  return toLoc(toInt(f->startLoc) + charOffset);
 }
 
 
@@ -523,15 +708,41 @@ SourceLoc SourceLocManager::encodeStatic(StaticLoc const &obj)
 
 SourceLocManager::File *SourceLocManager::findFileWithLoc(SourceLoc loc)
 {
-  // check cache
-  if (recent && recent->hasLoc(loc)) {
-    return recent;
-  }
+  static int count1 = 0;
+  ++count1;
 
-  // iterative walk
-  FOREACH_OBJLIST_NC(File, files, iter) {
-    if (iter.data()->hasLoc(loc)) {
-      return recent = iter.data();
+  // check cache
+//    if (recent && recent->hasLoc(loc)) {
+//      return recent;
+//    }
+
+  // quarl 2006-05-21
+  //    Used to use a linear search through a linked list; now we do a O(log
+  //    N) binary search through an array.
+
+  // // iterative walk
+  // FOREACH_OBJARRAYSTACK_NC(File, files, iter) {
+  //   if (iter.data()->hasLoc(loc)) {
+  //     return recent = iter.data();
+  //   }
+  // }
+
+  // binary search
+  int left  = 0;                  // inclusive lower bound
+  int right = files.length() - 1; // inclusive upper bound
+
+  while (left <= right) {
+    int mid = int((right-left)/2) + left;
+    File *file = files[mid];
+    int cmp = file->cmpLoc(loc);
+
+    if (cmp == 0) {
+      // xassert(file->hasLoc(loc));
+      return file;
+    } else if (cmp > 0) {
+      right = mid - 1;
+    } else if (cmp < 0) {
+      left = mid + 1;
     }
   }
 
@@ -551,6 +762,13 @@ SourceLocManager::StaticLoc const *SourceLocManager::getStatic(SourceLoc loc)
 void SourceLocManager::decodeOffset(
   SourceLoc loc, char const *&filename, int &charOffset)
 {
+  decodeOffset_explicitHL(loc, filename, charOffset, this->useHashLines);
+}
+
+void SourceLocManager::decodeOffset_explicitHL(
+  SourceLoc loc, char const *&filename, int &charOffset,
+  bool localUseHashLines)
+{
   // check for static
   if (isStatic(loc)) {
     StaticLoc const *s = getStatic(loc);
@@ -562,8 +780,8 @@ void SourceLocManager::decodeOffset(
   File *f = findFileWithLoc(loc);
   filename = f->name.c_str();
   charOffset = toInt(loc) - toInt(f->startLoc);
-  
-  if (useHashLines && f->hashLines) {
+
+  if (localUseHashLines && f->hashLines) {
     // we can't pass charOffsets directly through the #line map, so we
     // must first map to line/col and then back to charOffset after
     // going through the map
@@ -577,23 +795,35 @@ void SourceLocManager::decodeOffset(
     char const *origFname;
     f->hashLines->map(ppLine, origLine, origFname);
 
-    // get a File for the original file; this opens that file
-    // and scans it for line boundaries
-    File *orig = getFile(origFname);
+    // dsw: we want to avoid looking for the original file if we just
+    // need *some* offset, not *the* original offset; thanks to Matt
+    // Harren for pointing out this subtle trick
+    if (this->useOriginalOffset) {
+      // get a File for the original file; this opens that file
+      // and scans it for line boundaries
+      File *orig = getFile(origFname);
 
-    // use that map to get an offset, truncating columns that are
-    // beyond the true line ending (happens due to macro expansion)
-    charOffset = orig->lineColToChar(origLine, ppCol);
-    
+      // use that map to get an offset, truncating columns that are
+      // beyond the true line ending (happens due to macro expansion)
+      charOffset = orig->lineColToChar(origLine, ppCol);
+    }
+
     // filename is whatever #line said
-    filename = origFname;             
+    filename = origFname;
   }
 }
 
 
 void SourceLocManager::decodeLineCol(
   SourceLoc loc, char const *&filename, int &line, int &col)
-{ 
+{
+  decodeLineCol_explicitHL(loc, filename, line, col, this->useHashLines);
+}
+
+void SourceLocManager::decodeLineCol_explicitHL(
+  SourceLoc loc, char const *&filename, int &line, int &col,
+  bool localUseHashLines)
+{
   if (!this) {
     // didn't initialize a loc manager.. but maybe we can survive?
     if (loc == SL_UNKNOWN) {
@@ -619,10 +849,10 @@ void SourceLocManager::decodeLineCol(
   File *f = findFileWithLoc(loc);
   filename = f->name.c_str();
   int charOffset = toInt(loc) - toInt(f->startLoc);
-  
+
   f->charToLineCol(charOffset, line, col);
-  
-  if (useHashLines && f->hashLines) {       
+
+  if (localUseHashLines && f->hashLines) {
     // use the #line map to determine a new file/line pair; simply
     // assume that the column information is still correct, though of
     // course in C, due to macro expansion, it isn't always
@@ -631,11 +861,11 @@ void SourceLocManager::decodeLineCol(
 }
 
 
-char const *SourceLocManager::getFile(SourceLoc loc)
+char const *SourceLocManager::getFile(SourceLoc loc, bool localUseHashLines)
 {
   char const *name;
   int ofs;
-  decodeOffset(loc, name, ofs);
+  decodeOffset_explicitHL(loc, name, ofs, localUseHashLines);
   return name;
 }
 
@@ -648,6 +878,13 @@ int SourceLocManager::getOffset(SourceLoc loc)
   return ofs;
 }
 
+int SourceLocManager::getOffset_nohashline(SourceLoc loc)
+{
+  char const *name;
+  int ofs;
+  decodeOffset_explicitHL(loc, name, ofs, false);
+  return ofs;
+}
 
 int SourceLocManager::getLine(SourceLoc loc)
 {
@@ -669,9 +906,14 @@ int SourceLocManager::getCol(SourceLoc loc)
 
 string SourceLocManager::getString(SourceLoc loc)
 {
+  return getString_explicitHL(loc, this->useHashLines);
+}
+
+string SourceLocManager::getString_explicitHL(SourceLoc loc, bool localUseHashLines)
+{
   char const *name;
   int line, col;
-  decodeLineCol(loc, name, line, col);
+  decodeLineCol_explicitHL(loc, name, line, col, localUseHashLines);
 
   return stringc << name << ":" << line << ":" << col;
 }
@@ -691,14 +933,6 @@ string locToStr(SourceLoc sl)
   return sourceLocManager->getString(sl);
 }
 
-// this code simply defeats the xml serialization of SourceLoc-s
-string toXml(SourceLoc index) {
-  return "0";
-}
-
-void fromXml(SourceLoc &out, string str) {
-  out = SL_UNKNOWN;
-}
 
 // -------------------------- test code ----------------------
 #ifdef TEST_SRCLOC
@@ -741,6 +975,9 @@ public:
 // that round-trip encoding works
 void testFile(char const *fname)
 {
+  // dsw: I want a way to make sure that we never look for a file.
+  xassert(sourceLocManager->mayOpenFiles);
+
   // find the file's length
   int len;
   {
@@ -753,7 +990,7 @@ void testFile(char const *fname)
 
   // get locations for the start and end
   SourceLoc start = mgr.encodeOffset(fname, 0);
-  SourceLoc end = mgr.encodeOffset(fname, len-1);
+  SourceLoc end = mgr.encodeOffset(fname, len);
 
   // check expectations for start
   xassert(mgr.getLine(start) == 1);
@@ -806,8 +1043,26 @@ void testFile(char const *fname)
       xassert(loc == bi[j].loc);
     }
   }
-  
+
   delete[] bi;
+}
+
+
+// write a file with the given contents, and call 'testFile' on it
+void testFileString(char const *contents)
+{
+  {
+    AutoFILE fp("srcloc.tmp", "w");
+    int written = fwrite(contents, 1, strlen(contents), fp);
+    xassert(written == (int)strlen(contents));
+  }
+
+  testFile("srcloc.tmp");
+
+  // since I keep using "srcloc.tmp" over and over, I need to reset
+  // the manager between attempts since otherwise it thinks it already
+  // knows the line lengths
+  mgr.reset();
 }
 
 
@@ -817,7 +1072,7 @@ void expect(SourceLoc loc, char const *expFname, int expLine, int expCol)
   char const *fname;
   int line, col;
   mgr.decodeLineCol(loc, fname, line, col);
-  
+
   if (0!=strcmp(fname, expFname) ||
       line != expLine ||
       col != expCol) {
@@ -839,6 +1094,10 @@ string locString(char const *fname, int line, int col)
 void buildHashMap(SourceLocManager::File *pp, char const *fname, int &expanderLine)
 {
   expanderLine = 0;
+
+  // dsw: I want a way to make sure that we never look for a file.
+  xassert(sourceLocManager->mayOpenFiles);
+
   AutoFILE fp(fname, "rb");
 
   enum { SZ=256 };
@@ -963,6 +1222,13 @@ void entry(int argc, char ** /*argv*/)
     mgr.maxStaticLocs = 1;
   }
 
+  // test with some special files
+  testFileString("first\nsecond\nthird\n");      // ordinary
+  testFileString("first\nsecond\nthird no nl");  // no final newline
+  testFileString("");                            // empty
+  testFileString("x");                           // one char
+  testFileString("\n");                          // one newline
+
   // test my source code
   testFile("srcloc.cc");
   testFile("srcloc.h");
@@ -984,7 +1250,7 @@ void entry(int argc, char ** /*argv*/)
   // test the statics
   cout << "invalid: " << toString(SL_UNKNOWN) << endl;
   cout << "here: " << toString(HERE_SOURCELOC) << endl;
-  
+
   cout << "\n";
   testHashMap();
   testHashMap2();

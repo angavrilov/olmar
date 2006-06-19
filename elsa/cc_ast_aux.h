@@ -145,4 +145,147 @@ public:
   {}
 };
 
+// Visit all the real (not a member of an uninstantiated template)
+// Variables and Types in a TranslationUnit hanging directly off of
+// the AST.
+//
+// The Variables were found by a grep that was not as generous as this
+// one; it found 21 true hits and 4 false hits when I ran this one as
+// a check on the implementation below.
+// grep -n -e '\bVariable[a-zA-Z]*[ ]*\*' *.ast
+//
+// The Types were found by this grep:
+// grep -n -e '\bType[a-zA-Z]*[ ]*\*' *.ast
+class RealVarAndTypeASTVisitor : private ASTVisitor {
+  // types
+  public:
+  class VariableVisitor {
+    public:
+    virtual ~VariableVisitor() {}
+    virtual void visitVariable(Variable *var) = 0;
+  };
+  class TypeVisitor {
+    public:
+    virtual ~TypeVisitor() {}
+    virtual void visitType(Type *type) = 0;
+  };
+
+  // data
+  public:
+  LoweredASTVisitor loweredVisitor; // use this as the argument for traverse()
+  VariableVisitor *variableVisitor; // callback for vars
+  TypeVisitor *typeVisitor;     // callback for types
+
+  // tor
+  public:
+  explicit RealVarAndTypeASTVisitor(VariableVisitor *variableVisitor0 = NULL)
+    : loweredVisitor(this)
+    , variableVisitor(variableVisitor0)
+    , typeVisitor(NULL)
+  {}
+  explicit RealVarAndTypeASTVisitor(TypeVisitor *typeVisitor0)
+    : loweredVisitor(this)
+    , variableVisitor(NULL)
+    , typeVisitor(typeVisitor0)
+  {}
+  explicit RealVarAndTypeASTVisitor(VariableVisitor *variableVisitor0, TypeVisitor *typeVisitor0)
+    : loweredVisitor(this)
+    , variableVisitor(variableVisitor0)
+    , typeVisitor(typeVisitor0)
+  {}
+  private:
+  RealVarAndTypeASTVisitor(RealVarAndTypeASTVisitor &other); // prohibit
+
+  // methods
+  public:
+  virtual void visitVariable(Variable *var);
+  virtual void visitType(Type *type);
+
+  virtual bool visitFunction(Function *obj);
+  virtual bool visitPQName(PQName *obj);
+  virtual bool visitHandler(Handler *obj);
+  virtual bool visitExpression(Expression *obj);
+  virtual bool visitMemberInit(MemberInit *obj);
+  virtual bool visitTypeSpecifier(TypeSpecifier *obj);
+  virtual bool visitEnumerator(Enumerator *obj);
+  virtual bool visitDeclarator(Declarator *obj);
+  virtual bool visitInitializer(Initializer *obj);
+  virtual bool visitTemplateParameter(TemplateParameter *obj);
+#ifdef GNU_EXTENSION
+  virtual bool visitASTTypeof(ASTTypeof *obj);
+#endif // GNU_EXTENSION
+};
+
+class ReachableVarsTypePred : public TypePred {
+  // data
+  RealVarAndTypeASTVisitor::VariableVisitor &variableVisitor;
+  SObjSet<CompoundType*> &seenCpdTypes;
+
+  // tor
+  public:
+  explicit ReachableVarsTypePred
+    (RealVarAndTypeASTVisitor::VariableVisitor &variableVisitor0,
+     SObjSet<CompoundType*> &seenCpdTypes0)
+    : variableVisitor(variableVisitor0)
+    , seenCpdTypes(seenCpdTypes0)
+  {}
+  virtual ~ReachableVarsTypePred() {}
+
+  // methods
+  virtual bool operator() (Type const *t);
+};
+
+class ReachableVarsTypeVisitor : public RealVarAndTypeASTVisitor::TypeVisitor {
+  // data
+  public:
+  RealVarAndTypeASTVisitor::VariableVisitor *variableVisitor;
+  SObjSet<Type*> seenTypes;
+  SObjSet<CompoundType*> seenCpdTypes; // re-used across anyCtorSatisfies visitations
+
+  // tor
+  public:
+  explicit ReachableVarsTypeVisitor(RealVarAndTypeASTVisitor::VariableVisitor *variableVisitor0)
+    : variableVisitor(variableVisitor0)
+  {}
+  virtual ~ReachableVarsTypeVisitor() {}
+
+  // methods
+  virtual void visitType(Type *type);
+  virtual void visitTypeIdem(Type *type) {}; // only visits each Type once
+};
+
+class ReachableVarsVariableVisitor : public RealVarAndTypeASTVisitor::VariableVisitor {
+  // data
+  public:
+  RealVarAndTypeASTVisitor::TypeVisitor *typeVisitor;
+  SObjSet<Variable*> seenVariables;
+
+  // tor
+  public:
+  explicit ReachableVarsVariableVisitor(RealVarAndTypeASTVisitor::TypeVisitor *typeVisitor0)
+    : typeVisitor(typeVisitor0)
+  {}
+  virtual ~ReachableVarsVariableVisitor() {}
+
+  // methods
+  virtual void visitVariable(Variable *var);
+  virtual void visitVariableIdem(Variable *var) {}; // only visits each Variable once
+};
+
+// mark reachable vars as real
+class MarkRealVars : public ReachableVarsVariableVisitor {
+  // tor
+  public:
+  explicit MarkRealVars(RealVarAndTypeASTVisitor::TypeVisitor *typeVisitor0)
+    : ReachableVarsVariableVisitor(typeVisitor0)
+  {}
+  virtual ~MarkRealVars() {}
+
+  // methods
+  virtual void visitVariableIdem(Variable *var); // only visits each Variable once
+};
+
+// mark "real" (non-template) variables as such
+void markRealVariables(TranslationUnit *tunit);
+
 #endif // CC_AST_AUX_H

@@ -9,6 +9,7 @@ class Expression;
 // interface for clients to implement
 class ExpressionVisitor {
 public:
+  virtual ~ExpressionVisitor() {}
   virtual void visitExpr(Expression const *expr) = 0;
 };
 

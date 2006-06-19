@@ -23,20 +23,20 @@ private:     // not allowed
 public:
   Array(int len) : arr(new T[len]) {}
   ~Array() { delete[] arr; }
-  
+
   T const &operator[] (int i) const { return arr[i]; }
   T &operator[] (int i) { return arr[i]; }
 
   operator T const* () const { return arr; }
   operator T const* () { return arr; }
   operator T * () { return arr; }
-  
+
   T const *ptrC() const { return arr; }
   T *ptr() { return arr; }
 
   T const* operator+ (int i) const { return arr+i; }
   T * operator+ (int i) { return arr+i; }
-  
+
   // convenience
   void setAll(T val, int len) {
     for (int i=0; i<len; i++) {
@@ -240,7 +240,7 @@ public:
       len(obj.len)
     {}
   ~ArrayStack();
-  
+
   // copies contents of 'obj', but the allocated size of 'this' will
   // only change when necessary
   ArrayStack& operator=(ArrayStack<T> const &obj)
@@ -265,6 +265,8 @@ public:
     { return operator[](len-1); }
   T &top()
     { return operator[](len-1); }
+  T &nth(int which)
+    { return operator[](len-1-which); }
 
   // alternate interface, where init/deinit is done explicitly
   // on returned references
@@ -330,10 +332,13 @@ public:      // funcs
   T /*const*/ *data() const       { return &(arr[index]); }
 };
 
+#define FOREACH_ARRAYSTACK_NC(T, list, iter) \
+  for(ArrayStackIterNC< T > iter(list); !iter.isDone(); iter.adv())
+
 
 // I want const polymorphism!
 
-                        
+
 // pop (and discard) a value off a stack at end of scope
 template <class T>
 class ArrayStackPopper {
@@ -348,11 +353,13 @@ public:
     { stk.pop(); }
 };
 
+template <class T> class ObjArrayStackIterNC;
 
 // ------------------- ObjArrayStack -----------------
 // an ArrayStack of owner pointers
 template <class T>
 class ObjArrayStack {
+  friend class ObjArrayStackIterNC<T>;
 private:    // data
   ArrayStack<T*> arr;
 
@@ -363,6 +370,8 @@ public:     // funcs
   ~ObjArrayStack() { deleteAll(); }
 
   void push(T *ptr)          { arr.push(ptr); }
+  // synonym of 'push', for compatibility with ObjList
+  void append(T *ptr)        { arr.push(ptr); }
   T *pop()                   { return arr.pop(); }
 
   T const *topC() const      { return arr.top(); }
@@ -377,7 +386,7 @@ public:     // funcs
 
   void deleteTopSeveral(int ct);
   void deleteAll()           { deleteTopSeveral(length()); }
-  
+
   // remove an element from the middle, shifting others down to
   // maintain the original order
   T *removeIntermediate(int toRemove);
@@ -402,7 +411,7 @@ template <class T>
 T *ObjArrayStack<T>::removeIntermediate(int toRemove)
 {
   T *ret = arr[toRemove];
-  
+
   // shift remaining elements down
   for (int i=toRemove+1; i < length(); i++) {
     arr[i-1] = arr[i];
@@ -410,10 +419,29 @@ T *ObjArrayStack<T>::removeIntermediate(int toRemove)
 
   // remove and throw away the final (now redundant) pointer
   pop();
-  
+
   return ret;
 }
 
+template <class T>
+class ObjArrayStackIterNC {
+  NO_OBJECT_COPIES(ObjArrayStackIterNC);
+
+private:     // data
+  ObjArrayStack<T> /*const*/ &arr;   // array being accessed
+  int index;                      // current element
+
+public:      // funcs
+  ObjArrayStackIterNC(ObjArrayStack<T> /*const*/ &a) : arr(a), index(0) {}
+
+  // iterator actions
+  bool isDone() const             { return index >= arr.length(); }
+  void adv()                      { xassert(!isDone()); index++; }
+  T /*const*/ *data() const       { return arr[index]; }
+};
+
+#define FOREACH_OBJARRAYSTACK_NC(T, list, iter) \
+  for(ObjArrayStackIterNC< T > iter(list); !iter.isDone(); iter.adv())
 
 // ------------------------- ArrayStackEmbed --------------------------
 // This is like ArrayStack, but the first 'n' elements are stored
@@ -453,19 +481,19 @@ public:       // funcs
   {}
   ~ArrayStackEmbed()
   {}              // heap auto-deallocs its internal data
-  
+
   void push(T const &val)
-  { 
+  {
     if (len < n) {
       embed[len++] = val;
     }
     else {
-      heap.setIndexDoubler(len++ - n, val); 
+      heap.setIndexDoubler(len++ - n, val);
     }
   }
 
-  T pop() 
-  {                
+  T pop()
+  {
     xassert(len > 0);
     if (len <= n) {
       return embed[--len];
@@ -484,7 +512,7 @@ public:       // funcs
 
   // direct element access
   T const &getElt(int i) const
-  { 
+  {
     bc(i);
     if (i < n) {
       return embed[i];
@@ -498,7 +526,7 @@ public:       // funcs
     { return getElt(i); }
   T & operator[] (int i)
     { return const_cast<T&>(getElt(i)); }
-    
+
   T const &top() const
     { return getElt(len-1); }
 };

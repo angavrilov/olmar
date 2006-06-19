@@ -52,8 +52,8 @@ class Declaration;        // cc.ast
 class TypeVariable;       // template.h
 class PseudoInstantiation;// template.h
 class DependentQType;     // template.h
-class ReadXML;            // xml.h
 class MType;              // mtype.h
+class XmlReader;
 
 // fwd in this file
 class AtomicType;
@@ -76,7 +76,7 @@ class BasicTypeFactory;
 class TypePred;
 
 
-// FIX: is a debugging aid; remove
+// This is a debugging aid.
 extern bool global_mayUseTypeAndVarToCString;
 
 
@@ -110,7 +110,7 @@ public:
   //
   // Also, please note that I cannot forward declare EnumType::Value,
   // so unless I move this class until after class Enum, I have to
-  // make the argument type void!
+  // make the argument type 'void*'!
   virtual bool visitEnumType_Value(void /*EnumType::Value*/ *obj);
   virtual void postvisitEnumType_Value(void /*EnumType::Value*/ *obj);
 
@@ -334,21 +334,31 @@ public:      // data
   bool forward;               // true when it's only fwd-declared
   Keyword keyword;            // keyword used to introduce the type
 
+  // When true, this is a GNU transparent union.  I think adding
+  // a bool like this is inelegant, but oh well.
+  bool isTransparentUnion;
+
   // nonstatic data members, in the order they appear within the body
   // of the class definition; note that this is partially redundant
   // with the Scope's 'variables' map, and hence should not be changed
   // without also updating that map
   SObjList<Variable> dataMembers;
 
-  // classes from which this one inherits; 'const' so you have to
-  // use 'addBaseClass', but public to make traversal easy
+  // classes from which this one directly/syntactically inherits;
+  // 'const' so you have to use 'addBaseClass', but public to make
+  // traversal easy
   const ObjList<BaseClass> bases;
 
-  // collected virtual base class subobjects
+  // all the bases the class inherits from virtually, including for
+  // transitive reasons; collected virtual base class subobjects
   ObjList<BaseClassSubobj> virtualBases;
 
-  // this is the root of the subobject hierarchy diagram
-  // invariant: subobj.ct == this
+  // this is the root of the subobject hierarchy diagram which
+  // includes the transitive consequences of inheritance; NOTE: this
+  // entire hierarchy is just for the parents of this particular
+  // CompoundType and is isomorphic to but NOT shared with the
+  // subobject hierarchy of this CompoundType's parents; invariant:
+  // subobj.ct == this
   BaseClassSubobj subobj;
 
   // list of all conversion operators this class has, including
@@ -405,7 +415,7 @@ protected:   // funcs
   // experiment: force creation of these to go through the factory too
   CompoundType(Keyword keyword, StringRef name);
   friend class TypeFactory;
-  friend class TypeXmlReader;
+  friend class XmlTypeReader;
   
   // override no-op implementation in Scope
   virtual void afterAddVariable(Variable *v);
@@ -463,6 +473,13 @@ public:      // funcs
   // in this class, starting with 0; or, return -1 if the field does
   // not exist (this is a query on 'dataMembers')
   int getDataMemberPosition(StringRef name) const;
+
+  // return the offset in bytes of 'dataMember' in this struct;
+  // fail an assertion if it is not present (why does this function
+  // take a Variable* and the previous one a StringRef?  I'm not
+  // sure, I think Variable* is better, but don't want to mess with
+  // the other one right now)
+  int getDataMemberOffset(Variable *dataMember) const;
 
   // add to 'bases'; incrementally maintains 'virtualBases'
   virtual void addBaseClass(BaseClass * /*owner*/ newBase);
@@ -535,9 +552,11 @@ public:     // types
 public:     // data
   StringObjDict<Value> valueIndex;    // values in this enumeration
   int nextValue;                      // next value to assign to elements automatically
+  bool hasNegativeValues;             // true iff some 'value' is negative
 
 public:     // funcs
-  EnumType(StringRef n) : NamedAtomicType(n), nextValue(0) {}
+  EnumType(StringRef n) 
+    : NamedAtomicType(n), nextValue(0), hasNegativeValues(false) {}
   ~EnumType();
 
   // AtomicType interface
@@ -792,7 +811,10 @@ string cvToString(CVFlags cv);
 #ifdef TYPE_CLASS_FILE
   // pull in the definition of Type, which may have additional
   // fields (etc.) added for the client analysis
+#define CC_TYPE_INCLUDE_CLASS_FILE_FLAG
   #include TYPE_CLASS_FILE
+// this 'undef' is rather important
+#undef CC_TYPE_INCLUDE_CLASS_FILE
 #else
   // please see cc_type.html, section 6, "BaseType and Type", for more
   // information about this class
@@ -822,7 +844,7 @@ public:     // data
 
 protected:
   friend class BasicTypeFactory;
-  friend class TypeXmlReader;
+  friend class XmlTypeReader;
   CVAtomicType(AtomicType *a, CVFlags c)
     : atomic(a), cv(c) {}
 
@@ -854,7 +876,7 @@ public:     // data
 
 protected:  // funcs
   friend class BasicTypeFactory;
-  friend class TypeXmlReader;
+  friend class XmlTypeReader;
   PointerType(CVFlags c, Type *a);
 
 public:
@@ -881,7 +903,7 @@ public:     // data
 
 protected:  // funcs
   friend class BasicTypeFactory;
-  friend class TypeXmlReader;
+  friend class XmlTypeReader;
   ReferenceType(Type *a);
 
 public:
@@ -950,7 +972,7 @@ public:     // data
 
 protected:  // funcs
   friend class BasicTypeFactory;
-  friend class TypeXmlReader;
+  friend class XmlTypeReader;
 
   FunctionType(Type *retType);
 
@@ -1042,10 +1064,10 @@ private:      // funcs
 
 protected:
   friend class BasicTypeFactory;
-  friend class TypeXmlReader;
+  friend class XmlTypeReader;
   ArrayType(Type *e, int s = NO_SIZE)
     : eltType(e), size(s) { checkWellFormedness(); }
-  ArrayType(ReadXML&)           // a ctor for de-serialization
+  ArrayType(XmlReader&)           // a ctor for de-serialization
     : eltType(NULL), size(NO_SIZE) {}
 
 public:
@@ -1078,9 +1100,9 @@ public:
 
 protected:
   friend class BasicTypeFactory;
-  friend class TypeXmlReader;
+  friend class XmlTypeReader;
   PointerToMemberType(NamedAtomicType *inClassNAT0, CVFlags c, Type *a);
-  PointerToMemberType(ReadXML&) // a ctor for de-serialization
+  PointerToMemberType(XmlReader&) // a ctor for de-serialization
     : inClassNAT(NULL), cv(CV_NONE), atType(NULL) {}
 
 public:
@@ -1145,7 +1167,7 @@ public:
   // ---- constructors for the atomic types ----
   // for now, only CompoundType is built this way, and I'm going to
   // provide a default implementation in TypeFactory to avoid having
-  // to change the interface w.r.t. cc_qual
+  // to change the interface w.r.t. qualcc
   virtual CompoundType *makeCompoundType
     (CompoundType::Keyword keyword, StringRef name);
 

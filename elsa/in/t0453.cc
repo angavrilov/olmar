@@ -7,7 +7,7 @@ void g(int) {}
 
 void f()
 {
-  //ERROR(1): __checkType();
+  //ERROR(1): __elsa_checkType();
   //ERROR(1): __getStandardConversion();
   //ERROR(1): __getImplicitConversion();
   //ERROR(1): __testOverload();

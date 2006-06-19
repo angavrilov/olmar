@@ -5,7 +5,7 @@
 // Every binding introduction (e.g. declaration) of a name will own
 // one of these to describe the introduced name; every reference to
 // that name will be annotated with a pointer to the Variable hanging
-// off the introduction.   
+// off the introduction.
 //
 // The name 'variable' is a slight misnomer; it's used for naming:
 //   - local and global variables
@@ -37,6 +37,7 @@
 #include "strtable.h"          // StringRef
 #include "cc_flags.h"          // DeclFlags, ScopeKind
 #include "sobjlist.h"          // SObjList
+#include "sobjset.h"           // SObjSet
 #include "serialno.h"          // INHERIT_SERIAL_BASE
 
 class Type;                    // cc_type.h
@@ -48,15 +49,7 @@ class Expression;              // cc.ast
 class Function;                // cc.ast
 class BasicTypeFactory;        // cc_type.h
 class TemplateInfo;            // cc_type.h
-class ReadXML;                 // xml.h
-
-string toXml(DeclFlags id);
-void fromXml(DeclFlags &out, rostring str);
-
-// FIX: this is temporary; I just want to get the int out and back in
-// again for now.
-string toXml_Variable_intData(unsigned id);
-void fromXml_Variable_intData(unsigned &out, rostring str);
+class XmlReader;
 
 class Variable INHERIT_SERIAL_BASE {
 public:    // data
@@ -65,13 +58,13 @@ public:    // data
   // are significant advantages to storing *two* locations (first
   // declaration, and definition), but I haven't done that yet
   SourceLoc loc;          // location of the name in the source text
-                          
+
   // name introduced (possibly NULL for abstract declarators)
-  StringRef name;        
+  StringRef name;
 
   // type of the variable (NULL iff flags has DF_NAMESPACE)
-  Type *type;             
-  
+  Type *type;
+
   // various flags; 'const' to force modifications to go through
   // the 'setFlagsTo' method
   const DeclFlags flags;
@@ -96,6 +89,19 @@ public:    // data
   // to the set of overloaded names; otherwise it's NULL
   OverloadSet *overload;  // (nullable serf)
 
+  // if we are a virtual method, the set of variables of other
+  // viritual methods that we immediately override; a NULL pointer
+  // here just means the empty list;
+  //
+  // NOTE: Scott: I wanted to do it in full correctness and not omit
+  // anything in the case of multiple-inheritance; however it is
+  // really hard to know what functions to omit, so I therefore do the
+  // quadratic thing and include them all; given that you do something
+  // similar with the BaseClassSubobj heriarchy for classes, I don't
+  // think this is so bad; feel free to change it; please change the
+  // name to directlyVirtuallyOverride if you do.
+  SObjSet<Variable*> *virtuallyOverride;
+
   // named scope in which the variable appears; this is only non-NULL
   // if the scope has a name, i.e. it continues to be available for
   // use even after it's lexically closed
@@ -108,8 +114,8 @@ public:    // data
 private:      // data
 
   // so serialization/deserialization is possible
-  friend class TypeToXml;
-  friend class TypeXmlReader;
+  friend class XmlTypeWriter;
+  friend class XmlTypeReader;
 
   // The next two fields are used to store conceptually different
   // things in a single word in order to save space.  I am concerned
@@ -119,8 +125,13 @@ private:      // data
   // wasted storage, but that is a fairly big change, and for the
   // moment these localized hacks will suffice.
 
-  // bits 0-7: result of 'getAccess()'
+  // bits 0-3: result of 'getAccess()'
+  //   dsw: AccessKeyword only needs 2 bits, leaving 4-2 = 2 extra bits
+  // bit 4: result of 'getReal()'
+  // bit 5: result of 'getMaybeUsedAsAlias()'
+  // bit 6-7: 2 bits reserved
   // bits 8-15: result of 'getScopeKind()'
+  //   dsw: scopeKind only needs 3 bits, leaving 8-3 = 5 extra bits
   // bits 16-31: result of 'getParameterOrdinal()' or 'getBitfieldSize()'
   unsigned intData;
 
@@ -141,7 +152,7 @@ private:      // data
 protected:    // funcs
   friend class BasicTypeFactory;
   Variable(SourceLoc L, StringRef n, Type *t, DeclFlags f);
-  Variable(ReadXML&);           // ctor for de-serialization
+  Variable(XmlReader&);         // ctor for de-serialization
 
 public:
   virtual ~Variable();
@@ -169,11 +180,14 @@ public:
   bool isEnumerator() const { return hasFlag(DF_ENUMERATOR); }
   bool isType() const { return hasFlag(DF_TYPEDEF); }
 
+  bool linkerVisibleName() const;
+  bool linkerVisibleName(bool evenIfStatic) const;
+
   // true if this name refers to a class or struct or union
   bool isClass() const;
 
   // refers to a user-provided typedef
-  bool isExplicitTypedef() const 
+  bool isExplicitTypedef() const
     { return hasFlag(DF_TYPEDEF) && !hasFlag(DF_IMPLICIT); }
 
   // access control applied to this variable in the context
@@ -181,12 +195,31 @@ public:
   AccessKeyword getAccess() const;
   void setAccess(AccessKeyword k);
 
+  // dsw: true iff this variable is "real" code: not part of an
+  // uninstantiated template; this flag is set by the
+  // markRealVariables() function
+  bool getReal() const;
+  void setReal(bool r);
+
+  // dsw: true iff this variable may be used as an alias of another;
+  // that is, if there is another variable that getUsingAlias()
+  // returns this variable; this flag is set by setUsingAlias() when
+  // called on the other variable, however it is never unset if
+  // setUsingAlias(NULL) is called later as we don't know how many
+  // variables may be using us as an alias
+  bool getMaybeUsedAsAlias() const;
+  void setMaybeUsedAsAlias(bool r);
+
   // kind of scope in which the name is declared; initially this
   // is SK_UNKNOWN
   //
   // 2005-03-02: It appears that this quantity is never actually used;
   // furthermore, I think it is computable (mainly from 'scope').  So,
   // it is a candidate for removal at some point.
+  //
+  // dsw: there would be no way to get the scope kind for a Variable
+  // in a non-isPermanentScope(), since such scopes do not persist and
+  // the variables in them do not get a pointer to them
   ScopeKind getScopeKind() const;
   void setScopeKind(ScopeKind k);
 
@@ -244,13 +277,13 @@ public:
   bool isMemberOfTemplate() const;
 
   // true if this is a template parameter or bound arg or both
-  bool isAbstractTemplateParam() const 
+  bool isAbstractTemplateParam() const
     { return hasFlag(DF_TEMPL_PARAM) && !hasFlag(DF_BOUND_TPARAM); }
   bool isBoundTemplateParam() const
     { return hasAllFlags(DF_TEMPL_PARAM | DF_BOUND_TPARAM); }
   bool isTemplateParam() const
     { return hasFlag(DF_TEMPL_PARAM); }
-    
+
   // true if this is a template type parameter (unbound/abstract)
   bool isTemplateTypeParam() const;
 
@@ -270,7 +303,10 @@ public:
   void gdb() const;
 
   // fully qualified but not mangled name
-  string fullyQualifiedName() const;
+  string fullyQualifiedName0() const;
+  string mangledName0(); 	// no scope
+  void appendMangledness(stringBuilder &mgldName);
+  string fullyQualifiedMangledName0(); // scope+mangling
 
   // like toString but with the fully qualified name
   string toQualifiedString() const;
@@ -290,7 +326,7 @@ public:
   // template entity is paramterized by it; otherwise NULL
   Variable *getParameterizedEntity() const;
   void setParameterizedEntity(Variable *templ);
-                                                          
+
   // true if 'this' and 'other' are the same ordinal parameter of
   // the same template entity
   bool sameTemplateParameter(Variable const *other) const;
@@ -302,7 +338,7 @@ public:
   // true if this name refers to a template (function) or an overload
   // set that includes one
   bool namesTemplateFunction() const;
-  
+
   // this must be an enumerator; get the integer value it denotes
   int getEnumeratorValue() const;
 
@@ -329,15 +365,15 @@ class OverloadSet {
 public:
   // list-as-set
   SObjList<Variable> set;
-  
+
 public:
   OverloadSet();
   ~OverloadSet();
-  
+
   void addMember(Variable *v);
   int count() const { return set.count(); }
 
-  // These are obsolete; see Env::findInOverloadSet.              
+  // These are obsolete; see Env::findInOverloadSet.
   //
   // Update: But Oink wants to use them for linker imitation.. and
   // I don't see much harm in that, since non-concrete types should
@@ -384,5 +420,7 @@ gets split I can arrange a storage sharing strategy among the
 (then four) fields that are bit-sets.
 
 */
+
+extern bool variablesLinkerVisibleEvenIfNonStaticDataMember;
 
 #endif // VARIABLE_H

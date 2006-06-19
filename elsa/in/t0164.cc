@@ -7,6 +7,9 @@
 //      hash2(hash2 &other);
 //    };
 
+// see also oink/Test/nested_no_def_constr1.cc
+// (5b1d3a6a-1520-4765-95d4-3f53516f4e13)
+
 struct Foo {
   struct hash {
     int x;

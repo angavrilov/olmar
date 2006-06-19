@@ -1,6 +1,10 @@
 // cc_print.h            see license.txt for copyright and terms of use
-// declarations for C++ pretty-printer; the AST entry
-// points are declared in cc.ast
+
+// This is a tree walk that prints out a functionally equivalent C++
+// program to the original.  The AST entry points are declared in
+// cc.ast
+
+// Adapted from cc_tcheck.cc by Daniel Wilkerson dsw@cs.berkeley.edu
 
 #ifndef CC_PRINT_H
 #define CC_PRINT_H
@@ -232,6 +236,8 @@ typedef Type TypeLike;
 // Interface for classes that know how to print out types
 class TypePrinter {
   public:
+  virtual ~TypePrinter() {}
+
   // dsw: type has to be a void* because in the Oink TypePrinter it is
   // a Value which isn't a type; I don't know of a good way to fix
   // this other than to invent some abstract interface generalization
@@ -258,16 +264,17 @@ class TypePrinter {
 };
 
 // This class knows how to print out Types in C syntax
-class TypePrinterC : public TypePrinter {
-  // dsw: I need to be able to use TypePrinterC class in TypePrinterCO
-  // to print out the occasional object that has a type but no
-  // abstract value, such as template primaries.  However, most of the
-  // time I need to disable this class so I don't accidentally use it.
+class CTypePrinter : public TypePrinter {
+  // dsw: I need to be able to use CTypePrinter class in
+  // ValueTypePrinter to print out the occasional object that has a
+  // type but no abstract value, such as template primaries.  However,
+  // most of the time I need to disable this class so I don't
+  // accidentally use it.
   public:
   static bool enabled;
 
   public:
-  virtual ~TypePrinterC() {}
+  virtual ~CTypePrinter() {}
 
   // satisfy the interface to TypePrinter
   virtual void print(OutStream &out, TypeLike const *type, char const *name = NULL);
@@ -351,7 +358,7 @@ class StringPrintEnv : public PrintEnv {
 public:      // data
   StringBuilderOutStream sbos;
   CodeOutStream cos;
-  TypePrinterC tpc;
+  CTypePrinter tpc;
 
 public:      // code
   StringPrintEnv(stringBuilder &sb)

@@ -73,6 +73,7 @@ public:     // funcs
   virtual NextTokenFunc getTokenFunc() const;
   virtual string tokenDesc() const;
   virtual string tokenKindDesc(int kind) const;
+  string tokenKindDescV(int kind) const;
 };
 
 

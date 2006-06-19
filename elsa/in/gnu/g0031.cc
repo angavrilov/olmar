@@ -22,7 +22,7 @@ typedef unsigned int u_int64_t __attribute__ ((__mode__ (  __DI__ ))) ;
 
 // way to test at compile-time that two types are equal; template
 // argument deduction will fail if the args are not equal; Elsa has
-// __checkType, but other compilers don't, and I especially want to
+// __elsa_checkType, but other compilers don't, and I especially want to
 // test against GCC
 template <class T>
 void equalTypes(T,T);

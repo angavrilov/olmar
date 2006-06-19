@@ -2,6 +2,7 @@
 // code for cc_lang.h
 
 #include "cc_lang.h"     // this module
+#include "trace.h"       // tracingSys
 
 #include <string.h>      // memset
 
@@ -33,6 +34,7 @@ void CCLang::setAllWarnings(bool enable)
   setWarning(allowDefinitionsInWrongScopes, enable);
   setWarning(allowDuplicateParameterNames, enable);
   setWarning(allowExplicitSpecWithoutParams, enable);
+  setWarning(allowStaticAfterNonStatic, enable);
 }
 
 
@@ -66,7 +68,7 @@ void CCLang::ANSI_C89()
   allowImplicitIntForMain = false;
   predefined_Bool = false;
 
-  treatExternInlineAsPrototype = false;
+  handleExternInlineSpecially = false;
   stringLitCharsAreConst = false; // Didn't check C89; C99 says they are non-const
 
   // C99 spec: Section 6.5.4, footnote 85: "A cast does not yield an lvalue".
@@ -87,6 +89,7 @@ void CCLang::ANSI_C89()
   allowDefinitionsInWrongScopes = B3_FALSE;
   allowDuplicateParameterNames = B3_FALSE;
   allowExplicitSpecWithoutParams = B3_FALSE;
+  allowStaticAfterNonStatic =  B3_WARN;
 }
 
 void CCLang::KandR_C()
@@ -122,7 +125,7 @@ void CCLang::GNU_C_extensions()
   gccFuncBehavior = GFB_string;
   allowDynamicallySizedArrays = true;
   assumeNoSizeArrayHasSizeOne = true;
-  treatExternInlineAsPrototype = true;
+  handleExternInlineSpecially = true;
   declareGNUBuiltins = true;
 
   // http://gcc.gnu.org/onlinedocs/gcc-3.1/gcc/Lvalues.html
@@ -202,7 +205,7 @@ void CCLang::ANSI_Cplusplus()
   allowImplicitIntForMain = false;
 
   predefined_Bool = false;
-  treatExternInlineAsPrototype = false;
+  handleExternInlineSpecially = false;
   stringLitCharsAreConst = true; // Cppstd says they are const.
   lvalueFlowsThroughCast = false;
   restrictIsAKeyword = false;
@@ -220,6 +223,7 @@ void CCLang::ANSI_Cplusplus()
   allowDefinitionsInWrongScopes = B3_FALSE;
   allowDuplicateParameterNames = B3_FALSE;
   allowExplicitSpecWithoutParams = B3_FALSE;
+  allowStaticAfterNonStatic =  B3_WARN;
 }
 
 void CCLang::GNU_Cplusplus()
@@ -255,6 +259,66 @@ void CCLang::MSVC_bug_compatibility()
 {
   allowImplicitIntForOperators = B3_TRUE;
   allowAnonymousStructs = B3_TRUE;
+}
+
+
+// -------------------------- handleExternInlineSpecially ---------------------
+
+// dsw: how to interpret handleExternInlineSpecially
+bool handleExternInline_asPrototype() {
+  return tracingSys("handleExternInline-asPrototype");
+}
+bool handleExternInline_asWeakStaticInline() {
+  return !tracingSys("handleExternInline-asPrototype");
+}
+
+
+// -------------------------- toString ---------------------
+
+string CCLang::toString() {
+  // SGM: TODO: This should be done using a macro so each flag name
+  // only has to be appear once.
+
+  stringBuilder str;
+  str << "isCplusplus " << isCplusplus << '\n';
+  str << "declareGNUBuiltins " << declareGNUBuiltins << '\n';
+  str << "tagsAreTypes " << tagsAreTypes << '\n';
+  str << "recognizeCppKeywords " << recognizeCppKeywords << '\n';
+  str << "implicitFuncVariable " << implicitFuncVariable << '\n';
+  str << "noInnerClasses " << noInnerClasses << '\n';
+  str << "uninitializedGlobalDataIsCommon " << uninitializedGlobalDataIsCommon << '\n';
+  str << "emptyParamsMeansNoInfo " << emptyParamsMeansNoInfo << '\n';
+  str << "strictArraySizeRequirements " << strictArraySizeRequirements << '\n';
+  str << "assumeNoSizeArrayHasSizeOne " << assumeNoSizeArrayHasSizeOne << '\n';
+  str << "allowOverloading " << allowOverloading << '\n';
+  str << "compoundSelfName " << compoundSelfName << '\n';
+  str << "allowImplicitFunctionDecls " << allowImplicitFunctionDecls << '\n';
+  str << "allowImplicitInt " << allowImplicitInt << '\n';
+  str << "allowDynamicallySizedArrays " << allowDynamicallySizedArrays << '\n';
+  str << "allowIncompleteEnums " << allowIncompleteEnums << '\n';
+  str << "allowMemberWithClassName " << allowMemberWithClassName << '\n';
+  str << "nonstandardAssignmentOperator " << nonstandardAssignmentOperator << '\n';
+  str << "allowExternCThrowMismatch " << allowExternCThrowMismatch << '\n';
+  str << "allowImplicitIntForMain " << allowImplicitIntForMain << '\n';
+  str << "predefined " << predefined_Bool << '\n';
+  str << "handleExternInlineSpecially " << handleExternInlineSpecially << '\n';
+  str << "stringLitCharsAreConst " << stringLitCharsAreConst << '\n';
+  str << "lvalueFlowsThroughCast " << lvalueFlowsThroughCast << '\n';
+  str << "restrictIsAKeyword " << restrictIsAKeyword << '\n';
+  str << "allowNewlinesInStringLits " << allowNewlinesInStringLits << '\n';
+  str << "allowImplicitIntForOperators " << allowImplicitIntForOperators << '\n';
+  str << "allowQualifiedMemberDeclarations " << allowQualifiedMemberDeclarations << '\n';
+  str << "allowModifiersWithTypedefNames " << allowModifiersWithTypedefNames << '\n';
+  str << "allowAnonymousStructs " << allowAnonymousStructs << '\n';
+  str << "gcc2StdEqualsGlobalHacks " << gcc2StdEqualsGlobalHacks << '\n';
+  str << "allowGcc2HeaderSyntax " << allowGcc2HeaderSyntax << '\n';
+  str << "allowRepeatedTypeSpecifierKeywords " << allowRepeatedTypeSpecifierKeywords << '\n';
+  str << "allowCVAppliedToFunctionTypes " << allowCVAppliedToFunctionTypes << '\n';
+  str << "allowDefinitionsInWrongScopes " << allowDefinitionsInWrongScopes << '\n';
+  str << "allowDuplicateParameterNames " << allowDuplicateParameterNames << '\n';
+  str << "allowExplicitSpecWithoutParams " << allowExplicitSpecWithoutParams << '\n';
+  str << "allowStaticAfterNonStatic " << allowStaticAfterNonStatic << '\n';
+  return str;
 }
 
 

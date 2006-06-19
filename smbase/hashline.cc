@@ -17,6 +17,11 @@ HashLineMap::HashLineMap(rostring pf)
 HashLineMap::~HashLineMap()
 {}
 
+char const *HashLineMap::canonizeFilename(char const *fname)
+{
+  // map 'fname' to a canonical reference
+  return filenames(fname);
+}
 
 void HashLineMap::addHashLine(int ppLine, int origLine, char const *origFname)
 {
@@ -25,13 +30,7 @@ void HashLineMap::addHashLine(int ppLine, int origLine, char const *origFname)
   prev_ppLine = ppLine;
 
   // map 'origFname' to a canonical reference
-  string *canon = filenames.queryif(origFname);
-  if (!canon) {
-    // add a new one
-    canon = new string(origFname);
-    filenames.add(origFname, canon);
-  }
-  origFname = canon->c_str();
+  origFname = canonizeFilename(origFname);
 
   // add the entry to the array
   directives.push(HashLine(ppLine, origLine, origFname));
@@ -40,19 +39,23 @@ void HashLineMap::addHashLine(int ppLine, int origLine, char const *origFname)
 
 void HashLineMap::doneAdding()
 {
-  // make a new array of exactly the right size
-  ArrayStack<HashLine> tmp(directives.length());
+  // printf("## HashLineMap::doneAdding: directives.length() = %d, directives.size() = %d\n",
+  //        directives.length(), directives.size());
+  directives.setSize(directives.length());
 
-  // copy all the entries into the new array
-  memcpy(tmp.getDangerousWritableArray(), directives.getArray(),
-         directives.length() * sizeof(HashLine));
-  tmp.setLength(directives.length());
+  // // make a new array of exactly the right size
+  // ArrayStack<HashLine> tmp(directives.length());
 
-  // swap the internal contents of the two arrays, so 'directives'
-  // becomes the consolidated one
-  tmp.swapWith(directives);
+  // // copy all the entries into the new array
+  // memcpy(tmp.getDangerousWritableArray(), directives.getArray(),
+  //        directives.length() * sizeof(HashLine));
+  // tmp.setLength(directives.length());
 
-  // now tmp's internal storage will be automatically deleted
+  // // swap the internal contents of the two arrays, so 'directives'
+  // // becomes the consolidated one
+  // tmp.swapWith(directives);
+
+  // // now tmp's internal storage will be automatically deleted
 }
 
 
@@ -180,7 +183,7 @@ int main()
   query(hl, 102, 102, "foo.i");
   // ...
 
-  printf("unique filenames: %d\n", hl.numUniqueFilenames());
+  // printf("unique filenames: %d\n", hl.numUniqueFilenames());
   printf("hashline seems to work\n");
 
   return 0;

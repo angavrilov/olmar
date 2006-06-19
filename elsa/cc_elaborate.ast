@@ -30,7 +30,7 @@ class Function {
   // NOTE!: If this function is a ctor, then the semantics is as if we
   // have this line in the code before the MemberInit-s:
   //   this = &retVar;
-  public(xml_TY) Variable *retVar = NULL;
+  public(xml_TY,xmlShouldSerialize) Variable *retVar = NULL;
   custom debugPrint { ind(os,indent) << "retVar: " << refersTo(retVar) << "\n"; }
 
   // to be called when the function exits; should only be non-NULL for
@@ -62,7 +62,7 @@ class TypeSpecifier {
 class MemberInit {
   // A single MemberInit seems very much like a single expression to
   // me, since it is a ctor call and an IN_ctor is also
-  private(xml_AST) FullExpressionAnnot *annot = NULL;
+  private(xml_AST,owner) FullExpressionAnnot *annot = NULL;
   public bool hasAnnot();
   public FullExpressionAnnot *getAnnot();
 
@@ -110,13 +110,13 @@ class Handler {
     // the global that the throw argument is copy-ctored into, if
     // thrown by value; this should be linked to the globalVar in
     // E_throw by a backend
-    public(xml_TY) Variable *globalVar = NULL;
+    public(xml_TY,xmlShouldSerialize) Variable *globalVar = NULL;
     custom debugPrint { ind(os,indent) << "globalVar: " << refersTo(globalVar) << "\n"; }
     // we need this so that the temporary that is made when an
     // exception is caught by value has some place to go; that is, a
     // Handler has to have all the necessary components of an
     // E_funCall, as that's how it behaves
-    private(xml_AST) FullExpressionAnnot *annot = NULL;
+    private(xml_AST,owner) FullExpressionAnnot *annot = NULL;
     public bool hasAnnot();
     public FullExpressionAnnot *getAnnot();
     // local temporary and ctor for it if we catch by value
@@ -129,7 +129,7 @@ class Handler {
 
 
 class FullExpression {
-  private(xml_AST) FullExpressionAnnot *annot = NULL;
+  private(xml_AST,owner) FullExpressionAnnot *annot = NULL;
   public bool hasAnnot();
   public FullExpressionAnnot *getAnnot();
 }
@@ -141,7 +141,7 @@ class Expression {
   // skip the children.  See the SES in cc_elaborate.cc.
 
   -> E_funCall {
-    // Pass by value (for class-valued objects) is elaborated by saying there
+    // Return by value (for class-valued objects) is elaborated by saying there
     // is another function parameter, the 'return object'.  At the call site,
     // we specify an object (reference) that will be bound to that parameter,
     // and the function implementation is expected to write to that object.
@@ -166,7 +166,7 @@ class Expression {
     // I need a place to put the variable being ctored because
     // E_constructor needs to point at a variable.  Note that this var
     // is really on the heap.
-    public(xml_TY) Variable *heapVar = NULL;
+    public(xml_TY,xmlShouldSerialize) Variable *heapVar = NULL;
     custom debugPrint { ind(os,indent) << "heapVar: " << refersTo(heapVar) << "\n"; }
 
     public bool elaborate(ElabVisitor &env);
@@ -185,7 +185,7 @@ class Expression {
   -> E_throw {
     // the global that the throw argument is copy-ctored into, if
     // thrown by value
-    public(xml_TY) Variable *globalVar = NULL;
+    public(xml_TY,xmlShouldSerialize) Variable *globalVar = NULL;
     custom debugPrint { ind(os,indent) << "globalVar: " << refersTo(globalVar) << "\n"; }
 
     public(field,xml_AST,owner) Statement *globalCtorStatement=NULL;
@@ -235,7 +235,7 @@ class Initializer {
   //
   // But I'll leave it for now.
 
-  private(xml_AST) FullExpressionAnnot *annot = NULL;
+  private(xml_AST,owner) FullExpressionAnnot *annot = NULL;
   public bool hasAnnot();
   public FullExpressionAnnot *getAnnot();
 }

@@ -237,6 +237,24 @@ void CValue::applyUsualArithmeticConversions(CValue &other)
   other.convertToType(finalType);
 }
 
+
+void CValue::addOffset(int offset)
+{
+  if (isSigned()) {
+    si += offset;
+  }
+  else if (isUnsigned()) {
+    ui += (unsigned long)offset;
+  }
+  else if (isFloat()) {
+    f += (float)offset;     // questionable...
+  }
+  else {
+    // other cases: leave as-is
+  }
+}
+
+
 void CValue::applyBinary(BinaryOp op, CValue other)
 {
   if (isSticky()) { return; }
@@ -734,10 +752,20 @@ CValue Expression::constEvalAddr(ConstEval &env) const
     ASTNEXTC(E_arrow, e)
       return e->obj->constEval(env);
 
-    // These just recurse on constEvalAddr().
-    ASTNEXTC(E_fieldAcc, e)
-      return e->obj->constEvalAddr(env);
+    ASTNEXTC(E_fieldAcc, e) {
+      // 2006-06-03: Trying to make this work for in/c/k0014.c.
+      CValue val = e->obj->constEvalAddr(env);
+      CompoundType *ct = e->obj->type->asRval()->ifCompoundType();
+      if (!ct) {
+        // probably something weird like a template
+      }
+      else {
+        val.addOffset(ct->getDataMemberOffset(e->field));
+      }
+      return val;
+    }
 
+    // These just recurse on constEvalAddr().
     ASTNEXTC(E_cast, e)
       return e->expr->constEvalAddr(env);
 

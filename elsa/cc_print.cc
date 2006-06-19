@@ -3,15 +3,12 @@
 
 // Adapted from cc_tcheck.cc by Daniel Wilkerson dsw@cs.berkeley.edu
 
-// This is a tree walk that prints out a functionally equivalent C++
-// program to the original.
-
 #include "cc_print.h"           // this module
 #include "trace.h"              // trace
 #include "strutil.h"            // string utilities
 
 #include <stdlib.h>             // getenv
-  
+
 
 // set this environment variable to see the twalk_layer debugging
 // output
@@ -35,9 +32,33 @@ CodeOutStream::~CodeOutStream()
   }
 }
 
+// // write N spaces to OUT.
+// static inline
+// void writeSpaces(OutStream &out, size_t n)
+// {
+//   static char const spaces[] =
+//     "                                                  "
+//     "                                                  "
+//     "                                                  "
+//     "                                                  ";
+
+//   static size_t const max_spaces = sizeof spaces - 1;
+
+//   // If we're printing more than this many spaces it's pretty useless anyway,
+//   // since it's only for human viewing pleasure!
+//   while (n > max_spaces) {
+//     out.write(spaces, max_spaces);
+//     n -= max_spaces;
+//   }
+//   out.write(spaces, n);
+// }
+
+// TODO: add write(char*,int len) methods to OutStream et al so we can do
+// 'printIndentation' efficiently
 void CodeOutStream::printIndentation(int n) {
+  // writeSpaces(out, n);
   for (int i=0; i<n; ++i) {
-    out << "  ";
+    out << ' ' << ' ';
   }
 }
 
@@ -60,7 +81,7 @@ void CodeOutStream::finish()
   xassert(bufferedNewlines == 1 || bufferedNewlines == 0);
   if (bufferedNewlines) {
     bufferedNewlines--;
-    out << "\n";                // don't indent after last one
+    out << '\n';                // don't indent after last one
   }
   flush();
 }
@@ -92,7 +113,7 @@ CodeOutStream & CodeOutStream::operator << (char const *message)
 
   stringBuilder message2;
   if (bufferedNewlines) {
-    message2 << "\n";
+    message2 << '\n';
     bufferedNewlines--;
   }
   message2 << message1;
@@ -108,7 +129,7 @@ PairDelim::PairDelim(CodeOutStream &out, rostring message, rostring open, char c
     : close(close0), out(out)
 {
   out << message;
-  out << " ";
+  out << ' ';
   out << open;
   if (strchr(toCStr(open), '{')) out.down();
 }
@@ -117,7 +138,7 @@ PairDelim::PairDelim(CodeOutStream &out, rostring message)
   : close(""), out(out)
 {
   out << message;
-  out << " ";
+  out << ' ';
 }
 
 PairDelim::~PairDelim() {
@@ -130,7 +151,7 @@ PairDelim::~PairDelim() {
 void TreeWalkOutStream::indent() {
   out << endl;
   out.flush();
-  for(int i=0; i<depth; ++i) out << " ";
+  for(int i=0; i<depth; ++i) out << ' ';
   out.flush();
   out << ":::::";
   out.flush();
@@ -157,6 +178,7 @@ TreeWalkDebug::~TreeWalkDebug()
   out.up();
 }
 
+
 // **************** class TypePrinter
 
 TypeLike const *TypePrinter::getTypeLike(Variable const *var)
@@ -174,11 +196,11 @@ TypeLike const *TypePrinter::getE_constructorTypeLike(E_constructor const *c)
   return c->type;
 }
 
-// **************** class TypePrinterC
+// **************** class CTypePrinter
 
-bool TypePrinterC::enabled = true;
+bool CTypePrinter::enabled = true;
 
-void TypePrinterC::print(OutStream &out, TypeLike const *type, char const *name)
+void CTypePrinter::print(OutStream &out, TypeLike const *type, char const *name)
 {
   // temporarily suspend the Type::toCString, Variable::toCString(),
   // etc. methods
@@ -194,7 +216,7 @@ void TypePrinterC::print(OutStream &out, TypeLike const *type, char const *name)
 
 // **** AtomicType
 
-string TypePrinterC::print(AtomicType const *atomic)
+string CTypePrinter::print(AtomicType const *atomic)
 {
   // roll our own virtual dispatch
   switch(atomic->getTag()) {
@@ -208,27 +230,27 @@ string TypePrinterC::print(AtomicType const *atomic)
   }
 }
 
-string TypePrinterC::print(SimpleType const *simpleType)
+string CTypePrinter::print(SimpleType const *simpleType)
 {
   return simpleTypeName(simpleType->type);
 }
 
-string TypePrinterC::print(CompoundType const *cpdType)
+string CTypePrinter::print(CompoundType const *cpdType)
 {
   stringBuilder sb;
 
   TemplateInfo *tinfo = cpdType->templateInfo();
   bool hasParams = tinfo && tinfo->params.isNotEmpty();
   if (hasParams) {
-    sb << tinfo->paramsToCString() << " ";
+    sb << tinfo->paramsToCString() << ' ';
   }
 
-  if (!tinfo || hasParams) {   
+  if (!tinfo || hasParams) {
     // only say 'class' if this is like a class definition, or
     // if we're not a template, since template instantiations
     // usually don't include the keyword 'class' (this isn't perfect..
     // I think I need more context)
-    sb << CompoundType::keywordName(cpdType->keyword) << " ";
+    sb << CompoundType::keywordName(cpdType->keyword) << ' ';
   }
 
   sb << (cpdType->instName? cpdType->instName : "/*anonymous*/");
@@ -245,12 +267,12 @@ string TypePrinterC::print(CompoundType const *cpdType)
   return sb;
 }
 
-string TypePrinterC::print(EnumType const *enumType)
+string CTypePrinter::print(EnumType const *enumType)
 {
   return stringc << "enum " << (enumType->name? enumType->name : "/*anonymous*/");
 }
 
-string TypePrinterC::print(TypeVariable const *typeVar)
+string CTypePrinter::print(TypeVariable const *typeVar)
 {
   // use the "typename" syntax instead of "class", to distinguish
   // this from an ordinary class, and because it's syntax which
@@ -270,7 +292,7 @@ string TypePrinterC::print(TypeVariable const *typeVar)
                  << typeVar->name;
 }
 
-string TypePrinterC::print(PseudoInstantiation const *pseudoInst)
+string CTypePrinter::print(PseudoInstantiation const *pseudoInst)
 {
   stringBuilder sb0;
   StringBuilderOutStream out0(sb0);
@@ -283,21 +305,21 @@ string TypePrinterC::print(PseudoInstantiation const *pseudoInst)
   // NOTE: This was inlined from sargsToString; it would read as
   // follows:
 //    codeOut << sargsToString(pseudoInst->args);
-  codeOut << "<";
+  codeOut << '<';
   int ct=0;
   FOREACH_OBJLIST(STemplateArgument, pseudoInst->args, iter) {
     if (ct++ > 0) {
-      codeOut << ", ";
+      codeOut << ',' << ' ';
     }
     printSTemplateArgument(env, iter.data());
   }
-  codeOut << ">";
+  codeOut << '>';
 
   codeOut.finish();
   return sb0;
 }
 
-string TypePrinterC::print(DependentQType const *depType)
+string CTypePrinter::print(DependentQType const *depType)
 {
   stringBuilder sb0;
   StringBuilderOutStream out0(sb0);
@@ -305,7 +327,7 @@ string TypePrinterC::print(DependentQType const *depType)
   PrintEnv env(*this, &codeOut); // Yuck!
   // FIX: what about the env.loc?
 
-  codeOut << print(depType->first) << "::";
+  codeOut << print(depType->first) << ':' << ':';
   depType->rest->print(env);
 
   codeOut.finish();
@@ -315,7 +337,7 @@ string TypePrinterC::print(DependentQType const *depType)
 
 // **** [Compound]Type
 
-string TypePrinterC::print(Type const *type)
+string CTypePrinter::print(Type const *type)
 {
   if (type->isCVAtomicType()) {
     // special case a single atomic type, so as to avoid
@@ -332,7 +354,7 @@ string TypePrinterC::print(Type const *type)
   }
 }
 
-string TypePrinterC::print(Type const *type, char const *name)
+string CTypePrinter::print(Type const *type, char const *name)
 {
   // print the inner parentheses if the name is omitted
   bool innerParen = (name && name[0])? false : true;
@@ -350,7 +372,7 @@ string TypePrinterC::print(Type const *type, char const *name)
   s << printLeft(type, innerParen);
   s << (name? name : "/*anon*/");
   s << printRight(type, innerParen);
-  
+
   // get rid of extra space
   while (s.length() >= 1 && s[s.length()-1] == ' ') {
     s.truncate(s.length() - 1);
@@ -359,7 +381,7 @@ string TypePrinterC::print(Type const *type, char const *name)
   return s;
 }
 
-string TypePrinterC::printRight(Type const *type, bool innerParen)
+string CTypePrinter::printRight(Type const *type, bool innerParen)
 {
   // roll our own virtual dispatch
   switch(type->getTag()) {
@@ -373,7 +395,7 @@ string TypePrinterC::printRight(Type const *type, bool innerParen)
   }
 }
 
-string TypePrinterC::printLeft(Type const *type, bool innerParen)
+string CTypePrinter::printLeft(Type const *type, bool innerParen)
 {
   // roll our own virtual dispatch
   switch(type->getTag()) {
@@ -387,7 +409,7 @@ string TypePrinterC::printLeft(Type const *type, bool innerParen)
   }
 }
 
-string TypePrinterC::printLeft(CVAtomicType const *type, bool /*innerParen*/)
+string CTypePrinter::printLeft(CVAtomicType const *type, bool /*innerParen*/)
 {
   stringBuilder s;
   s << print(type->atomic);
@@ -396,67 +418,67 @@ string TypePrinterC::printLeft(CVAtomicType const *type, bool /*innerParen*/)
   // this is the only mandatory space in the entire syntax
   // for declarations; it separates the type specifier from
   // the declarator(s)
-  s << " ";
+  s << ' ';
 
   return s;
 }
 
-string TypePrinterC::printRight(CVAtomicType const *type, bool /*innerParen*/)
+string CTypePrinter::printRight(CVAtomicType const *type, bool /*innerParen*/)
 {
   return "";
 }
 
-string TypePrinterC::printLeft(PointerType const *type, bool /*innerParen*/)
+string CTypePrinter::printLeft(PointerType const *type, bool /*innerParen*/)
 {
   stringBuilder s;
   s << printLeft(type->atType, false /*innerParen*/);
   if (type->atType->isFunctionType() ||
       type->atType->isArrayType()) {
-    s << "(";
+    s << '(';
   }
-  s << "*";
+  s << '*';
   if (type->cv) {
     // 1/03/03: added this space so "Foo * const arf" prints right (t0012.cc)
-    s << cvToString(type->cv) << " ";
+    s << cvToString(type->cv) << ' ';
   }
   return s;
 }
 
-string TypePrinterC::printRight(PointerType const *type, bool /*innerParen*/)
+string CTypePrinter::printRight(PointerType const *type, bool /*innerParen*/)
 {
   stringBuilder s;
   if (type->atType->isFunctionType() ||
       type->atType->isArrayType()) {
-    s << ")";
+    s << ')';
   }
   s << printRight(type->atType, false /*innerParen*/);
   return s;
 }
 
-string TypePrinterC::printLeft(ReferenceType const *type, bool /*innerParen*/)
+string CTypePrinter::printLeft(ReferenceType const *type, bool /*innerParen*/)
 {
   stringBuilder s;
   s << printLeft(type->atType, false /*innerParen*/);
   if (type->atType->isFunctionType() ||
       type->atType->isArrayType()) {
-    s << "(";
+    s << '(';
   }
-  s << "&";
+  s << '&';
   return s;
 }
 
-string TypePrinterC::printRight(ReferenceType const *type, bool /*innerParen*/)
+string CTypePrinter::printRight(ReferenceType const *type, bool /*innerParen*/)
 {
   stringBuilder s;
   if (type->atType->isFunctionType() ||
       type->atType->isArrayType()) {
-    s << ")";
+    s << ')';
   }
   s << printRight(type->atType, false /*innerParen*/);
   return s;
 }
 
-string TypePrinterC::printLeft(FunctionType const *type, bool innerParen)
+string CTypePrinter::printLeft(FunctionType const *type, bool innerParen)
 {
   stringBuilder sb;
 
@@ -479,13 +501,13 @@ string TypePrinterC::printLeft(FunctionType const *type, bool innerParen)
 
   // NOTE: we do *not* propagate 'innerParen'!
   if (innerParen) {
-    sb << "(";
+    sb << '(';
   }
 
   return sb;
 }
 
-string TypePrinterC::printRight(FunctionType const *type, bool innerParen)
+string CTypePrinter::printRight(FunctionType const *type, bool innerParen)
 {
   // I split this into two pieces because the Cqual++ concrete
   // syntax puts $tainted into the middle of my rightString,
@@ -496,16 +518,16 @@ string TypePrinterC::printRight(FunctionType const *type, bool innerParen)
     << printRightAfterQualifiers(type);
 }
 
-string TypePrinterC::printRightUpToQualifiers(FunctionType const *type, bool innerParen)
+string CTypePrinter::printRightUpToQualifiers(FunctionType const *type, bool innerParen)
 {
   // finish enclosing type
   stringBuilder sb;
   if (innerParen) {
-    sb << ")";
+    sb << ')';
   }
 
   // arguments
-  sb << "(";
+  sb << '(';
   int ct=0;
   SFOREACH_OBJLIST(Variable, type->params, iter) {
     ct++;
@@ -516,34 +538,34 @@ string TypePrinterC::printRightUpToQualifiers(FunctionType const *type, bool inn
       continue;
     }
     if (ct >= 3 || (!type->isMethod() && ct>=2)) {
-      sb << ", ";
+      sb << ',' << ' ';
     }
     sb << printAsParameter(iter.data());
   }
 
   if (type->acceptsVarargs()) {
     if (ct++ > 0) {
-      sb << ", ";
+      sb << ',' << ' ';
     }
-    sb << "...";
+    sb << '.' << '.' << '.';
   }
 
-  sb << ")";
+  sb << ')';
 
   return sb;
 }
 
-string TypePrinterC::printRightQualifiers(FunctionType const *type, CVFlags cv)
+string CTypePrinter::printRightQualifiers(FunctionType const *type, CVFlags cv)
 {
   if (cv) {
-    return stringc << " " << ::toString(cv);
+    return stringc << ' ' << ::toString(cv);
   }
   else {
     return "";
   }
 }
 
-string TypePrinterC::printRightAfterQualifiers(FunctionType const *type)
+string CTypePrinter::printRightAfterQualifiers(FunctionType const *type)
 {
   stringBuilder sb;
 
@@ -553,11 +575,11 @@ string TypePrinterC::printRightAfterQualifiers(FunctionType const *type)
     int ct=0;
     SFOREACH_OBJLIST(Type, type->exnSpec->types, iter) {
       if (ct++ > 0) {
-        sb << ", ";
+        sb << ',' << ' ';
       }
       sb << print(iter.data());
     }
-    sb << ")";
+    sb << ')';
   }
 
   // hook for verifier syntax
@@ -569,23 +591,23 @@ string TypePrinterC::printRightAfterQualifiers(FunctionType const *type)
   return sb;
 }
 
-void TypePrinterC::printExtraRightmostSyntax(FunctionType const *type, stringBuilder &)
+void CTypePrinter::printExtraRightmostSyntax(FunctionType const *type, stringBuilder &)
 {}
 
-string TypePrinterC::printLeft(ArrayType const *type, bool /*innerParen*/)
+string CTypePrinter::printLeft(ArrayType const *type, bool /*innerParen*/)
 {
   return printLeft(type->eltType);
 }
 
-string TypePrinterC::printRight(ArrayType const *type, bool /*innerParen*/)
+string CTypePrinter::printRight(ArrayType const *type, bool /*innerParen*/)
 {
   stringBuilder sb;
 
   if (type->hasSize()) {
-    sb << "[" << type->size << "]";
+    sb << '[' << type->size << ']';
   }
   else {
-    sb << "[]";
+    sb << '[' << ']';
   }
 
   sb << printRight(type->eltType);
@@ -593,39 +615,39 @@ string TypePrinterC::printRight(ArrayType const *type, bool /*innerParen*/)
   return sb;
 }
 
-string TypePrinterC::printLeft(PointerToMemberType const *type, bool /*innerParen*/)
+string CTypePrinter::printLeft(PointerToMemberType const *type, bool /*innerParen*/)
 {
   stringBuilder s;
   s << printLeft(type->atType, false /*innerParen*/);
-  s << " ";
+  s << ' ';
   if (type->atType->isFunctionType() ||
       type->atType->isArrayType()) {
-    s << "(";
+    s << '(';
   }
-  s << type->inClassNAT->name << "::*";
+  s << type->inClassNAT->name << ':' << ':' << '*';
   s << cvToString(type->cv);
   return s;
 }
 
-string TypePrinterC::printRight(PointerToMemberType const *type, bool /*innerParen*/)
+string CTypePrinter::printRight(PointerToMemberType const *type, bool /*innerParen*/)
 {
   stringBuilder s;
   if (type->atType->isFunctionType() ||
       type->atType->isArrayType()) {
-    s << ")";
+    s << ')';
   }
   s << printRight(type->atType, false /*innerParen*/);
   return s;
 }
 
-string TypePrinterC::printAsParameter(Variable const *var)
+string CTypePrinter::printAsParameter(Variable const *var)
 {
   stringBuilder sb;
   if (var->type->isTypeVariable()) {
     // type variable's name, then the parameter's name (if any)
     sb << var->type->asTypeVariable()->name;
     if (var->name) {
-      sb << " " << var->name;
+      sb << ' ' << var->name;
     }
   }
   else {
@@ -674,15 +696,15 @@ string printDeclaration_makeName
     //
     // NOTE: This was inlined from sargsToString; it used to read as follows:
     //          codeOut0 << sargsToString(var->templateInfo()->arguments);
-    codeOut0 << "<";
+    codeOut0 << '<';
     int ct=0;
     FOREACH_OBJLIST_NC(STemplateArgument, var->templateInfo()->arguments, iter) {
       if (ct++ > 0) {
-        codeOut0 << ", ";
+        codeOut0 << ',' << ' ';
       }
       printSTemplateArgument(env, iter.data());
     }
-    codeOut0 << ">";
+    codeOut0 << '>';
   }
 
   codeOut0 << var->namePrintSuffix();    // hook for verifier
@@ -718,7 +740,7 @@ Type const *getDeclarationTypeLike(TypeLike const *type)
 //   char operator()        // conversion operator to 'char'
 void printDeclaration
   (PrintEnv &env,
-                             
+
   // declflags present in source; not same as 'var->flags' because
   // the latter is a mixture of flags present in different
   // declarations
@@ -837,7 +859,7 @@ void TF_explicitInst::print(PrintEnv &env)
 }
 
 void TF_linkage::print(PrintEnv &env)
-{         
+{
   TreeWalkDebug treeDebug("TF_linkage");
   env.loc = loc;
   *env.out << "extern " << linkageType;
@@ -854,7 +876,7 @@ void TF_one_linkage::print(PrintEnv &env)
 }
 
 void TF_asm::print(PrintEnv &env)
-{    
+{
   TreeWalkDebug treeDebug("TF_asm");
   env.loc = loc;
   *env.out << "asm(" << text << ");\n";
@@ -884,7 +906,7 @@ void Function::print(PrintEnv &env)
 {
   TreeWalkDebug treeDebug("Function");
   TypeLike const *type0 = env.typePrinter.getFunctionTypeLike(this);
-  Restorer<bool> res0(TypePrinterC::enabled, type0 == funcType);
+  Restorer<bool> res0(CTypePrinter::enabled, type0 == funcType);
 
   printDeclaration(env, dflags,
                    type0,
@@ -943,7 +965,7 @@ void Declaration::print(PrintEnv &env)
     spec->asTS_enumSpec()->print(env);
     *env.out << ";\n";
   }
-  
+
   // TODO: this does not print "friend class Foo;" declarations
   // because the type specifier is TS_elaborated and there are no
   // declarators
@@ -954,13 +976,13 @@ void Declaration::print(PrintEnv &env)
     // as a definition is seen), print them first
     DeclFlags extras = (DeclFlags)(dflags & ~(iter->var->flags));
     if (extras) {
-      *env.out << toString(extras) << " ";
+      *env.out << toString(extras) << ' ';
     }
 
     // TODO: this will not work if there is more than one declarator ...
 
     iter->print(env);
-    *env.out << ";" << endl;
+    *env.out << ';' << endl;
   }
 }
 
@@ -980,7 +1002,7 @@ void printInitializerOpt(PrintEnv &env, Initializer /*nullable*/ *init)
         ctor->print(env);       // NOTE: You can NOT factor this line out of the if!
       }
     } else {
-      *env.out << "=";
+      *env.out << '=';
       init->print(env);         // Don't pull this out!
     }
   }
@@ -997,7 +1019,7 @@ void ASTTypeId::print(PrintEnv &env)
   // sm: ASTTypeId declarators are always abstract, so I think
   // this conditional never evaluates to true...
   if (decl->getDeclaratorId()) {
-    *env.out << " ";
+    *env.out << ' ';
     decl->getDeclaratorId()->print(env);
   }
 
@@ -1012,7 +1034,7 @@ void printTemplateArgumentList
   while (args) {
     if (!args->isTA_templateUsed()) {
       if (ct++ > 0) {
-        *env.out << ", ";
+        *env.out << ',' << ' ';
       }
       args->print(env);
     }
@@ -1030,12 +1052,12 @@ void PQ_qualifier::print(PrintEnv &env)
   if (qualifier) {
     *env.out << qualifier;
     if (templArgs/*isNotEmpty*/) {
-      *env.out << "<";
+      *env.out << '<';
       printTemplateArgumentList(env, templArgs);
-      *env.out << ">";
+      *env.out << '>';
     }
   }
-  *env.out << "::";
+  *env.out << ':' << ':';
 
   rest->print(env);
 }
@@ -1056,9 +1078,9 @@ void PQ_template::print(PrintEnv &env)
     *env.out << "template ";
   }
 
-  *env.out << name << "<";
+  *env.out << name << '<';
   printTemplateArgumentList(env, templArgs);
-  *env.out << ">";
+  *env.out << '>';
 }
 
 
@@ -1083,7 +1105,7 @@ void TS_elaborated::print(PrintEnv &env)
   TreeWalkDebug treeDebug("TS_elaborated");
   env.loc = loc;
   *env.out << toString(ql);          // see string toString(class dummyType*) above
-  *env.out << toString(keyword) << " ";
+  *env.out << toString(keyword) << ' ';
   name->print(env);
 }
 
@@ -1092,15 +1114,15 @@ void TS_classSpec::print(PrintEnv &env)
   TreeWalkDebug treeDebug("TS_classSpec");
   *env.out << toString(ql);          // see string toString(class dummyType*) above
   *env.out << toString(cv);
-  *env.out << toString(keyword) << " ";
+  *env.out << toString(keyword) << ' ';
   if (name) *env.out << name->toString();
   bool first_time = true;
   FAKELIST_FOREACH_NC(BaseClassSpec, bases, iter) {
     if (first_time) {
-      *env.out << " : ";
+      *env.out << ' ' << ':' << ' ';
       first_time = false;
     }
-    else *env.out << ", ";
+    else *env.out << ',' << ' ';
     iter->print(env);
   }
   PairDelim pair(*env.out, "", "{\n", "}");
@@ -1119,7 +1141,7 @@ void TS_enumSpec::print(PrintEnv &env)
   PairDelim pair(*env.out, "", "{\n", "}");
   FAKELIST_FOREACH_NC(Enumerator, elts, iter) {
     iter->print(env);
-    *env.out << "\n";
+    *env.out << '\n';
   }
 }
 
@@ -1135,7 +1157,7 @@ void BaseClassSpec::print(PrintEnv &env) {
 
 // ---------------------- Member ----------------------
 void MR_decl::print(PrintEnv &env)
-{                   
+{
   TreeWalkDebug treeDebug("MR_decl");
   d->print(env);
 }
@@ -1149,7 +1171,7 @@ void MR_func::print(PrintEnv &env)
 void MR_access::print(PrintEnv &env)
 {
   TreeWalkDebug treeDebug("MR_access");
-  *env.out << toString(k) << ":\n";
+  *env.out << toString(k) << ':' << '\n';
 }
 
 void MR_usingDecl::print(PrintEnv &env)
@@ -1171,10 +1193,10 @@ void Enumerator::print(PrintEnv &env)
   TreeWalkDebug treeDebug("Enumerator");
   *env.out << name;
   if (expr) {
-    *env.out << "=";
+    *env.out << '=';
     expr->print(env);
   }
-  *env.out << ", ";
+  *env.out << ',' << ' ';
 }
 
 // -------------------- Declarator --------------------
@@ -1185,7 +1207,7 @@ void Declarator::print(PrintEnv &env)
   printVar(env, var, decl->getDeclaratorId());
   D_bitfield *b = dynamic_cast<D_bitfield*>(decl);
   if (b) {
-    *env.out << ":";
+    *env.out << ':';
     b->bits->print(env);
   }
   printInitializerOpt(env, init);
@@ -1214,22 +1236,22 @@ void Statement::print(PrintEnv &env)
 void S_skip::iprint(PrintEnv &env)
 {
   TreeWalkDebug treeDebug("S_skip::iprint");
-  *env.out << ";\n";
+  *env.out << ';' << '\n';
 }
 
 void S_label::iprint(PrintEnv &env)
 {
   TreeWalkDebug treeDebug("S_label::iprint");
-  *env.out << name << ":";
+  *env.out << name << ':';
   s->print(env);
 }
 
 void S_case::iprint(PrintEnv &env)
-{                    
+{
   TreeWalkDebug treeDebug("S_case::iprint");
   *env.out << "case";
   expr->print(env);
-  *env.out << ":";
+  *env.out << ':';
   s->print(env);
 }
 
@@ -1244,11 +1266,11 @@ void S_expr::iprint(PrintEnv &env)
 {
   TreeWalkDebug treeDebug("S_expr::iprint");
   expr->print(env);
-  *env.out << ";\n";
+  *env.out << ';' << '\n';
 }
 
 void S_compound::iprint(PrintEnv &env)
-{ 
+{
   TreeWalkDebug treeDebug("S_compound::iprint");
   PairDelim pair(*env.out, "", "{\n", "}\n");
   FOREACH_ASTLIST_NC(Statement, stmts, iter) {
@@ -1299,7 +1321,7 @@ void S_doWhile::iprint(PrintEnv &env)
     PairDelim pair(*env.out, "while", "(", ")");
     expr->print(env);
   }
-  *env.out << ";\n";
+  *env.out << ';' << '\n';
 }
 
 void S_for::iprint(PrintEnv &env)
@@ -1311,7 +1333,7 @@ void S_for::iprint(PrintEnv &env)
     // this one not needed as the declaration provides one
     //          *env.out << ";";
     cond->print(env);
-    *env.out << ";";
+    *env.out << ';';
     after->print(env);
   }
   body->print(env);
@@ -1321,14 +1343,14 @@ void S_break::iprint(PrintEnv &env)
 {
   TreeWalkDebug treeDebug("S_break::iprint");
   *env.out << "break";
-  *env.out << ";\n";
+  *env.out << ';' << '\n';
 }
 
 void S_continue::iprint(PrintEnv &env)
 {
   TreeWalkDebug treeDebug("S_continue::iprint");
   *env.out << "continue";
-  *env.out << ";\n";
+  *env.out << ';' << '\n';
 }
 
 void S_return::iprint(PrintEnv &env)
@@ -1336,7 +1358,7 @@ void S_return::iprint(PrintEnv &env)
   TreeWalkDebug treeDebug("S_return::iprint");
   *env.out << "return";
   if (expr) expr->print(env);
-  *env.out << ";\n";
+  *env.out << ';' << '\n';
 }
 
 void S_goto::iprint(PrintEnv &env)
@@ -1346,7 +1368,7 @@ void S_goto::iprint(PrintEnv &env)
   TreeWalkDebug treeDebug("S_goto::iprint");
   *env.out << "goto ";
   *env.out << target;
-  *env.out << ";\n";
+  *env.out << ';' << '\n';
 }
 
 void S_decl::iprint(PrintEnv &env)
@@ -1423,7 +1445,18 @@ void FullExpression::print(PrintEnv &env)
   // print some curlies somewhere to make it legal to parse it back in
   // again, and we aren't using E_statement, so it would not reflect
   // the actual ast.
-  expr->print(env);
+  if (expr) {
+    expr->print(env);
+  } else {
+    // 2006-05-25
+    //   TODO: this can happen e.g.
+    //       struct S1 func () {
+    //         struct S1 v;
+    //         ({ return v; });
+    //       }
+    //
+    // xassert(expr && "39ce4334-0ca1-4e19-aaf9-7f27f335a629");
+  }
 }
 
 
@@ -1441,15 +1474,15 @@ void Expression::print(PrintEnv &env)
 }
 
 string Expression::exprToString() const
-{              
+{
   TreeWalkDebug treeDebug("Expression::exprToString");
   stringBuilder sb;
   StringBuilderOutStream out0(sb);
   CodeOutStream codeOut(out0);
-  TypePrinterC typePrinter;
-  Restorer<bool> res0(TypePrinterC::enabled, true);
+  CTypePrinter typePrinter;
+  Restorer<bool> res0(CTypePrinter::enabled, true);
   PrintEnv env(typePrinter, &codeOut);
-  
+
   // sm: I think all the 'print' methods should be 'const', but
   // I'll leave such a change up to this module's author (dsw)
   const_cast<Expression*>(this)->print(env);
@@ -1464,7 +1497,7 @@ string renderExpressionAsString(char const *prefix, Expression const *e)
 }
 
 char *expr_toString(Expression const *e)
-{               
+{
   // this function is defined in smbase/strutil.cc
   return copyToStaticBuffer(e->exprToString().c_str());
 }
@@ -1492,7 +1525,7 @@ void E_intLit::iprint(PrintEnv &env)
 }
 
 void E_floatLit::iprint(PrintEnv &env)
-{                                
+{
   TreeWalkDebug treeDebug("E_floatLit::iprint");
   // FIX: do this correctly from the internal representation
   // this fails to print ".0" for a float/double that happens to lie
@@ -1504,15 +1537,15 @@ void E_floatLit::iprint(PrintEnv &env)
 }
 
 void E_stringLit::iprint(PrintEnv &env)
-{                                                                     
+{
   TreeWalkDebug treeDebug("E_stringLit::iprint");
-  
+
   E_stringLit *p = this;
   while (p) {
     *env.out << p->text;
     p = p->continuation;
     if (p) {
-      *env.out << " ";
+      *env.out << ' ';
     }
   }
 }
@@ -1543,7 +1576,7 @@ void printSTemplateArgument(PrintEnv &env, STemplateArgument const *sta)
       // lying around to be printed here so we just print what we
       // have; enable the normal type printer temporarily in order to
       // do this
-      Restorer<bool> res0(TypePrinterC::enabled, true);
+      Restorer<bool> res0(CTypePrinter::enabled, true);
       env.typePrinter.print(*env.out, sta->value.t); // assume 'type' if no comment
       }
       break;
@@ -1570,7 +1603,7 @@ void printSTemplateArgument(PrintEnv &env, STemplateArgument const *sta)
     case STemplateArgument::STA_TEMPLATE:
       *env.out << string("template (?)");
       break;
-    case STemplateArgument::STA_ATOMIC:    
+    case STemplateArgument::STA_ATOMIC:
       *env.out << sta->value.at->toString();
       break;
   }
@@ -1603,15 +1636,15 @@ void printTemplateArgs(PrintEnv &env, Variable *var)
   for (int i=0; i < (totArgs-args); i++) {
     iter.adv();
   }
-  *env.out << "<";
+  *env.out << '<';
   int ct=0;
   for (; !iter.isDone(); iter.adv()) {
     if (ct++ > 0) {
-      *env.out << ", ";
+      *env.out << ',' << ' ';
     }
     printSTemplateArgument(env, iter.data());
   }
-  *env.out << ">";
+  *env.out << '>';
 }
 
 void E_variable::iprint(PrintEnv &env)
@@ -1635,7 +1668,7 @@ void printArgExprList(PrintEnv &env, FakeList<ArgExpression> *list)
   bool first_time = true;
   FAKELIST_FOREACH_NC(ArgExpression, list, iter) {
     if (first_time) first_time = false;
-    else *env.out << ", ";
+    else *env.out << ',' << ' ';
     iter->expr->print(env);
   }
 }
@@ -1653,7 +1686,7 @@ void E_constructor::iprint(PrintEnv &env)
   TreeWalkDebug treeDebug("E_constructor::iprint");
 
   TypeLike const *type0 = env.typePrinter.getE_constructorTypeLike(this);
-  Restorer<bool> res0(TypePrinterC::enabled, type == type0);
+  Restorer<bool> res0(CTypePrinter::enabled, type == type0);
 
   env.typePrinter.print(*env.out, type0);
   PairDelim pair(*env.out, "", "(", ")");
@@ -1671,12 +1704,12 @@ void printVariableName(PrintEnv &env, Variable *var)
     // the name is just "conversion-operator", so print differently
     *env.out << "/""*conversion*/operator(";
     Type *t = var->type->asFunctionType()->retType;
-    Restorer<bool> res0(TypePrinterC::enabled, true);
+    Restorer<bool> res0(CTypePrinter::enabled, true);
     env.typePrinter.print(*env.out, t);
-    *env.out << ")";
+    *env.out << ')';
     return;
   }
-  
+
   // normal case
   *env.out << var->name;
 }
@@ -1685,7 +1718,7 @@ void E_fieldAcc::iprint(PrintEnv &env)
 {
   TreeWalkDebug treeDebug("E_fieldAcc::iprint");
   obj->print(env);
-  *env.out << ".";
+  *env.out << '.';
   if (field &&
       !field->type->isDependent()) {
     printVariableName(env, field);
@@ -1707,7 +1740,7 @@ void E_fieldAcc::iprint(PrintEnv &env)
 void E_arrow::iprint(PrintEnv &env)
 {
   TreeWalkDebug treeDebug("E_arrow::iprint");
-  
+
   // E_arrow shouldn't normally be present in code that is to be
   // prettyprinted, so it doesn't much matter what this does.
   obj->print(env);
@@ -1909,7 +1942,7 @@ void E_typeidType::iprint(PrintEnv &env)
 void E_grouping::iprint(PrintEnv &env)
 {
   TreeWalkDebug treeDebug("E_grouping::iprint");
-  
+
   // sm: given that E_grouping is now in the tree, and prints its
   // parentheses, perhaps we could eliminate some of the
   // paren-printing above?
@@ -1961,7 +1994,7 @@ void IN_ctor::print(PrintEnv &env)
 
 // -------------------- TemplateDeclaration ---------------
 void TemplateDeclaration::print(PrintEnv &env)
-{ 
+{
   TreeWalkDebug treeDebug("TemplateDeclaration");
 
   *env.out << "template <";
@@ -2073,7 +2106,7 @@ void TP_type::print(PrintEnv &env)
 {
   TreeWalkDebug treeDebug("TP_type");
   *env.out << "class " << (name? name : "/*anon*/");
-                          
+
   if (defaultType) {
     *env.out << " = ";
     defaultType->print(env);
@@ -2092,7 +2125,7 @@ void TA_type::print(PrintEnv &env)
 {
   // dig down to prevent printing "/*anon*/" since template
   // type arguments are always anonymous so it's just clutter
-  Restorer<bool> res0(TypePrinterC::enabled, true);
+  Restorer<bool> res0(CTypePrinter::enabled, true);
   env.typePrinter.print(*env.out, type->decl->var->type);
 }
 

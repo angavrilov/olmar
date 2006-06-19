@@ -13,6 +13,7 @@
 #include "strtokp.h"       // StrtokParse
 #include "exc.h"           // xfatal
 #include "strdict.h"       // StringDict
+#include "ofstreamts.h"    // ofstreamTS
 
 #include <string.h>        // strncmp
 #include <fstream.h>       // ofstream
@@ -50,26 +51,27 @@ char const * ListClass::kindName() const {
 // this is the name of the visitor interface class, or ""
 // if the user does not want a visitor
 string visitorName;
-inline bool wantVisitor() { return visitorName.length() != 0; }
+inline bool wantVisitor() { return !visitorName.empty(); }
 
-// this is the name of the delegator-visitor, or ""
-// if the user does not want a delegator-visitor
+// this is the name of the delegator-visitor if desired
 string dvisitorName;
-inline bool wantDVisitor() { return dvisitorName.length() != 0; }
+inline bool wantDVisitor() { return !dvisitorName.empty(); }
 
-// this is the name of the xml-visitor, or ""
-// if the user does not want a delegator-visitor
+// this is the name of the xml-visitor if desired
 string xmlVisitorName;
-inline bool wantXmlVisitor() { return xmlVisitorName.length() != 0; }
+inline bool wantXmlVisitor() { return !xmlVisitorName.empty(); }
 
 // this is the prefix of the filenames rendered for xml lexing and
 // parsing
 string xmlParserName;
-inline bool wantXmlParser() { return xmlParserName.length() != 0; }
+inline bool wantXmlParser() { return !xmlParserName.empty(); }
 
 // similar for the modification visitor ("mvisitor")
 string mvisitorName;
-inline bool wantMVisitor() { return mvisitorName.length() != 0; }
+inline bool wantMVisitor() { return !mvisitorName.empty(); }
+
+string identityManagerName;
+inline bool wantIdentityManager() { return !identityManagerName.empty(); }
 
 // entire input
 ASTSpecFile *wholeAST = NULL;
@@ -81,9 +83,6 @@ SObjList<TF_class> allClasses;
 // list of all ASTList "list classes"
 StringSet listClassesSet;
 ASTList<ListClass> listClasses;
-
-// true if the user wants the xmlPrint stuff
-bool wantXMLPrint = false;
 
 // true if the user wants the gdb() functions
 bool wantGDB = false;
@@ -107,7 +106,7 @@ protected:        // data
   string srcFname;                  // name of source file
   ObjList<string> const &modules;   // extension modules
   string destFname;                 // name of output file
-  ofstream out;                     // output stream
+  ofstreamTS out;                   // output stream
   ASTSpecFile const &file;          // AST specification
 
 public:           // funcs
@@ -284,32 +283,32 @@ string extractListType(rostring type)
 // of a class, extract the type and the name; this assumes that,
 // syntactically, they separate cleanly (without the name in the
 // middle of the type syntax)
-void parseFieldDecl(string &type, string &name, rostring decl)
+void parseFieldDecl(string &type, string &name, const char *decl)
 {
   // it's not trivial to extract the name of the field from
   // its declaration.. so let's use a simple heuristic: it's
   // probably the last sequence of non-whitespace alphanum chars
   StrtokParse tok(decl, " \t*()[]<>,");
-  
+
   // now, find the offset of the start of the last token
   int ofs = tok.offset(tok.tokc()-1);
-  
+
   // extract the parts
   type = trimWhitespace(substring(decl, ofs));
-  name = trimWhitespace(toCStr(decl)+ofs);
+  name = trimWhitespace(decl+ofs);
 }
 
 string extractFieldType(rostring decl)
 {
   string t, n;
-  parseFieldDecl(t, n, decl);
+  parseFieldDecl(t, n, decl.c_str());
   return t;
 }
 
 string extractFieldName(rostring decl)
 {
   string t, n;
-  parseFieldDecl(t, n, decl);
+  parseFieldDecl(t, n, decl.c_str());
   return n;
 }
 
@@ -329,7 +328,7 @@ void Gen::headerComments()
   out << "// " << sm_basename(destFname) << "\n";
   doNotEdit();
   out << "// generated automatically by astgen, from " << sm_basename(srcFname) << "\n";
-  
+
   if (modules.count()) {
     out << "// active extension modules:";
     FOREACH_OBJLIST(string, modules, iter) {
@@ -341,7 +340,7 @@ void Gen::headerComments()
   // the inclusion of the date introduces gratuitous changes when the
   // tool is re-run for whatever reason
   //out << "//   on " << localTimeString() << "\n";
-  
+
   out << "\n";
 }
 
@@ -354,7 +353,7 @@ void Gen::emitFiltered(ASTList<Annotation> const &decls, AccessCtl mode,
       UserDecl const &decl = *( iter.data()->asUserDeclC() );
       if (decl.access() == mode) {
         out << indent << decl.code << ";\n";
-      }                                                     
+      }
     }
   }
 }
@@ -450,11 +449,14 @@ void HGen::emitFile()
   if (wantMVisitor()) {
     out << "class " << mvisitorName << ";\n\n";
   }
+  if (wantIdentityManager()) {
+    out << "class " << identityManagerName << ";\n\n";
+  }
 
   // do all the enums first; this became necessary when I had an
   // enum in an extension, since the use of the enum ended up
   // before the enum itself, due to the use being in a class that
-  // was defined in the base module          
+  // was defined in the base module
   {
     FOREACH_ASTLIST(ToplevelForm, file.forms, form) {
       if (form.data()->isTF_enum()) {
@@ -466,7 +468,16 @@ void HGen::emitFile()
         out << "};\n"
             << "\n"
             << "char const *toString(" << e->name << ");\n"
-            << "\n"
+            ;
+
+        if (wantXmlParser()) {
+          out << "inline char const *toXml(" << e->name << " id)\n"
+              << "  { return toString(id); }\n"
+              << "void fromXml(" << e->name << " &out, rostring str);\n"
+              ;
+        }
+
+        out << "\n"
             << "\n"
             ;
       }
@@ -546,7 +557,7 @@ void HGen::emitTFClass(TF_class const &cls)
   // classes
   if (wantXmlVisitor()) {
     out << "  friend class " << xmlVisitorName << ";\n";
-    out << "  friend class ASTXmlReader;\n";
+    out << "  friend class XmlAstReader;\n";
   }
 
   emitCtorFields(cls.super->args, cls.super->lastArgs);
@@ -692,7 +703,7 @@ void HGen::emitCtorFormal(int &ct, CtorArg const *arg)
   out << "_" << arg->name;      // prepend underscore to param's name
 
   // emit default value, if any
-  if (arg->defaultValue.length() > 0) {
+  if (! arg->defaultValue.empty()) {
     out << " = " << arg->defaultValue;
   }
 }
@@ -704,7 +715,7 @@ void HGen::emitCtorFormals(int &ct, ASTList<CtorArg> const &args)
   }
 }
 
- 
+
 // true if 'ud' seems to declare a function, as opposed to data
 bool isFuncDecl(UserDecl const *ud)
 {
@@ -753,7 +764,7 @@ void HGen::emitCtorDefn(ASTClass const &cls, ASTClass const *parent)
       FOREACH_ASTLIST(Annotation, cls.decls, ann) {
         if (!ann.data()->isUserDecl()) continue;
         UserDecl const *ud = ann.data()->asUserDeclC();
-        if (ud->init.length() == 0) continue;
+        if (ud->init.empty()) continue;
         if (isFuncDecl(ud)) continue;       // don't do this for functions!
 
         if (ct++ > 0) {
@@ -804,10 +815,8 @@ void HGen::initializeMyCtorArgs(int &ct, ASTList<CtorArg> const &args)
 void HGen::emitCommonFuncs(rostring virt)
 {
   // declare the functions they all have
-  out << "  " << virt << "void debugPrint(ostream &os, int indent, char const *subtreeName = \"tree\") const;\n";
-  if (wantXMLPrint) {
-    out << "  " << virt << "void xmlPrint(ostream &os, int indent) const;\n";
-  }
+  out << "  " << virt
+      << "void debugPrint(ostream &os, int indent, char const *subtreeName = \"tree\") const;\n";
 
   if (wantVisitor()) {
     // visitor traversal entry point
@@ -834,7 +843,7 @@ void HGen::emitUserDecls(ASTList<Annotation> const &decls)
         }
         out << decl.code;
 
-        if (isFuncDecl(&decl) && decl.init.length() > 0) {
+        if (isFuncDecl(&decl) && !decl.init.empty()) {
           out << " = " << decl.init;     // the "=0" of a pure virtual function
         }
         out << ";";
@@ -935,7 +944,6 @@ public:
   void emitPrintField(rostring print,
                       bool isOwner, rostring type, rostring name);
 
-  void emitXmlPrintCtorArgs(ASTList<CtorArg> const &args);
   bool emitCustomCode(ASTList<Annotation> const &list, rostring tag);
 
   void emitCloneCtorArg(CtorArg const *arg, int &ct);
@@ -974,25 +982,19 @@ public:
 class XmlParserGen {
   StringSet attributeNames;     // names of attributes of AST nodes
 
-  ofstream tokensOutH;
-  ofstream tokensOutCC;
-  ofstream lexerOut;
-
-  ofstream parser0_decls;
-  ofstream parser1_defs;
-  ofstream parser2_ctorCalls;
-  ofstream parser3_registerCalls;
+  ofstreamTS tokensOut;
+  ofstreamTS parser0_decls;
+  ofstreamTS parser1_defs;
+  ofstreamTS parser2_ctorCalls;
+  ofstreamTS parser3_registerCalls;
 
   public:
   XmlParserGen(string &xmlParserName)
-    : tokensOutH(stringc << xmlParserName << "_tokens1_mid.gen.h")
-    , tokensOutCC(stringc << xmlParserName << "_lexer1_mid.gen.cc")
-    , lexerOut(stringc << xmlParserName << "_lexer1_mid.gen.lex")
-
-    , parser0_decls(stringc << xmlParserName << "_parse1_0decl.gen.cc")
-    , parser1_defs (stringc << xmlParserName << "_parse1_1defn.gen.cc")
-    , parser2_ctorCalls    (stringc << xmlParserName << "_parse1_2ctrc.gen.cc")
-    , parser3_registerCalls(stringc << xmlParserName << "_parse1_3regc.gen.cc")
+    : tokensOut(stringc << xmlParserName << "_ast.gen.tokens")
+    , parser0_decls(stringc << xmlParserName << "_ast_reader_0decl.gen.h")
+    , parser1_defs (stringc << xmlParserName << "_ast_reader_1defn.gen.cc")
+    , parser2_ctorCalls    (stringc << xmlParserName << "_ast_reader_2ctrc.gen.cc")
+    , parser3_registerCalls(stringc << xmlParserName << "_ast_reader_3regc.gen.cc")
   {}
 
   private:
@@ -1024,7 +1026,7 @@ class XmlParserGen {
      ASTList<CtorArg> const *childArgs = NULL,
      ASTList<Annotation> const *childDecls = NULL);
   void emitXmlParser_ASTList(ListClass const *type);
-//    void emitXmlParser_FakeList(ListClass const *type);
+  void emitXmlParser_FakeList(ListClass const *type);
 
   public:
   void emitXmlParserImplementation();
@@ -1037,8 +1039,11 @@ void CGen::emitFile()
 
   out << "#include \"" << hdrFname << "\"      // this module\n";
   if (wantXmlVisitor()) {
-    out << "#include \"strutil.h\"      // quoted, parseQuotedString\n";
     out << "#include \"xmlhelp.h\"      // to/fromXml_bool/int\n";
+  }
+  if (wantXmlParser()) {
+    out << "#include <string.h>       // strcmp\n";
+    out << "#include \"exc.h\"          // xformat\n";
   }
   out << "\n";
   out << "\n";
@@ -1056,19 +1061,45 @@ void CGen::emitFile()
         emitTFClass(*c);
       }
       ASTNEXTC(TF_enum, e) {
+        int numEnumeratorValues = 0;
         out << "char const *toString(" << e->name << " x)\n"
             << "{\n"
             << "  static char const * const map[] = {\n";
         FOREACH_ASTLIST(string, e->enumerators, iter) {
           out << "    \"" << *(iter.data()) << "\",\n";
-        }     
+          numEnumeratorValues++;
+        }
         out << "  };\n"
             << "  xassert((unsigned)x < TABLESIZE(map));\n"
             << "  return map[x];\n"
             << "};\n"
             << "\n"
-            << "\n"
             ;
+
+        // sm: I'm emitting this into the normal .gen.cc file, rather
+        // than the specialized XML generation files, because I do not
+        // understand how the latter are structured (and, the code I
+        // am replacing had this effect anyway)
+        if (wantXmlParser()) {
+          // toXml is inline, no need to generate anything
+
+          // fromXml
+          out << "void fromXml(" << e->name << " &out, rostring str)\n"
+              << "{\n"
+              << "  for (int i=0; i<" << numEnumeratorValues << "; i++) {\n"
+              << "    " << e->name << " e = (" << e->name << ")i;\n"
+              << "    if (0==strcmp(str, toString(e))) {\n"
+              << "      out = e;\n"
+              << "      return;\n"
+              << "    }\n"
+              << "  }\n"
+              << "  xformat(stringc << \"bad " << e->name << " value: \" << str);\n"
+              << "}\n"
+              << "\n"
+              ;
+        }
+
+        out << "\n";
         break;
       }
       ASTENDCASECD
@@ -1145,36 +1176,6 @@ void CGen::emitTFClass(TF_class const &cls)
         ;
   }
 
-  // dsw: xmlPrint
-  if (wantXMLPrint) {
-    out << "void " << cls.super->name << "::xmlPrint(ostream &os, int indent) const\n";
-    out << "{\n";
-    if (!cls.hasChildren()) {
-      // dsw: Haven't figured out what this subsection means yet.
-//        // childless superclasses get the preempt in the superclass;
-//        // otherwise it goes into the child classes
-//        emitCustomCode(cls.super->decls, "preemptDebugPrint");
-
-//        // childless superclasses print headers; otherwise the subclass
-//        // prints the header
-      out << "  XMLPRINT_HEADER(" << cls.super->name << ");\n";
-      out << "\n";
-    }
-
-    // dsw: This must be in case the client .ast code overrides it.
-    // 10/31/01: decided I wanted custom debug print first, since it's
-    // often much shorter (and more important) than the subtrees
-//      emitCustomCode(cls.super->decls, "xmlPrint");
-    emitXmlPrintCtorArgs(cls.super->args);
-
-    if (!cls.hasChildren()) {
-      out << "  XMLPRINT_FOOTER(" << cls.super->name << ");\n";
-    }
-    out << "}\n";
-    out << "\n";
-  }
-
-
   // clone for childless superclasses
   if (!cls.hasChildren()) {
     emitCloneCode(cls.super, NULL /*sub*/);
@@ -1215,42 +1216,12 @@ void CGen::emitTFClass(TF_class const &cls)
     emitCustomCode(ctor.decls, "debugPrint");
     emitPrintCtorArgs(ctor.args);
     emitPrintFields(ctor.decls);
-    
+
     // superclass 'last' args come after all subclass things
     emitPrintCtorArgs(cls.super->lastArgs);
 
     out << "}\n";
     out << "\n";
-
-    if (wantXMLPrint) {
-      // subclass xmlPrint
-      out << "void " << ctor.name << "::xmlPrint(ostream &os, int indent) const\n";
-      out << "{\n";
-
-      // the xml print preempter is declared in the outer "class",
-      // but inserted into the print methods of the inner "constructors"
-      emitCustomCode(cls.super->decls, "preemptXmlPrint");
-
-      out << "  XMLPRINT_HEADER(" << ctor.name << ");\n";
-      out << "\n";
-
-      // call the superclass's fn to get its data members
-      out << "  " << cls.super->name << "::xmlPrint(os, indent);\n";
-      out << "\n";
-
-      // dsw: I assume this is not vital in the generic case, so I
-      // leave it out for now.
-//        emitCustomCode(ctor.decls, "xmlPrint");
-      emitXmlPrintCtorArgs(ctor.args);
-      emitXmlPrintCtorArgs(cls.super->lastArgs);
-
-      // dsw: probably don't need the name; take it out later if not
-      out << "  XMLPRINT_FOOTER(" << ctor.name << ");\n";
-      out << "\n";
-
-      out << "}\n";
-      out << "\n";
-    }
 
     // clone for subclasses
     emitCloneCode(cls.super, &ctor);
@@ -1286,13 +1257,13 @@ void CGen::emitDestructor(ASTClass const &cls)
 
   // user's code first
   emitFiltered(cls.decls, AC_DTOR, "  ");
-  
+
   // constructor arguments
   FOREACH_ASTLIST(CtorArg, cls.args, argiter) {
     CtorArg const &arg = *(argiter.data());
     emitDestroyField(arg.isOwner, arg.type, arg.name);
   }
-                          
+
   // owner fields
   FOREACH_ASTLIST(Annotation, cls.decls, iter) {
     if (!iter.data()->isUserDecl()) continue;
@@ -1404,16 +1375,6 @@ void CGen::emitPrintField(rostring print,
 }
 
 
-void CGen::emitXmlPrintCtorArgs(ASTList<CtorArg> const &args)
-{
-  FOREACH_ASTLIST(CtorArg, args, argiter) {
-    CtorArg const &arg = *(argiter.data());
-    
-    emitPrintField("XMLPRINT", arg.isOwner, arg.type, arg.name);
-  }
-}
-
-
 void CGen::emitCloneCtorArg(CtorArg const *arg, int &ct)
 {
   if (ct++ > 0) {
@@ -1422,10 +1383,10 @@ void CGen::emitCloneCtorArg(CtorArg const *arg, int &ct)
   out << "\n    ";
 
   string argName = arg->name;
-  if (argName == "ret") {     
+  if (argName == "ret") {
     // avoid clash with local variable name
-    argName = "this->ret";                 
-    
+    argName = "this->ret";
+
     // NOTE: I do not simply want to make the local variable name
     // something ugly like __astgen_ret because in the user-defined
     // clone() augmentation functions, the user is supposed to be
@@ -1865,7 +1826,9 @@ void CGen::emitDVisitorImplementation()
         << "(" << c->super->name << " *obj) {\n"
       // dsw: I changed this back to xassert() from xassertdb()
       // because NDEBUG just gets turned on more often than I like.
-        << "  xassert(!wasVisitedAST(obj));\n"
+      // quarl 2006-05-13: changed back to xassertdb(); it's worth removing
+      // this as it accounts for 15% of qualcc runtime
+        << "  xassertdb(!wasVisitedAST(obj));\n"
         << "  return client ? client->visit" << c->super->name << "(obj) : true;\n"
         << "}\n";
 
@@ -1949,9 +1912,6 @@ void CGen::emitXmlFields(ASTList<Annotation> const &decls, char const *baseName,
 
 void CGen::emitXmlField(rostring type, rostring name, char const *baseName,
                         string const &className, AccessMod *amod) {
-  if (streq(name, "arraySize")) {
-    breaker();
-  }
   // FIX: there is a problem with coming up with a way to serialize a
   // NULL string: 1) the value must be quoted, 2) any string you use
   // to represent NULL is also a valid string value, 3) quoting twice
@@ -1959,93 +1919,87 @@ void CGen::emitXmlField(rostring type, rostring name, char const *baseName,
   // default to NULL.
   if (streq(type, "string") || streq(type, "StringRef")) {
     out << "  if (" << baseName << "->" << name << ") {\n";
-    out << "    out << \"\\n\";\n";
+    out << "    out << '\\n';\n";
     out << "    if (indent) printIndentation();\n";
-    out << "    out << \"" << name << "\" << \"=\";\n";
-    out << "    out << quoted(" << baseName << "->" << name << ");\n";
+    out << "    out << \"" << name << "=\";\n";
+    out << "    outputXmlAttrQuoted(out, " << baseName << "->" << name << ");\n";
     out << "  } else {\n";
     // print nothing; the default value is NULL
 //      out << "    out << \"\\\"0\\\"\";\n";
     out << "  }\n";
   }
   else if (streq(type, "bool")) {
-    out << "  out << \"\\n\";\n";
+    out << "  out << '\\n';\n";
     out << "  if (indent) printIndentation();\n";
-    out << "  out << \"" << name << "\" << \"=\";\n";
-    out << "  out << quoted(toXml_bool(" << baseName << "->" << name << "));\n";
+    out << "  out << \"" << name << "=\";\n";
+    out << "  outputXmlAttrQuotedNoEscape(out, toXml_bool(" << baseName << "->" << name << "));\n";
   }
   else if (streq(type, "int")) {
-    out << "  out << \"\\n\";\n";
+    out << "  out << '\\n';\n";
     out << "  if (indent) printIndentation();\n";
-    out << "  out << \"" << name << "\" << \"=\";\n";
-    out << "  out << quoted(toXml_int(" << baseName << "->" << name << "));\n";
+    out << "  out << \"" << name << "=\";\n";
+    out << "  outputXmlAttrQuotedNoEscape(out, toXml_int(" << baseName << "->" << name << "));\n";
   }
   else if (streq(type, "unsigned int")) {
-    out << "  out << \"\\n\";\n";
+    out << "  out << '\\n';\n";
     out << "  if (indent) printIndentation();\n";
-    out << "  out << \"" << name << "\" << \"=\";\n";
-    out << "  out << quoted(toXml_unsigned_int(" << baseName << "->" << name << "));\n";
+    out << "  out << \"" << name << "=\";\n";
+    out << "  outputXmlAttrQuotedNoEscape(out, toXml_unsigned_int(" << baseName << "->" << name << "));\n";
   }
   else if (streq(type, "long")) {
-    out << "  out << \"\\n\";\n";
+    out << "  out << '\\n';\n";
     out << "  if (indent) printIndentation();\n";
-    out << "  out << \"" << name << "\" << \"=\";\n";
-    out << "  out << quoted(toXml_long(" << baseName << "->" << name << "));\n";
+    out << "  out << \"" << name << "=\";\n";
+    out << "  outputXmlAttrQuotedNoEscape(out, toXml_long(" << baseName << "->" << name << "));\n";
   }
   else if (streq(type, "unsigned long")) {
-    out << "  out << \"\\n\";\n";
+    out << "  out << '\\n';\n";
     out << "  if (indent) printIndentation();\n";
-    out << "  out << \"" << name << "\" << \"=\";\n";
-    out << "  out << quoted(toXml_unsigned_long(" << baseName << "->" << name << "));\n";
+    out << "  out << \"" << name << "=\";\n";
+    out << "  outputXmlAttrQuotedNoEscape(out, toXml_unsigned_long(" << baseName << "->" << name << "));\n";
   }
   else if (streq(type, "double")) {
-    out << "  out << \"\\n\";\n";
+    out << "  out << '\\n';\n";
     out << "  if (indent) printIndentation();\n";
-    out << "  out << \"" << name << "\" << \"=\";\n";
-    out << "  out << quoted(toXml_double(" << baseName << "->" << name << "));\n";
+    out << "  out << \"" << name << "=\";\n";
+    out << "  outputXmlAttrQuotedNoEscape(out, toXml_double(" << baseName << "->" << name << "));\n";
   }
   else if (streq(type, "SourceLoc")) {
-    out << "  out << \"\\n\";\n";
+    out << "  out << '\\n';\n";
     out << "  if (indent) printIndentation();\n";
-    out << "  out << \"" << name << "\" << \"=\";\n";
-    out << "  out << quoted(toXml_SourceLoc(" << baseName << "->" << name << "));\n";
+    out << "  out << \"" << name << "=\";\n";
+    out << "  outputXmlAttrQuoted(out, toXml_SourceLoc(" << baseName << "->" << name << "));\n";
   }
   else if (isListType(type)) {
-    out << "  if (" << baseName << ") {\n";
-    out << "    out << \"\\n\";\n";
+    out << "  if (" << baseName << " && " << baseName << "->" << name << ".isNotEmpty()) {\n";
+    out << "    out << '\\n';\n";
     out << "    if (indent) printIndentation();\n";
-    out << "    out << \"" << name << "\" << \"=\\\"\";\n";
-    out << "    xmlPrintPointer(out, \"AL\", &(" << baseName << "->" << name << "));\n";
-    out << "    out << \"\\\"\";\n";
+    out << "    out << \"" << name << "=\";\n";
+    out << "    outputXmlPointerQuoted(out, \"AL\", uniqueIdAST(&(" << baseName << "->" << name << ")));\n";
     out << "  }\n";
   }
   else if (isFakeListType(type)) {
     out << "  if (" << baseName << " && " << baseName << "->" << name << ") {\n";
-    out << "    out << \"\\n\";\n";
+    out << "    out << '\\n';\n";
     out << "    if (indent) printIndentation();\n";
-    out << "    out << \"" << name << "\" << \"=\\\"\";\n";
-    out << "    xmlPrintPointer(out, \"FL\", " << baseName << "->" << name << ");\n";
-    out << "    out << \"\\\"\";\n";
+    out << "    out << \"" << name << "=\";\n";
+    out << "    outputXmlPointerQuoted(out, \"FL\", uniqueIdAST(" << baseName << "->" << name << "));\n";
     out << "  }\n";
   }
   else if (isTreeNode(type) || (isTreeNodePtr(type))) {
     out << "  if (" << baseName << " && " << baseName << "->" << name << ") {\n";
-    out << "    out << \"\\n\";\n";
+    out << "    out << '\\n';\n";
     out << "    if (indent) printIndentation();\n";
-    out << "    out << \"" << name << "\" << \"=\\\"\";\n";
-    out << "    xmlPrintPointer(out, \"AST\", " << baseName << "->" << name << ");\n";
-    out << "    out << \"\\\"\";\n";
+    out << "    out << \"" << name << "=\";\n";
+    out << "    outputXmlPointerQuoted(out, \"AST\", uniqueIdAST(" << baseName << "->" << name << "));\n";
     out << "  }\n";
   } else if (amod && amod->hasModPrefix("xmlEmbed") && amod->hasModPrefix("xml_")) {
     rostring idPrefix = amod->getModSuffixFromPrefix("xml_");
     out << "  if (" << baseName << ") {\n";
-    out << "    out << \"\\n\";\n";
+    out << "    out << '\\n';\n";
     out << "    if (indent) printIndentation();\n";
-    out << "    out << \"" << name << "\" << \"=\\\"\";\n";
-    out << "    xmlPrintPointer(out, \"" << idPrefix << "\", ";
-    out << "&";
-    out << baseName << "->" << name << ");\n";
-    out << "    out << \"\\\"\";\n";
+    out << "    out << \"" << name << "=\";\n";
+    out << "    outputXmlPointerQuoted(out, \"" << idPrefix << "\", uniqueIdAST(&" << baseName << "->" << name << "));\n";
     out << "  }\n";
   }
 
@@ -2057,28 +2011,35 @@ void CGen::emitXmlField(rostring type, rostring name, char const *baseName,
            ) {
     // catch-all for xml objects
     string idPrefix;
+    bool shouldSerialize0 = false;
     if (amod) {
       idPrefix = amod->getModSuffixFromPrefix("xml_");
+      shouldSerialize0 = amod->hasModPrefix("xmlShouldSerialize");
     } else {
       // FIX: get rid of this piece of crap when we get a way to put
       // an access specifier onto a ctor argument in the ast language
       idPrefix = stringc << "TY";
     }
-    out << "  if (" << baseName << " && " << baseName << "->" << name << ") {\n";
-    out << "    out << \"\\n\";\n";
+    out << "  if (" << baseName
+        << " && " << baseName << "->" << name;
+    if (shouldSerialize0) {
+      out << " && shouldSerialize(" << baseName << "->" << name << ")";
+    }
+    out << ") {\n";
+    out << "    out << '\\n';\n";
     out << "    if (indent) printIndentation();\n";
-    out << "    out << \"" << name << "\" << \"=\\\"\";\n";
-    out << "    xmlPrintPointer(out, \"" << idPrefix << "\", ";
-    out << baseName << "->" << name << ");\n";
-    out << "    out << \"\\\"\";\n";
+    out << "    out << \"" << name << "=\";\n";
+    out << "    /*catch-all*/outputXmlPointerQuoted(out, \"" << idPrefix << "\", ";
+    if (wantIdentityManager()) out << "idmgr.";
+    out << "uniqueId(" << baseName << "->" << name << "));\n";
     out << "  }\n";
 
   } else {
     // catch-all for non-objects
-    out << "  out << \"\\n\";\n";
+    out << "  out << '\\n';\n";
     out << "  if (indent) printIndentation();\n";
-    out << "  out << \"" << name << "\" << \"=\";\n";
-    out << "  out << quoted(toXml(" << baseName << "->" << name << "));\n";
+    out << "  out << \"" << name << "=\";\n";
+    out << "  outputXmlAttrQuoted(out, toXml(" << baseName << "->" << name << "));\n";
   }
 }
 
@@ -2089,12 +2050,18 @@ void HGen::emitXmlVisitorInterface()
 
   out << "protected:   // data\n";
   out << "  ostream &out;                       // output stream to print to\n";
+
+  if (wantIdentityManager()) {
+    out << "  " << identityManagerName << " &idmgr; // Identity Manager to use\n";
+  }
+
   out << "  int &depth;                         // current depth\n";
   out << "  bool indent;                        // should the xml be indented\n";
   out << "  bool ensureOneVisit;                // check for visiting at most once?\n";
   out << "  SObjSet<void*> wasVisitedASTNodes;  // set of visited nodes\n";
   out << "  SObjSet<void*> wasVisitedList_ASTListNodes; // set of visited ASTLists\n";
   out << "  SObjSet<void*> wasVisitedList_FakeListNodes; // set of visited FakeLists\n";
+
   out << "\n";
 
   out << "protected:   // funcs\n";
@@ -2104,15 +2071,25 @@ void HGen::emitXmlVisitorInterface()
   out << "  void printIndentation();\n";
   out << "\n";
 
+  // emit the xml_verbatim section if it exists
+  FOREACH_ASTLIST(ToplevelForm, file.forms, form) {
+    TF_xml_verbatim const *xmlVb = form.data()->ifTF_xml_verbatimC();
+    if (xmlVb) {
+      out << xmlVb->code;
+    }
+  }
+
   // ctor
   out << "public:      // funcs\n";
   out << "  explicit " << xmlVisitorName << "("
-      << "ostream &out0, "
-      << "int &depth0, "
+      << "ostream &out0, ";
+  if (wantIdentityManager()) out << identityManagerName << " &idmgr0, ";
+  out << "int &depth0, "
       << "bool indent0 = false, "
       << "bool ensureOneVisit0 = true"
       << ")\n";
   out << "    : out(out0)\n";
+  if (wantIdentityManager()) out << "    , idmgr(idmgr0)\n";
   out << "    , depth(depth0)\n";
   out << "    , indent(indent0)\n";
   out << "    , ensureOneVisit(ensureOneVisit0)\n";
@@ -2181,7 +2158,7 @@ void CGen::emitXmlVisitorImplementation()
 
   out << "void " << xmlVisitorName << "::printIndentation()\n";
   out << "{\n";
-  out << "  for(int i=0; i<depth; ++i) out << \" \";\n";
+  out << "  writeSpaces(out, depth);\n";
   out << "}\n\n";
 
   out << "// default xml-visitor\n";
@@ -2192,20 +2169,19 @@ void CGen::emitXmlVisitorImplementation()
     out << "(" << c->super->name << " *obj) {\n";
     out << "  if(wasVisitedAST(obj)) return false;\n";
     // for now everything is a container tag
-    out << "  out << \"\\n\";\n";
+    out << "  out << '\\n';\n";
     out << "  if (indent) printIndentation();\n";
-    out << "  out << \"<\" << obj->kindName();\n";
+    out << "  out << '<' << obj->kindName();\n";
 
     // print the attributes of the superclass
     out << "  ++depth;\n";      // indent them one level
 
     // emit the id property
     // put it on the same line as the tag
-//      out << "  out << \"\\n\";\n";
+//      out << "  out << '\\n';\n";
 //      out << "  if (indent) printIndentation();\n";
-    out << "  out << \" _id=\\\"\";\n";
-    out << "  xmlPrintPointer(out, \"AST\", obj);\n";
-    out << "  out << \"\\\"\";\n";
+    out << "  out << \" _id=\";\n";
+    out << "  outputXmlPointerQuoted(out, \"AST\", uniqueIdAST(obj));\n";
 
     // emit other properties
     emitXmlCtorArgs(c->super->args, "obj", c->super->name);
@@ -2244,9 +2220,9 @@ void CGen::emitXmlVisitorImplementation()
     // commenting out these two lines puts the closing angle bracket
     // on the same line as the last attribute, or if none, on the same
     // line as the tag
-//      out << "  out << \"\\n\";\n";
+//      out << "  out << '\\n';\n";
 //      out << "  if (indent) printIndentation();\n";
-    out << "  out << \">\";\n";
+    out << "  out << '>';\n";
     out << "  ++depth;\n";      // indent for nested children
     out << "  return true;\n";
     out << "}\n\n";;
@@ -2254,9 +2230,9 @@ void CGen::emitXmlVisitorImplementation()
     out << "void " << xmlVisitorName << "::postvisit" << c->super->name;
     out << "(" << c->super->name << " *obj) {\n";
     out << "  --depth;\n";
-    out << "  out << \"\\n\";\n";
+    out << "  out << '\\n';\n";
     out << "  if (indent) printIndentation();\n";
-    out << "  out << \"</\" << obj->kindName() << \">\";\n";
+    out << "  out << '<' << '/' << obj->kindName() << '>';\n";
     out << "}\n\n";
   }
 
@@ -2268,17 +2244,17 @@ void CGen::emitXmlVisitorImplementation()
         << "(" << cls->kindName() << "<" << cls->elementClassName << ">* obj) {\n";
     out << "  if (obj->isNotEmpty()) {\n";
     out << "    if(wasVisitedList_" << cls->kindName() << "(obj)) return false;\n";
-    out << "    out << \"\\n\";\n";
+    out << "    out << '\\n';\n";
     out << "    if (indent) printIndentation();\n";
-    out << "    out << \"<List_" << cls->classAndMemberName << " _id=\\\"\";\n";
-    out << "    xmlPrintPointer(out, \"";
+    out << "    out << \"<List_" << cls->classAndMemberName << " _id=\";\n";
+    out << "    outputXmlPointerQuoted(out, \"";
     if (cls->lkind == LK_ASTList) {
       out << "AL";
     } else if (cls->lkind == LK_FakeList) {
       out << "FL";
     } else xfailure("illegal list kind");
-    out << "\", obj);\n";
-    out << "    out << \"\\\">\";\n";
+    out << "\", uniqueIdAST(obj));\n";
+    out << "    out << '>';\n";
     out << "    ++depth;\n";
     out << "  };\n";
     out << "  return true;\n";
@@ -2289,7 +2265,7 @@ void CGen::emitXmlVisitorImplementation()
         << "(" << cls->kindName() << "<" << cls->elementClassName << ">* obj) {\n";
     out << "  if (obj->isNotEmpty()) {\n";
     out << "    --depth;\n";
-    out << "    out << \"\\n\";\n";
+    out << "    out << '\\n';\n";
     out << "    if (indent) printIndentation();\n";
     out << "    out << \"</List_" << cls->classAndMemberName << ">\";\n";
     out << "  }\n";
@@ -2299,11 +2275,11 @@ void CGen::emitXmlVisitorImplementation()
     out << "bool " << xmlVisitorName << "::visitListItem_" << cls->classAndMemberName
         << "(" << cls->elementClassName << " *obj) {\n";
     out << "  xassert(obj);\n";
-    out << "  out << \"\\n\";\n";
+    out << "  out << '\\n';\n";
     out << "  if (indent) printIndentation();\n";
-    out << "  out << \"<_List_Item\" << \" item=\\\"\";\n";
-    out << "  xmlPrintPointer(out, \"AST\", obj);\n";
-    out << "  out << \"\\\">\";\n";
+    out << "  out << \"<_List_Item\" << \" item=\";\n";
+    out << "  outputXmlPointerQuoted(out, \"AST\", uniqueIdAST(obj));\n";
+    out << "  out << '>';\n";
     out << "  ++depth;\n";
     out << "  return true;\n";
     out << "}\n\n";
@@ -2313,7 +2289,7 @@ void CGen::emitXmlVisitorImplementation()
         << "(" << cls->elementClassName << " *obj) {\n";
     out << "  xassert(obj);\n";
     out << "  --depth;\n";
-    out << "  out << \"\\n\";\n";
+    out << "  out << '\\n';\n";
     out << "  if (indent) printIndentation();\n";
     out << "  out << \"</_List_Item>\";\n";
     out << "}\n\n";
@@ -2583,92 +2559,91 @@ void XmlParserGen::emitXmlField_AttributeParseRule
   //  cout << "emitXmlField_AttributeParseRule() name:" << name << ", type:" << type << endl;
   if (streq(type, "string")) {
     parser1_defs << "  case XTOK_" << name << ":\n";
-    parser1_defs << "    obj->" << name << " = strdup(parseQuotedString(strValue));\n";
+    parser1_defs << "    obj->" << name << " = strdup(strValue);\n";
     parser1_defs << "    break;\n";
   }
   else if (streq(type, "StringRef")) {
     parser1_defs << "  case XTOK_" << name << ":\n";
-    parser1_defs << "    obj->" << name << " = manager->strTable(parseQuotedString(strValue));\n";
+    parser1_defs << "    obj->" << name << " = manager->strTable(strValue);\n";
     parser1_defs << "    break;\n";
   }
   else if (streq(type, "bool")) {
     parser1_defs << "  case XTOK_" << name << ":\n";
-    parser1_defs << "    fromXml_bool(obj->" << name << ", parseQuotedString(strValue));\n";
+    parser1_defs << "    fromXml_bool(obj->" << name << ", strValue);\n";
     parser1_defs << "    break;\n";
   }
   else if (streq(type, "int")) {
     parser1_defs << "  case XTOK_" << name << ":\n";
-    parser1_defs << "    fromXml_int(obj->" << name << ", parseQuotedString(strValue));\n";
+    parser1_defs << "    fromXml_int(obj->" << name << ", strValue);\n";
     parser1_defs << "    break;\n";
   }
   else if (streq(type, "unsigned int")) {
     parser1_defs << "  case XTOK_" << name << ":\n";
     parser1_defs << "    fromXml_unsigned_int(obj->" << name
-                 << ", parseQuotedString(strValue));\n";
+                 << ", strValue);\n";
     parser1_defs << "    break;\n";
   }
   else if (streq(type, "long")) {
     parser1_defs << "  case XTOK_" << name << ":\n";
-    parser1_defs << "    fromXml_long(obj->" << name << ", parseQuotedString(strValue));\n";
+    parser1_defs << "    fromXml_long(obj->" << name << ", strValue);\n";
     parser1_defs << "    break;\n";
   }
   else if (streq(type, "unsigned long")) {
     parser1_defs << "  case XTOK_" << name << ":\n";
     parser1_defs << "    fromXml_unsigned_long(obj->" << name
-                 << ", parseQuotedString(strValue));\n";
+                 << ", strValue);\n";
     parser1_defs << "    break;\n";
   }
   else if (streq(type, "double")) {
     parser1_defs << "  case XTOK_" << name << ":\n";
-    parser1_defs << "    fromXml_double(obj->" << name << ", parseQuotedString(strValue));\n";
+    parser1_defs << "    fromXml_double(obj->" << name << ", strValue);\n";
     parser1_defs << "    break;\n";
   }
   else if (streq(type, "SourceLoc")) {
     parser1_defs << "  case XTOK_" << name << ":\n";
-    // FIX: we don't parse SourceLoc-s yet
-    parser1_defs << "    // fromXml_SourceLoc(obj->" << name << ", parseQuotedString(strValue));\n";
+    parser1_defs << "    fromXml_SourceLoc(obj->" << name << ", strValue);\n";
     parser1_defs << "    break;\n";
   }
   else if (isListType(type)) {
     parser1_defs << "  case XTOK_" << name << ":\n";
-    parser1_defs << "    manager->unsatLinks_List.append(new UnsatLink("
-                 << "(void*) &(obj->" << name << "), parseQuotedString(strValue), "
+    parser1_defs << "    manager->addUnsatLink(new UnsatLink("
+                 << "(void*) &(obj->" << name << "), strValue, "
                  << "XTOK_List_" << baseName << "_" << name << ", true));\n";
     parser1_defs << "    break;\n";
   }
   else if (isFakeListType(type)) {
     parser1_defs << "  case XTOK_" << name << ":\n";
-    parser1_defs << "    manager->unsatLinks_List.append(new UnsatLink("
-                 << "(void*) &(obj->" << name << "), parseQuotedString(strValue), "
+    parser1_defs << "    manager->addUnsatLink(new UnsatLink("
+                 << "(void*) &(obj->" << name << "), strValue, "
                  << "XTOK_List_" << baseName << "_" << name << ", true));\n";
     parser1_defs << "    break;\n";
   }
   else if (isTreeNode(type) || (isTreeNodePtr(type))) {
     parser1_defs << "  case XTOK_" << name << ":\n";
-    parser1_defs << "    manager->unsatLinks.append(new UnsatLink("
-                 << "(void*) &(obj->" << name << "), parseQuotedString(strValue),"
+    parser1_defs << "    manager->addUnsatLink(new UnsatLink("
+                 << "(void*) &(obj->" << name << "), strValue,"
                  << "XTOK_" << extractNodeType(type) << ", false));\n";
     parser1_defs << "    break;\n";
   }
   else if (isPtrKind(type)) {
     // catch-all for objects
     parser1_defs << "  case XTOK_" << name << ":\n";
-    parser1_defs << "    manager->unsatLinks.append(new UnsatLink("
-                 << "(void*) &(obj->" << name << "), parseQuotedString(strValue),"
+    parser1_defs << "    manager->addUnsatLink(new UnsatLink("
+                 << "(void*) &(obj->" << name << "), strValue,"
                  << "XTOK_" << extractNodeType(type) << ", false));\n";
     parser1_defs << "    break;\n";
   } else if (amod && amod->hasModPrefix("xmlEmbed")) {
     // embedded thing
     rostring kind = amod->getModSuffixFromPrefix("xmlEmbed");
     parser1_defs << "  case XTOK_" << name << ":\n";
-    parser1_defs << "    manager->unsatLinks" << kind << ".append(new UnsatLink("
-                 << "(void*) &(obj->" << name << "), parseQuotedString(strValue),"
+    parser1_defs << "    manager->addUnsatLink(new UnsatLink("
+                 << "(void*) &(obj->" << name << "), strValue,"
                  << "XTOK" << kind << "_" << baseName << "_" << name << ", true));\n";
     parser1_defs << "    break;\n";
   } else {
     // catch-all for non-objects
     parser1_defs << "  case XTOK_" << name << ":\n";
-    parser1_defs << "    fromXml(obj->" << name << ", parseQuotedString(strValue));\n";
+    parser1_defs << "    fromXml(obj->" << name << ", strValue);\n";
     parser1_defs << "    break;\n";
   }
 }
@@ -2751,11 +2726,11 @@ void XmlParserGen::emitXmlParser_Node_registerAttr
   string name = clazz->name;
 
   parser1_defs
-    << "\nvoid ASTXmlReader::registerAttr_" << name
+    << "\nvoid XmlAstReader::registerAttr_" << name
     << "(" << name << " *obj, int attr, char const *strValue) {\n";
   parser1_defs << "  switch(attr) {\n";
   parser1_defs << "  default:\n";
-  parser1_defs << "    userError(\"illegal attribute for a " << name << "\");\n";
+  parser1_defs << "    xmlUserFatalError(\"illegal attribute for a " << name << "\");\n";
   parser1_defs << "    break;\n";
 
   // for each attribute, emit a rule to parse it as an attribute of this tag
@@ -2778,28 +2753,38 @@ void XmlParserGen::emitXmlParser_ASTList(ListClass const *cls)
   // only one rule as lists are homogeneous
   xassert(isTreeNode(cls->elementClassName));
   parser2_ctorCalls << "    case XTOK_" << name << ":\n"
-    // NOTE: yes, this should say 'new ASTList' even in the case of
-    // FakeLists; ASTLists are also used as "generic lists".
                     << "      return new ASTList<" << cls->elementClassName << ">();\n"
+                    << "      break;\n";
+}
+
+void XmlParserGen::emitXmlParser_FakeList(ListClass const *cls)
+{
+  // quarl 2006-06-01
+  //    We deserialize directly into FakeLists, so return an empty FakeList
+  //    (i.e. NULL).  (We used to first deserialize into an ASTList and then
+  //    convert, but we no longer do that.)
+
+  // TODO: this doesn't need to be a 'string'
+  string name = stringc << "List_" << cls->classAndMemberName;
+  // only one rule as lists are homogeneous
+  xassert(isTreeNode(cls->elementClassName));
+  parser2_ctorCalls << "    case XTOK_" << name << ":\n"
+                    << "      return new FakeList<" << cls->elementClassName << "> *;\n"
                     << "      break;\n";
 }
 
 void XmlParserGen::emitXmlParserImplementation()
 {
-  tokensOutH  << "  // AST nodes\n";
-  tokensOutCC << "  // AST nodes\n";
-  lexerOut    << "  /* AST nodes */\n";
+  tokensOut  << "  # Xml tokens for serializing Ast nodes\n";
 
-  parser1_defs << "bool ASTXmlReader::kind2kindCat(int kind, KindCategory *kindCat) {\n";
+  parser1_defs << "bool XmlAstReader::kind2kindCat(int kind, KindCategory *kindCat) {\n";
   parser1_defs << "  switch(kind) {\n";
   parser1_defs << "  default: return false; // don't know this kind\n";
 
   SFOREACH_OBJLIST(TF_class, allClasses, iter) {
     TF_class const *c = iter.data();
 
-    tokensOutH  << "  XTOK_" << c->super->name << ", // \"" << c->super->name << "\"\n";
-    tokensOutCC << "  \"XTOK_" << c->super->name << "\",\n";
-    lexerOut  << "\"" << c->super->name << "\" return tok(XTOK_" << c->super->name << ");\n";
+    tokensOut << c->super->name << "\n";
     parser1_defs << "  case XTOK_" << c->super->name << ": *kindCat = KC_Node; break;\n";
 
     collectXmlParserCtorArgs(c->super->args, "obj");
@@ -2810,9 +2795,7 @@ void XmlParserGen::emitXmlParserImplementation()
       FOREACH_ASTLIST(ASTClass, c->ctors, iter) {
         ASTClass const *clazz = iter.data();
 
-        tokensOutH  << "    XTOK_" << clazz->name << ", // \"" << clazz->name << "\"\n";
-        tokensOutCC << "    \"XTOK_" << clazz->name << "\",\n";
-        lexerOut  << "\"" << clazz->name << "\" return tok(XTOK_" << clazz->name << ");\n";
+        tokensOut << "  " << clazz->name << "\n";
         parser1_defs << "  case XTOK_" << clazz->name << ": *kindCat = KC_Node; break;\n";
 
         collectXmlParserCtorArgs(clazz->args, "obj0");
@@ -2827,23 +2810,19 @@ void XmlParserGen::emitXmlParserImplementation()
     }
   }
 
-  tokensOutH  << "\n  // List 'classes'\n";
-  tokensOutCC << "\n  // List 'classes'\n";
+  tokensOut << "\n  # List 'classes'\n";
   FOREACH_ASTLIST(ListClass, listClasses, iter) {
     ListClass const *cls = iter.data();
-    tokensOutH  << "  XTOK_List_" << cls->classAndMemberName
-                << ", // \"List_" << cls->classAndMemberName << "\"\n";
-    tokensOutCC << "  \"XTOK_List_" << cls->classAndMemberName << "\",\n";
-    lexerOut  << "\"List_" << cls->classAndMemberName
-              << "\" return tok(XTOK_List_" << cls->classAndMemberName << ");\n";
+    tokensOut << "  List_" << cls->classAndMemberName << "\n";
     parser1_defs << "  case XTOK_List_" << cls->classAndMemberName << ": *kindCat = ";
     if (cls->lkind == LK_FakeList) {
+      emitXmlParser_FakeList(cls);
       parser1_defs << "KC_FakeList";
     } else if (cls->lkind == LK_ASTList) {
+      emitXmlParser_ASTList(cls);
       parser1_defs << "KC_ASTList";
     } else xfailure("illegal list kind");
     parser1_defs << "; break;\n";
-    emitXmlParser_ASTList(cls);
   }
 
   parser1_defs << "  }\n";
@@ -2870,7 +2849,7 @@ void XmlParserGen::emitXmlParserImplementation()
   // generate the method that says we should not record the kind of
   // any tag that is parsed as there is no multiple inheritance going
   // on in the AST
-  parser1_defs << "\nbool ASTXmlReader::recordKind(int kind, bool& answer) {\n";
+  parser1_defs << "\nbool XmlAstReader::recordKind(int kind, bool& answer) {\n";
   parser1_defs << "  switch(kind) {\n";
   parser1_defs << "  default: return false; break;\n";
   SFOREACH_OBJLIST(TF_class, allClasses, iter) {
@@ -2896,7 +2875,7 @@ void XmlParserGen::emitXmlParserImplementation()
   // generate the method that says we should not record the kind of
   // any tag that is parsed as there is no multiple inheritance going
   // on in the AST
-  parser1_defs << "\nbool ASTXmlReader::upcastToWantedType";
+  parser1_defs << "\nbool XmlAstReader::upcastToWantedType";
   parser1_defs << "(void *obj, int kind, void **target, int targetKind) {\n";
   parser1_defs << "  switch(kind) {\n";
   parser1_defs << "  default: return false; break;\n";
@@ -2920,7 +2899,7 @@ void XmlParserGen::emitXmlParserImplementation()
   // generate the method that says we should not have to call
   // operator=() on any objects because no AST nodes embed into one
   // another
-  parser1_defs << "\nbool ASTXmlReader::callOpAssignToEmbeddedObj";
+  parser1_defs << "\nbool XmlAstReader::callOpAssignToEmbeddedObj";
   parser1_defs << "(void *obj, int kind, void *target) {\n";
   parser1_defs << "  switch(kind) {\n";
   parser1_defs << "  default: return false; break;\n";
@@ -2941,30 +2920,15 @@ void XmlParserGen::emitXmlParserImplementation()
   parser1_defs << "  }\n";
   parser1_defs << "}\n";
 
-  // generate generic FakeList reverse
-  parser1_defs << "bool ASTXmlReader::convertList2FakeList";
-  parser1_defs << "(ASTList<char> *list, int listKind, void **target) {\n";
+  // generate generic FakeList
+  parser1_defs << "bool XmlAstReader::prependToFakeList(void *&list, void *obj, int listKind) {\n";
   parser1_defs << "  switch(listKind) {\n";
   parser1_defs << "  default: return false; // we did not find a matching tag\n";
   FOREACH_ASTLIST(ListClass, listClasses, iter) {
     ListClass const *cls = iter.data();
     if (cls->lkind != LK_FakeList) continue;
     parser1_defs << "  case XTOK_List_" << cls->classAndMemberName << ": {\n";
-    parser1_defs << "    xassert(list);\n";
-    parser1_defs << "    FakeList<" << cls->elementClassName << "> *ret = NULL;\n";
-    parser1_defs << "    FakeList<" << cls->elementClassName << "> *prev = NULL;\n";
-    parser1_defs << "    FOREACH_ASTLIST_NC(" << cls->elementClassName << ",\n";
-    parser1_defs << "                       reinterpret_cast<ASTList<" << cls->elementClassName << ">&>(*list),\n";
-    parser1_defs << "                       iter) {\n";
-    parser1_defs << "      if (prev) {\n";
-    parser1_defs << "        prev->first()->next = iter.data();\n";
-    parser1_defs << "        prev = FakeList<" << cls->elementClassName << ">::makeList(prev->first()->next);\n";
-    parser1_defs << "      } else {\n";
-    parser1_defs << "        ret = FakeList<" << cls->elementClassName << ">::makeList(iter.data());\n";
-    parser1_defs << "        prev = ret;\n";
-    parser1_defs << "      }\n";
-    parser1_defs << "    }\n";
-    parser1_defs << "    *target = ret;";
+    parser1_defs << "    prependToFakeList0<" << cls->elementClassName << ">(list, obj);\n";
     parser1_defs << "    break;\n";
     parser1_defs << "  }\n";
   }
@@ -2972,39 +2936,25 @@ void XmlParserGen::emitXmlParserImplementation()
   parser1_defs << "  return true;\n";
   parser1_defs << "}\n";
 
-  tokensOutH  << "\n";
-  tokensOutH  << "  // metadata tags that do not occur in the AST itself\n";
-  tokensOutH  << "  XTOK__List_Item, // \"_List_Item\"\n";
-  tokensOutH  << "  // metadata attributes that do not occur in the AST itself\n";
-  tokensOutH  << "  XTOK_DOT_ID, // \"_id\"\n";
-  tokensOutH  << "  XTOK_item, // \"item\"\n";
+  parser1_defs << "bool XmlAstReader::reverseFakeList(void *&list, int listKind) {\n";
+  parser1_defs << "  switch(listKind) {\n";
+  parser1_defs << "  default: return false; // we did not find a matching tag\n";
+  FOREACH_ASTLIST(ListClass, listClasses, iter) {
+    ListClass const *cls = iter.data();
+    if (cls->lkind != LK_FakeList) continue;
+    parser1_defs << "  case XTOK_List_" << cls->classAndMemberName << ": {\n";
+    parser1_defs << "    reverseFakeList0<" << cls->elementClassName << ">(list);\n";
+    parser1_defs << "    break;\n";
+    parser1_defs << "  }\n";
+  }
+  parser1_defs << "  }\n";
+  parser1_defs << "  return true;\n";
+  parser1_defs << "}\n";
 
-  tokensOutCC << "\n";
-  tokensOutCC << "  // metadata tags that do not occur in the AST itself\n";
-  tokensOutCC << "  \"XTOK__List_Item\", // \"_List_Item\"\n";
-  tokensOutCC << "  // metadata attributes that do not occur in the AST itself\n";
-  tokensOutCC << "  \"XTOK_item\", // \"item\"\n";
-  tokensOutCC << "  \"XTOK_DOT_ID\", // \"_id\"\n";
-
-  lexerOut << "\n";
-  lexerOut << "  /* metadata tags that do not occur in the AST itself */\n";
-  lexerOut << "\"_List_Item\" return tok(XTOK__List_Item);\n";
-  lexerOut << "  /* metadata attributes that do not occur in the AST itself */\n";
-  lexerOut << "\"item\" return tok(XTOK_item);\n";
-  lexerOut << "\"_id\" return tok(XTOK_DOT_ID);\n";
-
-  tokensOutH  << "\n";
-  tokensOutH  << "  // child attribute names\n";
-  tokensOutCC << "\n";
-  tokensOutCC << "  // child attribute names\n";
-  lexerOut << "\n";
-  lexerOut << "  /* child attribute names */\n";
-
+  tokensOut << "\n  # child attribute names\n";
   FOREACH_STRINGSET(attributeNames, attrIter) {
     string const &attr = attrIter.data();
-    tokensOutH  << "  XTOK_" << attr << ", // \"" << attr << "\"\n";
-    tokensOutCC << "  \"XTOK_" << attr << "\",\n";
-    lexerOut  << "\"" << attr << "\" return tok(XTOK_" << attr << ");\n";
+    tokensOut << "  " << attr << "\n";
   }
 }
 
@@ -3242,14 +3192,14 @@ void checkUnusedCustoms(ASTClass const *c)
   }
 }
 
-        
+
 void grabOptionName(rostring opname, string &oparg, TF_option const *op)
 {
   if (op->args.count() != 1) {
     xfatal("'" << opname << "' option requires one argument");
   }
 
-  if (oparg.length() > 0) {
+  if (!oparg.empty()) {
     // It would be conceivable to allow multiple visitors, but
     // I don't see any advantage to doing so.  If the extension
     // simply changes the name, then the resulting error messages
@@ -3327,7 +3277,7 @@ void entry(int argc, char **argv)
   while (*argv) {
     char const *fname = *argv;
     argv++;
-    
+
     modules.append(new string(fname));
 
     Owner<ASTSpecFile> extension;
@@ -3357,8 +3307,8 @@ void entry(int argc, char **argv)
         else if (op->name.equals("mvisitor")) {
           grabOptionName("mvisitor", mvisitorName, op);
         }
-        else if (op->name.equals("xmlPrint")) {
-          wantXMLPrint = true;
+        else if (op->name.equals("identityManager")) {
+          grabOptionName("identityManager", identityManagerName, op);
         }
         else if (op->name.equals("gdb")) {
           wantGDB = true;
@@ -3413,12 +3363,12 @@ void entry(int argc, char **argv)
       SFOREACH_OBJLIST(TF_class, allClasses, iter) {
         TF_class const *c = iter.data();
         checkUnusedCustoms(c->super);
-      
+
         FOREACH_ASTLIST(ASTClass, c->ctors, subIter) {
           checkUnusedCustoms(subIter.data());
         }
       }
-      
+
       FOREACH_ASTLIST(ToplevelForm, ast->forms, iter2) {
         if (iter2.data()->isTF_custom()) {
           CustomCode const *cc = iter2.data()->asTF_customC()->cust;

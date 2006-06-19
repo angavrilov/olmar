@@ -46,5 +46,5 @@ check:
 	echo "x := 2 + 3 + 4; print x" | ./parser -tree
 
 clean:
-	rm -f lexer parser *.o tokens.tok gcom.h gcom.cc ast.h ast.cc
+	rm -f lexer parser *.o tokens.tok gcom.h gcom.cc ast.h ast.cc gmon.out
 

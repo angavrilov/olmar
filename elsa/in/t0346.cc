@@ -3,9 +3,9 @@
 
 void foo()
 {
-  __checkType('a', (char)0);
-  __checkType('ab', (int)0);
-  __checkType(L'a', (wchar_t)0);
+  __elsa_checkType('a', (char)0);
+  __elsa_checkType('ab', (int)0);
+  __elsa_checkType(L'a', (wchar_t)0);
 }
 
 // EOF

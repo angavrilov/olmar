@@ -1,3 +1,5 @@
+// ERR-MATCH: 63c0166a-1679-419b-8a73-55635a86b703
+
 // this is the elaborated version of d0050.cc; here, I put in the the
 // copy assign operator but not the copy assignment operator, since
 // those are the conditions under which this test originally exposed a

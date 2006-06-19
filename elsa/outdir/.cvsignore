@@ -31,6 +31,9 @@ hide*
 *.C2.xml.dp
 *.C2.xml.dp_filtered
 *.C3.diff
+*.C4.xml
+*.C4.xml_filtered
+*.C5.diff
 
 *.D0.cc
 *.D0.dp
@@ -41,3 +44,6 @@ hide*
 *.D2.xml.dp
 *.D2.xml.dp_filtered
 *.D3.diff
+
+a1.xml
+a4.xml

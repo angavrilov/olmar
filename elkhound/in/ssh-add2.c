@@ -18,10 +18,10 @@ ssh-add.c
 /*
  * $Id$
  * $Log$
- * Revision 1.1.1.1  2006/04/11 14:33:50  tews
- * import elsa 2005.08.22b
+ * Revision 1.1.1.2  2006/06/19 14:42:04  tews
+ * elsa-2006.06.11.tar.gz
  *
- * Revision 1.1  2002/08/11 00:17:28  scott
+ * Revision 1.1  2002-08-11 00:17:28  scott
  * removed some obsolete files, moved more input to in/
  *
  * Revision 1.1  2000/07/28 08:39:56  scott

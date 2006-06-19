@@ -45,6 +45,7 @@ lexer.lex
 delta*
 diff
 diff_current
+Diff
 changes
 TAGS
 ex
@@ -75,4 +76,9 @@ astxml_lexer1_type.cc
 astxml_lexer1_type.lex
 astxml_tokens1_type.h
 save
+Save
 bigin
+nohup*.out
+
+# temporary state that has to be global across runs
+.serialno
