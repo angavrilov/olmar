@@ -719,6 +719,7 @@ public:     // funcs
   bool isSimple(SimpleTypeId id) const;
   bool isSimpleCharType() const { return isSimple(ST_CHAR); }
   bool isSimpleWChar_tType() const { return isSimple(ST_WCHAR_T); }
+  bool isSomeKindOfCharType() const;
   bool isStringType() const;
   bool isIntegerType() const;            // any of the simple integer types
   bool isEnumType() const;
