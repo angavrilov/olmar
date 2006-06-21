@@ -299,9 +299,9 @@ protected:  // data
 
 public:
   BaseClass(BaseClass const &obj)
-    : DMEMB(ct), DMEMB(access), DMEMB(isVirtual) {}
+    : DMEMB(ct), DMEMB(access), DMEMB(isVirtual), ocaml_val(0) {}
   BaseClass(CompoundType *c, AccessKeyword a, bool v)
-    : ct(c), access(a), isVirtual(v) {}
+    : ct(c), access(a), isVirtual(v), ocaml_val(0) {}
 
   virtual ~BaseClass() {};
     

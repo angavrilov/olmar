@@ -156,7 +156,7 @@ void TypeVisitor::postvisitExpression(Expression *obj)
 // ------------------ AtomicType -----------------
 ALLOC_STATS_DEFINE(AtomicType)
 
-AtomicType::AtomicType()
+AtomicType::AtomicType() : ocaml_val(0)
 {
   ALLOC_STATS_IN_CTOR
 }
@@ -456,6 +456,7 @@ CompoundType::CompoundType(Keyword k, StringRef n)
     syntax(NULL),
     parameterizingScope(NULL),
     selfType(NULL),
+    ocaml_info(0),
     bases()
 {
   curCompound = this;
@@ -1224,10 +1225,15 @@ value CompoundType::toCompoundInfo(ToOcamlData *data){
   info[9] = ocaml_from_string(instName, data);
 
   // info[10] = selfType->toOcaml(data);
-  info[10] = Val_unit;
-  // upward pointer
-  if(!data->stack.contains(selfType))
+  // upward pointer hack
+  if(data->stack.contains(selfType)) {
+    info[10] = Val_unit; // = Upward_pointer_in_type_structure
+    cerr << "CompoundType::selfType upward pointing" << endl;
+  }
+  else {
+    info[10] = selfType->toOcaml(data);
     cerr << "CompoundType::selfType not upward pointing" << endl;
+  }
   
   caml_register_global_root(&ocaml_info);
   ocaml_info = caml_callbackN(*create_compound_info_constructor_closure,
@@ -1359,7 +1365,7 @@ ALLOC_STATS_DEFINE(BaseType)
 bool BaseType::printAsML = false;
 
 
-BaseType::BaseType()
+BaseType::BaseType() : ocaml_val(0)
 {
   ALLOC_STATS_IN_CTOR
 }

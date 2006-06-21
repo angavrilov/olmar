@@ -79,6 +79,10 @@ and atomicType =
 
 
 and cType = 
+(* Hendrik: clean this up!
+ * upward pointer hack: add a dummy constr that can be used for upward pointers
+ *)
+  | Upward_pointer_in_type_structure
   | CVAtomicType of cVFlags * atomicType
       (* PointerType( volatile, pointed type) *)
   | PointerType of cVFlags * cType

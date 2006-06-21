@@ -333,6 +333,7 @@ char *myProcessArgs(int argc, char **argv, char const *additionalInfo)
 	cout << "option -oc requires a filename argument\n";
 	exit(2);
       }
+      traceAddSys("marshalToOcaml");
       ocamlAstFname = argv[2];
       argc -= 2;
       argv += 2;

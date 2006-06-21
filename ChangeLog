@@ -1,3 +1,7 @@
+2006-06-21  Hendrik Tews  <tews@debian>
+
+	* fixed ocaml_val init bug
+
 2006-06-19  Hendrik Tews  <tews@tandem.cs.ru.nl>
 
 	AST
