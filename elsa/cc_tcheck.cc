@@ -3197,15 +3197,14 @@ Declarator *Declarator::tcheck(Env &env, Tcheck &dt)
 //   static int y[] = (int []) {1, 2, 3};
 // which is equivalent to:
 //   static int y[] = {1, 2, 3};
-Type *Env::computeArraySizeFromCompoundInit(SourceLoc tgt_loc, Type *tgt_type,
-                                            Type *src_type, Initializer *init)
+Type *Env::computeArraySizeFromCompoundInit
+  (SourceLoc tgt_loc, Type *tgt_type, Type *src_type, Initializer *init)
 {
   // If we start at a reference, we have to go down to the raw
   // ArrayType and then back up to a reference.
   bool tgt_type_isRef = tgt_type->isReferenceType();
   tgt_type = tgt_type->asRval();
-  if (tgt_type->isArrayType() &&
-      init->isIN_compound()) {
+  if (tgt_type->isArrayType() && init->isIN_compound()) {
     ArrayType *at = tgt_type->asArrayType();
     IN_compound const *cpd = init->asIN_compoundC();
 
