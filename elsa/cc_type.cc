@@ -1135,7 +1135,7 @@ EnumType::Value *EnumType::addValue(StringRef name, int value, Variable *decl)
   // the Value objects.  Daniel pointed out this was quadratic b/c
   // I was using 'append()'.  Since I never used the list anyway,
   // I just dropped it in favor of the dictionary (only).
-  
+
   if (value < 0) {
     hasNegativeValues = true;
   }
@@ -2501,7 +2501,7 @@ string PseudoInstantiation::toMLString() const
 void BaseType::putSerialNo(stringBuilder &sb) const
 {
   #if USE_SERIAL_NUMBERS
-    sb << printSerialNo("t", serialNumber, "-");
+    printSerialNo(sb, "t", serialNumber, "-");
   #endif
 }
 

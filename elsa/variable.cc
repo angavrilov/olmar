@@ -474,7 +474,7 @@ string Variable::toMLString() const
 {
   stringBuilder sb;
   #if USE_SERIAL_NUMBERS
-    sb << printSerialNo("v", serialNumber, "-");
+    printSerialNo(sb, "v", serialNumber, "-");
   #endif
   char const *name0 = "<no_name>";
   if (name) {
