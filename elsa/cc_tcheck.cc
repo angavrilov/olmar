@@ -3795,10 +3795,13 @@ void Declarator::mid_tcheck(Env &env, Tcheck &dt)
   // the function body
   env.retractScopeSeq(qualifierScopes);
 
-  // If it is a function, is it virtual?
-  if (inClassBody
-      && var->type->isMethod()
-      && !var->hasFlag(DF_VIRTUAL)) {
+  // If it is a function, is it virtual?  We have to look up the class
+  // hierarchy in order to tell.  NOTE: EVEN IF we are already
+  // explicitly virtual, the code below also builds the
+  // var->virtuallyOverride list of things that we virtually-override,
+  // so we have to do this anyway; that is, don't skip the body if
+  // var->hasFlag(DF_VIRTUAL)
+  if (inClassBody && var->type->isMethod()) {
     FunctionType *varft = var->type->asFunctionType();
     CompoundType *myClass = env.scope()->curCompound;
 
