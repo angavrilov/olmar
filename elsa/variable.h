@@ -314,8 +314,8 @@ public:
 
   // fully qualified but not mangled name
   string fullyQualifiedName0() const;
-  string mangledName0(); 	// no scope
   void appendMangledness(stringBuilder &mgldName);
+  string mangledName0(); 	// no scope
   string fullyQualifiedMangledName0(); // scope+mangling
 
   // like toString but with the fully qualified name

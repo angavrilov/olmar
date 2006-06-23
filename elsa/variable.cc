@@ -487,6 +487,15 @@ string Variable::toMLString() const
 
 string Variable::fullyQualifiedName0() const
 {
+  // dsw: I don't think it makes sense to ask for the fully qualified
+  // name of a Variable that does not reside in a permanent scope,
+  // except for built-ins which are basically global.  Unfortunately,
+  // Scott doesn't use it that way.
+//   if (loc != SL_INIT) {
+//     xassert(scope);
+//     xassert(scope->hasName() || scope->isGlobalScope());
+//   }
+
   if (isNamespace()) {
     if (scope->isGlobalScope()) {
       return "::";
@@ -539,17 +548,6 @@ string Variable::fullyQualifiedName0() const
   return tmp;
 }
 
-string Variable::mangledName0() {
-  // NOTE: This is a very important assertion
-  xassert(linkerVisibleName());
-
-  stringBuilder mgldName;
-  // FIX: should this be an assertion?  It can fail.
-  if (name) mgldName << name;
-  appendMangledness(mgldName);
-  return mgldName;
-}
-
 void Variable::appendMangledness(stringBuilder &mgldName) {
   // for function types, be sure to use the mangled name of their
   // signature so that overloading works right
@@ -558,13 +556,30 @@ void Variable::appendMangledness(stringBuilder &mgldName) {
   }
 }
 
+string Variable::mangledName0() {
+  // dsw: what was I thinking here?  See assertion at the top of
+  // fullyQualifiedName0()
+  // 
+  // NOTE: This is a very important assertion
+//   xassert(linkerVisibleName());
+
+  stringBuilder mgldName;
+  // FIX: should this be an assertion?  It can fail.
+  if (name) mgldName << name;
+  appendMangledness(mgldName);
+  return mgldName;
+}
+
 string Variable::fullyQualifiedMangledName0() {
 //    cout << "name '" << name;
 //    if (scope) cout << "; has a scope" << endl;
 //    else cout << "; NO scope" << endl;
 
+  // dsw: what was I thinking here?  See assertion at the top of
+  // fullyQualifiedName0()
+  // 
   // NOTE: dsw: This is a very important assertion
-  xassert(linkerVisibleName());
+//   xassert(linkerVisibleName());
 
   stringBuilder fqName;
   fqName << fullyQualifiedName0();
