@@ -43,6 +43,8 @@ custom ASTVisitor_ctor { inTemplate=false; }
 
 
 class TranslationUnit {
+  public(xml_TY) Scope *globalScope = NULL;
+
   // This is the type checker entry point at the top level.  It
   // writes error messages (if any) into 'env' and annotations
   // directly into the AST fields declared below.

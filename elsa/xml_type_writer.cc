@@ -849,6 +849,12 @@ XmlTypeWriter_AstVisitor::XmlTypeWriter_AstVisitor
 //      out << "\"/>\n";
 //    }
 
+bool XmlTypeWriter_AstVisitor::visitTranslationUnit(TranslationUnit *unit) {
+  if (!XmlAstWriter_AstVisitor::visitTranslationUnit(unit)) return false;
+  PRINT_ANNOT_MAYBE(unit->globalScope);
+  return true;
+}
+
 bool XmlTypeWriter_AstVisitor::visitTypeSpecifier(TypeSpecifier *ts) {
   if (!XmlAstWriter_AstVisitor::visitTypeSpecifier(ts)) return false;
   if (ts->isTS_type()) {

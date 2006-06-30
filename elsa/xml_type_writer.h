@@ -73,7 +73,6 @@ class XmlTypeWriter : public XmlWriter {
   // the whole overload set.
   virtual void toXml(Variable *var);
 
-  protected:
   void toXml_FunctionType_ExnSpec(void /*FunctionType::ExnSpec*/ *exnSpec);
 
   void toXml_EnumType_Value(void /*EnumType::Value*/ *eValue0);
@@ -96,7 +95,6 @@ class XmlTypeWriter : public XmlWriter {
   virtual void toXml(InheritedTemplateParams *itp);
   void toXml_TemplateParams_properties(TemplateParams *tp);
   void toXml_TemplateParams_subtags(TemplateParams *tp);
-
 };
 
 // print out type annotations for every ast node that has a type
@@ -118,6 +116,7 @@ class XmlTypeWriter_AstVisitor : public XmlAstWriter_AstVisitor {
   IdentityManager &getIdMgr() { return ttx.idmgr; }
 
   // **** visit methods
+  virtual bool visitTranslationUnit(TranslationUnit *unit);
   virtual bool visitTypeSpecifier(TypeSpecifier *ts);
   virtual bool visitFunction(Function *f);
   virtual bool visitMemberInit(MemberInit *memberInit);

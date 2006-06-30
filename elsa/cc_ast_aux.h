@@ -168,6 +168,7 @@ class RealVarAndTypeASTVisitor : private ASTVisitor {
     public:
     virtual ~TypeVisitor() {}
     virtual void visitType(Type *type) = 0;
+    virtual void visitScope(Scope *scope) = 0;
   };
 
   // data
@@ -201,6 +202,7 @@ class RealVarAndTypeASTVisitor : private ASTVisitor {
   virtual void visitVariable(Variable *var);
   virtual void visitType(Type *type);
 
+  virtual bool visitTranslationUnit(TranslationUnit *obj);
   virtual bool visitFunction(Function *obj);
   virtual bool visitPQName(PQName *obj);
   virtual bool visitHandler(Handler *obj);
@@ -219,15 +221,20 @@ class RealVarAndTypeASTVisitor : private ASTVisitor {
 class ReachableVarsTypePred : public TypePred {
   // data
   RealVarAndTypeASTVisitor::VariableVisitor &variableVisitor;
-  SObjSet<CompoundType*> &seenCpdTypes;
+  // This is a bit deceptive: it is only for visiting scopes.
+  RealVarAndTypeASTVisitor::TypeVisitor &typeVisitor;
+//   SObjSet<CompoundType*> &seenCpdTypes;
 
   // tor
   public:
   explicit ReachableVarsTypePred
-    (RealVarAndTypeASTVisitor::VariableVisitor &variableVisitor0,
-     SObjSet<CompoundType*> &seenCpdTypes0)
+    (RealVarAndTypeASTVisitor::VariableVisitor &variableVisitor0
+//      , SObjSet<CompoundType*> &seenCpdTypes0
+     , RealVarAndTypeASTVisitor::TypeVisitor &typeVisitor0
+     )
     : variableVisitor(variableVisitor0)
-    , seenCpdTypes(seenCpdTypes0)
+    , typeVisitor(typeVisitor0)
+//     , seenCpdTypes(seenCpdTypes0)
   {}
   virtual ~ReachableVarsTypePred() {}
 
@@ -240,7 +247,11 @@ class ReachableVarsTypeVisitor : public RealVarAndTypeASTVisitor::TypeVisitor {
   public:
   RealVarAndTypeASTVisitor::VariableVisitor *variableVisitor;
   SObjSet<Type*> seenTypes;
-  SObjSet<CompoundType*> seenCpdTypes; // re-used across anyCtorSatisfies visitations
+  // Careful!  Since CompoundType inherits from Scope, we must use a
+  // different set as the visitation of a CompoundType as a Scope
+  // differs from its visitation as a CompoundType.
+  SObjSet<Scope*> seenScopes;
+//   SObjSet<CompoundType*> seenCpdTypes; // re-used across anyCtorSatisfies visitations
 
   // tor
   public:
@@ -251,6 +262,8 @@ class ReachableVarsTypeVisitor : public RealVarAndTypeASTVisitor::TypeVisitor {
 
   // methods
   virtual void visitType(Type *type);
+  // FIX: should this be in its own visitor?
+  virtual void visitScope(Scope *scope);
   virtual void visitTypeIdem(Type *type) {}; // only visits each Type once
 };
 

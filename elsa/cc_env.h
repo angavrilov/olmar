@@ -56,6 +56,9 @@ protected:   // data
   // bound to '*this'; facilitates moving code into and out of Env
   Env &env;
 
+  // The TranslationUnit we are typechecking; see note in the ctor
+  TranslationUnit *unit;
+
   // stack of lexical scopes; first is innermost
   //
   // NOTE: If a scope has a non-NULL curCompound or namespaceVar,
@@ -285,7 +288,8 @@ private:     // funcs
   void mergeDefaultArguments(SourceLoc loc, Variable *prior, FunctionType *type);
 
 public:      // funcs
-  Env(StringTable &str, CCLang &lang, TypeFactory &tfac, ArrayStack<Variable*> &madeUpVariables0);
+  Env(StringTable &str, CCLang &lang, TypeFactory &tfac,
+      ArrayStack<Variable*> &madeUpVariables0, TranslationUnit *unit0);
 
   // 'virtual' only to silence stupid warning; destruction is not part of polymorphic contract
   virtual ~Env();

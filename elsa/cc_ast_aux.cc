@@ -1329,11 +1329,17 @@ void RealVarAndTypeASTVisitor::visitType(Type *type) {
   if (typeVisitor) typeVisitor->visitType(type);
 }
 
+
 // **** visit methods
 
 // class BaseClassSpec {
 //   public(xml_TY) CompoundType *type = NULL;
 // }
+
+bool RealVarAndTypeASTVisitor::visitTranslationUnit(TranslationUnit *obj) {
+  typeVisitor->visitScope(obj->globalScope);
+  return true;
+}
 
 bool RealVarAndTypeASTVisitor::visitFunction(Function *obj) {
   visitVariable(obj->retVar);
@@ -1453,7 +1459,9 @@ bool ReachableVarsTypePred::operator() (Type const *t0) {
       variableVisitor.visitVariable(iter.data());
     }
   }
-//   else if (t->isCompoundType()) {
+  else if (t->isCompoundType()) {
+    variableVisitor.visitVariable(t->asCompoundType()->typedefVar);
+    typeVisitor.visitScope(t->asCompoundType());
 //     // visit all the variables in the CompoundType superclass
 //     CompoundType *ct = t->asCompoundType();
 //     SObjList<BaseClassSubobj const> subobjs;
@@ -1472,7 +1480,7 @@ bool ReachableVarsTypePred::operator() (Type const *t0) {
 //       }
 //     }
 //     xassert(sawMyself);         // make sure we visited ourself
-//   }
+  }
   return false;                 // dummy value; just means keep searching
 }
 
@@ -1481,9 +1489,23 @@ void ReachableVarsTypeVisitor::visitType(Type *type) {
   if (seenTypes.contains(type)) return;
   seenTypes.add(type);
   visitTypeIdem(type);
-  ReachableVarsTypePred tPred(*variableVisitor, seenCpdTypes);
+  ReachableVarsTypePred tPred(*variableVisitor
+                              , *this
+//                               , seenCpdTypes
+                              );
   bool sat = type->anyCtorSatisfies(tPred);
   xassert(!sat);                // the point was just to visit anyway
+}
+
+void ReachableVarsTypeVisitor::visitScope(Scope *scope) {
+  if (!scope) return;
+  // See comment at the declaration of seenScopes.
+  if (seenScopes.contains(scope)) return;
+  seenScopes.add(scope);
+  variableVisitor->visitVariable(scope->namespaceVar);
+  // FIX: If this type is a CompoundType, I think it will get visited
+  // as a Type by the type visitor at some point
+  visitScope(scope->parentScope);
 }
 
 void ReachableVarsVariableVisitor::visitVariable(Variable *var) {
@@ -1494,6 +1516,7 @@ void ReachableVarsVariableVisitor::visitVariable(Variable *var) {
   xassert(!var->isUninstTemplateMember());
   visitVariableIdem(var);
   typeVisitor->visitType(var->type);
+  typeVisitor->visitScope(var->scope);
 }
 
 void VisitRealVars::visitVariableIdem(Variable *var) {
@@ -1507,11 +1530,10 @@ void MarkRealVars::visitVariableIdem(Variable *var) {
 }
 
 void visitRealVarsF(ArrayStack<Variable*> &madeUpVariables, VisitRealVars &visitReal) {
-  RealVarAndTypeASTVisitor vis(&visitReal, &visitReal.doNothing_tv);
   FOREACH_ARRAYSTACK_NC(Variable*, madeUpVariables, iter) {
-    Variable **varPtr = iter.data();
-    if (!(*varPtr)->getReal()) continue;
-    visitReal.visitVariable(*varPtr);
+    Variable *var = *iter.data();
+    if (!var->getReal()) continue;
+    visitReal.visitVariable(var);
   }
 }
 

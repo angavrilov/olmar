@@ -293,10 +293,12 @@ int throwClauseSerialNumber = 0; // don't make this a member of Env
 
 int Env::anonCounter = 1;
 
-Env::Env(StringTable &s, CCLang &L, TypeFactory &tf, ArrayStack<Variable*> &madeUpVariables0)
+Env::Env(StringTable &s, CCLang &L, TypeFactory &tf,
+         ArrayStack<Variable*> &madeUpVariables0, TranslationUnit *unit0)
   : ErrorList(),
 
     env(*this),
+    unit(unit0),
     scopes(),
     disambiguateOnly(false),
     ctorFinished(false),
@@ -384,6 +386,13 @@ Env::Env(StringTable &s, CCLang &L, TypeFactory &tf, ArrayStack<Variable*> &made
     // among other things, SK_GLOBAL causes Variables inserted into
     // this scope to acquire DF_GLOBAL
     Scope *s = new Scope(SK_GLOBAL, 0 /*changeCount*/, emptyLoc);
+
+    // dsw: it is very helpful to be able to get to the global scope
+    // of a translation unit, so if you don't do this here please do
+    // it somewhere; There is a traversal in Elsa that I need this
+    // for, so it doesn't help to have it in Oink
+    unit->globalScope = s;
+
     scopes.prepend(s);
     s->openedScope(*this);
 
