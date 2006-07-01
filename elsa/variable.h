@@ -111,6 +111,9 @@ public:    // data
   // getDenotedScope()
   Scope *scope;           // (nullable serf)
 
+  // total number of Variables created
+  static size_t numVariables;
+
 private:      // data
 
   // so serialization/deserialization is possible

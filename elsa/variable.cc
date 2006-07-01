@@ -54,6 +54,7 @@ bool SomeTypeVarNotInTemplParams_Pred::operator() (Type const *t)
   return false;                 // some other type of compound type
 };
 
+size_t Variable::numVariables = 0;
 
 // ---------------------- Variable --------------------
 Variable::Variable(SourceLoc L, StringRef n, Type *t, DeclFlags f)
@@ -102,6 +103,8 @@ Variable::Variable(SourceLoc L, StringRef n, Type *t, DeclFlags f)
   if (!isNamespace()) {
     xassert(type);
   }
+
+  ++numVariables;
 }
 
 // ctor for de-serialization
@@ -119,7 +122,9 @@ Variable::Variable(XmlReader&)
     intData(0),
     usingAlias_or_parameterizedEntity(NULL),
     templInfo(NULL)
-{}
+{
+  ++numVariables;
+}
 
 Variable::~Variable()
 {}
@@ -559,7 +564,7 @@ void Variable::appendMangledness(stringBuilder &mgldName) {
 string Variable::mangledName0() {
   // dsw: what was I thinking here?  See assertion at the top of
   // fullyQualifiedName0()
-  // 
+  //
   // NOTE: This is a very important assertion
 //   xassert(linkerVisibleName());
 
@@ -577,7 +582,7 @@ string Variable::fullyQualifiedMangledName0() {
 
   // dsw: what was I thinking here?  See assertion at the top of
   // fullyQualifiedName0()
-  // 
+  //
   // NOTE: dsw: This is a very important assertion
 //   xassert(linkerVisibleName());
 
