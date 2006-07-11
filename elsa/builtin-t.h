@@ -3,7 +3,7 @@
 
 // header file declaring minimal types needed for GCC builtins.
 
-typedef struct FILE FILE;
+typedef struct _IO_FILE FILE;
 typedef unsigned long size_t;
 typedef int ssize_t;
 typedef __builtin_va_list va_list;
