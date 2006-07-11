@@ -587,6 +587,21 @@ string Variable::fullyQualifiedMangledName0() {
 //   xassert(linkerVisibleName());
 
   stringBuilder fqName;
+
+  // quarl 2006-07-10
+  //    Prepend with either "D:" or "F:" for data/function.  This way we
+  //    imitate the real linker's "type system" for data and functions
+  //    (e.g. "clog" the iostream data member and "clog" the math function can
+  //    coexist).
+  //
+  //    Should we add more -- templates?
+
+  if (type->isFunctionType()) {
+    fqName << "F:";
+  } else {
+    fqName << "D:";
+  }
+
   fqName << fullyQualifiedName0();
 //    if (scope) fqName << scope->fullyQualifiedName();
 //    fqName << "::" << mangledName0();
