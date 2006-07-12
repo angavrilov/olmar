@@ -3129,7 +3129,7 @@ Variable *Env::createDeclaration(
   //    set DF_STATIC in all of those conditions because the flag is
   //    overloaded; but we must set it under some of those conditions
   //    because env won't be available in Variable::linkerVisibleName().
-  if ((dflags & DF_INLINE) && !(dflags & DF_GNU_EXTERN_INLINE) && !(dflags & DF_EXTERN)) {
+  if ((dflags & DF_INLINE) && !(dflags & DF_GNU_EXTERN_INLINE) /*&& !(dflags & DF_EXTERN)*/) {
     if (dflags & DF_MEMBER) {
       // quarl 2006-07-11
       //    Can't set DF_STATIC since DF_MEMBER|DF_STATIC implies static
