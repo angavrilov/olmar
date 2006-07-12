@@ -394,6 +394,15 @@ long double __builtin_fmaxl (long double x, long double y);
 long double __builtin_fminl (long double x, long double y);
 long double __builtin_fmal (long double x, long double y, long double z);
 long double __builtin_scalbl (long double x, long double n);
+double __builtin_huge_val ();
+float __builtin_huge_valf ();
+long double __builtin_huge_vall ();
+double __builtin_inf ();
+float __builtin_inff ();
+long double __builtin_infl ();
+double __builtin_nans (const char *str);
+float __builtin_nansf (const char *str);
+long double __builtin_nansl (const char *str);
 
 /** mcheck.c */
 
