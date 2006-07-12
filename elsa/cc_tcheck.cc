@@ -3509,6 +3509,18 @@ void Declarator::mid_tcheck(Env &env, Tcheck &dt)
       dt.dflags |= DF_STATIC;   // add the 'static'
     }
   }
+  // else if (dt.dflags >= (DF_INLINE) && env.lang.inlineImpliesStaticLinkage) {
+  //   if (dt.dflags & DF_MEMBER) {
+  //     // quarl 2006-07-11
+  //     //    Can't set DF_STATIC since DF_MEMBER|DF_STATIC implies static
+  //     //    member.  However, when DF_INLINE|DF_MEMBER can only occur in C++
+  //     //    where inlineImpliesStaticLinkage, so we check for that combination
+  //     //    in isStaticLinkage().  It would be nice to factor DF_STATIC into
+  //     //    DF_STATIC_LINKAGE and DF_STATIC_MEMBER.
+  //   } else {
+  //     dt.dflags |= DF_STATIC;
+  //   }
+  // }
 
   // dsw: the global function 'main' seems to always be considered to
   // be DF_EXTERN_C even in C++ mode whether it likes it or not; FIX:
@@ -5523,8 +5535,7 @@ Type *E_variable::itcheck_var_set(Env &env, Expression *&replacement,
 
   // elaborate 'this->'
   if (!(flags & LF_NO_IMPL_THIS) &&
-      var->isMember() &&
-      !var->isStatic()) {
+      var->isNonStaticMember()) {
     replacement = wrapWithImplicitThis(env, var, name);
     return replacement->type;
   }
@@ -6216,8 +6227,7 @@ void possiblyWrapWithImplicitThis(Env &env, Expression *&func,
 {
   if (fevar &&
       fevar->var &&
-      fevar->var->isMember() &&
-      !fevar->var->isStatic()) {
+      fevar->var->isNonStaticMember()) {
     feacc = wrapWithImplicitThis(env, fevar->var, fevar->name);
     func = feacc;
     fevar = NULL;
@@ -8142,8 +8152,7 @@ Type *E_addrOf::itcheck_addrOf_set(Env &env, Expression *&replacement,
     xassert(evar->var);
     env.ensureFuncBodyTChecked(evar->var);
 
-    if (evar->var->isMember() &&
-        !evar->var->isStatic()) {
+    if (evar->var->isNonStaticMember()) {
       return makePTMType(env, evar->var, evar->name->loc);
     }
   }

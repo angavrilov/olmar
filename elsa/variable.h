@@ -176,7 +176,25 @@ public:
   // some convenient interpretations of 'flags'
   bool hasAddrTaken() const { return hasFlag(DF_ADDRTAKEN); }
   bool isGlobal() const { return hasFlag(DF_GLOBAL); }
-  bool isStatic() const { return hasFlag(DF_STATIC); }
+  bool inGlobalOrNamespaceScope() const;
+  bool isStaticLinkage() const {
+    // quarl 2006-07-11
+    //    See Declarator::mid_tcheck() for why this checks for DF_INLINE|DF_MEMBER.
+    //    Note that these are not exclusive; a variable can have both static
+    //    linkage (by being inline) and be a static member.
+    return ((hasFlag(DF_STATIC) &&
+             (hasFlag(DF_GLOBAL) || inGlobalOrNamespaceScope()) ||
+             hasAllFlags(DF_INLINE | DF_MEMBER)) /*&&
+                                                   !hasFlag(DF_GNU_EXTERN_INLINE)*/);
+  }
+  bool isStaticLocal() const {
+    return (hasFlag(DF_STATIC) &&
+            !(hasFlag(DF_GLOBAL) || inGlobalOrNamespaceScope()) &&
+            !hasFlag(DF_MEMBER));
+  }
+  bool isStaticMember() const { return hasAllFlags(DF_STATIC | DF_MEMBER); }
+  bool isNonStaticMember() const { return hasFlag(DF_MEMBER) && !hasFlag(DF_STATIC); }
+  // bool isStatic() const { return hasFlag(DF_STATIC); }
   bool isMember() const { return hasFlag(DF_MEMBER); }
   bool isNamespace() const { return hasFlag(DF_NAMESPACE); }
   bool isImplicitTypedef() const { return hasAllFlags(DF_IMPLICIT | DF_TYPEDEF); }

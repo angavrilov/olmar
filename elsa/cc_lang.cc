@@ -69,6 +69,7 @@ void CCLang::ANSI_C89()
   predefined_Bool = false;
 
   handleExternInlineSpecially = false;
+  inlineImpliesStaticLinkage = false;
   stringLitCharsAreConst = false; // Didn't check C89; C99 says they are non-const
 
   // C99 spec: Section 6.5.4, footnote 85: "A cast does not yield an lvalue".
@@ -206,6 +207,7 @@ void CCLang::ANSI_Cplusplus()
 
   predefined_Bool = false;
   handleExternInlineSpecially = false;
+  inlineImpliesStaticLinkage = true;
   stringLitCharsAreConst = true; // Cppstd says they are const.
   lvalueFlowsThroughCast = false;
   restrictIsAKeyword = false;
@@ -302,6 +304,7 @@ string CCLang::toString() {
   str << "allowImplicitIntForMain " << allowImplicitIntForMain << '\n';
   str << "predefined " << predefined_Bool << '\n';
   str << "handleExternInlineSpecially " << handleExternInlineSpecially << '\n';
+  str << "inlineImpliesStaticLinkage " << inlineImpliesStaticLinkage << '\n';
   str << "stringLitCharsAreConst " << stringLitCharsAreConst << '\n';
   str << "lvalueFlowsThroughCast " << lvalueFlowsThroughCast << '\n';
   str << "restrictIsAKeyword " << restrictIsAKeyword << '\n';

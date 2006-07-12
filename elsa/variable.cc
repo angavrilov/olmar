@@ -136,6 +136,9 @@ void Variable::setFlagsTo(DeclFlags f)
   const_cast<DeclFlags&>(flags) = f;
 }
 
+bool Variable::inGlobalOrNamespaceScope() const {
+  return scope && (scope->isGlobalScope() || scope->isNamespace());
+}
 
 bool Variable::linkerVisibleName() const {
   return linkerVisibleName(false);
@@ -158,18 +161,23 @@ bool Variable::linkerVisibleName(bool evenIfStatic) const {
   // nor namespaces, such as '<globalScope>'
   if (hasFlag(DF_NAMESPACE)) return false;
 
-  // quarl 2006-06-03: Don't consider inline functions to be linker-visible.
-  // (In the future, it would be nice to have DF_INLINE be implied by
-  // DF_STATIC, but that needs to wait for DF_STATIC to not be overloaded as
-  // DF_STATIC_MEMBER.)
-  if (hasFlag(DF_INLINE) && !hasFlag(DF_GNU_EXTERN_INLINE)) return false;
-
   // dsw: nothing starting with __builtin_va is linker-visible
   static char *builtin_va_prefix = "__builtin_va";
   static int builtin_va_prefix_len = strlen(builtin_va_prefix);
   if (name && 0==strncmp(name, builtin_va_prefix, builtin_va_prefix_len)) return false;
 
-  bool newAnswer;
+  // quarl 2006-06-03, 2006-07-11
+  //     *In C++ mode only*, inline implies static.  In C mode, 'inline'
+  //     functions can be non-static (see e.g. package gnutls11).
+  //     isStaticLinkage() now handles this implication with help from
+  //     typechecking.  A function can both be a static member and have static
+  //     linkage (via inline).
+  if (!evenIfStatic) {
+    if (isStaticLinkage()) {
+      return false;
+    }
+  }
+
   // FIX: what the heck was this?  Some attempt to treat struct
   // members as linkerVisibleName-s?  This doesn't work because there
   // is no well-defined name for an anonymous struct anyway.
@@ -179,50 +187,33 @@ bool Variable::linkerVisibleName(bool evenIfStatic) const {
 //      xassert(hasFlag(DF_PARAMETER));
     // this one fails for template parameters!?
 //      xassert(!hasFlag(DF_GLOBAL));
-    newAnswer = false;
-  } else {
-    // quarl: namespace scope is similar to global scope
-    if (scope->isGlobalScope() || scope->isNamespace()) {
-      if (evenIfStatic) {
-        newAnswer = true;
-      } else {
-        newAnswer =
-          // FIX: there seems to be a bug in that instantiated function
-          // templates entered into the global scope are not marked as
-          // global; I think it is actually redundant here as we know we
-          // are in the global scope
-          //          hasFlag(DF_GLOBAL) &&
-          !hasFlag(DF_STATIC);
-      }
-    } else if (!scope->linkerVisible()) {
-      newAnswer = false;
-    } else {
-      // dsw: I hate this overloading of the 'static' keyword.  Static
-      // members of CompoundTypes are linker visible if the
-      // CompoundType is linkerVisible.  Non-static members are
-      // visible only if they are FunctionTypes.
-      if (scope->isClassScope()) {
-        // non-static members of a class
-        if (variablesLinkerVisibleEvenIfNonStaticDataMember) {
-          // members: data, static data, functions
-          newAnswer = hasFlag(DF_MEMBER);
-        } else {
-          newAnswer = hasFlag(DF_MEMBER) && (type->asRval()->isFunctionType() || hasFlag(DF_STATIC));
-        }
-      } else {
-        newAnswer = scope->linkerVisible();
+    return false;
+  }
+
+  // quarl 2006-07-11
+  //    Check for this even if not in class scope, e.g. a struct defined
+  //    within a function (Test/struct_sizeof.c)
+  if (!scope->linkerVisible()) {
+    return false;
+  }
+
+  // dsw: I hate this overloading of the 'static' keyword.  Static members of
+  // CompoundTypes are linker visible if the CompoundType is linkerVisible.
+  // Non-static members are visible only if they are FunctionTypes.
+  if (scope->isClassScope()) {
+    if (!hasFlag(DF_MEMBER)) {
+      return false;
+    }
+
+    // non-static members of a class
+    if (!variablesLinkerVisibleEvenIfNonStaticDataMember) {
+      if (!(type->asRval()->isFunctionType() || hasFlag(DF_STATIC))) {
+        return false;
       }
     }
   }
 
-//    if (oldAnswer != newAnswer) {
-//      printf("oldAnswer:%d, newAnswer:%d ", oldAnswer, newAnswer);
-//      this->gdb();
-//  //      breaker();
-//    }
-//    return oldAnswer;
-
-  return newAnswer;
+  return true;
 }
 
 

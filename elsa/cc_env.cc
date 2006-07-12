@@ -3123,6 +3123,31 @@ Variable *Env::createDeclaration(
   // when we go to do the insertion
   bool forceReplace = false;
 
+  bool staticBecauseInline = false;
+  // quarl 2006-07-11
+  //    "inline" implies static linkage under certain conditions.  We can't
+  //    set DF_STATIC in all of those conditions because the flag is
+  //    overloaded; but we must set it under some of those conditions
+  //    because env won't be available in Variable::linkerVisibleName().
+  if ((dflags & DF_INLINE) && !(dflags & DF_GNU_EXTERN_INLINE) && !(dflags & DF_EXTERN)) {
+    if (dflags & DF_MEMBER) {
+      // quarl 2006-07-11
+      //    Can't set DF_STATIC since DF_MEMBER|DF_STATIC implies static
+      //    member.  However, when DF_INLINE|DF_MEMBER can only occur in C++
+      //    where inlineImpliesStaticLinkage, so we check for that combination
+      //    in isStaticLinkage().  It would be nice to factor DF_STATIC into
+      //    DF_STATIC_LINKAGE and DF_STATIC_MEMBER.
+      xassert(env.lang.inlineImpliesStaticLinkage);
+    } else {
+      if (env.lang.inlineImpliesStaticLinkage) {
+        if (!(dflags & DF_STATIC)) {
+          dflags |= DF_STATIC;
+          staticBecauseInline = true;
+        }
+      }
+    }
+  }
+
   // is there a prior declaration?
   if (prior) {
     // check for exception given by [cppstd 7.1.3 para 2]:
@@ -3433,10 +3458,17 @@ Variable *Env::createDeclaration(
         // kc: Illegal to declare or define a function or data variable
         // previously declared as static (?)  gcc-3.4 warns; gcc-4.0 errors.
         if ((dflags & DF_STATIC) && !prior->hasFlag(DF_STATIC)) {
-          env.diagnose3(lang.allowStaticAfterNonStatic, loc, stringc
-                        << "prior declaration of `" << name
-                        << "' at " << prior->loc
-                        << " declared non-static, cannot re-declare as static");
+          if (staticBecauseInline) {
+            // quarl 2006-07-11
+            //    It's apparently okay to propagate staticness if it's
+            //    implicit from an inline definition.
+            prior->setFlag(DF_STATIC);
+          } else {
+            env.diagnose3(lang.allowStaticAfterNonStatic, loc, stringc
+                          << "prior declaration of `" << name
+                          << "' at " << prior->loc
+                          << " declared non-static, cannot re-declare as static");
+          }
         }
       }
     }
