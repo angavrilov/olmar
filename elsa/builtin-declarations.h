@@ -394,12 +394,12 @@ long double __builtin_fmaxl (long double x, long double y);
 long double __builtin_fminl (long double x, long double y);
 long double __builtin_fmal (long double x, long double y, long double z);
 long double __builtin_scalbl (long double x, long double n);
-double __builtin_huge_val ();
-float __builtin_huge_valf ();
-long double __builtin_huge_vall ();
-double __builtin_inf ();
-float __builtin_inff ();
-long double __builtin_infl ();
+double __builtin_huge_val (void);
+float __builtin_huge_valf (void);
+long double __builtin_huge_vall (void);
+double __builtin_inf (void);
+float __builtin_inff (void);
+long double __builtin_infl (void);
 double __builtin_nans (const char *str);
 float __builtin_nansf (const char *str);
 long double __builtin_nansl (const char *str);
@@ -555,7 +555,7 @@ size_t __builtin_fwrite_unlocked (const void * ptr, size_t size, size_t n, FILE 
 /** stdio_ext.c */
 
 /** stdlib.c */
-void __builtin_abort ();
+void __builtin_abort (void);
 void __builtin_exit (int status);
 void __builtin__Exit (int status);
 int __builtin_abs (int x);
