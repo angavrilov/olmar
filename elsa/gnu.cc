@@ -517,7 +517,7 @@ void Env::addGNUBuiltins()
     //"memset",
     "modf",
     "pow",
-    "powi", 
+    "powi",
     "powif",
     "powil",
     //"printf",
