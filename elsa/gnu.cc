@@ -793,6 +793,15 @@ Type *E_alignofExpr::itcheck_x(Env &env, Expression *&replacement)
 }
 
 
+// Type *E_offsetof::itcheck_x(Env &env, Expression *&replacement)
+// {
+//   ASTTypeId::Tcheck tc(DF_NONE, DC_E_OFFSETOF);
+//   atype = atype->tcheck(env, tc);
+
+//   return env.getSimpleType(ST_UNSIGNED_INT);
+// }
+
+
 Type *E_statement::itcheck_x(Env &env, Expression *&replacement)
 {
   // An E_statement can contain declarations, and tchecking a
@@ -1034,6 +1043,21 @@ bool E_gnuCond::extHasUnparenthesizedGT()
          hasUnparenthesizedGT(el);
 }
 
+// // quarl 2006-07-12
+// //    Handle __offsetof__ (gcc-3.4), __builtin_offsetof (gcc-4.x)
+// //
+// //    based on Expression::constEvalAddr#E_fieldAcc
+// bool E_offsetof::extConstEval(ConstEval &env) const
+// {
+//   CompoundType *ct = t->asRval()->ifCompoundType();
+//   if (ct) {
+//     CValue val;
+//     val.setUnsigned(CValue::K_UNSIGNED, ct->getDataMemberOffset(e->field));
+//     return val;
+//   } else {
+//     return CValue("invalid operand to offsetof, must be a compound type");
+//   }
+// }
 
 // ------------------------ print --------------------------
 void TS_typeof::print(PrintEnv &env)
@@ -1130,6 +1154,14 @@ void E_alignofExpr::iprint(PrintEnv &env)
   PairDelim pair(*env.out, "__alignof__", "(", ")");
   expr->print(env);
 }
+
+// void E_offsetof:iprint(PrintEnv &env)
+// {
+//   TreeWalkDebug treeDebug("E_alignofType::iprint");
+//   PairDelim pair(*env.out, "__offsetof__", "(", ")");
+//   atype->print(env);
+//   fieldName->print(env);
+// }
 
 void E_statement::iprint(PrintEnv &env)
 {

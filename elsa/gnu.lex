@@ -6,6 +6,15 @@
 "__alignof"            return tok(TOK___ALIGNOF__);
 "__alignof__"          return tok(TOK___ALIGNOF__);
 
+ /* quarl 2006-07-12
+  *    gcc-4.0, gcc-4.1: __builtin_offsetof
+  *    gcc-3.4: __offsetof__
+  *    gcc-3.3 and earlier: offsetof macro expands to &(((t*)0)->s)
+  *  __builtin_offsetof and __offsetof__ are not the same!
+  */
+"__builtin_offsetof"   return tok(TOK___BUILTIN_OFFSETOF);
+"__offsetof__"         return tok(TOK___OFFSETOF__);
+
 "__attribute"          return tok(TOK___ATTRIBUTE__);
 "__attribute__"        return tok(TOK___ATTRIBUTE__);
 "__label__"            return tok(TOK___LABEL__);
