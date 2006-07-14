@@ -2268,20 +2268,30 @@ EnumType *Env::lookupEnum(StringRef name, LookupFlags flags)
 }
 
 
-StringRef Env::getAnonName(TypeIntr keyword)
+StringRef Env::getAnonName(TypeIntr keyword, char const *relName)
 {
-  return getAnonName(toString(keyword));
+  return getAnonName(toString(keyword), relName);
 }
 
 
-StringRef Env::getAnonName(char const *why)
+StringRef Env::getAnonName(char const *why, char const *relName)
 {
   // construct a name
-  string name = stringc << "__anon_" << why
-                        << "_" << anonCounter++;
+  stringBuilder sb;
+  sb << "__anon_" << why << "_";
+
+  if (relName) {
+    // quarl 2006-07-14
+    //    allow semi-anonymous structs so that we can mangle them consistently
+    //    across translation units
+    sb << relName;
+  } else {
+    sb << anonCounter;
+  }
+  anonCounter++;
 
   // map to a stringref
-  return str(name);
+  return str(sb);
 }
 
 

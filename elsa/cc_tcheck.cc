@@ -953,41 +953,39 @@ void Declaration::tcheck(Env &env, DeclaratorContext context)
     if (spec->isTS_classSpec()) {
       TS_classSpec *cs = spec->asTS_classSpec();
       if (cs->name == NULL) {
-        // quarl 2006-07-13
+        // quarl 2006-07-13, 2006-07-14
         //    We want anonymous structs with typedefs to have consistent names
         //    across translation units, so that functions with such parameters
         //    mangle properly for linking.  (g++ mangles typedefed anonymous
-        //    structs the same as named structs.)  Since this code is
-        //    technically illegal anyway we can do the simple thing and name
-        //    the compound type by the typedef.  (This is imprecise because
-        //    "typedef struct { } foo" now also creates a "struct foo", but
-        //    who in their right mind would do "typedef struct { } foo" and
-        //    then declare a different "struct foo"?)
+        //    structs the same as named structs.)
+        //
+        //    Since we may encounter "typedef struct { } *foo" in addition to
+        //    "typedef struct { } foo", we can't just name the struct "foo",
+        //    so instead we name it "__anon_struct_foo".
+
+        char const *relName = NULL;
 
         if ((dflags & DF_TYPEDEF) && decllist->count() == 1) {
           IDeclarator *decl = decllist->first()->decl;
-          cs->name = decl->getDeclaratorId();
+          relName = decl->getDeclaratorId()->getName();
         }
-        if (cs->name == NULL) {
-          // fall-back to anonymous
-          cs->name = new PQ_name(SL_UNKNOWN, env.getAnonName(cs->keyword));
-        }
+
+        cs->name = new PQ_name(SL_UNKNOWN, env.getAnonName(cs->keyword, relName));
       }
     }
 
     if (spec->isTS_enumSpec()) {
       TS_enumSpec *es = spec->asTS_enumSpec();
       if (es->name == NULL) {
-        // same as above
+        // anonymous enums - same as above
+
+        char const *relName = NULL;
 
         if ((dflags & DF_TYPEDEF) && decllist->count() == 1) {
           IDeclarator *decl = decllist->first()->decl;
-          es->name = decl->getDeclaratorId()->getName();
+          relName = decl->getDeclaratorId()->getName();
         }
-        if (es->name == NULL) {
-          // fall-back to anonymous
-          es->name = env.getAnonName(TI_ENUM);
-        }
+        es->name = env.getAnonName(TI_ENUM, relName);
       }
     }
   }
@@ -1063,7 +1061,7 @@ void ASTTypeId::mid_tcheck(Env &env, Tcheck &tc)
     // outside a declaration (that is, anyplace ASTTypeId occurs), gcc
     // does not do anonymous union or struct scope promotion, even in
     // C++ mode; so make up a name
-    StringRef fakeName = env.getAnonName(spec->asTS_classSpec()->keyword);
+    StringRef fakeName = env.getAnonName(spec->asTS_classSpec()->keyword, NULL);
     spec->asTS_classSpec()->name = new PQ_name(env.loc(), fakeName);
     TRACE("env", "substituted name " << fakeName <<
                  " in anon type at " << decl->getLoc());
@@ -3437,7 +3435,7 @@ void Declarator::mid_tcheck(Env &env, Tcheck &dt)
   if (!name && (dt.dflags & DF_TEMPL_PARAM)) {
     // give names to all template params, because we need to refer
     // to them in the self-name (in/t0493.cc)
-    name = new PQ_name(this->getLoc(), env.getAnonName("tparam"));
+    name = new PQ_name(this->getLoc(), env.getAnonName("tparam", NULL));
     this->setDeclaratorId(name);
   }
 
@@ -9413,7 +9411,7 @@ void TP_type::itcheck(Env &env, int&)
 {
   if (!name) {
     // name them all for uniformity
-    name = env.getAnonName("tparam");
+    name = env.getAnonName("tparam", NULL);
   }
 
   // cppstd 14.1 is a little unclear about whether the type name is

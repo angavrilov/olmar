@@ -470,12 +470,13 @@ public:      // funcs
   // like the above, but for template *classes*
   TemplateInfo * /*owner*/ takeCTemplateInfo(bool allowInherited = true);
 
-  // return a new name for an anonymous type; 'keyword' says
-  // which kind of type we're naming
-  StringRef getAnonName(TypeIntr keyword);
+  // return a new name for an anonymous type; 'keyword' says which kind of
+  // type we're naming; 'relName' (if !NULL) gives it a deterministic name
+  // instead of an index
+  StringRef getAnonName(TypeIntr keyword, char const *relName);
 
   // more general
-  StringRef getAnonName(char const *why);
+  StringRef getAnonName(char const *why, char const *relName);
 
   // introduce a new compound type name; return the constructed
   // CompoundType's pointer in 'ct', after inserting it into 'scope'

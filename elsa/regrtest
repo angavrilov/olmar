@@ -1123,6 +1123,7 @@ failparse k0114.cc "template parameterized on function (not function pointer)"
 failparse k0115.cc "using own member function"
 failparse k0116.cc "template parameter default instantiating template class"
 failparse k0117.cc "class templatized on int, copy constructor"
+testparse k0118.cc "typedef struct { } *foo"
 
 ### </quarl-testcases-c++>
 
