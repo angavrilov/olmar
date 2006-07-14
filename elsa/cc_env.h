@@ -130,6 +130,11 @@ public:      // data
   // parameters of function types, but the functions themselves appear here so
   // the parameters are reachable (NOTE: at the moment, I don't think anyone
   // is using this information)
+  //
+  // dsw: this is not what we wanted at all!  madeUpVariables has all kinds of
+  // weird crap in it; I vote that you get rid of it.  Things like elaborate
+  // member declarations for implicit members get found by LoweredASTVisitor
+  // anyway.
   ArrayStack<Variable*> &madeUpVariables;
 
   // Just the built-in variables.
