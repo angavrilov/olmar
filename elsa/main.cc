@@ -349,6 +349,7 @@ void doit(int argc, char **argv)
   // dsw: I needed this to persist past typechecking, so I moved it
   // out here.  Feel free to refactor.
   ArrayStack<Variable*> madeUpVariables;
+  ArrayStack<Variable*> builtinVars;
 
   int parseWarnings = 0;
   long parseTime = 0;
@@ -440,7 +441,7 @@ void doit(int argc, char **argv)
     cout << "no-typecheck" << endl;
   } else {
     SectionTimer timer(tcheckTime);
-    Env env(strTable, lang, tfac, madeUpVariables, unit);
+    Env env(strTable, lang, tfac, madeUpVariables, builtinVars, unit);
     try {
       env.tcheckTranslationUnit(unit);
     }
@@ -526,7 +527,7 @@ void doit(int argc, char **argv)
       // this is useful to measure the cost of disambiguation, since
       // now the tree is entirely free of ambiguities
       traceProgress() << "beginning second tcheck...\n";
-      Env env2(strTable, lang, tfac, madeUpVariables, unit);
+      Env env2(strTable, lang, tfac, madeUpVariables, builtinVars, unit);
       unit->tcheck(env2);
       traceProgress() << "end of second tcheck\n";
     }
@@ -637,7 +638,7 @@ void doit(int argc, char **argv)
   if (!tracingSys("parseXml")) {
     // mark "real" (non-template) variables as such
     MarkRealVars markReal;
-    visitRealVarsF(madeUpVariables, markReal);
+    visitVarsF(builtinVars, markReal);
     visitRealVarsF(unit, markReal);
   }
 
@@ -723,8 +724,9 @@ void doit(int argc, char **argv)
 
     if (tracingSys("cloneCheck")) {
       ArrayStack<Variable*> madeUpVariables2;
+      ArrayStack<Variable*> builtinVars2;
       // dsw: I hope you intend that I should use the cloned TranslationUnit
-      Env env3(strTable, lang, tfac, madeUpVariables2, u2);
+      Env env3(strTable, lang, tfac, madeUpVariables2, builtinVars2, u2);
       u2->tcheck(env3);
 
       if (tracingSys("cloneTypedAST")) {

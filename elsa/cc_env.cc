@@ -294,7 +294,9 @@ int throwClauseSerialNumber = 0; // don't make this a member of Env
 int Env::anonCounter = 1;
 
 Env::Env(StringTable &s, CCLang &L, TypeFactory &tf,
-         ArrayStack<Variable*> &madeUpVariables0, TranslationUnit *unit0)
+         ArrayStack<Variable*> &madeUpVariables0,
+         ArrayStack<Variable*> &builtinVars0,
+         TranslationUnit *unit0)
   : ErrorList(),
 
     env(*this),
@@ -314,6 +316,7 @@ Env::Env(StringTable &s, CCLang &L, TypeFactory &tf,
     lang(L),
     tfac(tf),
     madeUpVariables(madeUpVariables0),
+    builtinVars(builtinVars0),
 
     // some special names; pre-computed (instead of just asking the
     // string table for it each time) because in certain situations
@@ -444,10 +447,11 @@ Env::Env(StringTable &s, CCLang &L, TypeFactory &tf,
     CompoundType *bad_alloc_ct;
     Type *t_bad_alloc =
       makeNewCompound(bad_alloc_ct, std_scope, str("bad_alloc"), SL_INIT,
-                      TI_CLASS, true /*forward*/);
+                      TI_CLASS, true /*forward*/, true /*builtin*/);
     if (lang.gcc2StdEqualsGlobalHacks) {
       // using std::bad_alloc;
-      makeUsingAliasFor(SL_INIT, bad_alloc_ct->typedefVar);
+      Variable *using_bad_alloc_ct = makeUsingAliasFor(SL_INIT, bad_alloc_ct->typedefVar);
+      env.builtinVars.push(using_bad_alloc_ct);
       addTypeTag(bad_alloc_ct->typedefVar);
     }
 
@@ -458,7 +462,7 @@ Env::Env(StringTable &s, CCLang &L, TypeFactory &tf,
     {
       CompoundType *dummy;
       makeNewCompound(dummy, std_scope, str("type_info"), SL_INIT,
-                      TI_CLASS, true /*forward*/);
+                      TI_CLASS, true /*forward*/, true /*builtin*/);
     }
 
     // void* operator new(std::size_t sz) throw(std::bad_alloc);
@@ -1043,6 +1047,8 @@ Variable *Env::declareFunctionNargs(
   else {
     addVariable(var);
   }
+
+  env.builtinVars.push(var);
 
   return var;
 }
@@ -2375,7 +2381,7 @@ TemplateInfo * /*owner*/ Env::takeCTemplateInfo(bool allowInherited)
 
 Type *Env::makeNewCompound(CompoundType *&ct, Scope * /*nullable*/ scope,
                            StringRef name, SourceLoc loc,
-                           TypeIntr keyword, bool forward)
+                           TypeIntr keyword, bool forward, bool builtin)
 {
   // make the type itself
   ct = tfac.makeCompoundType((CompoundType::Keyword)keyword, name);
@@ -2386,6 +2392,7 @@ Type *Env::makeNewCompound(CompoundType *&ct, Scope * /*nullable*/ scope,
   // make the implicit typedef
   Type *ret = makeType(ct);
   Variable *tv = makeVariable(loc, name, ret, DF_TYPEDEF | DF_IMPLICIT);
+  if (builtin) env.builtinVars.push(tv);
   ct->typedefVar = tv;
 
   // add the tag to the scope
@@ -2469,6 +2476,7 @@ Type *Env::makeNewCompound(CompoundType *&ct, Scope * /*nullable*/ scope,
                                      DF_TYPEDEF | DF_SELFNAME);
     ct->addUniqueVariable(selfVar);
     addedNewVariable(ct, selfVar);
+    if (builtin) env.builtinVars.push(selfVar);
   }
 
   return ret;
@@ -2733,8 +2741,8 @@ bool sameScopes(Scope *s1, Scope *s2)
   return s1 == s2;
 }
 
-
-void Env::makeUsingAliasFor(SourceLoc loc, Variable *origVar)
+// If a new variable was created, return it, else NULL.
+Variable *Env::makeUsingAliasFor(SourceLoc loc, Variable *origVar)
 {
   Type *type = origVar->type;
   StringRef name = origVar->name;
@@ -2750,7 +2758,7 @@ void Env::makeUsingAliasFor(SourceLoc loc, Variable *origVar)
       (origVar->scope? origVar->scope->isClassScope() : false)) {
     error(stringc << "bad alias `" << name
                   << "': alias and original must both be class members or both not members");
-    return;
+    return NULL;
   }
 
   if (scope->isClassScope()) {
@@ -2785,7 +2793,7 @@ void Env::makeUsingAliasFor(SourceLoc loc, Variable *origVar)
     if (!enclosingClass->hasBaseClass(origVar->scope->curCompound)) {
       error(stringc << "bad alias `" << name
                     << "': original must be in a base class of alias' scope");
-      return;
+      return NULL;
     }
   }
 
@@ -2803,7 +2811,7 @@ void Env::makeUsingAliasFor(SourceLoc loc, Variable *origVar)
       (prior->getUsingAlias() == origVar ||                     // in/t0289.cc
        prior->getUsingAlias() == origVar->getUsingAlias()) &&   // in/t0547.cc
       (scope->isGlobalScope() || scope->isNamespace())) {
-    return;
+    return NULL;
   }
 
   // check for overloading
@@ -2830,7 +2838,7 @@ void Env::makeUsingAliasFor(SourceLoc loc, Variable *origVar)
     else if (enclosingClass) {
       // this error message could be more informative...
       error(stringc << "alias `" << name << "' conflicts with another alias");
-      return;
+      return NULL;
     }
   }
 
@@ -2845,7 +2853,7 @@ void Env::makeUsingAliasFor(SourceLoc loc, Variable *origVar)
 
   if (newVar == prior) {
     // found that the name/type named an equivalent entity
-    return;
+    return NULL;
   }
 
   // hook 'newVar' up as an alias for 'origVar'
@@ -2853,6 +2861,8 @@ void Env::makeUsingAliasFor(SourceLoc loc, Variable *origVar)
 
   TRACE("env", "made alias `" << name <<
                "' for origVar at " << toString(origVar->loc));
+
+  return newVar;
 }
 
 

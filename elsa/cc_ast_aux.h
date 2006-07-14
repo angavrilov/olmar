@@ -315,7 +315,14 @@ class MarkRealVars : public VisitRealVars {
   virtual void visitVariableIdem(Variable *var); // only visits each Variable once
 };
 
-void visitRealVarsF(ArrayStack<Variable*> &madeUpVariables, VisitRealVars &visitReal);
+// Visit vars (whether real or not)
+void visitVarsF(ArrayStack<Variable*> &builtinVars, VisitRealVars &visitReal);
+
+// Visit vars that have been marked real
+void visitVarsMarkedRealF(ArrayStack<Variable*> &builtinVars, VisitRealVars &visitReal);
+
+// Visit the AST.  This visitation does not depend on real markings and
+// therefore is also used to define real markings.
 void visitRealVarsF(TranslationUnit *tunit, VisitRealVars &visitReal);
 
 #endif // CC_AST_AUX_H

@@ -125,12 +125,15 @@ public:      // data
   // interface for making types
   TypeFactory &tfac;
 
-  // client analyses may need to get ahold of all the Variables that I
-  // made up, so this is a list of them; these don't include Variables
-  // built for parameters of function types, but the functions
-  // themselves appear here so the parameters are reachable (NOTE:
-  // at the moment, I don't think anyone is using this information)
+  // client analyses may need to get ahold of all the Variables that I made
+  // up, so this is a list of them; these don't include Variables built for
+  // parameters of function types, but the functions themselves appear here so
+  // the parameters are reachable (NOTE: at the moment, I don't think anyone
+  // is using this information)
   ArrayStack<Variable*> &madeUpVariables;
+
+  // Just the built-in variables.
+  ArrayStack<Variable*> &builtinVars;
 
   // ---- BEGIN: special names ----
   // name under which conversion operators are looked up
@@ -289,7 +292,8 @@ private:     // funcs
 
 public:      // funcs
   Env(StringTable &str, CCLang &lang, TypeFactory &tfac,
-      ArrayStack<Variable*> &madeUpVariables0, TranslationUnit *unit0);
+      ArrayStack<Variable*> &madeUpVariables0, ArrayStack<Variable*> &builtinVars0,
+      TranslationUnit *unit0);
 
   // 'virtual' only to silence stupid warning; destruction is not part of polymorphic contract
   virtual ~Env();
@@ -473,7 +477,7 @@ public:      // funcs
   // (if that is not NULL)
   Type *makeNewCompound(CompoundType *&ct, Scope * /*nullable*/ scope,
                         StringRef name, SourceLoc loc,
-                        TypeIntr keyword, bool forward);
+                        TypeIntr keyword, bool forward, bool builtin);
 
 
   // this is for ErrorList clients
@@ -612,7 +616,7 @@ public:      // funcs
                         MatchFlags mflags = MF_NONE);
 
   // create a "using declaration" alias
-  void makeUsingAliasFor(SourceLoc loc, Variable *origVar);
+  Variable *makeUsingAliasFor(SourceLoc loc, Variable *origVar);
 
   // see comments at implementation site
   void handleTypeOfMain(SourceLoc loc, Variable *prior, Type *&type);

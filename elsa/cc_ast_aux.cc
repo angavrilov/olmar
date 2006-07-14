@@ -1529,8 +1529,15 @@ void MarkRealVars::visitVariableIdem(Variable *var) {
   var->setReal(true);
 }
 
-void visitRealVarsF(ArrayStack<Variable*> &madeUpVariables, VisitRealVars &visitReal) {
-  FOREACH_ARRAYSTACK_NC(Variable*, madeUpVariables, iter) {
+void visitVarsF(ArrayStack<Variable*> &builtinVars, VisitRealVars &visitReal) {
+  FOREACH_ARRAYSTACK_NC(Variable*, builtinVars, iter) {
+    Variable *var = *iter.data();
+    visitReal.visitVariable(var);
+  }
+}
+
+void visitVarsMarkedRealF(ArrayStack<Variable*> &builtinVars, VisitRealVars &visitReal) {
+  FOREACH_ARRAYSTACK_NC(Variable*, builtinVars, iter) {
     Variable *var = *iter.data();
     if (!var->getReal()) continue;
     visitReal.visitVariable(var);

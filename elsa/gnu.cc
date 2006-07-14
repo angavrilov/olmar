@@ -59,6 +59,7 @@ void Env::addGNUBuiltins()
 //                  t_voidptr, DF_TYPEDEF | DF_BUILTIN | DF_GLOBAL);
                  t_ellipsis_ptr, DF_TYPEDEF | DF_BUILTIN | DF_GLOBAL);
   addVariable(var__builtin_va_list);
+  env.builtinVars.push(var__builtin_va_list);
 
   // void __builtin_stdarg_start(__builtin_va_list __list, char const *__format);
   // trying this instead:
@@ -618,7 +619,8 @@ void Env::addGNUBuiltins()
   };
 
   for (int i=0; i < TABLESIZE(arr); i++) {
-    makeImplicitDeclFuncVar(str(stringc << "__builtin_" << arr[i]));
+    Variable *v = makeImplicitDeclFuncVar(str(stringc << "__builtin_" << arr[i]));
+    env.builtinVars.push(v);
   }
 
   // initialize 'complexComponentFields'

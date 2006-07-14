@@ -1975,7 +1975,7 @@ CompoundType *checkClasskeyAndName(
 
       // this sets the parameterized primary of the scope
       env.makeNewCompound(ct, destScope, stringName, loc, keyword,
-                          !definition /*forward*/);
+                          !definition /*forward*/, false /*builtin*/);
 
       if (templateParams) {
         TRACE("template", "template class " << (definition? "defn" : "decl") <<
@@ -1990,7 +1990,7 @@ CompoundType *checkClasskeyAndName(
       // make a new type, since a specialization is a distinct template
       // [cppstd 14.5.4 and 14.7]; but don't add it to any scopes
       env.makeNewCompound(ct, NULL /*scope*/, stringName, loc, keyword,
-                          !definition /*forward*/);
+                          !definition /*forward*/, false /*builtin*/);
 
       if (gcc2hack_explicitSpec) {
         // we need to fake a TemplateInfo
