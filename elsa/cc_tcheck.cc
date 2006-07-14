@@ -962,6 +962,11 @@ void Declaration::tcheck(Env &env, DeclaratorContext context)
         //    Since we may encounter "typedef struct { } *foo" in addition to
         //    "typedef struct { } foo", we can't just name the struct "foo",
         //    so instead we name it "__anon_struct_foo".
+        //
+        //    Note that gcc doesn't allow non-static-linkage functions to have
+        //    parameters with types declared like "typedef struct { } *foo"
+        //    because those are REALLY anonymous structs; so we could actually
+        //    name THOSE by index.
 
         char const *relName = NULL;
 
