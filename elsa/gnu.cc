@@ -1408,6 +1408,53 @@ void D_attribute::tcheck(Env &env, Declarator::Tcheck &dt)
       }
     }
   }
+
+  tcheck_getAlias(&env);
+}
+
+StringRef D_attribute::getAlias() const
+{
+  return tcheck_getAlias(NULL);
+}
+
+// quarl 2006-07-13
+//    Type check attribute((alias("aliasTarget"))), and return alias target if
+//    any.  If penv==NULL, then we must have already typechecked.
+StringRef D_attribute::tcheck_getAlias(Env *penv) const
+{
+  StringRef foundAlias = NULL;
+
+  for (AttributeSpecifierList *l = alist; l; l = l->next) {
+    for (AttributeSpecifier *s = l->spec; s; s = s->next) {
+      if (s->attr->isAT_func()) {
+        AT_func *f = s->attr->asAT_func();
+
+        if (streq(f->f, "alias")) {
+          if (foundAlias) {
+            xassert(penv);
+            penv->error(loc, "more than one attribute alias");
+          }
+          if (f->args->count() != 1) {
+            xassert(penv);
+            penv->error(loc, "too many arguments to attribute alias");
+          }
+          Expression *&expr = f->args->first()->expr;
+          if (!expr->isE_stringLit()) {
+            xassert(penv);
+            penv->error(loc, "illegal argument to attribute alias");
+          }
+          if (penv) {
+            expr->tcheck(*penv, expr);
+          }
+          E_stringLit *str = expr->asE_stringLit();
+          xassert(str->text);
+          xassert(str->fullTextNQ);
+          foundAlias = str->fullTextNQ;
+        }
+      }
+    }
+  }
+  return foundAlias;
 }
 
 

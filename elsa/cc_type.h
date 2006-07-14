@@ -80,7 +80,7 @@ class TypePred;
 extern bool global_mayUseTypeAndVarToCString;
 
 
-// --------------------- type visitor -----------------------        
+// --------------------- type visitor -----------------------
 // Visitor that digs down into template arguments, among other things.
 // Like the AST visitors, the 'visit' functions return true to
 // continue digging into subtrees, or false to prune the search.
@@ -222,7 +222,7 @@ public:     // funcs
 
   // print in "ML" notation (really just more verbose)
   virtual string toMLString() const = 0;
-  
+
   // size this type's representation occupies in memory; this
   // might throw XReprSize, see below
   virtual int reprSize() const = 0;
@@ -243,7 +243,7 @@ class SimpleType : public AtomicType {
 public:     // data
   SimpleTypeId const type;
 
-  // global read-only array for each built-in type        
+  // global read-only array for each built-in type
   // (read-only is enforced by making all of SimpleType's members
   // const, rather then the objects themselves, because doing the
   // latter would clash AtomicType pointers not being const below)
@@ -288,7 +288,7 @@ public:
     : DMEMB(ct), DMEMB(access), DMEMB(isVirtual) {}
   BaseClass(CompoundType *c, AccessKeyword a, bool v)
     : ct(c), access(a), isVirtual(v) {}
-    
+
   // this isn't virtual because the caller always knows the
   // dynamic type
   void traverse(TypeVisitor &vis);
@@ -331,12 +331,13 @@ public:      // types
   enum Keyword { K_STRUCT, K_CLASS, K_UNION, NUM_KEYWORDS };
 
 public:      // data
-  bool forward;               // true when it's only fwd-declared
-  Keyword keyword;            // keyword used to introduce the type
+  bool forward : 1;               // true when it's only fwd-declared
 
   // When true, this is a GNU transparent union.  I think adding
   // a bool like this is inelegant, but oh well.
-  bool isTransparentUnion;
+  bool isTransparentUnion : 1;
+
+  Keyword keyword;            // keyword used to introduce the type
 
   // nonstatic data members, in the order they appear within the body
   // of the class definition; note that this is partially redundant
@@ -364,7 +365,7 @@ public:      // data
   // list of all conversion operators this class has, including
   // those that have been inherited but not then hidden
   SObjList<Variable> conversionOperators;
-  
+
   // list of friends; the friends are members of other scopes, but
   // they can access protected/private members of this class, and
   // argument-dependent lookups in this class can find them
@@ -416,7 +417,7 @@ protected:   // funcs
   CompoundType(Keyword keyword, StringRef name);
   friend class TypeFactory;
   friend class XmlTypeReader;
-  
+
   // override no-op implementation in Scope
   virtual void afterAddVariable(Variable *v);
 
@@ -424,12 +425,12 @@ public:      // funcs
   virtual ~CompoundType();
 
   bool isComplete() const { return !forward; }
-  
+
   // true if this is a class that is incomplete because it requires
   // template arguments to be supplied (i.e. not true for classes
   // that come from templates, but all arguments have been supplied)
   bool isTemplate(bool considerInherited = false) const;
-  
+
   // true if it is an instance (fully concrete type arguments) of some
   // template
   bool isInstantiation() const;
@@ -466,7 +467,7 @@ public:      // funcs
   void addField(Variable *v);
 
   // sm: for compatibility with existing code
-  SObjList<Variable> &getDataVariablesInOrder() 
+  SObjList<Variable> &getDataVariablesInOrder()
     { return dataMembers; }
 
   // return the ordinal position of the named nonstatic data field
@@ -493,7 +494,7 @@ public:      // funcs
   void clearSubobjVisited() const;
 
   // collect all of the subobjects into a list; each subobject
-  // appears exactly once; NOTE: you may want to call 
+  // appears exactly once; NOTE: you may want to call
   // Env::ensureClassBodyInstantiated before calling this, since
   // an uninstantiated class won't have any subobjects yet
   void getSubobjects(SObjList<BaseClassSubobj const> &dest) const;
@@ -523,7 +524,7 @@ public:      // funcs
   // name under which the conversion operators have been filed in
   // the class scope
   virtual void finishedClassDefinition(StringRef specialName);
-  
+
   // true if this is an "aggregate" (8.5.1p1)
   bool isAggregate() const;
 };
@@ -555,7 +556,7 @@ public:     // data
   bool hasNegativeValues;             // true iff some 'value' is negative
 
 public:     // funcs
-  EnumType(StringRef n) 
+  EnumType(StringRef n)
     : NamedAtomicType(n), nextValue(0), hasNegativeValues(false) {}
   ~EnumType();
 
@@ -678,7 +679,7 @@ public:     // funcs
   // NOTE: yes, toMLString() is virtual, whereas toCString() is not
   virtual string toMLString() const = 0;
   void putSerialNo(stringBuilder &sb) const;
-  
+
   // toString+newline to cout
   void gdb() const;
 
@@ -868,7 +869,7 @@ public:
   virtual void traverse(TypeVisitor &vis);
 };
 
-             
+
 // type of a pointer
 class PointerType : public Type {
 public:     // data
@@ -987,7 +988,7 @@ public:
   bool isConversionOperator() const   { return hasFlag(FF_CONVERSION); }
   bool isConstructor() const          { return hasFlag(FF_CTOR); }
   bool isDestructor() const           { return hasFlag(FF_DTOR); }
-  
+
   void setFlag(FunctionFlags f)       { flags |= f; }
   void clearFlag(FunctionFlags f)     { flags &= ~f; }
 
@@ -995,9 +996,9 @@ public:
   // function types, am I equal to 'obj'?
   bool equalOmittingReceiver(FunctionType const *obj) const
     { return equals(obj, MF_STAT_EQ_NONSTAT | MF_IGNORE_IMPLICIT); }
-                                             
+
   // true if all parameters after 'startParam' (0 is first) have
-  // default values      
+  // default values
   bool paramsHaveDefaultsPast(int startParam) const;
 
   // append a parameter to the (ordinary) parameters list
@@ -1015,7 +1016,7 @@ public:
 
   CVFlags getReceiverCV() const;         // dig down; or CV_NONE if !isMember
   CompoundType *getClassOfMember();      // 'isMember' must be true
-  
+
   // the above only works if the function is a member of a concrete
   // class; if it's a member of a template class, this must be used
   NamedAtomicType *getNATOfMember();
@@ -1047,7 +1048,7 @@ public:
 // type of an array
 class ArrayType : public Type {
 public:       // types
-  enum { 
+  enum {
     NO_SIZE = -1,              // no size specified
     DYN_SIZE = -2              // GNU extension: size is not a constant
   };
@@ -1055,7 +1056,7 @@ public:       // types
 public:       // data
   Type *eltType;               // (serf) type of the elements
   int size;                    // specified size (>=0), or NO_SIZE or DYN_SIZE
-  
+
   // Note that whether a size of 0 is legal depends on the current
   // language settings (cc_lang.h), so most code should adapt itself
   // to that possibility.
@@ -1327,7 +1328,7 @@ inline SObjList<T> const & objToSObjListC(ObjList<T> const &list)
 // thrown when the reprSize() function cannot determine an
 // array size
 class XReprSize : public xBase {
-public:          
+public:
   // This is set to true when the reason for failing to determine a
   // size is that a dynamically-sized array was involved (this is a
   // gnu extension).

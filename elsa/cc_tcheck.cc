@@ -953,7 +953,26 @@ void Declaration::tcheck(Env &env, DeclaratorContext context)
     if (spec->isTS_classSpec()) {
       TS_classSpec *cs = spec->asTS_classSpec();
       if (cs->name == NULL) {
-        cs->name = new PQ_name(SL_UNKNOWN, env.getAnonName(cs->keyword));
+        // quarl 2006-07-13
+        //    We want anonymous structs with typedefs to have consistent names
+        //    across translation units, so that functions with such parameters
+        //    mangle properly for linking.  (g++ mangles typedefed anonymous
+        //    structs the same as named structs.)  Since this code is
+        //    technically illegal anyway we can do the simple thing and name
+        //    the compound type by the typedef.  (This is imprecise because
+        //    "typedef struct { } foo" now also creates a "struct foo", but
+        //    who in their right mind would do "typedef struct { } foo" and
+        //    then declare a different "struct foo"?)
+
+        if ((dflags & DF_TYPEDEF) && decllist->count() == 1) {
+          IDeclarator *decl = decllist->first()->decl;
+          cs->name = decl->getDeclaratorId();
+        }
+
+        if (cs->name == NULL) {
+          // fall-back to anonymous
+          cs->name = new PQ_name(SL_UNKNOWN, env.getAnonName(cs->keyword));
+        }
       }
     }
     if (spec->isTS_enumSpec()) {
@@ -965,6 +984,7 @@ void Declaration::tcheck(Env &env, DeclaratorContext context)
   }
 
   // give warning for anonymous struct
+  //    TODO: this seems to be dead code since cs->name is assigned above if NULL
   if (decllist->isEmpty() &&
       spec->isTS_classSpec() &&
       spec->asTS_classSpec()->name == NULL &&
@@ -5274,6 +5294,29 @@ Type *E_stringLit::itcheck_x(Env &env, Expression *&replacement)
     len += strlen(p->text) - 2;   // don't include surrounding quotes
     if (p->text[0]=='L') len--;   // don't count 'L' if present
     p = p->continuation;
+  }
+
+  {
+    // quarl 2006-07-13
+    //    Build the dequoted full text.
+    //
+    //    TODO: could just clobber text+continuations with fullText.  Or just
+    //    do this in parsing...
+    stringBuilder sb(len);
+    p = this;
+    do {
+      char const *s = p->text;
+      if (*s == 'L') ++s;
+      int l = strlen(s);
+      if (l >= 2 && s[0] == '\"' && s[l-1] == '\"') {
+        sb.append(s+1, l-2);
+      } else {
+        // see in/gnu/d0122.c for missing quotes
+        sb.append(s, l);
+      }
+      p = p->continuation;
+    } while(p);
+    fullTextNQ = env.str(sb);
   }
 
   CVFlags stringLitCharCVFlags = CV_NONE;

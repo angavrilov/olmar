@@ -575,7 +575,7 @@ void XmlTypeReader::registerAttr_CompoundType(CompoundType *obj, int attr, char 
 
   switch(attr) {
   default: xmlUserFatalError("illegal attribute for a CompoundType"); break;
-  case XTOK_forward: fromXml_bool(obj->forward, strValue); break;
+  case XTOK_forward: obj->forward = fromXml_bool(strValue); break;
   case XTOK_keyword: fromXml(obj->keyword, strValue); break;
   case XTOK_dataMembers: ulEmbed(dataMembers, XTOK_List_CompoundType_dataMembers); break;
   case XTOK_bases: ulEmbed(bases, XTOK_List_CompoundType_bases); break;
