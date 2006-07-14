@@ -968,17 +968,26 @@ void Declaration::tcheck(Env &env, DeclaratorContext context)
           IDeclarator *decl = decllist->first()->decl;
           cs->name = decl->getDeclaratorId();
         }
-
         if (cs->name == NULL) {
           // fall-back to anonymous
           cs->name = new PQ_name(SL_UNKNOWN, env.getAnonName(cs->keyword));
         }
       }
     }
+
     if (spec->isTS_enumSpec()) {
       TS_enumSpec *es = spec->asTS_enumSpec();
       if (es->name == NULL) {
-        es->name = env.getAnonName(TI_ENUM);
+        // same as above
+
+        if ((dflags & DF_TYPEDEF) && decllist->count() == 1) {
+          IDeclarator *decl = decllist->first()->decl;
+          es->name = decl->getDeclaratorId()->getName();
+        }
+        if (es->name == NULL) {
+          // fall-back to anonymous
+          es->name = env.getAnonName(TI_ENUM);
+        }
       }
     }
   }
