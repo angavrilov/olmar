@@ -3610,7 +3610,8 @@ void Env::mergeDefaultArguments(SourceLoc loc, Variable *prior, FunctionType *ty
 
   // both parameter lists should end simultaneously, otherwise why
   // did I conclude they are declaring the same entity?
-  xassert(priorParam.isDone() && newParam.isDone());
+  xassert(priorParam.isDone() && newParam.isDone() &&
+          "2068fccd-bce0-4634-888c-06063852a47c");
 }
 
 
