@@ -1458,28 +1458,8 @@ bool ReachableVarsTypePred::operator() (Type const *t0) {
     SFOREACH_OBJLIST_NC(Variable, t->asFunctionType()->params, iter) {
       variableVisitor.visitVariable(iter.data());
     }
-  }
-  else if (t->isCompoundType()) {
-    variableVisitor.visitVariable(t->asCompoundType()->typedefVar);
-    typeVisitor.visitScope(t->asCompoundType());
-//     // visit all the variables in the CompoundType superclass
-//     CompoundType *ct = t->asCompoundType();
-//     SObjList<BaseClassSubobj const> subobjs;
-//     ct->getSubobjects(subobjs);
-//     bool sawMyself = false;
-//     SFOREACH_OBJLIST(BaseClassSubobj const, subobjs, iter) {
-//       CompoundType *ct1 = iter.data()->ct;
-//       if (ct1 == ct) sawMyself = true;
-//       if (seenCpdTypes.contains(ct1)) continue;
-//       seenCpdTypes.add(ct1);
-//       for(StringRefMap<Variable>::Iter iter2(ct1->getVariableIter());
-//           !iter2.isDone(); iter2.adv()) {
-// //       SFOREACH_OBJLIST(Variable, ct1->variables, iter) {
-//         // FIX: this can be a template member
-//         variableVisitor.visitVariable(iter2.value());
-//       }
-//     }
-//     xassert(sawMyself);         // make sure we visited ourself
+  } else if (t->isCompoundType()) {
+    typeVisitor.visitCompoundType(t->asCompoundType());
   }
   return false;                 // dummy value; just means keep searching
 }
@@ -1497,6 +1477,30 @@ void ReachableVarsTypeVisitor::visitType(Type *type) {
   xassert(!sat);                // the point was just to visit anyway
 }
 
+void ReachableVarsTypeVisitor::visitCompoundType(CompoundType *ct) {
+  variableVisitor->visitVariable(ct->typedefVar);
+  visitScope(ct);
+  for(StringRefMap<Variable>::Iter iter(ct->getVariableIter()); !iter.isDone(); iter.adv()) {
+    Variable *v = iter.value();
+    if (v->templateInfo() && !v->templateInfo()->isInstantiation()) continue;
+    variableVisitor->visitVariable(v);
+  }
+  for(StringRefMap<Variable>::Iter iter(ct->getTypeTagIter()); !iter.isDone(); iter.adv()) {
+    Variable *v = iter.value();
+    if (v->templateInfo() && !v->templateInfo()->isInstantiation()) continue;
+    variableVisitor->visitVariable(v);
+  }
+  FOREACH_OBJLIST(BaseClass, ct->bases, iter) {
+    visitCompoundType(iter.data()->ct);
+  }
+  SFOREACH_OBJLIST_NC(Variable, ct->conversionOperators, iter) {
+    Variable *v = iter.data();
+    if (v->templateInfo() && !v->templateInfo()->isInstantiation()) continue;
+    variableVisitor->visitVariable(v);
+  }
+  visitType(ct->selfType);
+}
+
 void ReachableVarsTypeVisitor::visitScope(Scope *scope) {
   if (!scope) return;
   // See comment at the declaration of seenScopes.
@@ -1508,13 +1512,17 @@ void ReachableVarsTypeVisitor::visitScope(Scope *scope) {
   visitScope(scope->parentScope);
 }
 
+bool ReachableVarsVariableVisitor::shouldVisitVariable(Variable *var) {
+  return true;
+}
+
 void ReachableVarsVariableVisitor::visitVariable(Variable *var) {
   if (!var) return;
   if (seenVariables.contains(var)) return;
   seenVariables.add(var);
   xassert(!var->isTemplate() && "ee42ebc5-7154-4ace-be35-c2090a2821c5");
   xassert(!var->isUninstTemplateMember());
-  visitVariableIdem(var);
+  if (shouldVisitVariable(var)) visitVariableIdem(var);
   typeVisitor->visitType(var->type);
   typeVisitor->visitScope(var->scope);
 }
