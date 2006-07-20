@@ -3,6 +3,8 @@
 
 open Cc_ml_types
 
+let debug_print_locs = true
+
 (* source loc hashing stuff *)
 type source_loc_hash = 
     (string, string) Hashtbl.t * (nativeint, sourceLoc) Hashtbl.t
@@ -43,7 +45,8 @@ let source_loc_hash_add ((strings, locs) : source_loc_hash)
   in
   let ret = if new_file == file then srcloc else (new_file, line, char) in
     Hashtbl.add locs loc ret;
-    (* Printf.eprintf "srcloc hash %nd -> %s:%d:%d\n%!" loc file line char; *)
+    if debug_print_locs then
+      Printf.eprintf "srcloc hash %nd -> %s:%d:%d\n%!" loc file line char;
     ret
 
 let register_src_loc_callbacks () =

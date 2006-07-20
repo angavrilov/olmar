@@ -96,6 +96,9 @@ ifeq ($(USE_KANDR),1)
   EXT_OBJS    += kandr.o
 endif
 
+# ocaml types for CType and Variable
+CC_AST_MODS += ml_ctype.ast
+
 
 # ----------------------- compiler configuration -------------------
 # C++ preprocessor, compiler and linker
@@ -258,9 +261,9 @@ CCPARSE_ML := \
   cc_ml_types.ml \
   cc_ml_constructors.ml \
   ml_ctype.ml \
-  ml_ctype_constructors.ml \
   cc_ast_gen_type.ml \
   cc_ast_gen.ml \
+  ml_ctype_constructors.ml \
   ast_marshal.ml \
   caml_callbacks.ml
 

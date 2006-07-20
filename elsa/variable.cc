@@ -4,7 +4,8 @@
 #include "variable.h"      // this module
 #include "template.h"      // CType, TemplateInfo, etc.
 #include "trace.h"         // tracingSys
-
+#include "cc_ocaml.h"	   // ToOcamlData
+#include "cc.ast.gen.h"    // Function::toOcaml, Variable::toOcaml
 
 string toXml_Variable_intData(unsigned id) {
   return stringc << static_cast<int>(id);
@@ -67,11 +68,12 @@ Variable::Variable(SourceLoc L, StringRef n, CType *t, DeclFlags f)
     name(n),
     type(t),
     flags(f),
-    value(NULL),
+    varValue(NULL),
     defaultParamType(NULL),
     funcDefn(NULL),
     overload(NULL),
     scope(NULL),
+    ocaml_val(0),
     intData(0),
     usingAlias_or_parameterizedEntity(NULL),
     templInfo(NULL)
@@ -115,11 +117,12 @@ Variable::Variable(ReadXML&)
     name(NULL),
     type(NULL),
     flags(DF_NONE),
-    value(NULL),
+    varValue(NULL),
     defaultParamType(NULL),
     funcDefn(NULL),
     overload(NULL),
     scope(NULL),
+    ocaml_val(0),
     intData(0),
     usingAlias_or_parameterizedEntity(NULL),
     templInfo(NULL)
@@ -322,8 +325,8 @@ string Variable::toCStringAsParameter() const
     sb << type->toCString(name);
   }
 
-  if (value) {
-    sb << renderExpressionAsString(" = ", value);
+  if (varValue) {
+    sb << renderExpressionAsString(" = ", varValue);
   }
   return sb;
 }
@@ -635,6 +638,67 @@ void Variable::traverse(TypeVisitor &vis) {
     type->traverse(vis);
   }
   vis.postvisitVariable(this);
+}
+
+
+// ocaml serialization method for Variable
+// hand written ocaml serialization function
+value Variable::toOcaml(ToOcamlData *data){
+  CAMLparam0();
+  CAMLlocalN(var, 7);
+  
+  if(ocaml_val) {
+    cerr << "SHARED VALUE FOUND!\n" << flush;
+    CAMLreturn(ocaml_val);
+  }
+  static value * create_variable_constructor_closure = NULL;
+  if(create_variable_constructor_closure == NULL)
+    create_variable_constructor_closure =
+      caml_named_value("create_variable_constructor");
+
+  if(data->stack.contains(this)) {
+    cerr << "cyclic ast detected during ocaml serialization\n";
+    xassert(false);
+  } else {
+    data->stack.add(reinterpret_cast<char *>(this) +8);
+  }
+
+  var[0] = ocaml_from_SourceLoc(loc, data);
+  var[1] = ocaml_from_StringRef(name, data);
+  // type field seems to point upwards, at least sometimes
+  // var[2] = type->toOcaml(data);
+  var[2] = Val_unit; // = Upward_pointer_in_type_structure
+  var[3] = ocaml_from_DeclFlags(flags, data);
+
+  if(varValue) {
+    var[4] = varValue->toOcaml(data);
+    var[4] = option_some_constr(var[4]);
+  }
+  else
+    var[4] = Val_None;
+
+  if(defaultParamType) {
+    var[5] = defaultParamType->toOcaml(data);
+    var[5] = option_some_constr(var[5]);
+  }
+  else
+    var[5] = Val_None;
+
+  if(funcDefn) {
+    var[6] = funcDefn->toOcaml(data);
+    var[6] = option_some_constr(var[5]);
+  }
+  else
+    var[5] = Val_None;
+
+  caml_register_global_root(&ocaml_val);
+  ocaml_val = caml_callbackN(*create_variable_constructor_closure,
+                             7, var);
+  xassert(IS_OCAML_AST_VALUE(ocaml_val));
+
+  data->stack.remove(this);
+  CAMLreturn(ocaml_val);
+
 }
 
 

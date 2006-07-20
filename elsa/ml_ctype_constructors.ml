@@ -2,7 +2,7 @@
 (* hand written constructor callbacks for ml_ctype *)
 
 open Ml_ctype
-
+open Cc_ast_gen_type
 
 (* type array_size *)
 
@@ -56,6 +56,19 @@ let create_K_CLASS_constructor () = K_CLASS
 let create_K_UNION_constructor () = K_UNION
 
 
+(* type variable *)
+
+let create_variable_constructor loc name var_type flags value defparam funcdef =
+  { loc = loc;
+    var_name = name;
+    var_type = var_type;
+    flags = flags;
+    value = value;
+    defaultParam = defparam;
+    funcDefn = funcdef;
+  }
+
+
 (* type baseClass *)
 let create_baseClass_constructor compound access is_virtual =
   { compound = compound;
@@ -69,7 +82,7 @@ let create_baseClass_constructor compound access is_virtual =
 let create_compound_info_constructor 
     name typedef_var access is_forward_decl keyword data_members bases 
     conversion_operators friends inst_name self_type =
-  { name = name;
+  { compound_name = name;
     typedef_var = typedef_var;
     ci_access = access;
     is_forward_decl = is_forward_decl;
@@ -113,7 +126,10 @@ let register_ml_ctype_constructor_callbacks () =
   Callback.register "create_array_size_FIXED_SIZE_constructor" 
     create_array_size_FIXED_SIZE_constructor;
 
-  (* from basClass *)
+  (* from variable *)
+  Callback.register "create_variable_constructor" create_variable_constructor;
+
+  (* from baseClass *)
   Callback.register "create_baseClass_constructor" create_baseClass_constructor;
 
   (* from compound_info *)

@@ -306,7 +306,7 @@ StandardConversion tryCallCtor
   }
 
   if (numParams > 1) {
-    if (ft->params.nthC(1)->value) {
+    if (ft->params.nthC(1)->varValue) {
       // the 2nd param has a default, which implies all params
       // after have defaults, so this is ok
     }

@@ -1,3 +1,14 @@
+2006-07-20  Hendrik Tews  <tews@localhost.localdomain>
+
+	* rename Variable.value -> Variable.varValue (Variable.value
+	  clashes with ocaml value) 
+	* started ocaml serialization for Variable's
+	* hand translated variable type is mutually recursive with other
+	  astgen ast types. These recursive types are now in a separate
+	  ml_ctype.ast file, which is processed by astgen.
+	* some debugging changes to explore the backward pointer problem
+	  (will be undone later)	
+
 2006-06-21  Hendrik Tews  <tews@debian>
 
 	* fixed ocaml_val init bug

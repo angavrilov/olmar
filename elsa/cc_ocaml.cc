@@ -28,12 +28,6 @@ ToOcamlData::~ToOcamlData() {
 }
 
 
-// Variable, CType hack
-// hand written ocaml serialization function
-value ocaml_from_Variable(const Variable &, ToOcamlData *){
-  return Val_unit;
-}
-
 
 // hand written ocaml serialization function
 value ocaml_from_SourceLoc(const SourceLoc &loc, ToOcamlData *d){

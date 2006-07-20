@@ -53,16 +53,16 @@ STemplateArgument *Env::makeDefaultTemplateArgument
   
   // non-type parameter?
   else if (!param->hasFlag(DF_TYPEDEF) &&
-           param->value) {
+           param->varValue) {
     try {
       STemplateArgument *ret = new STemplateArgument;
-      *ret = applyArgumentMapToExpression(map, param->value);
+      *ret = applyArgumentMapToExpression(map, param->varValue);
       return ret;
     }
     catch (XTypeDeduction &x) {
       HANDLER();
       error(stringc << "could not evaluate default argument `"
-                    << param->value->exprToString() 
+                    << param->varValue->exprToString() 
                     << "': " << x.why());
       return NULL;
     }

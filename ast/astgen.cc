@@ -812,6 +812,9 @@ void HGen::emitCtorDefn(ASTClass const &cls, ASTClass const *parent,
 	if (ct++ > 0) {
 	  out << ", ";
 	}
+        else {
+          out << " : ";
+        }
 	out << "ocaml_val(0) ";
       }
 

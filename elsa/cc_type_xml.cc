@@ -548,7 +548,7 @@ void TypeToXml::toXml(Variable *var) {
   printStrRef(name, var->name);
   printPtr(var, type);
   printXml(flags, var->flags);
-  printPtrAST(var, value);
+  printPtrAST(var, varValue);
   printPtr(var, defaultParamType);
   printPtrAST(var, funcDefn);
   printPtr(var, overload);
@@ -565,7 +565,7 @@ void TypeToXml::toXml(Variable *var) {
   tagEnd;
   // **** subtags
   trav(var->type);
-  travAST(var->value);
+  travAST(var->varValue);
   trav(var->defaultParamType);
   travAST(var->funcDefn);
   trav(var->overload);
@@ -1392,7 +1392,7 @@ void TypeXmlReader::registerAttr_Variable(Variable *obj, int attr, char const *s
   case XTOK_type: ul(type, XTOK_CType); break;
   case XTOK_flags:
     fromXml(const_cast<DeclFlags&>(obj->flags), parseQuotedString(strValue)); break;
-  case XTOK_value: ul(value, XTOK_Expression); break;
+  case XTOK_value: ul(varValue, XTOK_Expression); break;
   case XTOK_defaultParamType: ul(defaultParamType, XTOK_CType); break;
   case XTOK_funcDefn: ul(funcDefn, XTOK_Function); break;
   case XTOK_overload: ul(overload, XTOK_OverloadSet); break;

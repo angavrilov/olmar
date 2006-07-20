@@ -68,7 +68,7 @@ bool isCopyConstructor(Variable const *funcVar, CompoundType *ct)
       first_time = false;
       continue;
     }
-    if (!paramiter.data()->value) return false;
+    if (!paramiter.data()->varValue) return false;
   }
 
   return true;                  // all test pass
@@ -3429,24 +3429,24 @@ void Env::mergeDefaultArguments(SourceLoc loc, Variable *prior, FunctionType *ty
     Variable *p = priorParam.data();
     Variable *n = newParam.data();
 
-    if (n->value) {
+    if (n->varValue) {
       seenSomeDefaults = true;
       
-      if (p->value) {
+      if (p->varValue) {
         error(loc, stringc
           << "declaration of `" << prior->name
           << "' supplies a redundant default argument for parameter "
           << paramCt);
       }
       else {
-        // augment 'p' with 'n->value'
+        // augment 'p' with 'n->varValue'
         //
         // TODO: what are the scoping issues w.r.t. evaluating
         // default arguments?
-        p->value = n->value;
+        p->varValue = n->varValue;
       }
     }
-    else if (!p->value && seenSomeDefaults) {
+    else if (!p->varValue && seenSomeDefaults) {
       error(loc, stringc
         << "declaration of `" << prior->name
         << "' supplies some default arguments, but no default for later parameter "
@@ -5252,7 +5252,7 @@ bool DefaultArgumentChecker::visitIDeclarator(IDeclarator *obj)
           // arg from the AST and attach it to the Variable
           xassert(d->init->isIN_expr());    // should be parse failure otherwise, I think
           IN_expr *ie = d->init->asIN_expr();
-          d->var->value = ie->e;
+          d->var->varValue = ie->e;
           ie->e = NULL;
         }
       }

@@ -1643,7 +1643,7 @@ bool Env::insertTemplateArgBindings_oneParamList
     }
     else if (!param->hasFlag(DF_TYPEDEF) &&
              (!sarg || sarg->isObject())) {
-      if (!sarg && !param->value) {
+      if (!sarg && !param->varValue) {
         error(stringc
           << "too few template arguments to `" << baseV->name << "'");
         return false;
@@ -1665,7 +1665,7 @@ bool Env::insertTemplateArgBindings_oneParamList
 
       // set 'bindings->value', in some cases creating AST
       if (!sarg) {
-        binding->value = param->value;
+        binding->varValue = param->varValue;
 
         // sm: the statement above seems reasonable, but I'm not at
         // all convinced it's really right... has it been tcheck'd?
@@ -1689,34 +1689,34 @@ bool Env::insertTemplateArgBindings_oneParamList
         // indirection through the 'binding' variable.
 
         case STemplateArgument::STA_INT: {
-          binding->value = build_E_intLit(sarg->getInt());
+          binding->varValue = build_E_intLit(sarg->getInt());
           break;
         }
         case STemplateArgument::STA_ENUMERATOR: {
-          binding->value = build_E_variable(sarg->getEnumerator());
+          binding->varValue = build_E_variable(sarg->getEnumerator());
           break;
         }
         case STemplateArgument::STA_REFERENCE: {
-          binding->value = build_E_variable(sarg->getReference());
+          binding->varValue = build_E_variable(sarg->getReference());
           break;
         }
         case STemplateArgument::STA_POINTER: {
-          binding->value = build_E_addrOf(build_E_variable(sarg->getPointer()));
+          binding->varValue = build_E_addrOf(build_E_variable(sarg->getPointer()));
           break;
         }
         case STemplateArgument::STA_MEMBER: {
-          binding->value = build_E_addrOf(build_E_variable(sarg->getMember()));
+          binding->varValue = build_E_addrOf(build_E_variable(sarg->getMember()));
           break;
         }
         case STemplateArgument::STA_DEPEXPR: {
-          binding->value = sarg->getDepExpr();
+          binding->varValue = sarg->getDepExpr();
           break;
         }
         default: {
           xunimp("template template parameters");
         }
       }
-      xassert(binding->value);
+      xassert(binding->varValue);
 
       if (param->type->containsGeneralizedDependent()) {
         // (in/t0505.cc) the parameter type probably depends on 
@@ -1727,7 +1727,7 @@ bool Env::insertTemplateArgBindings_oneParamList
         // TODO: do it right, by building an MType
         // and using applyArgumentMap
       }
-      else if (binding->value->type->containsGeneralizedDependent()) {
+      else if (binding->varValue->type->containsGeneralizedDependent()) {
         // originally I added this to parallel the above case, but
         // that was wrong, and now I have fixed default argument
         // generation so this should never happen
@@ -1738,8 +1738,8 @@ bool Env::insertTemplateArgBindings_oneParamList
         // (TODO: this isn't exactly what 14.3.2p5 says)
         string errorMsg;
         if (SC_ERROR == getStandardConversion(&errorMsg,
-                                              binding->value->getSpecial(lang),
-                                              binding->value->type,
+                                              binding->varValue->getSpecial(lang),
+                                              binding->varValue->type,
                                               param->type,
                                               false /*destIsReceiver*/)) {
           error(errorMsg);
@@ -2096,8 +2096,8 @@ void cloneDefaultArguments(Variable *inst, TemplateInfo *instTI,
 
   for (; !instParam.isDone() && !primaryParam.isDone();
        instParam.adv(), primaryParam.adv()) {
-    if (primaryParam.data()->value) {
-      instParam.data()->value = primaryParam.data()->value->clone();
+    if (primaryParam.data()->varValue) {
+      instParam.data()->varValue = primaryParam.data()->varValue->clone();
       instTI->uninstantiatedDefaultArgs++;
     }
     else {
@@ -2118,7 +2118,7 @@ int countParamsWithDefaults(FunctionType *ft)
 {
   int ret = 0;
   SFOREACH_OBJLIST(Variable, ft->params, iter) {
-    if (iter.data()->value) {
+    if (iter.data()->varValue) {
       ret++;
     }
   }
@@ -2148,7 +2148,7 @@ void syncDefaultArgsWithDefinition(Variable *instV, TemplateInfo *instTI)
   for (; syntactic && !semantic.isDone();
        syntactic = syntactic->butFirst(), semantic.adv()) {
     Variable *sem = semantic.data();
-    if (!sem->value) {
+    if (!sem->varValue) {
       continue;
     }
 
@@ -2163,7 +2163,7 @@ void syncDefaultArgsWithDefinition(Variable *instV, TemplateInfo *instTI)
     }
 
     d->init = new IN_expr(sem->loc /* not perfect, but it will do */,
-                          sem->value);
+                          sem->varValue);
   }
 
   // should end at the same time, except for possibly a trailing 
@@ -2201,7 +2201,7 @@ void Env::instantiateDefaultArgs(Variable *instV, int neededDefaults)
   int noDefaults = 0;
   {
     SFOREACH_OBJLIST(Variable, ft->params, iter) {
-      if (iter.data()->value) {
+      if (iter.data()->varValue) {
         haveDefaults++;
       }
       else {
@@ -2262,8 +2262,8 @@ void Env::instantiateDefaultArgs(Variable *instV, int neededDefaults)
   // tcheck some of the args
   for (int i = noDefaults+m; i < noDefaults+n+m; i++) {
     Variable *param = ft->params.nth(i);
-    if (param->value) {
-      param->value->tcheck(*this, param->value);
+    if (param->varValue) {
+      param->varValue->tcheck(*this, param->varValue);
       instTI->uninstantiatedDefaultArgs--;
     }
     else {
@@ -3603,7 +3603,7 @@ bool Env::mergeParameterLists(Variable *prior,
     }
 
     // what's up with their default arguments?
-    if (dest->value && src->value) {
+    if (dest->varValue && src->varValue) {
       // this message could be expanded...
       error("cannot specify default value of template parameter more than once");
       return false;
@@ -3613,17 +3613,17 @@ bool Env::mergeParameterLists(Variable *prior,
     // default value which refers to an earlier template parameter,
     // but the name of that parameter has been changed
     if (anyNameChanges &&              // earlier param changed
-        dest->value) {                 // prior has a value
+        dest->varValue) {                 // prior has a value
       // leave it as a to-do for now; a proper implementation should
       // remember the name substitutions done so far, and apply them
-      // inside the expression for 'dest->value'
+      // inside the expression for 'dest->varValue'
       xfailure("unimplemented: alpha conversion inside default values"
                " (workaround: use consistent names in template parameter lists)");
     }
 
     // merge their default values
-    if (src->value && !dest->value) {
-      dest->value = src->value;
+    if (src->varValue && !dest->varValue) {
+      dest->varValue = src->varValue;
     }
 
     // do they use the same name?
@@ -3646,7 +3646,7 @@ bool Env::mergeParameterLists(Variable *prior,
       Variable *v = makeVariable(dest->loc, src->name, src->type, dest->flags);
       
       // copy a few other fields, including default value
-      v->value = dest->value;
+      v->varValue = dest->varValue;
       v->defaultParamType = dest->defaultParamType;
       v->scope = dest->scope;
       v->setScopeKind(dest->getScopeKind());
@@ -3753,11 +3753,11 @@ CType *Env::applyArgumentMapToType(MType &map, CType *origSrc)
         Variable *rp = makeVariable(sp->loc, sp->name,
           applyArgumentMapToType(map, sp->type), sp->flags);
           
-        if (sp->value) {
+        if (sp->varValue) {
           // TODO: I should be substituting the template parameters
           // in the default argument too... but for now I will just
           // use it without modification
-          rp->value = sp->value;
+          rp->varValue = sp->varValue;
         }
 
         rft->addParam(rp);

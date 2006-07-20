@@ -697,13 +697,13 @@ CValue ConstEval::evaluateVariable(Variable *var)
 
   if (var->type->isCVAtomicType() &&
       (var->type->asCVAtomicTypeC()->cv & CV_CONST) &&
-      var->value) {
+      var->varValue) {
     // const variable
-    return var->value->constEval(*this);
+    return var->varValue->constEval(*this);
   }
 
   if (var->type->isGeneralizedDependent() &&
-      var->value) {
+      var->varValue) {
     return CValue(ST_DEPENDENT);
   }
 

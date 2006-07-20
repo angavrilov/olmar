@@ -917,7 +917,7 @@ Candidate * /*owner*/ OverloadResolver::makeCandidate
 
   // extra parameters?
   if (!paramIter.isDone()) {
-    if (paramIter.data()->value) {
+    if (paramIter.data()->varValue) {
       // the next parameter has a default value, which implies all
       // subsequent parameters have default values as well; for
       // purposes of overload resolution, we simply ignore the extra

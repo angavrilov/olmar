@@ -2732,7 +2732,7 @@ void checkOperatorOverload(Env &env, Declarator::Tcheck &dt,
 
     // cannot have any default arguments
     SFOREACH_OBJLIST(Variable, ft->params, iter) {
-      if (iter.data()->value != NULL) {
+      if (iter.data()->varValue != NULL) {
         env.error(loc, stringc << strname << " cannot have default arguments");
       }
     }
@@ -3772,7 +3772,7 @@ void Declarator::tcheck_init(Env &env)
 
   // remember the initializing value, for const values
   if (init->isIN_expr()) {
-    var->value = init->asIN_exprC()->e;
+    var->varValue = init->asIN_exprC()->e;
   }
 
   // use the initializer size to refine array types
@@ -5825,7 +5825,7 @@ int compareArgsToParams(Env &env, FunctionType *ft, FakeList<ArgExpression> *arg
   if (argIter->isEmpty()) {
     // check that all remaining parameters have default arguments
     for (; !paramIter.isDone(); paramIter.adv(), paramIndex++) {
-      if (!paramIter.data()->value) {
+      if (!paramIter.data()->varValue) {
         env.error(stringc
           << "no argument supplied for parameter " << paramIndex);
       }

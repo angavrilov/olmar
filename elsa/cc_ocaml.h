@@ -43,10 +43,6 @@ value ocaml_from_CompoundType_Keyword(const CompoundType::Keyword &,
 				      ToOcamlData *);
 
 
-// Variable, CType hack
-value ocaml_from_Variable(const Variable &, ToOcamlData *);
-
-
 // value ocaml_from_(const  &, ToOcamlData *);
 
 #endif // CC_OCAML_H

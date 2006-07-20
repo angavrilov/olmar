@@ -38,6 +38,7 @@
 #include "cc_flags.h"          // DeclFlags, ScopeKind
 #include "sobjlist.h"          // SObjList
 #include "serialno.h"          // INHERIT_SERIAL_BASE
+#include "ocamlhelp.h"	       // ocaml serialization helpers
 
 class CType;                    // cc_type.h
 class TypeVisitor;             // cc_type.h
@@ -82,7 +83,7 @@ public:    // data
   // if this Variable is a parameter of a template function, then this
   // 'value' might not have been tchecked; you have to look at the
   // associated TemplateInfo::uninstantiatedDefaultArgs to find out
-  Expression *value;      // (nullable serf)
+  Expression *varValue;      // (nullable serf)
 
   // default value for template parameters; see TODO at end
   // of this file
@@ -104,6 +105,9 @@ public:    // data
   // namespace it names, rather than the containing scope; see
   // getDenotedScope()
   Scope *scope;           // (nullable serf)
+
+protected:  // data
+  value ocaml_val;       // cache ocaml serialization result
 
 private:      // data
 
@@ -317,7 +321,15 @@ public:
   // dsw: Variables are part of the type system at least for purposes
   // of traversal
   void traverse(TypeVisitor &vis);
+
+  // ocaml serialization method
+  // define this in the real type classes derived from CType
+  value toOcaml(ToOcamlData *);
 };
+
+inline value ocaml_from_Variable(Variable &v, ToOcamlData *d) {
+  return v.toOcaml(d);
+}
 
 inline string toString(Variable const *v) { return v->toString(); }
 

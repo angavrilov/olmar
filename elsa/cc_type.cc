@@ -351,7 +351,7 @@ value BaseClass::toOcaml(ToOcamlData *data){
   CAMLlocal3(oct, oaccess, is_virt);
 
   if(ocaml_val) {
-    cerr << "SHARED VALUE FOUND!\n" << flush;
+    cerr << "SHARED VALUE FOUND BC!\n" << flush;
     CAMLreturn(ocaml_val);
   }
   static value * create_baseClass_constructor_closure = NULL;
@@ -1158,13 +1158,14 @@ bool CompoundType::isAggregate() const
 
 
 // ocaml serialization method -- build to compound info
+// hand written ocaml serialization function
 value CompoundType::toCompoundInfo(ToOcamlData *data){
   CAMLparam0();
   CAMLlocalN(info, 11);
   CAMLlocal2(elem, tmp);
 
   if(ocaml_info) {
-    cerr << "SHARED VALUE FOUND!\n" << flush;
+    cerr << "SHARED VALUE FOUND 1!\n" << flush;
     CAMLreturn(ocaml_info);
   }
   static value * create_compound_info_constructor_closure = NULL;
@@ -1181,14 +1182,14 @@ value CompoundType::toCompoundInfo(ToOcamlData *data){
   }
 
   info[0] = ocaml_from_StringRef(name, data);
-  info[1] = ocaml_from_Variable(*typedefVar, data);
+  info[1] = typedefVar->toOcaml(data);
   info[2] = ocaml_from_AccessKeyword(access, data);
   info[3] = ocaml_from_bool(forward, data);
   info[4] = ocaml_from_CompoundType_Keyword(keyword, data);
   
   info[5] = Val_emptylist;
   for(int i = dataMembers.count() -1; i >= 0; i--) {
-    elem = ocaml_from_Variable(*dataMembers.nth(i), data);
+    elem = dataMembers.nth(i)->toOcaml(data);
     tmp = caml_alloc(2, Tag_cons);  // allocate a cons cell
     Store_field(tmp, 0, elem);      // store car
     Store_field(tmp, 1, info[5]);    // store cdr
@@ -1206,7 +1207,7 @@ value CompoundType::toCompoundInfo(ToOcamlData *data){
   
   info[7] = Val_emptylist;
   for(int i = conversionOperators.count() -1; i >= 0; i--) {
-    elem = ocaml_from_Variable(*conversionOperators.nth(i), data);
+    elem = conversionOperators.nth(i)->toOcaml(data);
     tmp = caml_alloc(2, Tag_cons);  // allocate a cons cell
     Store_field(tmp, 0, elem);      // store car
     Store_field(tmp, 1, info[7]);    // store cdr
@@ -1215,7 +1216,7 @@ value CompoundType::toCompoundInfo(ToOcamlData *data){
   
   info[8] = Val_emptylist;
   for(int i = friends.count() -1; i >= 0; i--) {
-    elem = ocaml_from_Variable(*friends.nth(i), data);
+    elem = friends.nth(i)->toOcaml(data);
     tmp = caml_alloc(2, Tag_cons);  // allocate a cons cell
     Store_field(tmp, 0, elem);      // store car
     Store_field(tmp, 1, info[8]);    // store cdr
@@ -1226,14 +1227,15 @@ value CompoundType::toCompoundInfo(ToOcamlData *data){
 
   // info[10] = selfType->toOcaml(data);
   // upward pointer hack
-  if(data->stack.contains(selfType)) {
-    info[10] = Val_unit; // = Upward_pointer_in_type_structure
-    cerr << "CompoundType::selfType upward pointing" << endl;
-  }
-  else {
-    info[10] = selfType->toOcaml(data);
-    cerr << "CompoundType::selfType not upward pointing" << endl;
-  }
+  // if(data->stack.contains(selfType)) {
+  //   info[10] = Val_unit; // = Upward_pointer_in_type_structure
+  //   cerr << "CompoundType::selfType upward pointing" << endl;
+  // }
+  // else {
+  //   info[10] = selfType->toOcaml(data);
+  //   cerr << "CompoundType::selfType not upward pointing" << endl;
+  // }
+  info[10] = Val_unit; // = Upward_pointer_in_type_structure
   
   caml_register_global_root(&ocaml_info);
   ocaml_info = caml_callbackN(*create_compound_info_constructor_closure,
@@ -1252,7 +1254,7 @@ value CompoundType::toOcaml(ToOcamlData *data){
   CAMLlocal1(info);
 
   if(ocaml_val) {
-    cerr << "SHARED VALUE FOUND!\n" << flush;
+    // cerr << "SHARED VALUE FOUND 2!\n" << flush;
     CAMLreturn(ocaml_val);
   }
   static value * create_atomic_CompoundType_constructor_closure = NULL;
@@ -2240,7 +2242,7 @@ bool FunctionType::paramsHaveDefaultsPast(int startParam) const
 
   // all remaining parameters must accept defaults
   for (; !iter.isDone(); iter.adv()) {
-    if (!iter.data()->value) {
+    if (!iter.data()->varValue) {
       return false;     // doesn't have a default value
     }
   }
@@ -2565,7 +2567,7 @@ value FunctionType::toOcaml(ToOcamlData * data){
 
   child[2] = Val_emptylist;
   for(int i = params.count() -1; i >= 0; i--) {
-    elem = ocaml_from_Variable(*params.nth(i), data); 
+    elem = params.nth(i)->toOcaml(data); 
     tmp = caml_alloc(2, Tag_cons);  // allocate a cons cell
     Store_field(tmp, 0, elem);      // store car
     Store_field(tmp, 1, child[2]);    // store cdr

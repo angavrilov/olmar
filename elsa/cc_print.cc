@@ -632,8 +632,8 @@ string TypePrinterC::printAsParameter(Variable const *var)
     sb << print(var->type, var->name);
   }
 
-  if (var->value) {
-    sb << renderExpressionAsString(" = ", var->value);
+  if (var->varValue) {
+    sb << renderExpressionAsString(" = ", var->varValue);
   }
   return sb;
 }
@@ -1620,8 +1620,8 @@ void E_variable::iprint(PrintEnv &env)
   if (var && var->isBoundTemplateParam()) {
     // this is a bound template variable, so print its value instead
     // of printing its name
-    xassert(var->value);
-    var->value->print(env);
+    xassert(var->varValue);
+    var->varValue->print(env);
   }
   else {
     *env.out << name->qualifierString() << name->getName();
