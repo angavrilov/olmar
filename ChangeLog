@@ -1,5 +1,10 @@
+2006-07-20  Hendrik Tews  <tews@debian>
+
+	* remove new vendor files again
+
 2006-07-20  Hendrik Tews  <tews@localhost.localdomain>
 
+	ELSA
 	* rename Variable.value -> Variable.varValue (Variable.value
 	  clashes with ocaml value) 
 	* started ocaml serialization for Variable's
