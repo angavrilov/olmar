@@ -324,11 +324,18 @@ bool Variable::isUninstTemplateMember() const
 }
 
 
+bool Variable::isUninstClassTemplMethod() const
+{
+  return hasFlag(DF_VIRTUAL) && type->isMethod() && isInstantiation() && !funcDefn;
+}
+
+
 bool Variable::isTemplate(bool considerInherited) const
 {
   return templateInfo() &&
          templateInfo()->hasParametersEx(considerInherited);
 }
+
 
 bool Variable::isTemplateFunction(bool considerInherited) const
 {
@@ -337,6 +344,7 @@ bool Variable::isTemplateFunction(bool considerInherited) const
          isTemplate(considerInherited) &&
          !hasFlag(DF_TYPEDEF);
 }
+
 
 bool Variable::isTemplateClass(bool considerInherited) const
 {

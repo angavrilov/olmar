@@ -280,6 +280,11 @@ public:
   // are we an uninstantiated template or a member of one?
   bool isUninstTemplateMember() const;
 
+  // dsw: need a way to tell if a Variable is a method on a
+  // templatized class that was never instantiated because it was
+  // never used
+  bool isUninstClassTemplMethod() const;
+
   // variable's type.. same as the public 'type' field..
   Type *getType() { return type; }
   Type const *getTypeC() const { return type; }
