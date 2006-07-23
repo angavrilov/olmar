@@ -16,7 +16,11 @@ ocaml_type_verbatim {
 and variable = {
   loc : sourceLoc;
   var_name : string;
-  var_type : cType;
+
+  (* var_type is circular for compound types that have an implicit 
+   * typedef variable
+   *)
+  var_type : cType option ref;
   flags : declFlags;
   value : expression_type option;
   defaultParam : cType option;
@@ -56,7 +60,8 @@ and compound_info = {
   (* mutable syntax : typeSpecifier_type = TS_classSpec list;  * ast node *)
   (* scope : Scope *)
 
-  self_type : cType;			(* type of the compound *)
+  (* self_type is circular for compounds like in t0009.cc *)
+  self_type : cType option ref;		(* type of the compound *)
 }
 
 and atomicType = 

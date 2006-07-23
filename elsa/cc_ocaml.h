@@ -12,16 +12,46 @@
 #include "cc_type.h"       // CType, FunctonType, CompoundType
 
 
-extern bool caml_start_up_done;
+enum CircularAstType {
+  CA_Empty,
+  CA_Type
+};
+
+
+class CircularAstPart {
+ public:
+  CircularAstType ca_type;
+  union {
+    CType * type; 		/* tagged CA_Type */
+  } ast;
+  value val;
+  unsigned field;
+  CircularAstPart * next;
+
+  CircularAstPart();
+  ~CircularAstPart();
+};                                          
+
 
 class ToOcamlData {
 public:
   SObjSet<const void*> stack;		// used to detect cycles in the ast
   value source_loc_hash;
+  unsigned postponed_count;
+  CircularAstPart * postponed_circles;
+
   ToOcamlData();
   ~ToOcamlData();
 };
 
+
+value ref_None_constr(ToOcamlData * data);
+void postpone_circular_type(ToOcamlData * data, value val, 
+			    unsigned field, CType * type);
+void finish_circular_pointers(ToOcamlData * data);
+
+
+extern bool caml_start_up_done;
 
 value ocaml_from_SourceLoc(const SourceLoc &, ToOcamlData *);
 

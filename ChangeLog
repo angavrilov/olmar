@@ -1,3 +1,13 @@
+2006-07-24  Hendrik Tews  <tews@debian>
+
+	* started support for circular structures
+	  Potentially circular pointers get the ocaml type xxx option ref.
+	  First None is assigned and the pointer is enqueued in 
+	  postponed_circles in ToOcamlData. Later the pointer is
+	  serialized in finish_circular_pointers and the reference is
+	  updated with some Some x.
+	* identified two circurlar points until now
+
 2006-07-20  Hendrik Tews  <tews@debian>
 
 	* remove new vendor files again

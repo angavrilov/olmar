@@ -3,7 +3,7 @@
 
 open Cc_ml_types
 
-let debug_print_locs = true
+let debug_print_locs = false
 
 (* source loc hashing stuff *)
 type source_loc_hash = 

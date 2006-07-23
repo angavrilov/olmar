@@ -371,6 +371,8 @@ void marshal_to_ocaml(char ** argv, const char * inputFname,
   ToOcamlData ocaml_data;
 
   ocaml_unit = unit->toOcaml(&ocaml_data);
+  xassert(ocaml_data.stack.size() == 0);
+  finish_circular_pointers(&ocaml_data);
 
   static value * marshal_callback = NULL;
   if(marshal_callback == NULL)

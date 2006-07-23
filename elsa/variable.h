@@ -71,6 +71,8 @@ public:    // data
   StringRef name;        
 
   // type of the variable (NULL iff flags has DF_NAMESPACE)
+  // HT: circular pointer for compound types that have an 
+  // implicit typedef variable (whatever the latter is)
   CType *type;             
   
   // various flags; 'const' to force modifications to go through

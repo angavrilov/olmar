@@ -409,6 +409,7 @@ public:      // data
   // injected-class-name; it is different than typedefVar->type
   // for template classes, as the former is the template class
   // itself while the latter is a PseudoInstantiation thereof
+  // HT: circular for some compounds like in t0009.cc
   CType *selfType;                     // (nullable serf)
 
 protected:  // data

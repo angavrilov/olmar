@@ -665,9 +665,8 @@ value Variable::toOcaml(ToOcamlData *data){
 
   var[0] = ocaml_from_SourceLoc(loc, data);
   var[1] = ocaml_from_StringRef(name, data);
-  // type field seems to point upwards, at least sometimes
   // var[2] = type->toOcaml(data);
-  var[2] = Val_unit; // = Upward_pointer_in_type_structure
+  var[2] = ref_None_constr(data);
   var[3] = ocaml_from_DeclFlags(flags, data);
 
   if(varValue) {
@@ -695,6 +694,8 @@ value Variable::toOcaml(ToOcamlData *data){
   ocaml_val = caml_callbackN(*create_variable_constructor_closure,
                              7, var);
   xassert(IS_OCAML_AST_VALUE(ocaml_val));
+
+  postpone_circular_type(data, ocaml_val, 2, type);
 
   data->stack.remove(this);
   CAMLreturn(ocaml_val);

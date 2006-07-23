@@ -1226,21 +1226,14 @@ value CompoundType::toCompoundInfo(ToOcamlData *data){
   info[9] = ocaml_from_string(instName, data);
 
   // info[10] = selfType->toOcaml(data);
-  // upward pointer hack
-  // if(data->stack.contains(selfType)) {
-  //   info[10] = Val_unit; // = Upward_pointer_in_type_structure
-  //   cerr << "CompoundType::selfType upward pointing" << endl;
-  // }
-  // else {
-  //   info[10] = selfType->toOcaml(data);
-  //   cerr << "CompoundType::selfType not upward pointing" << endl;
-  // }
-  info[10] = Val_unit; // = Upward_pointer_in_type_structure
+  info[10] = ref_None_constr(data);
   
   caml_register_global_root(&ocaml_info);
   ocaml_info = caml_callbackN(*create_compound_info_constructor_closure,
                              11, info);
   xassert(IS_OCAML_AST_VALUE(ocaml_info));
+
+  postpone_circular_type(data, ocaml_info, 10, selfType);
 
   data->stack.remove(reinterpret_cast<char *>(this) +8);
   CAMLreturn(ocaml_info);

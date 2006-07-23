@@ -9,7 +9,26 @@ extern "C" {
 #include <iomanip.h>
 
 
-ToOcamlData::ToOcamlData()  : stack(), source_loc_hash(Val_unit) {
+
+CircularAstPart::CircularAstPart() : 
+  ca_type(CA_Empty), 
+  val(Val_unit),
+  next(NULL)
+{
+  caml_register_global_root(&val);
+}
+
+CircularAstPart::~CircularAstPart() {
+  caml_remove_global_root(&val);
+}
+
+
+ToOcamlData::ToOcamlData()  : 
+  stack(), 
+  source_loc_hash(Val_unit),
+  postponed_count(0),
+  postponed_circles(NULL)
+{
 
   xassert(caml_start_up_done);
 
@@ -23,9 +42,106 @@ ToOcamlData::ToOcamlData()  : stack(), source_loc_hash(Val_unit) {
   source_loc_hash = caml_callback(*source_loc_hash_init_closure, Val_unit);
 }
 
+
 ToOcamlData::~ToOcamlData() {
+  // can't use xassert in a destructor (because C++ cannot raise an
+  // exception when unwinding the stack
+  // only print informative messages and switch them off 
+  // together with xassert
+#if !defined(NDEBUG_NO_ASSERTIONS)
+  if(postponed_circles != NULL ||
+     postponed_count != 0 ||
+     stack.size() != 0)
+    cerr << "Destructor ~ToOcamlData called in a bad state\n";
+#endif
+
   caml_remove_global_root(&source_loc_hash);
 }
+
+
+
+// hand written ocaml serialization function
+value ref_None_constr(ToOcamlData * data){
+  CAMLparam0();
+  CAMLlocal1(result);
+  result = caml_alloc(1, 0);  // the reference cell
+  Store_field(result, 0, Val_None);
+  xassert(IS_OCAML_AST_VALUE(result));
+  CAMLreturn(result);
+}
+
+
+// hand written ocaml serialization function
+// not relly a serialization function, but handwritten ;-)
+void postpone_circular_type(ToOcamlData * data, value val, 
+				unsigned field, CType * type) {
+
+  // no need to register val as long as we don't allocate here
+
+  CircularAstPart * part = new CircularAstPart;
+  part->ca_type = CA_Type;
+  part->ast.type = type;
+  part->val = val;
+  part->field = field;
+  part->next = data->postponed_circles;
+  data->postponed_circles = part;
+  data->postponed_count++;
+  cerr << "postpone (" << data->postponed_count
+       << ") type " << type << " in field " << field
+       << " of " << val << "\n";
+}
+
+
+// hand written ocaml serialization function
+// not relly a serialization function, but handwritten ;-)
+void finish_circular_pointers(ToOcamlData * data) {
+  CAMLparam0();
+  CAMLlocal3(val, some_val, cell);
+  CircularAstPart * part;
+
+  while(data->postponed_circles != NULL) {
+    part = data->postponed_circles;
+    data->postponed_circles = data->postponed_circles->next;
+    cerr << "dispatch (" << data->postponed_count 
+	 << ") in field " << part->field
+	 << " of " << part->val;
+    data->postponed_count--;
+
+    xassert(data->stack.size() == 0);
+  
+    switch(part->ca_type) {
+    case CA_Type:
+      cerr << " (CType)\n";
+      val = part->ast.type->toOcaml(data);
+      break;
+
+    case CA_Empty:
+    default:
+      xassert(false);
+    }
+
+    // check that the field in part->val is ref None
+    xassert(Is_block(part->val));
+    cell = Field(part->val, part->field);
+    xassert(Is_block(cell) && 	// it's a block
+	    (Tag_val(cell) == 0) && // it's an array/tuple/record
+	    (Wosize_val(cell) == 1) && // with one cell
+	    Is_long(Field(cell, 0)) && // containing None
+	    (Val_long(Field(cell, 0)) == 0));
+
+    // construct Some val
+    some_val = option_some_constr(val);
+    // assign into reference cell
+    Store_field(cell, 0, some_val);
+
+    delete(part);
+  }
+
+  xassert(data->postponed_count == 0);
+  CAMLreturn0;
+}
+
+
 
 
 
