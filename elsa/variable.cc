@@ -660,7 +660,7 @@ value Variable::toOcaml(ToOcamlData *data){
     cerr << "cyclic ast detected during ocaml serialization\n";
     xassert(false);
   } else {
-    data->stack.add(reinterpret_cast<char *>(this) +8);
+    data->stack.add(this);
   }
 
   var[0] = ocaml_from_SourceLoc(loc, data);
@@ -683,19 +683,16 @@ value Variable::toOcaml(ToOcamlData *data){
   else
     var[5] = Val_None;
 
-  if(funcDefn) {
-    var[6] = funcDefn->toOcaml(data);
-    var[6] = option_some_constr(var[5]);
-  }
-  else
-    var[5] = Val_None;
+  var[6] = ref_None_constr(data);
 
   caml_register_global_root(&ocaml_val);
   ocaml_val = caml_callbackN(*create_variable_constructor_closure,
                              7, var);
   xassert(IS_OCAML_AST_VALUE(ocaml_val));
 
-  postpone_circular_type(data, ocaml_val, 2, type);
+  postpone_circular_CType(data, ocaml_val, 2, type);
+  if(funcDefn)
+    postpone_circular_Function(data, ocaml_val, 6, funcDefn);
 
   data->stack.remove(this);
   CAMLreturn(ocaml_val);

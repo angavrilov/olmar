@@ -159,7 +159,7 @@ let register_ml_ctype_constructor_callbacks () =
     create_ctype_PointerToMemberType_constructor;
 
   (* from function_flags *)
-  Callback.register "function_flags_from_int23" function_flags_from_int32;
+  Callback.register "function_flags_from_int32" function_flags_from_int32;
 
   (* from compoundType_Keyword *)
   Callback.register "create_K_STRUCT_constructor" create_K_STRUCT_constructor;

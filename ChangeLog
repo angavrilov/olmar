@@ -1,12 +1,15 @@
 2006-07-24  Hendrik Tews  <tews@debian>
 
+	* identified another circularity (containing Function*)
+	* regression tests up to 138
+
 	* started support for circular structures
 	  Potentially circular pointers get the ocaml type xxx option ref.
 	  First None is assigned and the pointer is enqueued in 
 	  postponed_circles in ToOcamlData. Later the pointer is
 	  serialized in finish_circular_pointers and the reference is
 	  updated with some Some x.
-	* identified two circurlar points until now
+	* identified two circurlar points until now (containing CType*)
 
 2006-07-20  Hendrik Tews  <tews@debian>
 

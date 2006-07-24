@@ -24,7 +24,12 @@ and variable = {
   flags : declFlags;
   value : expression_type option;
   defaultParam : cType option;
-  funcDefn : function_type option;
+  (* funcDefn is circular at least for destructor calls (in/t0009.cc)
+   * then it points back to a member in the class
+   * the original pointer might be NULL, so this might be None even
+   * after resolving circularities
+   *)
+  funcDefn : function_type option ref;
   (* overload : overloadSet *)
   (* scope : Scope; *)
 }
@@ -60,7 +65,10 @@ and compound_info = {
   (* mutable syntax : typeSpecifier_type = TS_classSpec list;  * ast node *)
   (* scope : Scope *)
 
-  (* self_type is circular for compounds like in t0009.cc *)
+  (* self_type is circular for compounds like in t0009.cc 
+   * might stay None after resolving circularities because the 
+   * C++ pointer might be NULL
+   *)
   self_type : cType option ref;		(* type of the compound *)
 }
 
@@ -73,15 +81,11 @@ and atomicType =
       (* EnumType( user given name, ?, public/protected, constants)
        *    ignore the next valye field 
        *)
-  | EnumType of string option * variable * accessKeyword * 
+  | EnumType of string * variable * accessKeyword * 
       (string * int) list
 
 
 and cType = 
-(* Hendrik: clean this up!
- * upward pointer hack: add a dummy constr that can be used for upward pointers
- *)
-  | Upward_pointer_in_type_structure
   | CVAtomicType of cVFlags * atomicType
       (* PointerType( volatile, pointed type) *)
   | PointerType of cVFlags * cType
@@ -92,8 +96,7 @@ and cType =
        *   | None       no exception spec
        *   | Some list  list of specified exceptions (which can be empty)
        *)
-  | FunctionType of function_flags * cType * 
-      variable list * cType list option
+  | FunctionType of function_flags * cType * variable list * cType list option
       (* ArrayType( element type, size )*)
   | ArrayType of cType * array_size
       (* PointerToMemberType( ?, volatile, type of pointed member ) *)

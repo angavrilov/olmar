@@ -14,7 +14,8 @@
 
 enum CircularAstType {
   CA_Empty,
-  CA_Type
+  CA_CType,
+  CA_Function
 };
 
 
@@ -22,7 +23,8 @@ class CircularAstPart {
  public:
   CircularAstType ca_type;
   union {
-    CType * type; 		/* tagged CA_Type */
+    CType * type; 		/* tagged CA_CType */
+    Function * func;		/* tagged CA_Function */
   } ast;
   value val;
   unsigned field;
@@ -46,8 +48,10 @@ public:
 
 
 value ref_None_constr(ToOcamlData * data);
-void postpone_circular_type(ToOcamlData * data, value val, 
+void postpone_circular_CType(ToOcamlData * data, value val, 
 			    unsigned field, CType * type);
+void postpone_circular_Function(ToOcamlData * data, value val, 
+				unsigned field, Function * func);
 void finish_circular_pointers(ToOcamlData * data);
 
 

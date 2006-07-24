@@ -2399,3 +2399,116 @@ verbatim {
 
 // EOF
 //=========================== end  of  gnu.ast
+//=========================== start of ml_ctype.ast
+// (*** set this in -*- mode: tuareg;-*-  ****)
+
+
+// astgen treats the first verbatim in a file special
+// and adds it add the beginning.
+// However, I want this material added at the end, so 
+// put a dummy class her.
+
+class DummyWithNoUse ();
+
+ocaml_type_verbatim {
+
+(***************************** Variable *******************************)
+
+(* this will be inserted in the middle in the ast type defintion *)
+and variable = {
+  loc : sourceLoc;
+  var_name : string;
+
+  (* var_type is circular for compound types that have an implicit 
+   * typedef variable
+   *)
+  var_type : cType option ref;
+  flags : declFlags;
+  value : expression_type option;
+  defaultParam : cType option;
+  (* funcDefn is circular at least for destructor calls (in/t0009.cc)
+   * then it points back to a member in the class
+   * the original pointer might be NULL, so this might be None even
+   * after resolving circularities
+   *)
+  funcDefn : function_type option ref;
+  (* overload : overloadSet *)
+  (* scope : Scope; *)
+}
+
+(***************************** CType **********************************)
+
+and baseClass = {
+  compound : compound_info;		(* the base class itself *)
+  bc_access : accessKeyword;		(* public, protected ... *)
+  is_virtual : bool;
+}
+
+and compound_info = {
+  (* fields stored in the super class NamedAtomicType *)
+  compound_name : string;			(* user assigned name ?? *)
+  typedef_var : variable;		(* implicit typdef variable ???? *)
+  ci_access : accessKeyword;		(* accessibility in wider context *)
+
+  (* fields of CompoundType itself:
+   *     the stuff in comments is currently ommitted
+   *)
+  is_forward_decl : bool;
+  keyword : compoundType_Keyword; 	(* keyword used for this compound *)
+  data_members : variable list;		(* nonstatic data members *)
+  bases : baseClass list;		(* base classes *)
+
+  (* subobj : ?? root of the subobject hierarchy *)
+
+  conversion_operators : variable list;
+  friends : variable list;
+  inst_name : string;			(* name for debugging purposes *)
+
+  (* mutable syntax : typeSpecifier_type = TS_classSpec list;  * ast node *)
+  (* scope : Scope *)
+
+  (* self_type is circular for compounds like in t0009.cc *)
+  self_type : cType option ref;		(* type of the compound *)
+}
+
+and atomicType = 
+  | SimpleType of simpleTypeId
+
+      (* CompoundType( compound info) *)
+  | CompoundType of compound_info
+
+      (* EnumType( user given name, ?, public/protected, constants)
+       *    ignore the next valye field 
+       *)
+  | EnumType of string option * variable * accessKeyword * 
+      (string * int) list
+
+
+and cType = 
+(* Hendrik: clean this up!
+ * upward pointer hack: add a dummy constr that can be used for upward pointers
+ *)
+  | Upward_pointer_in_type_structure
+  | CVAtomicType of cVFlags * atomicType
+      (* PointerType( volatile, pointed type) *)
+  | PointerType of cVFlags * cType
+      (* ReferenceType( referenced type ) *)
+  | ReferenceType of cType
+      (* FunctionType(flags, return type, parameter list, exception spec)
+       * where exceptions spec is either
+       *   | None       no exception spec
+       *   | Some list  list of specified exceptions (which can be empty)
+       *)
+  | FunctionType of function_flags * cType * 
+      variable list * cType list option
+      (* ArrayType( element type, size )*)
+  | ArrayType of cType * array_size
+      (* PointerToMemberType( ?, volatile, type of pointed member ) *)
+  | PointerToMemberType of atomicType (* = NamedAtomicType *) * cVFlags * cType
+
+
+
+
+
+}
+//=========================== end  of  ml_ctype.ast

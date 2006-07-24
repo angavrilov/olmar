@@ -289,8 +289,10 @@ ml_object.o: $(CCPARSE_ML:.ml=.cmo)
 CCPARSE_OBJS := \
   ../ast/ocamlhelp.o \
   ml_object.o \
-  cc.ast.gen.o \
   cc_ocaml.o \
+  variable.o \
+  cc_type.o \
+  cc.ast.gen.o \
   mtype.o \
   integrity.o \
   astvisit.o \
@@ -312,7 +314,6 @@ CCPARSE_OBJS := \
   sprint.o \
   mangle.o \
   cc_err.o \
-  cc_type.o \
   cc_type_xml.o \
   stdconv.o \
   implconv.o \
@@ -323,7 +324,6 @@ CCPARSE_OBJS := \
   cc_flags.o \
   cc_print.o \
   cc_ast_aux.o \
-  variable.o \
   lookupset.o \
   xml.o \
   main_astxmlparse.o \
@@ -434,8 +434,9 @@ TAGS:
 			egrep -v $(DISCARDPATTERN)`
 
 
+.PHONY: all.ast
 all.ast: cc.ast cc_print.ast cfg.ast kandr.ast cc_elaborate.ast \
-		cc_tcheck.ast gnu.ast
+		cc_tcheck.ast gnu.ast ml_ctype.ast
 	rm -f all.ast
 	for f in $^ ; do \
 		echo "//=========================== start of $$f" >> all.ast; \

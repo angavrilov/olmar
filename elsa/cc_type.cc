@@ -1233,7 +1233,8 @@ value CompoundType::toCompoundInfo(ToOcamlData *data){
                              11, info);
   xassert(IS_OCAML_AST_VALUE(ocaml_info));
 
-  postpone_circular_type(data, ocaml_info, 10, selfType);
+  if(selfType)
+    postpone_circular_CType(data, ocaml_info, 10, selfType);
 
   data->stack.remove(reinterpret_cast<char *>(this) +8);
   CAMLreturn(ocaml_info);

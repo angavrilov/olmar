@@ -58,6 +58,7 @@ value option_some_constr(value v);
 // hand written ocaml serialization function
 inline
 value ocaml_from_cstring(const char * s, ToOcamlData *d){
+  xassert(s);
   return(caml_copy_string(s));
 }
 
