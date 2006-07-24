@@ -664,7 +664,14 @@ value Variable::toOcaml(ToOcamlData *data){
   }
 
   var[0] = ocaml_from_SourceLoc(loc, data);
-  var[1] = ocaml_from_StringRef(name, data);
+
+  if(name) {
+    var[1] = ocaml_from_StringRef(name, data);
+    var[1] = option_some_constr(var[1]);
+  }
+  else
+    var[1] = Val_None;
+
   // var[2] = type->toOcaml(data);
   var[2] = ref_None_constr(data);
   var[3] = ocaml_from_DeclFlags(flags, data);

@@ -1333,10 +1333,56 @@ EnumType::Value const *EnumType::getValue(StringRef name) const
 
 // ocaml serialization method
 // hand written ocaml serialization function
-value EnumType::toOcaml(ToOcamlData *){
-  // Hendrik
-  cerr << "EnumType::toOcaml" << endl;
-  xassert(false);
+value EnumType::toOcaml(ToOcamlData *data){
+  CAMLparam0();
+  CAMLlocal4(val_name, val_val, tuple, tmp);
+  CAMLlocalN(childs, 4);
+  if(ocaml_val) {
+    // cerr << "SHARED VALUE FOUND!\n" << flush;
+    CAMLreturn(ocaml_val);
+  }
+  static value * create_atomic_EnumType_constructor_closure = NULL;
+  if(create_atomic_EnumType_constructor_closure == NULL)
+    create_atomic_EnumType_constructor_closure = 
+      caml_named_value("create_atomic_EnumType_constructor");
+  xassert(create_atomic_EnumType_constructor_closure);
+
+  if(data->stack.contains(this)) {
+    cerr << "cyclic ast detected during ocaml serialization\n";
+    xassert(false);
+  } else {
+    data->stack.add(this);
+  }
+
+  childs[0] = ocaml_from_StringRef(name, data);
+  childs[1] = typedefVar->toOcaml(data);
+  childs[2] = ocaml_from_AccessKeyword(access, data);
+
+  childs[3] = Val_emptylist;
+
+  StringObjDict<Value>::Iter iter(valueIndex);
+  while(!iter.isDone()) {
+    Value const * elem = iter.value();
+    iter.next();
+    val_name = ocaml_from_StringRef(elem->name, data);
+    val_val = ocaml_from_int(elem->value, data);
+    tuple = caml_alloc(2, 0); 	// allocate a tuple cell
+    Store_field(tuple, 0, val_name); // fill the tuple
+    Store_field(tuple, 1, val_val);
+
+    tmp = caml_alloc(2, Tag_cons); // allocate a cons cell
+    Store_field(tmp, 0, tuple);	// store car
+    Store_field(tmp, 1, childs[3]); // store cdr
+    childs[3] = tmp;
+  }
+
+  caml_register_global_root(&ocaml_val);
+  ocaml_val = caml_callbackN(*create_atomic_EnumType_constructor_closure,
+			    4, childs);
+  xassert(IS_OCAML_AST_VALUE(ocaml_val));
+
+  data->stack.remove(this);
+  CAMLreturn(ocaml_val);
 }
 
 // ---------------- EnumType::Value --------------

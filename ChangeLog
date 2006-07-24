@@ -1,3 +1,9 @@
+2006-07-25  Hendrik Tews  <tews@debian>
+
+	* variable.var_name might be void
+	* added EnumType::toOcaml
+	* regression tests up to 568
+
 2006-07-24  Hendrik Tews  <tews@debian>
 
 	* identified another circularity (containing Function*)

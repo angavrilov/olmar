@@ -15,7 +15,8 @@ ocaml_type_verbatim {
 (* this will be inserted in the middle in the ast type defintion *)
 and variable = {
   loc : sourceLoc;
-  var_name : string;
+  (* might be None for abstract declarators (?) *)
+  var_name : string option;
 
   (* var_type is circular for compound types that have an implicit 
    * typedef variable
@@ -78,11 +79,16 @@ and atomicType =
       (* CompoundType( compound info) *)
   | CompoundType of compound_info
 
+
+  (* continue here
+   * | PseudoInstantiation of string * variable * accessKeyword * 
+   *     compound_info * sTemplateArgument list
+   *)
+
       (* EnumType( user given name, ?, public/protected, constants)
        *    ignore the next valye field 
        *)
-  | EnumType of string * variable * accessKeyword * 
-      (string * int) list
+  | EnumType of string * variable * accessKeyword * (string * int) list
 
 
 and cType = 
