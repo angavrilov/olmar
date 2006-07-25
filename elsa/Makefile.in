@@ -4,7 +4,7 @@
 #temporary: iptree iptparse cipart smin
 
 # main target: a C++ parser
-all: cc.ast.gen.h tlexer ccparse quicktest
+all: cc.ast.gen.h tlexer ccparse quicktest packedword_test
 
 # work in progress..
 #iptree smin cipart
@@ -134,6 +134,13 @@ LEXER_OBJS := \
 TOCLEAN += tlexer
 tlexer: tlexer.o $(LEXER_OBJS) $(libraries)
 	$(CXX) -o $@ tlexer.o $(LEXER_OBJS) $(LDFLAGS)
+
+
+# ------------------------ packedword_test -------------------
+# program to test packedword
+TOCLEAN += packedword_test
+packedword_test: packedword_test.o $(libraries)
+	$(CXX) -o $@ packedword_test.o $(LDFLAGS)
 
 
 # ------------------------- xml serialization / de-serialization ---------------------
@@ -504,6 +511,7 @@ toolclean: clean
 	rm -f $(TOTOOLCLEAN)
 
 check: semgrep all
+	./packedword_test
 	MAKE=$(MAKE) ./regrtest
 	@echo ""
 	@echo "Regression tests passed."

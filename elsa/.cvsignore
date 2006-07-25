@@ -35,6 +35,7 @@ astxml_tokens.ids
 tmp*
 quicktest
 tlexer
+packedword_test
 gprof.out
 *.parse.out
 moz.gcc.out
@@ -54,6 +55,7 @@ checkin
 multitest.tmp
 log
 multidelta.log
+.tailrun.log
 semgrep
 lex.backup
 aborted
