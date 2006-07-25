@@ -398,7 +398,7 @@ public:      // funcs
 // para 1, plus types, minus template parameters, then grouped into
 // equivalence classes as implied by cppstd 14.4 para 1
 class STemplateArgument {
-public:
+public: // data ?
   enum Kind {
     STA_NONE,        // not yet resolved into a valid template argument
     STA_TYPE,        // type argument
@@ -419,33 +419,38 @@ public:
     Variable *v;     // (serf) for STA_ENUMERATOR, STA_REFERENCE, STA_POINTER, STA_MEMBER
     Expression *e;   // (serf) for STA_DEPEXPR
     AtomicType const *at;  // (serf) for STA_ATOMIC
-  } value;
+  } sta_value;
+
+protected:  // data
+  value ocaml_val;       // cache ocaml serialization result
 
 public:
-  STemplateArgument() : kind(STA_NONE) { value.i = 0; }
-  STemplateArgument(CType *t) : kind(STA_TYPE) { value.t = t; }
+  STemplateArgument() : kind(STA_NONE) { sta_value.i = 0; }
+  STemplateArgument(CType *t) : kind(STA_TYPE) { sta_value.t = t; }
   STemplateArgument(STemplateArgument const &obj);
+
+  virtual ~STemplateArgument() {};
 
   // 'new' + copy ctor
   STemplateArgument *shallowClone() const;
 
-  // get 'value', ensuring correspondence between it and 'kind'
-  CType *    getType()      const { xassert(kind==STA_TYPE);      return value.t; }
-  int       getInt()       const { xassert(kind==STA_INT);       return value.i; }
-  Variable *getEnumerator()const { xassert(kind==STA_ENUMERATOR);return value.v; }
-  Variable *getReference() const { xassert(kind==STA_REFERENCE); return value.v; }
-  Variable *getPointer()   const { xassert(kind==STA_POINTER);   return value.v; }
-  Variable *getMember()    const { xassert(kind==STA_MEMBER);    return value.v; }
-  Expression *getDepExpr() const { xassert(kind==STA_DEPEXPR);   return value.e; }
+  // get 'sta_value', ensuring correspondence between it and 'kind'
+  CType *    getType()      const { xassert(kind==STA_TYPE);      return sta_value.t; }
+  int       getInt()       const { xassert(kind==STA_INT);       return sta_value.i; }
+  Variable *getEnumerator()const { xassert(kind==STA_ENUMERATOR);return sta_value.v; }
+  Variable *getReference() const { xassert(kind==STA_REFERENCE); return sta_value.v; }
+  Variable *getPointer()   const { xassert(kind==STA_POINTER);   return sta_value.v; }
+  Variable *getMember()    const { xassert(kind==STA_MEMBER);    return sta_value.v; }
+  Expression *getDepExpr() const { xassert(kind==STA_DEPEXPR);   return sta_value.e; }
 
-  // set 'value', ensuring correspondence between it and 'kind'
-  void setType(CType *t)          { kind=STA_TYPE;      value.t=t; }
-  void setInt(int i)             { kind=STA_INT;       value.i=i; }
-  void setEnumerator(Variable *v){ kind=STA_ENUMERATOR;value.v=v; }
-  void setReference(Variable *v) { kind=STA_REFERENCE; value.v=v; }
-  void setDepExpr(Expression *e) { kind=STA_DEPEXPR;   value.e=e; }
-  void setPointer(Variable *v)   { kind=STA_POINTER;   value.v=v; }
-  void setMember(Variable *v)    { kind=STA_MEMBER;    value.v=v; }
+  // set 'sta_value', ensuring correspondence between it and 'kind'
+  void setType(CType *t)          { kind=STA_TYPE;      sta_value.t=t; }
+  void setInt(int i)             { kind=STA_INT;       sta_value.i=i; }
+  void setEnumerator(Variable *v){ kind=STA_ENUMERATOR;sta_value.v=v; }
+  void setReference(Variable *v) { kind=STA_REFERENCE; sta_value.v=v; }
+  void setDepExpr(Expression *e) { kind=STA_DEPEXPR;   sta_value.e=e; }
+  void setPointer(Variable *v)   { kind=STA_POINTER;   sta_value.v=v; }
+  void setMember(Variable *v)    { kind=STA_MEMBER;    sta_value.v=v; }
 
   bool isObject() const;         // "non-type non-template" in the spec
   bool isType() const            { return kind==STA_TYPE;         }
@@ -455,8 +460,8 @@ public:
   bool hasValue() const { return kind!=STA_NONE; }
 
   // AtomicType stuff
-  AtomicType const *getAtomicType() const { xassert(kind==STA_ATOMIC); return value.at; }
-  void setAtomicType(AtomicType const *at) { kind=STA_ATOMIC; value.at=at; }
+  AtomicType const *getAtomicType() const { xassert(kind==STA_ATOMIC); return sta_value.at; }
+  void setAtomicType(AtomicType const *at) { kind=STA_ATOMIC; sta_value.at=at; }
   bool isAtomicType() const { return kind==STA_ATOMIC; }
 
   // true if it's '<dependent>'
@@ -483,6 +488,9 @@ public:
   // debugging
   void gdb();
   void debugPrint(int depth = 0);
+
+  // ocaml serialization method
+  virtual value toOcaml(ToOcamlData *);
 };
 
 SObjList<STemplateArgument> *cloneSArgs(SObjList<STemplateArgument> &sargs);

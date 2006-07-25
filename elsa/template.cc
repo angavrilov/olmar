@@ -110,11 +110,39 @@ bool TypeVariable::isAssociated() const
 
 // ocaml serialization method
 // hand written ocaml serialization function
-value TypeVariable::toOcaml(ToOcamlData *){
-  // Hendrik
-  cerr << "TypeVariable::toOcaml" << endl;
-  xassert(false);
+value TypeVariable::toOcaml(ToOcamlData * data){
+  CAMLparam0();
+  CAMLlocal3(val_name, val_var, val_key);
+  if(ocaml_val) {
+    cerr << "SHARED VALUE FOUND!\n" << flush;
+    CAMLreturn(ocaml_val);
+  }
+  static value * create_atomic_TypeVariable_constructor_closure = NULL;
+  if(create_atomic_TypeVariable_constructor_closure == NULL)
+    create_atomic_TypeVariable_constructor_closure = 
+      caml_named_value("create_atomic_TypeVariable_constructor");
+  xassert(create_atomic_TypeVariable_constructor_closure);
+
+  if(data->stack.contains(this)) {
+    cerr << "cyclic ast detected during ocaml serialization\n";
+    xassert(false);
+  } else {
+    data->stack.add(this);
+  }
+
+  val_name = ocaml_from_StringRef(name, data);
+  val_var = typedefVar->toOcaml(data);
+  val_key = ocaml_from_AccessKeyword(access, data);
+
+  caml_register_global_root(&ocaml_val);
+  ocaml_val = caml_callback3(*create_atomic_TypeVariable_constructor_closure,
+			     val_name, val_var, val_key);
+  xassert(IS_OCAML_AST_VALUE(ocaml_val));
+
+  data->stack.remove(this);
+  CAMLreturn(ocaml_val);
 }
+
 
 // -------------------- PseudoInstantiation ------------------
 PseudoInstantiation::PseudoInstantiation(CompoundType *p)
@@ -167,10 +195,57 @@ void PseudoInstantiation::traverse(TypeVisitor &vis)
 
 // ocaml serialization method
 // hand written ocaml serialization function
-value PseudoInstantiation::toOcaml(ToOcamlData *){
-  // Hendrik
-  cerr << "PseudoInstantiation::toOcaml" << endl;
-  xassert(false);
+value PseudoInstantiation::toOcaml(ToOcamlData * data){
+  CAMLparam0();
+  CAMLlocal2(elem, tmp);
+  CAMLlocalN(childs, 5);
+  if(ocaml_val) {
+    cerr << "SHARED VALUE FOUND!\n" << flush;
+    CAMLreturn(ocaml_val);
+  }
+  static value * create_atomic_PseudoInstantiation_constructor_closure = NULL;
+  if(create_atomic_PseudoInstantiation_constructor_closure == NULL)
+    create_atomic_PseudoInstantiation_constructor_closure = 
+      caml_named_value("create_atomic_PseudoInstantiation_constructor");
+  xassert(create_atomic_PseudoInstantiation_constructor_closure);
+
+  if(data->stack.contains(this)) {
+    cerr << "cyclic ast detected during ocaml serialization\n";
+    xassert(false);
+  } else {
+    data->stack.add(this);
+  }
+
+  childs[0] = ocaml_from_StringRef(name, data);
+
+  if(typedefVar) {
+    childs[1] = typedefVar->toOcaml(data);
+    childs[1] = option_some_constr(childs[1]);
+  }
+  else
+    childs[1] = Val_None;
+
+  childs[2] = ocaml_from_AccessKeyword(access, data);
+  childs[3] = primary->toCompoundInfo(data);
+
+  childs[4] = Val_emptylist;
+
+  for(int i = args.count() -1; i >= 0; i--) {
+    elem = args.nth(i)->toOcaml(data);
+    tmp = caml_alloc(2, Tag_cons); // allocate a cons cell
+    Store_field(tmp, 0, elem);	// store car
+    Store_field(tmp, 1, childs[4]); // store cdr
+    childs[4] = tmp;
+  }
+
+  caml_register_global_root(&ocaml_val);
+  ocaml_val = 
+    caml_callbackN(*create_atomic_PseudoInstantiation_constructor_closure,
+		   5, childs);
+  xassert(IS_OCAML_AST_VALUE(ocaml_val));
+
+  data->stack.remove(this);
+  CAMLreturn(ocaml_val);
 }
 
 // -------------------- DependentQType ------------------
@@ -566,7 +641,7 @@ bool TemplateInfo::argumentsContainTypeVariables() const
   FOREACH_OBJLIST(STemplateArgument, arguments, iter) {
     STemplateArgument const *sta = iter.data();
     if (sta->kind == STemplateArgument::STA_TYPE) {
-      if (sta->value.t->containsTypeVariables()) return true;
+      if (sta->sta_value.t->containsTypeVariables()) return true;
     }
     // FIX: do other kinds
   }
@@ -782,13 +857,13 @@ STemplateArgument::STemplateArgument(STemplateArgument const &obj)
   : kind(obj.kind)
 {
   if (kind == STA_TYPE) {
-    value.t = obj.value.t;
+    sta_value.t = obj.sta_value.t;
   }
   else if (kind == STA_INT) {
-    value.i = obj.value.i;
+    sta_value.i = obj.sta_value.i;
   }
   else {
-    value.v = obj.value.v;
+    sta_value.v = obj.sta_value.v;
   }
 }
 
@@ -855,7 +930,7 @@ bool STemplateArgument::equals(STemplateArgument const *obj,
 bool STemplateArgument::containsVariables(MType *map) const
 {
   if (kind == STemplateArgument::STA_TYPE) {
-    if (value.t->containsVariables(map)) {
+    if (sta_value.t->containsVariables(map)) {
       return true;
     }
   }
@@ -889,7 +964,7 @@ void STemplateArgument::traverse(TypeVisitor &vis)
   // there.
   switch (kind) {
     case STA_TYPE:
-      value.t->traverse(vis);
+      sta_value.t->traverse(vis);
       break;
 
     case STA_DEPEXPR:
@@ -912,17 +987,17 @@ string STemplateArgument::toString() const
   switch (kind) {
     default: xfailure("bad kind");
     case STA_NONE:      return string("STA_NONE");
-    case STA_TYPE:      return value.t->toString();   // assume 'type' if no comment
-    case STA_INT:       return stringc << "/*int*/ " << value.i;
-    case STA_ENUMERATOR:return stringc << "/*enum*/ " << value.v->name;
-    case STA_REFERENCE: return stringc << "/*ref*/ " << value.v->name;
-    case STA_POINTER:   return stringc << "/*ptr*/ &" << value.v->name;
+    case STA_TYPE:      return sta_value.t->toString();   // assume 'type' if no comment
+    case STA_INT:       return stringc << "/*int*/ " << sta_value.i;
+    case STA_ENUMERATOR:return stringc << "/*enum*/ " << sta_value.v->name;
+    case STA_REFERENCE: return stringc << "/*ref*/ " << sta_value.v->name;
+    case STA_POINTER:   return stringc << "/*ptr*/ &" << sta_value.v->name;
     case STA_MEMBER:    return stringc
-      << "/*member*/ &" << value.v->scope->curCompound->name
-      << "::" << value.v->name;
+      << "/*member*/ &" << sta_value.v->scope->curCompound->name
+      << "::" << sta_value.v->name;
     case STA_DEPEXPR:   return getDepExpr()->exprToString();
     case STA_TEMPLATE:  return string("template (?)");
-    case STA_ATOMIC:    return value.at->toString();
+    case STA_ATOMIC:    return sta_value.at->toString();
   }
 }
 
@@ -1026,6 +1101,141 @@ char const *toString(STemplateArgument::Kind k)
 }
 
 
+value STemplateArgument::toOcaml(ToOcamlData * data){
+  CAMLparam0();
+  CAMLlocal1(arg);
+  if(ocaml_val) {
+    cerr << "SHARED VALUE FOUND!\n" << flush;
+    CAMLreturn(ocaml_val);
+  }
+
+  if(data->stack.contains(this)) {
+    cerr << "cyclic ast detected during ocaml serialization\n";
+    xassert(false);
+  } else {
+    data->stack.add(this);
+  }
+
+  static value * create_STA_NONE_constructor_closure = NULL;
+  static value * create_STA_TYPE_constructor_closure = NULL;
+  static value * create_STA_INT_constructor_closure = NULL;
+  static value * create_STA_ENUMERATOR_constructor_closure = NULL;
+  static value * create_STA_REFERENCE_constructor_closure = NULL;
+  static value * create_STA_POINTER_constructor_closure = NULL;
+  static value * create_STA_MEMBER_constructor_closure = NULL;
+  static value * create_STA_DEPEXPR_constructor_closure = NULL;
+  static value * create_STA_TEMPLATE_constructor_closure = NULL;
+  static value * create_STA_ATOMIC_constructor_closure = NULL;
+
+  caml_register_global_root(&ocaml_val);
+
+  switch(kind){
+
+  case STA_NONE:
+    if(create_STA_NONE_constructor_closure == NULL)
+      create_STA_NONE_constructor_closure = 
+        caml_named_value("create_STA_NONE_constructor");
+    xassert(create_STA_NONE_constructor_closure);
+    ocaml_val = caml_callback(*create_STA_NONE_constructor_closure, Val_unit);
+    break;
+
+  case STA_TYPE:
+    if(create_STA_TYPE_constructor_closure == NULL)
+      create_STA_TYPE_constructor_closure = 
+        caml_named_value("create_STA_TYPE_constructor");
+    xassert(create_STA_TYPE_constructor_closure);
+    arg = getType()->toOcaml(data);
+    ocaml_val = caml_callback(*create_STA_TYPE_constructor_closure, arg);
+    break;
+
+  case STA_INT:
+    if(create_STA_INT_constructor_closure == NULL)
+      create_STA_INT_constructor_closure = 
+        caml_named_value("create_STA_INT_constructor");
+    xassert(create_STA_INT_constructor_closure);
+    arg = ocaml_from_int(getInt(), data);
+    ocaml_val = caml_callback(*create_STA_INT_constructor_closure, arg);
+    break;
+
+  case STA_ENUMERATOR:
+    if(create_STA_ENUMERATOR_constructor_closure == NULL)
+      create_STA_ENUMERATOR_constructor_closure = 
+        caml_named_value("create_STA_ENUMERATOR_constructor");
+    xassert(create_STA_ENUMERATOR_constructor_closure);
+    arg = getEnumerator()->toOcaml(data);
+    ocaml_val = caml_callback(*create_STA_ENUMERATOR_constructor_closure, arg);
+    break;
+
+  case STA_REFERENCE:
+    if(create_STA_REFERENCE_constructor_closure == NULL)
+      create_STA_REFERENCE_constructor_closure = 
+        caml_named_value("create_STA_REFERENCE_constructor");
+    xassert(create_STA_REFERENCE_constructor_closure);
+    arg = getReference()->toOcaml(data);
+    ocaml_val = caml_callback(*create_STA_REFERENCE_constructor_closure, arg);
+    break;
+
+  case STA_POINTER:
+    if(create_STA_POINTER_constructor_closure == NULL)
+      create_STA_POINTER_constructor_closure = 
+        caml_named_value("create_STA_POINTER_constructor");
+    xassert(create_STA_POINTER_constructor_closure);
+    arg = getPointer()->toOcaml(data);
+    ocaml_val = caml_callback(*create_STA_POINTER_constructor_closure, arg);
+    break;
+
+  case STA_MEMBER:
+    if(create_STA_MEMBER_constructor_closure == NULL)
+      create_STA_MEMBER_constructor_closure = 
+        caml_named_value("create_STA_MEMBER_constructor");
+    xassert(create_STA_MEMBER_constructor_closure);
+    arg = getMember()->toOcaml(data);
+    ocaml_val = caml_callback(*create_STA_MEMBER_constructor_closure, arg);
+    break;
+
+  case STA_DEPEXPR:
+    if(create_STA_DEPEXPR_constructor_closure == NULL)
+      create_STA_DEPEXPR_constructor_closure = 
+        caml_named_value("create_STA_DEPEXPR_constructor");
+    xassert(create_STA_DEPEXPR_constructor_closure);
+    arg = getDepExpr()->toOcaml(data);
+    ocaml_val = caml_callback(*create_STA_DEPEXPR_constructor_closure, arg);
+    break;
+
+  case STA_TEMPLATE:
+    xassert(false); 		// not implemented yet
+    if(create_STA_TEMPLATE_constructor_closure == NULL)
+      create_STA_TEMPLATE_constructor_closure = 
+        caml_named_value("create_STA_TEMPLATE_constructor");
+    xassert(create_STA_TEMPLATE_constructor_closure);
+    // arg = ??
+    ocaml_val = caml_callback(*create_STA_TEMPLATE_constructor_closure, 
+			      Val_unit);
+    break;
+
+  case STA_ATOMIC:
+    // HT: deal with the atomic const problem if we arrive here
+    xassert(false);
+    if(create_STA_ATOMIC_constructor_closure == NULL)
+      create_STA_ATOMIC_constructor_closure = 
+        caml_named_value("create_STA_ATOMIC_constructor");
+    xassert(create_STA_ATOMIC_constructor_closure);
+    // arg = sta_value.at->
+    ocaml_val = caml_callback(*create_STA_ATOMIC_constructor_closure, Val_unit);
+    break;
+
+  default:
+    xassert(false);
+    break;
+  }
+
+  xassert(IS_OCAML_AST_VALUE(ocaml_val));
+
+  data->stack.remove(this);
+  CAMLreturn(ocaml_val);
+}
+
+
 // ---------------------- TemplCandidates ------------------------
 STATICDEF
 TemplCandidates::STemplateArgsCmp TemplCandidates::compareSTemplateArgs
@@ -1044,7 +1254,7 @@ TemplCandidates::STemplateArgsCmp TemplCandidates::compareSTemplateArgs
     bool leftAtLeastAsSpec;
     {
       MType match;
-      if (match.matchType(larg->value.t, rarg->value.t, MF_MATCH)) {
+      if (match.matchType(larg->sta_value.t, rarg->sta_value.t, MF_MATCH)) {
         leftAtLeastAsSpec = true;
       } else {
         leftAtLeastAsSpec = false;
@@ -1054,7 +1264,7 @@ TemplCandidates::STemplateArgsCmp TemplCandidates::compareSTemplateArgs
     bool rightAtLeastAsSpec;
     {
       MType match;
-      if (match.matchType(rarg->value.t, larg->value.t, MF_MATCH)) {
+      if (match.matchType(rarg->sta_value.t, larg->sta_value.t, MF_MATCH)) {
         rightAtLeastAsSpec = true;
       } else {
         rightAtLeastAsSpec = false;
@@ -1080,7 +1290,7 @@ TemplCandidates::STemplateArgsCmp TemplCandidates::compareSTemplateArgs
     break;
 
   case STemplateArgument::STA_INT: // int or enum argument
-    if (larg->value.i == rarg->value.i) {
+    if (larg->sta_value.i == rarg->sta_value.i) {
       return STAC_EQUAL;
     }
     return STAC_INCOMPARABLE;
@@ -1090,7 +1300,7 @@ TemplCandidates::STemplateArgsCmp TemplCandidates::compareSTemplateArgs
   case STemplateArgument::STA_REFERENCE: // reference to global object
   case STemplateArgument::STA_POINTER: // pointer to global object
   case STemplateArgument::STA_MEMBER: // pointer to class member
-    if (larg->value.v == rarg->value.v) {
+    if (larg->sta_value.v == rarg->sta_value.v) {
       return STAC_EQUAL;
     }
     return STAC_INCOMPARABLE;

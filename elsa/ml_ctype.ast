@@ -76,19 +76,26 @@ and compound_info = {
 and atomicType = 
   | SimpleType of simpleTypeId
 
+      (* IMPORTANT: if one adds more fields to CompoundType one has also to 
+       * change PseudoInstantiation and its serialization
+       *)
       (* CompoundType( compound info) *)
   | CompoundType of compound_info
 
-
-  (* continue here
-   * | PseudoInstantiation of string * variable * accessKeyword * 
-   *     compound_info * sTemplateArgument list
-   *)
+      (* PseudoInstantiation( user given name, ?, public/protected, 
+       *           original class template info record, template arguments)
+       * variable might be void (regtest 568 , in/t0566.cc)
+       *)
+  | PseudoInstantiation of string * variable option * accessKeyword * 
+      compound_info * sTemplateArgument list
 
       (* EnumType( user given name, ?, public/protected, constants)
        *    ignore the next valye field 
        *)
   | EnumType of string * variable * accessKeyword * (string * int) list
+
+      (* TypeVariable( user given name, ?, public/protected)  *)
+  | TypeVariable of string * variable * accessKeyword
 
 
 and cType = 
@@ -108,6 +115,30 @@ and cType =
       (* PointerToMemberType( ?, volatile, type of pointed member ) *)
   | PointerToMemberType of atomicType (* = NamedAtomicType *) * cVFlags * cType
 
+
+(***************************** TemplateArgument ******************************)
+
+and sTemplateArgument =
+                          (* not yet resolved into a valid template argument *)
+  | STA_NONE     
+                          (* type argument *)
+  | STA_TYPE of cType 
+                          (* int argument *)
+  | STA_INT of int   
+                          (* enum argument *)
+  | STA_ENUMERATOR of variable 
+                          (* reference to global object *)
+  | STA_REFERENCE of variable
+                          (* pointer to global object *)
+  | STA_POINTER of variable
+                          (* pointer to class member *)
+  | STA_MEMBER of variable
+                          (* value-dependent expression *)
+  | STA_DEPEXPR of expression_type
+                          (* template argument (not implemented) *)
+  | STA_TEMPLATE
+                          (* private to mtype: bind var to AtomicType *)
+  | STA_ATOMIC of atomicType
 
 
 

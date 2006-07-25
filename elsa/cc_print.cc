@@ -1544,25 +1544,25 @@ void printSTemplateArgument(PrintEnv &env, STemplateArgument const *sta)
       // have; enable the normal type printer temporarily in order to
       // do this
       Restorer<bool> res0(TypePrinterC::enabled, true);
-      env.typePrinter.print(*env.out, sta->value.t); // assume 'type' if no comment
+      env.typePrinter.print(*env.out, sta->sta_value.t); // assume 'type' if no comment
       }
       break;
     case STemplateArgument::STA_INT:
-      *env.out << stringc << "/*int*/ " << sta->value.i;
+      *env.out << stringc << "/*int*/ " << sta->sta_value.i;
       break;
     case STemplateArgument::STA_ENUMERATOR:
-      *env.out << stringc << "/*enum*/ " << sta->value.v->name;
+      *env.out << stringc << "/*enum*/ " << sta->sta_value.v->name;
       break;
     case STemplateArgument::STA_REFERENCE:
-      *env.out << stringc << "/*ref*/ " << sta->value.v->name;
+      *env.out << stringc << "/*ref*/ " << sta->sta_value.v->name;
       break;
     case STemplateArgument::STA_POINTER:
-      *env.out << stringc << "/*ptr*/ &" << sta->value.v->name;
+      *env.out << stringc << "/*ptr*/ &" << sta->sta_value.v->name;
       break;
     case STemplateArgument::STA_MEMBER:
       *env.out << stringc
-              << "/*member*/ &" << sta->value.v->scope->curCompound->name
-              << "::" << sta->value.v->name;
+              << "/*member*/ &" << sta->sta_value.v->scope->curCompound->name
+              << "::" << sta->sta_value.v->name;
       break;
     case STemplateArgument::STA_DEPEXPR:
       sta->getDepExpr()->print(env);
@@ -1571,7 +1571,7 @@ void printSTemplateArgument(PrintEnv &env, STemplateArgument const *sta)
       *env.out << string("template (?)");
       break;
     case STemplateArgument::STA_ATOMIC:    
-      *env.out << sta->value.at->toString();
+      *env.out << sta->sta_value.at->toString();
       break;
   }
 }

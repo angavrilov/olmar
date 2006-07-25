@@ -97,9 +97,9 @@ void postpone_circular_CType(ToOcamlData * data, value val,
   xassert(type != NULL);
   CircularAstPart * part = init_ca_part(data, val, field, CA_CType);
   part->ast.type = type;
-  cerr << "postpone (" << data->postponed_count
-       << ") type " << type << " in field " << field
-       << " of " << val << "\n";
+  // cerr << "postpone (" << data->postponed_count
+  //      << ") type " << type << " in field " << field
+  //      << " of " << val << "\n";
 }
 
 // hand written ocaml serialization function
@@ -111,9 +111,9 @@ void postpone_circular_Function(ToOcamlData * data, value val,
   xassert(func != NULL);
   CircularAstPart * part = init_ca_part(data, val, field, CA_Function);
   part->ast.func = func;
-  cerr << "postpone (" << data->postponed_count
-       << ") Function " << func << " in field " << field
-       << " of " << val << "\n";
+  // cerr << "postpone (" << data->postponed_count
+  //      << ") Function " << func << " in field " << field
+  //      << " of " << val << "\n";
 }
 
 
@@ -127,21 +127,21 @@ void finish_circular_pointers(ToOcamlData * data) {
   while(data->postponed_circles != NULL) {
     part = data->postponed_circles;
     data->postponed_circles = data->postponed_circles->next;
-    cerr << "dispatch (" << data->postponed_count 
-	 << ") in field " << part->field
-	 << " of " << part->val;
+    // cerr << "dispatch (" << data->postponed_count 
+    // 	 << ") in field " << part->field
+    // 	 << " of " << part->val;
     data->postponed_count--;
 
     xassert(data->stack.size() == 0);
   
     switch(part->ca_type) {
     case CA_CType:
-      cerr << " (CType)\n";
+      // cerr << " (CType)\n";
       val = part->ast.type->toOcaml(data);
       break;
 
     case CA_Function:
-      cerr << " (Function)\n";
+      // cerr << " (Function)\n";
       val = part->ast.func->toOcaml(data);
       break;
 
@@ -164,8 +164,8 @@ void finish_circular_pointers(ToOcamlData * data) {
     xassert(Tag_val(cell) == 0);
     xassert(Wosize_val(cell) == 1);
     xassert(Is_long(Field(cell, 0)));
-    cerr << hex << "Field " << Field(cell, 0) 
-	 << " long " << Long_val(Field(cell, 0)) << dec << endl;
+    // cerr << hex << "Field " << Field(cell, 0) 
+    // 	 << " long " << Long_val(Field(cell, 0)) << dec << endl;
     xassert(Long_val(Field(cell, 0)) == 0);
 
 
@@ -1868,6 +1868,11 @@ value ocaml_from_CompoundType_Keyword(const CompoundType::Keyword &id,
 /*
 
 to create the bodies for the enums:
+ - take the ocaml variant type def
+ - strip constructor args off if any (these funs only treat pure enums)
+ - apply enum-constructor
+ - there should be just the constructors, each on their own line
+ - apply declare-statics
 
 (defun enum-constructors ()
   (interactive)

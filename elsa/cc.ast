@@ -137,7 +137,8 @@ class Function (
 
   FakeList<MemberInit> *inits,  // (for ctors only) member initialization list
 
-  S_compound body,              // body of function
+  // HT: body is NULL in regtest 982 (in/big/nsAtomTable.i)
+  nullable S_compound body,              // body of function
 
   FakeList<Handler> *handlers   // handlers for ctor "try" block
 ) {

@@ -46,5 +46,3 @@ type compoundType_Keyword =
   | K_CLASS
   | K_UNION
 
-
-

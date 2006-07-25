@@ -138,7 +138,8 @@ class Function (
 
   FakeList<MemberInit> *inits,  // (for ctors only) member initialization list
 
-  S_compound body,              // body of function
+  // HT: body is NULL in regtest 982 (in/big/nsAtomTable.i)
+  nullable S_compound body,              // body of function
 
   FakeList<Handler> *handlers   // handlers for ctor "try" block
 ) {
@@ -2417,7 +2418,8 @@ ocaml_type_verbatim {
 (* this will be inserted in the middle in the ast type defintion *)
 and variable = {
   loc : sourceLoc;
-  var_name : string;
+  (* might be None for abstract declarators (?) *)
+  var_name : string option;
 
   (* var_type is circular for compound types that have an implicit 
    * typedef variable
@@ -2467,28 +2469,39 @@ and compound_info = {
   (* mutable syntax : typeSpecifier_type = TS_classSpec list;  * ast node *)
   (* scope : Scope *)
 
-  (* self_type is circular for compounds like in t0009.cc *)
+  (* self_type is circular for compounds like in t0009.cc 
+   * might stay None after resolving circularities because the 
+   * C++ pointer might be NULL
+   *)
   self_type : cType option ref;		(* type of the compound *)
 }
 
 and atomicType = 
   | SimpleType of simpleTypeId
 
+      (* IMPORTANT: if one adds more fields to CompoundType one has also to 
+       * change PseudoInstantiation and its serialization
+       *)
       (* CompoundType( compound info) *)
   | CompoundType of compound_info
+
+      (* PseudoInstantiation( user given name, ?, public/protected, 
+       *           original class template info record, template arguments)
+       * variable might be void (regtest 568 , in/t0566.cc)
+       *)
+  | PseudoInstantiation of string * variable option * accessKeyword * 
+      compound_info * sTemplateArgument list
 
       (* EnumType( user given name, ?, public/protected, constants)
        *    ignore the next valye field 
        *)
-  | EnumType of string option * variable * accessKeyword * 
-      (string * int) list
+  | EnumType of string * variable * accessKeyword * (string * int) list
+
+      (* TypeVariable( user given name, ?, public/protected)  *)
+  | TypeVariable of string * variable * accessKeyword
 
 
 and cType = 
-(* Hendrik: clean this up!
- * upward pointer hack: add a dummy constr that can be used for upward pointers
- *)
-  | Upward_pointer_in_type_structure
   | CVAtomicType of cVFlags * atomicType
       (* PointerType( volatile, pointed type) *)
   | PointerType of cVFlags * cType
@@ -2499,13 +2512,36 @@ and cType =
        *   | None       no exception spec
        *   | Some list  list of specified exceptions (which can be empty)
        *)
-  | FunctionType of function_flags * cType * 
-      variable list * cType list option
+  | FunctionType of function_flags * cType * variable list * cType list option
       (* ArrayType( element type, size )*)
   | ArrayType of cType * array_size
       (* PointerToMemberType( ?, volatile, type of pointed member ) *)
   | PointerToMemberType of atomicType (* = NamedAtomicType *) * cVFlags * cType
 
+
+(***************************** TemplateArgument ******************************)
+
+and sTemplateArgument =
+                          (* not yet resolved into a valid template argument *)
+  | STA_NONE     
+                          (* type argument *)
+  | STA_TYPE of cType 
+                          (* int argument *)
+  | STA_INT of int   
+                          (* enum argument *)
+  | STA_ENUMERATOR of variable 
+                          (* reference to global object *)
+  | STA_REFERENCE of variable
+                          (* pointer to global object *)
+  | STA_POINTER of variable
+                          (* pointer to class member *)
+  | STA_MEMBER of variable
+                          (* value-dependent expression *)
+  | STA_DEPEXPR of expression_type
+                          (* template argument (not implemented) *)
+  | STA_TEMPLATE
+                          (* private to mtype: bind var to AtomicType *)
+  | STA_ATOMIC of atomicType
 
 
 

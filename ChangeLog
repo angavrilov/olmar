@@ -1,3 +1,11 @@
+2006-07-25  Hendrik Tews  <tews@tandem.cs.ru.nl>
+
+	* nullable Function.body (in/big/nsAtomTable.i)
+	* nullable NamedAtomicType.typedefVar (in/t0566.cc)
+	* serialize PseudoInstantiation, TypeVariable, STemplateArgument
+	* RENAMED STemplateArgument.value into sta_value
+	* regtests pass
+
 2006-07-25  Hendrik Tews  <tews@debian>
 
 	* variable.var_name might be void

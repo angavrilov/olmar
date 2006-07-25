@@ -715,22 +715,22 @@ void TypeToXml::toXml(STemplateArgument *sta) {
   default: xfailure("illegal STemplateArgument kind"); break;
 
   case STemplateArgument::STA_TYPE:
-    printPtrUnion(sta, value.t, t);
+    printPtrUnion(sta, sta_value.t, t);
     break;
 
   case STemplateArgument::STA_INT:
-    printXml_int(i, sta->value.i);
+    printXml_int(i, sta->sta_value.i);
     break;
 
   case STemplateArgument::STA_ENUMERATOR:
   case STemplateArgument::STA_REFERENCE:
   case STemplateArgument::STA_POINTER:
   case STemplateArgument::STA_MEMBER:
-    printPtrUnion(sta, value.v, v);
+    printPtrUnion(sta, sta_value.v, v);
     break;
 
   case STemplateArgument::STA_DEPEXPR:
-    printPtrASTUnion(sta, value.e, e);
+    printPtrASTUnion(sta, sta_value.e, e);
     break;
 
   case STemplateArgument::STA_TEMPLATE:
@@ -738,7 +738,7 @@ void TypeToXml::toXml(STemplateArgument *sta) {
     break;
 
   case STemplateArgument::STA_ATOMIC:
-    printPtrUnion(sta, value.at, at);
+    printPtrUnion(sta, sta_value.at, at);
     break;
   }
   tagEnd;
@@ -751,7 +751,7 @@ void TypeToXml::toXml(STemplateArgument *sta) {
   switch(sta->kind) {
   default: xfailure("illegal STemplateArgument kind"); break;
   case STemplateArgument::STA_TYPE:
-    toXml(sta->value.t);
+    toXml(sta->sta_value.t);
     break;
 
   case STemplateArgument::STA_INT:
@@ -762,11 +762,11 @@ void TypeToXml::toXml(STemplateArgument *sta) {
   case STemplateArgument::STA_REFERENCE:
   case STemplateArgument::STA_POINTER:
   case STemplateArgument::STA_MEMBER:
-    toXml(sta->value.v);
+    toXml(sta->sta_value.v);
     break;
 
   case STemplateArgument::STA_DEPEXPR:
-    sta->value.e->traverse(*astVisitor);
+    sta->sta_value.e->traverse(*astVisitor);
     break;
 
   case STemplateArgument::STA_TEMPLATE:
@@ -774,7 +774,7 @@ void TypeToXml::toXml(STemplateArgument *sta) {
     break;
 
   case STemplateArgument::STA_ATOMIC:
-    toXml(const_cast<AtomicType*>(sta->value.at));
+    toXml(const_cast<AtomicType*>(sta->sta_value.at));
     break;
   }
 }
@@ -1566,11 +1566,11 @@ void TypeXmlReader::registerAttr_STemplateArgument
   default: userError("illegal attribute for a STemplateArgument"); break;
   case XTOK_kind: fromXml(obj->kind, parseQuotedString(strValue)); break;
   // exactly one of these must show up as it is a union; I don't check that though
-  case XTOK_t: ul(value.t, XTOK_CType); break;
-  case XTOK_i: fromXml_int(obj->value.i, parseQuotedString(strValue)); break;
-  case XTOK_v: ul(value.v, XTOK_Variable); break;
-  case XTOK_e: ul(value.e, XTOK_Expression); break;
-  case XTOK_at: ul(value.at, XTOK_AtomicType); break;
+  case XTOK_t: ul(sta_value.t, XTOK_CType); break;
+  case XTOK_i: fromXml_int(obj->sta_value.i, parseQuotedString(strValue)); break;
+  case XTOK_v: ul(sta_value.v, XTOK_Variable); break;
+  case XTOK_e: ul(sta_value.e, XTOK_Expression); break;
+  case XTOK_at: ul(sta_value.at, XTOK_AtomicType); break;
   }
 }
 

@@ -99,8 +99,13 @@ let create_compound_info_constructor
 
 let create_atomic_SimpleType_constructor sid = SimpleType sid
 let create_atomic_CompoundType_constructor ci = CompoundType ci
+let create_atomic_PseudoInstantiation_constructor name var key 
+    template_info args =
+  PseudoInstantiation(name, var, key, template_info, args)
 let create_atomic_EnumType_constructor nameopt variable key enum_list =
   EnumType(nameopt, variable, key, enum_list)
+let create_atomic_TypeVariable_constructor name variable key =
+  TypeVariable(name, variable, key)
 
 
 
@@ -114,6 +119,21 @@ let create_ctype_FunctionType_constructor ff ret vars exs =
 let create_ctype_ArrayType_constructor ct size = ArrayType(ct, size)
 let create_ctype_PointerToMemberType_constructor at cvs ct =
   PointerToMemberType(at, cvs, ct)
+
+
+(* type sTemplateArgument *)
+let create_STA_NONE_constructor () = STA_NONE
+let create_STA_TYPE_constructor ctype = STA_TYPE ctype
+let create_STA_INT_constructor i = STA_INT i
+let create_STA_ENUMERATOR_constructor variable = STA_ENUMERATOR variable
+let create_STA_REFERENCE_constructor variable = STA_REFERENCE variable
+let create_STA_POINTER_constructor variable = STA_POINTER variable
+let create_STA_MEMBER_constructor variable = STA_MEMBER variable
+let create_STA_DEPEXPR_constructor expr = STA_DEPEXPR expr
+let create_STA_TEMPLATE_constructor () = assert false (* not implemented yet *)
+let create_STA_ATOMIC_constructor atomic_type = STA_ATOMIC atomic_type
+
+
 
 
 (* all this is hand written, so put all callback registration in here *)
@@ -141,8 +161,12 @@ let register_ml_ctype_constructor_callbacks () =
     create_atomic_SimpleType_constructor;
   Callback.register "create_atomic_CompoundType_constructor" 
     create_atomic_CompoundType_constructor;
+  Callback.register "create_atomic_PseudoInstantiation_constructor"
+    create_atomic_PseudoInstantiation_constructor;
   Callback.register "create_atomic_EnumType_constructor" 
     create_atomic_EnumType_constructor;
+  Callback.register "create_atomic_TypeVariable_constructor"
+    create_atomic_TypeVariable_constructor;
 
   (* from cType *)
   Callback.register "create_ctype_CVAtomicType_constructor" 
@@ -166,6 +190,21 @@ let register_ml_ctype_constructor_callbacks () =
   Callback.register "create_K_CLASS_constructor" create_K_CLASS_constructor;
   Callback.register "create_K_UNION_constructor" create_K_UNION_constructor;
 
-
-
-
+  (* from sTemplateArgument *)
+  Callback.register "create_STA_NONE_constructor" create_STA_NONE_constructor;
+  Callback.register "create_STA_TYPE_constructor" create_STA_TYPE_constructor;
+  Callback.register "create_STA_INT_constructor" create_STA_INT_constructor;
+  Callback.register "create_STA_ENUMERATOR_constructor"
+    create_STA_ENUMERATOR_constructor;
+  Callback.register "create_STA_REFERENCE_constructor"
+    create_STA_REFERENCE_constructor;
+  Callback.register "create_STA_POINTER_constructor"
+    create_STA_POINTER_constructor;
+  Callback.register "create_STA_MEMBER_constructor"
+    create_STA_MEMBER_constructor;
+  Callback.register "create_STA_DEPEXPR_constructor"
+    create_STA_DEPEXPR_constructor;
+  Callback.register "create_STA_TEMPLATE_constructor"
+    create_STA_TEMPLATE_constructor;
+  Callback.register "create_STA_ATOMIC_constructor"
+    create_STA_ATOMIC_constructor;

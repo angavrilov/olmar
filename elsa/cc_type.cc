@@ -1338,7 +1338,7 @@ value EnumType::toOcaml(ToOcamlData *data){
   CAMLlocal4(val_name, val_val, tuple, tmp);
   CAMLlocalN(childs, 4);
   if(ocaml_val) {
-    // cerr << "SHARED VALUE FOUND!\n" << flush;
+    cerr << "SHARED VALUE FOUND!\n" << flush;
     CAMLreturn(ocaml_val);
   }
   static value * create_atomic_EnumType_constructor_closure = NULL;

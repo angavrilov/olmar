@@ -275,6 +275,7 @@ public:     // funcs
 class NamedAtomicType : public AtomicType {
 public:     // data
   StringRef name;          // (nullable) user-assigned name of this struct or enum
+  // HT: typedefVar is NULL in regtest 568 (t0566.cc)
   Variable *typedefVar;    // (owner) implicit typedef variable
   AccessKeyword access;    // accessibility of this type in its declaration context
 

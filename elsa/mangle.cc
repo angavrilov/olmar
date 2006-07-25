@@ -406,11 +406,11 @@ void mangleSTemplateArgs(stringBuilder &sb, ObjList<STemplateArgument> const &ar
       break;
 
     case STemplateArgument::STA_TYPE:
-      sb << "TYPE-" << mangle(iter.data()->value.t);
+      sb << "TYPE-" << mangle(iter.data()->sta_value.t);
       break;
 
     case STemplateArgument::STA_INT:
-      sb << "INT-" << iter.data()->value.i;
+      sb << "INT-" << iter.data()->sta_value.i;
       break;
 
     case STemplateArgument::STA_ENUMERATOR: // reference to enumerator
@@ -418,7 +418,7 @@ void mangleSTemplateArgs(stringBuilder &sb, ObjList<STemplateArgument> const &ar
     case STemplateArgument::STA_POINTER: // pointer to global object
     case STemplateArgument::STA_MEMBER: // pointer to class member
       // sm: this should be mangling the *name*, not the type!
-      sb << "OBJECT-" << mangle(iter.data()->value.v->type);
+      sb << "OBJECT-" << mangle(iter.data()->sta_value.v->type);
       break;
 
     case STemplateArgument::STA_DEPEXPR: { // value-dependent expression
@@ -427,7 +427,7 @@ void mangleSTemplateArgs(stringBuilder &sb, ObjList<STemplateArgument> const &ar
       CodeOutStream codeOut(out0);
       TypePrinterC typePrinter;
       PrintEnv penv(typePrinter, &codeOut);
-      iter.data()->value.e->print(penv);
+      iter.data()->sta_value.e->print(penv);
       break;
     }
 
