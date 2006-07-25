@@ -982,6 +982,7 @@ testparse_special ansi d0121.cc
 testparse d0124.cc
 testparse d0125.cc # __builtin_va_copy
 testparse d0126.cc
+failparse_special treeCheck dk0127.cc "a non-tree AST results: default param arg in template class inner class"
 
 testparse k0001.cc #"left side of .* must be a class or reference to a class"
 testparse k0002.cc #"template function declared in another class (as a friend)"

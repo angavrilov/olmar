@@ -107,8 +107,7 @@ class XmlTypeWriter_AstVisitor : public XmlAstWriter_AstVisitor {
     (XmlTypeWriter &ttx0,
      ostream &out0,
      int &depth0,
-     bool indent0 = false,
-     bool ensureOneVisit0 = true);
+     bool indent0 = false);
 
   virtual bool shouldSerialize(Variable const *var) {
     return !ttx.serializeOracle_m || ttx.serializeOracle_m->shouldSerialize(var);
