@@ -114,7 +114,7 @@ value TypeVariable::toOcaml(ToOcamlData * data){
   CAMLparam0();
   CAMLlocal3(val_name, val_var, val_key);
   if(ocaml_val) {
-    cerr << "SHARED VALUE FOUND!\n" << flush;
+    // cerr << "shared ocaml value in Variable\n" << flush;
     CAMLreturn(ocaml_val);
   }
   static value * create_atomic_TypeVariable_constructor_closure = NULL;
@@ -200,7 +200,7 @@ value PseudoInstantiation::toOcaml(ToOcamlData * data){
   CAMLlocal2(elem, tmp);
   CAMLlocalN(childs, 5);
   if(ocaml_val) {
-    cerr << "SHARED VALUE FOUND!\n" << flush;
+    // cerr << "shared ocaml value in PseudoInstantiation\n" << flush;
     CAMLreturn(ocaml_val);
   }
   static value * create_atomic_PseudoInstantiation_constructor_closure = NULL;
@@ -1101,11 +1101,13 @@ char const *toString(STemplateArgument::Kind k)
 }
 
 
+// ocaml serialization method
+// hand written ocaml serialization function
 value STemplateArgument::toOcaml(ToOcamlData * data){
   CAMLparam0();
   CAMLlocal1(arg);
   if(ocaml_val) {
-    cerr << "SHARED VALUE FOUND!\n" << flush;
+    // cerr << "shared ocaml value in STemplateArgument!\n" << flush;
     CAMLreturn(ocaml_val);
   }
 

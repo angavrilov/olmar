@@ -1,5 +1,18 @@
+2006-07-25  Hendrik Tews  <tews@debian>
+
+	ASTGEN
+	* moved ocaml_val into superclass (as protected)
+	
+	ELSA
+	* cleanup some debuging output
+	* the ocaml_val is only used in the following classes:
+	  CompoundType CVAtomicType CompoundType_info Function ReferenceType
+	  SimpleType Variable PointerType
+	* longgest circular list 5266 (in/big/nsHTMLEditRules.i regtest 985)
+
 2006-07-25  Hendrik Tews  <tews@tandem.cs.ru.nl>
 
+	ELSA
 	* nullable Function.body (in/big/nsAtomTable.i)
 	* nullable NamedAtomicType.typedefVar (in/t0566.cc)
 	* serialize PseudoInstantiation, TypeVariable, STemplateArgument
@@ -8,12 +21,14 @@
 
 2006-07-25  Hendrik Tews  <tews@debian>
 
+	ELSA
 	* variable.var_name might be void
 	* added EnumType::toOcaml
 	* regression tests up to 568
 
 2006-07-24  Hendrik Tews  <tews@debian>
 
+	ELSA
 	* identified another circularity (containing Function*)
 	* regression tests up to 138
 

@@ -282,12 +282,13 @@ void SimpleType::traverse(TypeVisitor &vis)
 }
 
 
+// ocaml serialization method
 // hand written ocaml serialization function
 value SimpleType::toOcaml(ToOcamlData * data){
   CAMLparam0();
   CAMLlocal1(caml_id);
   if(ocaml_val) {
-    // cerr << "SHARED VALUE FOUND!\n" << flush;
+    // cerr << "shared ocaml value in SimpleType\n" << flush;
     CAMLreturn(ocaml_val);
   }
   static value * create_atomic_SimpleType_constructor_closure = NULL;
@@ -351,7 +352,7 @@ value BaseClass::toOcaml(ToOcamlData *data){
   CAMLlocal3(oct, oaccess, is_virt);
 
   if(ocaml_val) {
-    cerr << "SHARED VALUE FOUND BC!\n" << flush;
+    // cerr << "shared ocaml value in BaseClass\n" << flush;
     CAMLreturn(ocaml_val);
   }
   static value * create_baseClass_constructor_closure = NULL;
@@ -1165,7 +1166,7 @@ value CompoundType::toCompoundInfo(ToOcamlData *data){
   CAMLlocal2(elem, tmp);
 
   if(ocaml_info) {
-    cerr << "SHARED VALUE FOUND 1!\n" << flush;
+    // cerr << "shared ocaml value in CompoundType info\n" << flush;
     CAMLreturn(ocaml_info);
   }
   static value * create_compound_info_constructor_closure = NULL;
@@ -1241,14 +1242,14 @@ value CompoundType::toCompoundInfo(ToOcamlData *data){
 }
   
   
-// ocaml serialization method -- build the atomicType
+// ocaml serialization method
 // hand written ocaml serialization function
 value CompoundType::toOcaml(ToOcamlData *data){
   CAMLparam0();
   CAMLlocal1(info);
 
   if(ocaml_val) {
-    // cerr << "SHARED VALUE FOUND 2!\n" << flush;
+    // cerr << "shared ocaml value CompoundType\n" << flush;
     CAMLreturn(ocaml_val);
   }
   static value * create_atomic_CompoundType_constructor_closure = NULL;
@@ -1338,7 +1339,7 @@ value EnumType::toOcaml(ToOcamlData *data){
   CAMLlocal4(val_name, val_val, tuple, tmp);
   CAMLlocalN(childs, 4);
   if(ocaml_val) {
-    cerr << "SHARED VALUE FOUND!\n" << flush;
+    // cerr << "shared ocaml value found in EnumType\n" << flush;
     CAMLreturn(ocaml_val);
   }
   static value * create_atomic_EnumType_constructor_closure = NULL;
@@ -1943,12 +1944,13 @@ void CVAtomicType::traverse(TypeVisitor &vis)
 }
 
 
+// ocaml serialization method -- build the atomicType
 // hand written ocaml serialization function
 value CVAtomicType::toOcaml(ToOcamlData * data){
   CAMLparam0();
   CAMLlocal2(caml_flags, caml_atom);
   if(ocaml_val) {
-    // cerr << "SHARED VALUE FOUND 3!\n" << flush;
+    // cerr << "shared ocaml value in CVAtomicType\n" << flush;
     CAMLreturn(ocaml_val);
   }
   static value * create_ctype_CVAtomicType_constructor_closure = NULL;
@@ -2081,12 +2083,13 @@ void PointerType::traverse(TypeVisitor &vis)
 }
 
 
+// ocaml serialization method
 // hand written ocaml serialization function
 value PointerType::toOcaml(ToOcamlData * data){
   CAMLparam0();
   CAMLlocal2(caml_flags, caml_at_type);
   if(ocaml_val) {
-    cerr << "SHARED VALUE FOUND 4!\n" << flush;
+    // cerr << "SHARED VALUE FOUND 4!\n" << flush;
     CAMLreturn(ocaml_val);
   }
   static value * create_ctype_PointerType_constructor_closure = NULL;
@@ -2192,12 +2195,13 @@ void ReferenceType::traverse(TypeVisitor &vis)
 }
 
 
+// ocaml serialization method
 // hand written ocaml serialization function
 value ReferenceType::toOcaml(ToOcamlData * data){
   CAMLparam0();
   CAMLlocal1(caml_at_type);
   if(ocaml_val) {
-    // cerr << "SHARED VALUE FOUND 5!\n" << flush;
+    // cerr << "shared ocaml value in ReferenceType\n" << flush;
     CAMLreturn(ocaml_val);
   }
   static value * create_ctype_ReferenceType_constructor_closure = NULL;
@@ -2581,13 +2585,14 @@ void FunctionType::traverse(TypeVisitor &vis)
 }
 
 
+// ocaml serialization method
 // hand written ocaml serialization function
 value FunctionType::toOcaml(ToOcamlData * data){
   CAMLparam0();
   CAMLlocal2(tmp, elem);
   CAMLlocalN(child, 4);
   if(ocaml_val) {
-    cerr << "SHARED VALUE FOUND 6!\n" << flush;
+    // cerr << "shared ocaml value in FunctionType\n" << flush;
     CAMLreturn(ocaml_val);
   }
   static value * create_ctype_FunctionType_constructor_closure = NULL;
@@ -2709,12 +2714,13 @@ void ArrayType::traverse(TypeVisitor &vis)
 }
 
 
+// ocaml serialization method
 // hand written ocaml serialization function
 value ArrayType::toOcaml(ToOcamlData * data){
   CAMLparam0();
   CAMLlocal2(caml_elt_type, caml_size);
   if(ocaml_val) {
-    cerr << "SHARED VALUE FOUND 7!\n" << flush;
+    // cerr << "shared ocaml value in ArrayType\n" << flush;
     CAMLreturn(ocaml_val);
   }
   static value * create_ctype_ArrayType_constructor_closure = NULL;
@@ -2870,12 +2876,13 @@ void PointerToMemberType::traverse(TypeVisitor &vis)
 }
 
 
+// ocaml serialization method
 // hand written ocaml serialization function
 value PointerToMemberType::toOcaml(ToOcamlData * data){
   CAMLparam0();
   CAMLlocal3(caml_in_class, caml_cv, caml_at_type);
   if(ocaml_val) {
-    cerr << "SHARED VALUE FOUND 8!\n" << flush;
+    // cerr << "shared ocaml value in PointerToMemberType\n" << flush;
     CAMLreturn(ocaml_val);
   }
   static value * create_ctype_PointerToMemberType_constructor_closure = NULL;

@@ -648,7 +648,7 @@ value Variable::toOcaml(ToOcamlData *data){
   CAMLlocalN(var, 7);
   
   if(ocaml_val) {
-    cerr << "SHARED VALUE FOUND!\n" << flush;
+    // cerr << "shared ocaml value in Variable\n" << flush;
     CAMLreturn(ocaml_val);
   }
   static value * create_variable_constructor_closure = NULL;

@@ -416,8 +416,7 @@ private:        // funcs
   void innerEmitCtorFields(ASTList<FieldOrCtorArg> const &args);
   void emitCtorFormal(int &ct, FieldOrCtorArg const *arg);
   void emitCtorFormals(int &ct, ASTList<FieldOrCtorArg> const &args);
-  void emitCtorDefn(ASTClass const &cls, ASTClass const *parent, 
-		    bool ocaml_val_init);
+  void emitCtorDefn(ASTClass const &cls, ASTClass const *parent);
   void passParentCtorArgs(int &ct, ASTList<FieldOrCtorArg> const &args);
   void initializeMyCtorArgs(int &ct, ASTList<FieldOrCtorArg> const &args);
   void assertNonNullCtorArgs(ASTList<FieldOrCtorArg> const & args);
@@ -603,12 +602,12 @@ void HGen::emitTFClass(TF_class const &cls)
   }
 
   emitCtorFields(cls.super->args, cls.super->lastArgs);
-  if(wantOcaml && !cls.hasChildren()) {
-    out << "private:               // data\n"
-	<< "  value ocaml_val;   // used only during ocaml serialization\n"
+  if(wantOcaml) {
+    out << "protected:            // data\n"
+	<< "  value ocaml_val;    // cache ocaml serialization result\n"
 	<< endl;
   }
-  emitCtorDefn(*(cls.super), NULL /*parent*/, wantOcaml && !cls.hasChildren());
+  emitCtorDefn(*(cls.super), NULL /*parent*/);
 
   // destructor
   char const *virt = virtualIfChildren(cls);
@@ -771,8 +770,7 @@ bool isFuncDecl(UserDecl const *ud)
 }
 
 // emit the definition of the constructor itself
-void HGen::emitCtorDefn(ASTClass const &cls, ASTClass const *parent, 
-			bool ocaml_val_init)
+void HGen::emitCtorDefn(ASTClass const &cls, ASTClass const *parent)
 {
   // declare the constructor
   {
@@ -808,7 +806,7 @@ void HGen::emitCtorDefn(ASTClass const &cls, ASTClass const *parent,
       initializeMyCtorArgs(ct, cls.args);
       initializeMyCtorArgs(ct, cls.lastArgs);
 
-      if(ocaml_val_init) {
+      if(parent == NULL && wantOcaml) {
 	if (ct++ > 0) {
 	  out << ", ";
 	}
@@ -974,12 +972,7 @@ void HGen::emitCtor(ASTClass const &ctor, ASTClass const &parent)
   out << " {\n";
 
   emitCtorFields(ctor.args, ctor.lastArgs);
-  if(wantOcaml) {
-    out << "private:               // data\n"
-	<< "  value ocaml_val;   // used only during ocaml serialization\n"
-	<< endl;
-  }
-  emitCtorDefn(ctor, &parent, wantOcaml);
+  emitCtorDefn(ctor, &parent);
 
   // destructor
   out << "  virtual ~" << ctor.name << "();\n";
@@ -1843,7 +1836,9 @@ void CGen::emitToOcaml(ASTClass const * super, ASTClass const *sub)
     out << "  CAMLlocalN(child, " << args_count << ");\n";
 
   out << "  if(ocaml_val) {\n"
-      << "    cerr << \"SHARED VALUE FOUND!\\n\" << flush;\n"
+      // << "    cerr << \"shared ocaml value in "
+      // << myClass->name
+      // << "\\n\" << flush;\n"
       << "    CAMLreturn(ocaml_val);\n"
       << "  }\n";
 
