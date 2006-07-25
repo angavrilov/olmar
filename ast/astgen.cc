@@ -1751,7 +1751,9 @@ void HGen::emitDVisitorInterface()
   out << "public:      // funcs\n";
   out << "  explicit " << dvisitorName << "("
       << visitorName << " *client0 = NULL, "
-      << "bool ensureOneVisit0 = true"
+    // NOTE: it is too expensive to make this true by default; let
+    // code turn it on manually if they really want this
+      << "bool ensureOneVisit0 = false"
       << ")\n";
   out << "    : client(client0)\n";
   out << "    , ensureOneVisit(ensureOneVisit0)\n";
@@ -1795,10 +1797,12 @@ void HGen::emitDVisitorInterface()
 void CGen::emitDVisitorImplVisitedCheck(char const *name) {
   out << "bool " << dvisitorName << "::" << name << "(void *ast)\n";
   out << "{\n";
-  out << "  // do not bother to check if the user does not want us to\n";
-  out << "  if (!ensureOneVisit) {\n";
-  out << "    return false;\n";
-  out << "  }\n\n";
+  // NOTE: this was moved outside to the call site to avoid the
+  // function call
+//   out << "  // do not bother to check if the user does not want us to\n";
+//   out << "  if (!ensureOneVisit) {\n";
+//   out << "    return false;\n";
+//   out << "  }\n\n";
   out << "  if (!ast) {return false;} // avoid NULL; actually happens for FakeLists\n";
   out << "  if (" << name << "Nodes.contains(ast)) {\n";
   out << "    return true;\n";
@@ -1828,7 +1832,9 @@ void CGen::emitDVisitorImplementation()
       // because NDEBUG just gets turned on more often than I like.
       // quarl 2006-05-13: changed back to xassertdb(); it's worth removing
       // this as it accounts for 15% of qualcc runtime
-        << "  xassertdb(!wasVisitedAST(obj));\n"
+      // dsw & quarl: ok, we need this on, but in the code we protect
+      // it with a flag
+        << "  if (ensureOneVisit) xassert(!wasVisitedAST(obj));\n"
         << "  return client ? client->visit" << c->super->name << "(obj) : true;\n"
         << "}\n";
 
@@ -1846,7 +1852,7 @@ void CGen::emitDVisitorImplementation()
     // visit
     out << "bool " << dvisitorName << "::visitList_" << cls->classAndMemberName
         << "(" << cls->kindName() << "<" << cls->elementClassName << ">* obj) {\n";
-    out << "  xassert(!wasVisitedList_" << cls->kindName() << "(obj));\n";
+    out << "  if (ensureOneVisit) xassert(!wasVisitedList_" << cls->kindName() << "(obj));\n";
     out << "  return client ? client->visitList_" << cls->classAndMemberName << "(obj) : true;\n";
     out << "}\n";
 
@@ -2057,7 +2063,6 @@ void HGen::emitXmlVisitorInterface()
 
   out << "  int &depth;                         // current depth\n";
   out << "  bool indent;                        // should the xml be indented\n";
-  out << "  bool ensureOneVisit;                // check for visiting at most once?\n";
   out << "  SObjSet<void*> wasVisitedASTNodes;  // set of visited nodes\n";
   out << "  SObjSet<void*> wasVisitedList_ASTListNodes; // set of visited ASTLists\n";
   out << "  SObjSet<void*> wasVisitedList_FakeListNodes; // set of visited FakeLists\n";
@@ -2085,14 +2090,12 @@ void HGen::emitXmlVisitorInterface()
       << "ostream &out0, ";
   if (wantIdentityManager()) out << identityManagerName << " &idmgr0, ";
   out << "int &depth0, "
-      << "bool indent0 = false, "
-      << "bool ensureOneVisit0 = true"
+      << "bool indent0 = false"
       << ")\n";
   out << "    : out(out0)\n";
   if (wantIdentityManager()) out << "    , idmgr(idmgr0)\n";
   out << "    , depth(depth0)\n";
   out << "    , indent(indent0)\n";
-  out << "    , ensureOneVisit(ensureOneVisit0)\n";
   out << "  {}\n";
   out << "\n";
 
@@ -2133,10 +2136,6 @@ void HGen::emitXmlVisitorInterface()
 void CGen::emitXmlVisitorImplVisitedCheck(char const *name) {
   out << "bool " << xmlVisitorName << "::" << name << "(void *ast)\n";
   out << "{\n";
-  out << "  // do not bother to check if the user does not want us to\n";
-  out << "  if (!ensureOneVisit) {\n";
-  out << "    return false;\n";
-  out << "  }\n\n";
   out << "  if (!ast) {return false;} // avoid NULL; actually happens for FakeLists\n";
   out << "  if (" << name << "Nodes.contains(ast)) {\n";
   out << "    return true;\n";
@@ -2167,7 +2166,7 @@ void CGen::emitXmlVisitorImplementation()
 
     out << "bool " << xmlVisitorName << "::visit" << c->super->name;
     out << "(" << c->super->name << " *obj) {\n";
-    out << "  if(wasVisitedAST(obj)) return false;\n";
+    out << "  if (wasVisitedAST(obj)) return false;\n";
     // for now everything is a container tag
     out << "  out << '\\n';\n";
     out << "  if (indent) printIndentation();\n";
