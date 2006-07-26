@@ -59,6 +59,7 @@ extern bool caml_start_up_done;
 
 value ocaml_from_SourceLoc(const SourceLoc &, ToOcamlData *);
 
+//********************** value generation ************************************
 // for flag sets
 value ocaml_from_DeclFlags(const DeclFlags &, ToOcamlData *);
 value ocaml_from_CVFlags(const CVFlags &, ToOcamlData *);
@@ -77,6 +78,23 @@ value ocaml_from_CompoundType_Keyword(const CompoundType::Keyword &,
 				      ToOcamlData *);
 
 
-// value ocaml_from_(const  &, ToOcamlData *);
+//*********************** ocaml_val cleanup **********************************
+// all these functions are empty, 
+// however, defining them here empty is better than another hack in astgen
+// hand written ocaml serialization cleanup
+inline void detach_ocaml_SourceLoc(const SourceLoc &) {}
+inline void detach_ocaml_DeclFlags(const DeclFlags &) {}
+inline void detach_ocaml_CVFlags(const CVFlags &) {}
+inline void detach_ocaml_function_flags(const FunctionFlags &f) {}
+inline void detach_ocaml_SimpleTypeId(const SimpleTypeId &) {}
+inline void detach_ocaml_TypeIntr(const TypeIntr &) {}
+inline void detach_ocaml_AccessKeyword(const AccessKeyword &) {}
+inline void detach_ocaml_OverloadableOp(const OverloadableOp &) {}
+inline void detach_ocaml_UnaryOp(const UnaryOp &) {}
+inline void detach_ocaml_EffectOp(const EffectOp &) {}
+inline void detach_ocaml_BinaryOp(const BinaryOp &) {}
+inline void detach_ocaml_CastKeyword(const CastKeyword &) {}
+inline void detach_ocaml_CompoundType_Keyword(const CompoundType::Keyword &) {}
+
 
 #endif // CC_OCAML_H

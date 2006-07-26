@@ -1313,11 +1313,15 @@ void CGen::emitTFClass(TF_class const &cls)
   }
 
 
-  // clone / ocaml traversal for childless superclasses
-  if (!cls.hasChildren()) {
+  // clone traversal for childless superclasses
+  if (!cls.hasChildren()) 
     emitCloneCode(cls.super, NULL /*sub*/);
-    if (wantOcaml)
+
+  // ocaml traversal functions for the superclass
+  if (wantOcaml) {
+    if(!cls.hasChildren())	// serialization is done in the childs
       emitToOcaml(cls.super, NULL);
+    emitDetachOcaml(cls.super, NULL);
   }
 
 
@@ -1394,8 +1398,10 @@ void CGen::emitTFClass(TF_class const &cls)
 
     // clone / ocaml traversal for subclasses
     emitCloneCode(cls.super, &ctor);
-    if (wantOcaml)
+    if (wantOcaml) {
       emitToOcaml(cls.super, &ctor);
+      emitDetachOcaml(cls.super, &ctor);
+    }
   }
 
   out << "\n";
@@ -1738,6 +1744,18 @@ string ocaml_from_function(string type) {
   return(string("ocaml_from_") & result);
 }
 
+string detach_from_function(string type) {
+  string result;
+  xassert((!isListType(type)) && (!isFakeListType(type)));
+
+  if(isPtrKind(type))
+    result = inner_ocaml_from_function(getPtrBase(type));
+  else 
+    result = inner_ocaml_from_function(type);
+  return(string("detach_ocaml_") & result);
+}
+
+
 
 void CGen::emitOcamlFromList(ListClass const *cls) {
   const string & cname = cls->elementClassName;
@@ -1911,25 +1929,54 @@ void CGen::emitDetachOcamlChilds(const ASTList<FieldOrCtorArg> & args)
 {
   FOREACH_ASTLIST(FieldOrCtorArg, args, iter) {
     const FieldOrCtorArg * arg = iter.data();
-    bool use_option = ctor_uses_option(arg);
-    if(use_option) 
-      out << "  if(" << arg->name << ")\n"
-	  << "    ";
-    else
-      out << "  ";
-
-    if(isTreeNode(arg->type) || isTreeNodePtr(arg->type)) {
-      out << arg->name << "->detachOcaml()\n";
+    
+    // assume here that these lists are never NULL, so we don't have to 
+    // test for non-NULL here.
+    // well, currently AstList can't be NULL because it is not a pointer
+    // and FakeList NULL pointer is simply the empty FakeList
+    if(isListType(arg->type)) {
+      out << "  FOREACH_ASTLIST_NC(" 
+	  << extractListType(arg->type) << ", "
+	  << arg->name << ", iter)\n";
+      if(isTreeNode(extractListType(arg->type))
+	 || isTreeNodePtr(extractListType(arg->type)))
+	out << "    iter.data()->detachOcaml();\n";
+      else
+	out << "    " << detach_from_function(extractListType(arg->type))
+	    << "(iter.data());\n";
+    }
+    else if(isFakeListType(arg->type)) {
+      out << "  FAKELIST_FOREACH_NC(" 
+	  << extractListType(arg->type) << ", "
+	  << arg->name << ", ptr)\n";
+      if(isTreeNode(extractListType(arg->type))
+	 || isTreeNodePtr(extractListType(arg->type))) 
+	out << "    ptr->detachOcaml();\n";
+      else
+	out << "    " << detach_from_function(extractListType(arg->type))
+	    << "(*ptr);\n";
     }
     else {
-      out << detach_from_function(arg->type) << "(";
-      if(isPtrKind(arg->type)){
-	out << "*";
-	// treat only one level of pointers
-	xassert(!isPtrKind(getPtrBase(arg->type)));
+      if(ctor_uses_option(arg))
+	out << "  if(" << arg->name << ")\n"
+	    << "    ";
+      else
+	out << "  ";
+
+      if(isTreeNode(arg->type) || isTreeNodePtr(arg->type)) {
+	out << arg->name << "->detachOcaml();\n";
       }
-      out << arg->name << ")"\n;
+      else {
+	out << detach_from_function(arg->type) << "(";
+	if(isPtrKind(arg->type)){
+	  out << "*";
+	  // treat only one level of pointers
+	  xassert(!isPtrKind(getPtrBase(arg->type)));
+	}
+	out << arg->name << ");\n";
+      }
     }
+  }
 }
 
 
@@ -1938,12 +1985,14 @@ void CGen::emitDetachOcaml(ASTClass const *super, ASTClass const *sub)
 
   ASTClass const *myClass = sub ? sub : super;
 
-  out << "void " << myClass->name << "::detachOcaml() {\n\n";
-  out << "  if(!ocaml_val) return;\n";
+  out << "void " << myClass->name << "::detachOcaml() {\n";
+  out << "  if(ocaml_val == 0) return;\n";
   if(sub)
-    out << "  caml_remove_global_root(&ocaml_val);\n\n";
-  else
     out << "  " << super->name << "::detachOcaml();\n";
+  else {
+    out << "  caml_remove_global_root(&ocaml_val);\n";
+    out << "  ocaml_val = 0;\n";
+  }
 
   emitDetachOcamlChilds(myClass->args);
   emitDetachOcamlChilds(myClass->fields);

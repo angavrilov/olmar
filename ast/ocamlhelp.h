@@ -92,5 +92,15 @@ value ocaml_from_string(const string &s, ToOcamlData *d){
 }
 
 
+//*********************** ocaml_val cleanup **********************************
+// all these functions are empty, 
+// however, defining them here empty is better than another hack in astgen
+// hand written ocaml serialization cleanup
+inline void detach_ocaml_cstring(const char &) {}
+inline void detach_ocaml_bool(const bool &) {}
+inline void detach_ocaml_int(const int &) {}
+inline void detach_ocaml_StringRef(const StringRef &) {}
+inline void detach_ocaml_string(const string &) {}
+
 #endif // OCAMLHELP_H
 

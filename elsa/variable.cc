@@ -706,6 +706,25 @@ value Variable::toOcaml(ToOcamlData *data){
 
 }
 
+// hand written ocaml serialization cleanup
+void Variable::detachOcaml() {
+  if(ocaml_val == 0) return;
+  caml_remove_global_root(&ocaml_val);
+  ocaml_val = 0;
+
+  detach_ocaml_SourceLoc(loc);
+  if(name)
+    detach_ocaml_StringRef(name);
+  type->detachOcaml();
+  detach_ocaml_DeclFlags(flags);
+  if(varValue)
+    varValue->detachOcaml();
+  if(defaultParamType)
+    defaultParamType->detachOcaml();
+  if(funcDefn)
+    funcDefn->detachOcaml();
+}
+
 
 // --------------------- OverloadSet -------------------
 OverloadSet::OverloadSet()

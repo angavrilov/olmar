@@ -1,3 +1,14 @@
+2006-07-27  Hendrik Tews  <tews@debian>
+
+	AST:
+	* finished astgen detachOcaml generation
+	* added empty detach's for const types
+
+	ELSA
+	* added empty detach's for const types
+	* Variable::detachOcaml finished
+	* started detachOcaml in the CType hierarchy
+
 2006-07-26  Hendrik Tews  <tews@tandem.cs.ru.nl>
 
 	AST

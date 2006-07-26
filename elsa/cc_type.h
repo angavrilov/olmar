@@ -241,6 +241,8 @@ public:     // funcs
   // define this in the real type classes derived from CType
   virtual value toOcaml(ToOcamlData *) =0;
 
+  virtual void detachOcaml();
+
   ALLOC_STATS_DECLARE
 };
 
@@ -268,6 +270,7 @@ public:     // funcs
   virtual void traverse(TypeVisitor &vis);
   // ocaml serialization method
   virtual value toOcaml(ToOcamlData *);
+  virtual void detachOcaml();
 };
 
 
@@ -284,7 +287,8 @@ public:
   ~NamedAtomicType();
 
   virtual bool isNamedAtomicType() const;       // returns true
-  // ocaml serialization method stays pure
+  // toOcaml serialization method stays pure
+  virtual void detachOcaml();
 };
 
 
@@ -311,6 +315,7 @@ public:
   void traverse(TypeVisitor &vis);
   // ocaml serialization method
   virtual value toOcaml(ToOcamlData *);
+  virtual void detachOcaml();
 };
 
 // represent an instance of a base class in a particular class'
@@ -342,6 +347,7 @@ public:
   void traverse(TypeVisitor &vis);
   // ocaml serialization method
   virtual value toOcaml(ToOcamlData *);
+  virtual void detachOcaml();
 };
 
 // represent a user-defined compound type; the members of the
@@ -547,6 +553,9 @@ public:      // funcs
   value toCompoundInfo(ToOcamlData *);
 
   virtual value toOcaml(ToOcamlData *);
+
+  void detachOcamlInfo();
+  virtual void detachOcaml();
 };
 
 string toString(CompoundType::Keyword k);
@@ -589,6 +598,7 @@ public:     // funcs
   Value const *getValue(StringRef name) const;
   // ocaml serialization method
   virtual value toOcaml(ToOcamlData *);
+  virtual void detachOcaml();
 };
 
 
@@ -830,6 +840,7 @@ public:     // funcs
   // ocaml serialization method
   // define this in the real type classes derived from CType
   virtual value toOcaml(ToOcamlData *) =0;
+  virtual void detachOcaml();
 
   ALLOC_STATS_DECLARE
 };
@@ -864,6 +875,10 @@ inline value ocaml_from_CType(CType &t, ToOcamlData *d) {
   return t.toOcaml(d);
 }
 
+inline void detach_ocaml_CType(CType &t) {
+  t.detachOcaml();
+}
+
 // essentially just a wrapper around an atomic type, but
 // also with optional const/volatile flags
 class CVAtomicType : public CType {
@@ -896,9 +911,11 @@ public:
   virtual void traverse(TypeVisitor &vis);
   // ocaml serialization method
   virtual value toOcaml(ToOcamlData *);
+  virtual void detachOcaml();
 };
 
-             
+//continue here with POinterType, dont forget the staff in template.h
+
 // type of a pointer
 class PointerType : public CType {
 public:     // data

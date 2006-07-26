@@ -209,6 +209,17 @@ bool AtomicType::equals(AtomicType const *obj) const
 }
 
 
+// ocaml serialization, cleanup ocaml_val
+// hand written ocaml serialization cleanup
+void AtomicType::detachOcaml() {
+  if(ocaml_val == 0) return;
+  caml_remove_global_root(&ocaml_val);
+  ocaml_val = 0;
+}
+
+
+
+
 // ------------------ SimpleType -----------------
 SimpleType SimpleType::fixed[NUM_SIMPLE_TYPES] = {
   SimpleType(ST_CHAR),
@@ -314,6 +325,17 @@ value SimpleType::toOcaml(ToOcamlData * data){
   CAMLreturn(ocaml_val);
 }
 
+// ocaml serialization, cleanup ocaml_val
+// hand written ocaml serialization function
+void SimpleType::detachOcaml() {
+  if(ocaml_val == 0) return;
+  AtomicType::detachOcaml();
+  detach_ocaml_SimpleTypeId(type);
+}
+
+
+
+
 // ------------------ NamedAtomicType --------------------
 NamedAtomicType::NamedAtomicType(StringRef n)
   : name(n),
@@ -332,6 +354,18 @@ NamedAtomicType::~NamedAtomicType()
 bool NamedAtomicType::isNamedAtomicType() const 
 {
   return true;
+}
+
+
+// ocaml serialization, cleanup ocaml_val
+// hand written ocaml serialization function
+void NamedAtomicType::detachOcaml() {
+  if(ocaml_val == 0) return;
+  AtomicType::detachOcaml();
+  detach_ocaml_StringRef(name);
+  if(typedefVar)
+    typedefVar->detachOcaml();
+  detach_ocaml_AccessKeyword(access);
 }
 
 
@@ -368,7 +402,7 @@ value BaseClass::toOcaml(ToOcamlData *data){
     data->stack.add(this);
   }
 
-  oct = ct->toOcaml(data);
+  oct = ct->toCompoundInfo(data);
   oaccess = ocaml_from_AccessKeyword(access, data);
   is_virt = ocaml_from_bool(isVirtual, data);
   
@@ -379,6 +413,19 @@ value BaseClass::toOcaml(ToOcamlData *data){
 
   data->stack.remove(this);
   CAMLreturn(ocaml_val);
+}
+
+
+// ocaml serialization, cleanup ocaml_val
+// hand written ocaml serialization function
+void BaseClass::detachOcaml() {
+  if(ocaml_val == 0) return;
+  caml_remove_global_root(&ocaml_val);
+  ocaml_val = 0;
+
+  ct->detachOcamlInfo();
+  detach_ocaml_AccessKeyword(access);
+  detach_ocaml_bool(isVirtual);
 }
 
 
@@ -440,9 +487,16 @@ void BaseClassSubobj::traverse(TypeVisitor &vis)
 // hand written ocaml serialization function
 value BaseClassSubobj::toOcaml(ToOcamlData *){
   // Hendrik
-  cerr << "BaseClassSubobj::toOcaml" << endl;
+  cerr << "BaseClassSubobj::toOcaml not implemented" << endl;
   xassert(false);
 }
+
+void BaseClassSubobj::detachOcaml(){
+  // Hendrik
+  cerr << "BaseClassSubobj::detachOcaml not implemented" << endl;
+  xassert(false);
+}
+
 
 // ------------------ CompoundType -----------------
 CompoundType::CompoundType(Keyword k, StringRef n)
@@ -1276,6 +1330,43 @@ value CompoundType::toOcaml(ToOcamlData *data){
 }
   
 
+// ocaml serialization, cleanup ocaml_val
+// hand written ocaml serialization function
+void CompoundType::detachOcamlInfo() {
+  if(ocaml_info == 0) return;
+  caml_remove_global_root(&ocaml_info);
+  ocaml_info = 0;
+  
+  detach_ocaml_StringRef(name);
+  typedefVar->detachOcaml();
+  detach_ocaml_AccessKeyword(access);
+  detach_ocaml_bool(forward);
+  detach_ocaml_CompoundType_Keyword(keyword);
+  
+  SFOREACH_OBJLIST_NC(Variable, dataMembers, iter)
+    iter.data()->detachOcaml();
+  FOREACH_OBJLIST_NC(BaseClassSubobj, virtualBases, iter)
+    iter.data()->detachOcaml();
+  SFOREACH_OBJLIST_NC(Variable, conversionOperators, iter)
+    iter.data()->detachOcaml();
+  SFOREACH_OBJLIST_NC(Variable, friends, iter)
+    iter.data()->detachOcaml();
+  detach_ocaml_StringRef(instName);
+  if(selfType)
+    selfType->detachOcaml();
+}
+
+
+// ocaml serialization, cleanup ocaml_val
+// hand written ocaml serialization function
+void CompoundType::detachOcaml() {
+  if(ocaml_val == 0) return;
+  NamedAtomicType::detachOcaml();
+  detachOcamlInfo();		// children from NamedAtomicType get detached
+				// twice now, but this is harmless
+}
+
+
 // ---------------- EnumType ------------------
 EnumType::~EnumType()
 {}
@@ -1361,6 +1452,8 @@ value EnumType::toOcaml(ToOcamlData *data){
 
   childs[3] = Val_emptylist;
 
+  // can't use StringObjDict::foreach, because we need to 
+  // share state between the iterations
   StringObjDict<Value>::Iter iter(valueIndex);
   while(!iter.isDone()) {
     Value const * elem = iter.value();
@@ -1385,6 +1478,25 @@ value EnumType::toOcaml(ToOcamlData *data){
   data->stack.remove(this);
   CAMLreturn(ocaml_val);
 }
+
+
+// ocaml serialization, cleanup ocaml_val
+// hand written ocaml serialization function
+void EnumType::detachOcaml() {
+  if(ocaml_val == 0) return;
+  NamedAtomicType::detachOcaml();
+
+  // could use StringObjDict::foreach 
+  // and I promise I will use it the day I get lambda abstraction in C++
+  StringObjDict<Value>::Iter iter(valueIndex);
+  while(!iter.isDone()) {
+    Value const * elem = iter.value();
+    iter.next();
+    detach_ocaml_StringRef(elem->name);
+    detach_ocaml_int(elem->value);
+  }
+}
+
 
 // ---------------- EnumType::Value --------------
 EnumType::Value::Value(StringRef n, EnumType *t, int v, Variable *d)
@@ -1779,6 +1891,15 @@ bool BaseType::containsTypeVariables() const
 }
 
 
+// ocaml serialization, cleanup ocaml_val
+// hand written ocaml serialization function
+void BaseType::detachOcaml() {
+  if(ocaml_val == 0) return;
+  caml_remove_global_root(&ocaml_val);
+  ocaml_val = 0;
+}
+
+
 // TODO: sm: I think it's wrong to have both 'hasTypeVariable' and
 // 'hasVariable', since I think any use of the former actually wants
 // to be a use of the latter.
@@ -1975,6 +2096,17 @@ value CVAtomicType::toOcaml(ToOcamlData * data){
 
   data->stack.remove(this);
   CAMLreturn(ocaml_val);
+}
+
+
+// ocaml serialization, cleanup ocaml_val
+// hand written ocaml serialization function
+void CVAtomicType::detachOcaml() {
+  if(ocaml_val == 0) return;
+  CType::detachOcaml();
+
+  detach_ocaml_CVFlags(cv);
+  atomic->detachOcaml();
 }
 
 

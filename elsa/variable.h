@@ -325,12 +325,16 @@ public:
   void traverse(TypeVisitor &vis);
 
   // ocaml serialization method
-  // define this in the real type classes derived from CType
   value toOcaml(ToOcamlData *);
+  virtual void detachOcaml();
 };
 
 inline value ocaml_from_Variable(Variable &v, ToOcamlData *d) {
   return v.toOcaml(d);
+}
+
+inline void detach_ocaml_Variable(Variable &v) {
+  v.detachOcaml();
 }
 
 inline string toString(Variable const *v) { return v->toString(); }
