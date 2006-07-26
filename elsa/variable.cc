@@ -68,7 +68,6 @@ Variable::Variable(SourceLoc L, StringRef n, Type *t, DeclFlags f)
     overload(NULL),
     virtuallyOverride(NULL),
     scope(NULL),
-    intData(0),
     usingAlias_or_parameterizedEntity(NULL),
     templInfo(NULL)
 {
@@ -119,7 +118,6 @@ Variable::Variable(XmlReader&)
     overload(NULL),
     virtuallyOverride(NULL),
     scope(NULL),
-    intData(0),
     usingAlias_or_parameterizedEntity(NULL),
     templInfo(NULL)
 {
@@ -223,94 +221,6 @@ bool Variable::linkerVisibleName(bool evenIfStatic) const {
 bool Variable::isClass() const
 {
   return hasFlag(DF_TYPEDEF) && type->isCompoundType();
-}
-
-
-AccessKeyword Variable::getAccess() const
-{
-  return (AccessKeyword)(intData & 0xF);
-}
-
-void Variable::setAccess(AccessKeyword k)
-{
-  intData = (intData & ~0xF) | (k & 0xF);
-}
-
-
-bool Variable::getReal() const
-{
-  int r = ((intData & 0x10) >> 4);
-  return r ? 1 : 0;
-}
-
-void Variable::setReal(bool r0)
-{
-  int r = r0 ? 1 : 0;
-  intData = (intData & ~0x10) | ((r << 4) & 0x10);
-}
-
-
-bool Variable::getMaybeUsedAsAlias() const
-{
-  int r = ((intData & 0x20) >> 5);
-  return r ? 1 : 0;
-}
-
-void Variable::setMaybeUsedAsAlias(bool r0)
-{
-  int r = r0 ? 1 : 0;
-  intData = (intData & ~0x20) | ((r << 5) & 0x20);
-}
-
-bool Variable::getUser1() const
-{
-  int r = ((intData & 0x40) >> 6);
-  return r ? 1 : 0;
-}
-
-void Variable::setUser1(bool r0)
-{
-  int r = r0 ? 1 : 0;
-  intData = (intData & ~0x40) | ((r << 6) & 0x40);
-}
-
-bool Variable::getUser2() const
-{
-  int r = ((intData & 0x80) >> 7);
-  return r ? 1 : 0;
-}
-
-void Variable::setUser2(bool r0)
-{
-  int r = r0 ? 1 : 0;
-  intData = (intData & ~0x80) | ((r << 7) & 0x80);
-}
-
-
-ScopeKind Variable::getScopeKind() const
-{
-  return (ScopeKind)((intData & 0xFF00) >> 8);
-}
-
-void Variable::setScopeKind(ScopeKind k)
-{
-  intData = (intData & ~0xFF00) | ((k << 8) & 0xFF00);
-}
-
-
-int Variable::getParameterOrdinal() const
-{
-  return (intData >> 16) & 0xFFFF;
-}
-
-void Variable::setParameterOrdinal(int ord)
-{
-  // this imposes a limit of 0xFFFF template parameters; but that is
-  // probably ok, as the standard's recommended minimum limit is 1024
-  // (annex B, para 2, near the end of the list)
-  xassert(0 <= ord && ord <= 0xFFFF);
-
-  intData = (intData & ~0xFFFF0000) | ((ord << 16) & 0xFFFF0000);
 }
 
 

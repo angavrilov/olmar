@@ -39,6 +39,7 @@
 #include "sobjlist.h"          // SObjList
 #include "sobjset.h"           // SObjSet
 #include "serialno.h"          // INHERIT_SERIAL_BASE
+#include "packedword.h"        // PackedWord
 
 class Type;                    // cc_type.h
 class TypeVisitor;             // cc_type.h
@@ -137,7 +138,7 @@ private:      // data
   // bits 8-15: result of 'getScopeKind()'
   //   dsw: scopeKind only needs 3 bits, leaving 8-3 = 5 extra bits
   // bits 16-31: result of 'getParameterOrdinal()' or 'getBitfieldSize()'
-  unsigned intData;
+  PackedWord intData;
 
   // for most kinds of Variables, this is 'getUsingAlias()'; for
   // template parameters (isTemplateParam()), this is
@@ -212,49 +213,18 @@ public:
   bool isExplicitTypedef() const
     { return hasFlag(DF_TYPEDEF) && !hasFlag(DF_IMPLICIT); }
 
-  // access control applied to this variable in the context
-  // in which it appears (defaults to AK_PUBLIC)
-  AccessKeyword getAccess() const;
-  void setAccess(AccessKeyword k);
-
-  // dsw: true iff this variable is "real" code: not part of an
-  // uninstantiated template; this flag is set by the visitRealVarsF()
-  // function when called with a MarkRealVars visitor.
-  bool getReal() const;
-  void setReal(bool r);
-
-  // dsw: true iff this variable may be used as an alias of another;
-  // that is, if there is another variable that getUsingAlias()
-  // returns this variable; this flag is set by setUsingAlias() when
-  // called on the other variable, however it is never unset if
-  // setUsingAlias(NULL) is called later as we don't know how many
-  // variables may be using us as an alias
-  bool getMaybeUsedAsAlias() const;
-  void setMaybeUsedAsAlias(bool r);
-
-  // dsw: these two flags are for use by an analysis
-  bool getUser1() const;
-  void setUser1(bool r);
-  bool getUser2() const;
-  void setUser2(bool r);
-
-  // kind of scope in which the name is declared; initially this
-  // is SK_UNKNOWN
-  //
-  // 2005-03-02: It appears that this quantity is never actually used;
-  // furthermore, I think it is computable (mainly from 'scope').  So,
-  // it is a candidate for removal at some point.
-  //
-  // dsw: there would be no way to get the scope kind for a Variable
-  // in a non-isPermanentScope(), since such scopes do not persist and
-  // the variables in them do not get a pointer to them
-  ScopeKind getScopeKind() const;
-  void setScopeKind(ScopeKind k);
-
-  // for template parameters, this says which parameter this is in
-  // the parameter list, e.g., 0 for first, 1 for second, etc.
-  int getParameterOrdinal() const;
-  void setParameterOrdinal(int ord);
+  // break intData apart into various typed sub-fields
+  PACKEDWORD_DEF_GS(intData, Access,           AccessKeyword,  0,  4)
+  PACKEDWORD_DEF_GS(intData, Real,             bool,           4,  5)
+  PACKEDWORD_DEF_GS(intData, MaybeUsedAsAlias, bool,           5,  6)
+  PACKEDWORD_DEF_GS(intData, User1,            bool,           6,  7)
+  PACKEDWORD_DEF_GS(intData, User2,            bool,           7,  8)
+  PACKEDWORD_DEF_GS(intData, ScopeKind,        ScopeKind,      8, 11)
+  PACKEDWORD_DEF_GS(intData, ParameterOrdinal, int,           16, 32)
+  // ParameterOrdinal and BitfieldSize overlap, but
+  // set/getBitfieldSize check an assertion before delegating to
+  // ParameterOrdinal
+  // PACKEDWORD_DEF_GS(intData, BitfieldSize, int, 16, 32)
 
   // true if this name refers to a template function, or is
   // the typedef-name of a template class (or partial specialization)
