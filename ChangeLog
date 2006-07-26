@@ -1,3 +1,8 @@
+2006-07-26  Hendrik Tews  <tews@tandem.cs.ru.nl>
+
+	AST
+	* started detachOcaml
+
 2006-07-25  Hendrik Tews  <tews@debian>
 
 	ASTGEN

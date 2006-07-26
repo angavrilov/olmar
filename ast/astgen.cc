@@ -920,6 +920,7 @@ void HGen::emitCommonFuncs(rostring virt, bool hasChildren)
     if(hasChildren)
       out << " =0";
     out << ";\n";
+    out << "  void detachOcaml();\n";
   }
 
   out << "\n";
@@ -1054,6 +1055,8 @@ public:
 			 unsigned & count);
   void emitToOcaml(ASTClass const *super, ASTClass const *sub);
   void emitOcamlFromList(ListClass const *cls);      
+  void emitDetachOcaml(ASTClass const * super, ASTClass const *sub);
+  void emitDetachOcamlChilds(const ASTList<FieldOrCtorArg> & args);
 
   void emitVisitorImplementation();
 
@@ -1901,6 +1904,52 @@ void CGen::emitToOcaml(ASTClass const * super, ASTClass const *sub)
   out << "  CAMLreturn(ocaml_val);" << endl;
   
   out << "}" << endl << endl;
+}
+
+
+void CGen::emitDetachOcamlChilds(const ASTList<FieldOrCtorArg> & args)
+{
+  FOREACH_ASTLIST(FieldOrCtorArg, args, iter) {
+    const FieldOrCtorArg * arg = iter.data();
+    bool use_option = ctor_uses_option(arg);
+    if(use_option) 
+      out << "  if(" << arg->name << ")\n"
+	  << "    ";
+    else
+      out << "  ";
+
+    if(isTreeNode(arg->type) || isTreeNodePtr(arg->type)) {
+      out << arg->name << "->detachOcaml()\n";
+    }
+    else {
+      out << detach_from_function(arg->type) << "(";
+      if(isPtrKind(arg->type)){
+	out << "*";
+	// treat only one level of pointers
+	xassert(!isPtrKind(getPtrBase(arg->type)));
+      }
+      out << arg->name << ")"\n;
+    }
+}
+
+
+void CGen::emitDetachOcaml(ASTClass const *super, ASTClass const *sub)
+{ // sub is NULL when treating the super class
+
+  ASTClass const *myClass = sub ? sub : super;
+
+  out << "void " << myClass->name << "::detachOcaml() {\n\n";
+  out << "  if(!ocaml_val) return;\n";
+  if(sub)
+    out << "  caml_remove_global_root(&ocaml_val);\n\n";
+  else
+    out << "  " << super->name << "::detachOcaml();\n";
+
+  emitDetachOcamlChilds(myClass->args);
+  emitDetachOcamlChilds(myClass->fields);
+  if(!sub)
+    emitDetachOcamlChilds(super->lastArgs);
+  out << "}\n\n";
 }
 
 // -------------------------- visitor ---------------------------
