@@ -431,6 +431,8 @@ void XmlTypeWriter::toXml_Variable_properties(Variable *var) {
 
   ScopeKind scopeKind = var->getScopeKind();
   printXml(scopeKind, scopeKind);
+  bool hasValue = var->getHasValue();
+  printXml_bool(hasValue, hasValue);
   int parameterOrdinal = var->getParameterOrdinal();
   printXml_int(parameterOrdinal, parameterOrdinal);
   // **** end abstract fields

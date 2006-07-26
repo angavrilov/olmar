@@ -518,6 +518,11 @@ bool XmlTypeReader::registerAttr_Variable_super(Variable *obj, int attr, char co
     fromXml(scopeKind, strValue);
     obj->setScopeKind(scopeKind);
     break;
+  case XTOK_hasValue:
+    bool hasValue;
+    fromXml_bool(hasValue, strValue);
+    obj->setHasValue(hasValue);
+    break;
   case XTOK_parameterOrdinal:
     int parameterOrdinal;
     fromXml_int(parameterOrdinal, strValue);

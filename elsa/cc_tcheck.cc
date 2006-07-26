@@ -3909,7 +3909,7 @@ void Declarator::tcheck_init(Env &env)
 
   // remember the initializing value, for const values
   if (init->isIN_expr()) {
-    var->value = init->asIN_exprC()->e;
+    var->setValue(init->asIN_exprC()->e);
   }
 
   // use the initializer size to refine array types

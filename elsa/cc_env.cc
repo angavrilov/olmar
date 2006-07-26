@@ -3597,7 +3597,7 @@ void Env::mergeDefaultArguments(SourceLoc loc, Variable *prior, FunctionType *ty
         //
         // TODO: what are the scoping issues w.r.t. evaluating
         // default arguments?
-        p->value = n->value;
+        p->setValue(n->value);
       }
     }
     else if (!p->value && seenSomeDefaults) {
@@ -5412,7 +5412,7 @@ bool DefaultArgumentChecker::visitIDeclarator(IDeclarator *obj)
           // arg from the AST and attach it to the Variable
           xassert(d->init->isIN_expr());    // should be parse failure otherwise, I think
           IN_expr *ie = d->init->asIN_expr();
-          d->var->value = ie->e;
+          d->var->setValue(ie->e);
           ie->e = NULL;
         }
       }

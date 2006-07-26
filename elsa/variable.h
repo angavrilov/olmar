@@ -76,7 +76,9 @@ public:    // data
   // if this Variable is a parameter of a template function, then this
   // 'value' might not have been tchecked; you have to look at the
   // associated TemplateInfo::uninstantiatedDefaultArgs to find out
-  Expression *value;      // (nullable serf)
+  //
+  // this is const to encourage use of use setValue()
+  Expression * const value;     // (nullable serf)
 
   // default value for template parameters; see TODO at end
   // of this file
@@ -128,16 +130,9 @@ private:      // data
   // there are subclasses for various roles, as that would minimize
   // wasted storage, but that is a fairly big change, and for the
   // moment these localized hacks will suffice.
-
-  // bits 0-3: result of 'getAccess()'
-  //   dsw: AccessKeyword only needs 2 bits, leaving 4-2 = 2 extra bits
-  // bit 4: result of 'getReal()'
-  // bit 5: result of 'getMaybeUsedAsAlias()'
-  // bit 6: result of 'getUser1()'
-  // bit 7: result of 'getUser2()'
-  // bits 8-15: result of 'getScopeKind()'
-  //   dsw: scopeKind only needs 3 bits, leaving 8-3 = 5 extra bits
-  // bits 16-31: result of 'getParameterOrdinal()' or 'getBitfieldSize()'
+  //
+  // dsw: see the use of the PACKEDWORD_DEF_GS macro below for the
+  // partition into bits
   PackedWord intData;
 
   // for most kinds of Variables, this is 'getUsingAlias()'; for
@@ -220,11 +215,14 @@ public:
   PACKEDWORD_DEF_GS(intData, User1,            bool,           6,  7)
   PACKEDWORD_DEF_GS(intData, User2,            bool,           7,  8)
   PACKEDWORD_DEF_GS(intData, ScopeKind,        ScopeKind,      8, 11)
+  PACKEDWORD_DEF_GS(intData, HasValue,         bool,          11, 12)
   PACKEDWORD_DEF_GS(intData, ParameterOrdinal, int,           16, 32)
   // ParameterOrdinal and BitfieldSize overlap, but
   // set/getBitfieldSize check an assertion before delegating to
   // ParameterOrdinal
   // PACKEDWORD_DEF_GS(intData, BitfieldSize, int, 16, 32)
+
+  void setValue(Expression *e) { const_cast<Expression *&>(value)=e; setHasValue(e!=NULL); }
 
   // true if this name refers to a template function, or is
   // the typedef-name of a template class (or partial specialization)

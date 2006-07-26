@@ -1711,7 +1711,7 @@ bool Env::insertTemplateArgBindings_oneParamList
 
       // set 'bindings->value', in some cases creating AST
       if (!sarg) {
-        binding->value = param->value;
+        binding->setValue(param->value);
 
         // sm: the statement above seems reasonable, but I'm not at
         // all convinced it's really right... has it been tcheck'd?
@@ -1735,27 +1735,27 @@ bool Env::insertTemplateArgBindings_oneParamList
         // indirection through the 'binding' variable.
 
         case STemplateArgument::STA_INT: {
-          binding->value = build_E_intLit(sarg->getInt());
+          binding->setValue(build_E_intLit(sarg->getInt()));
           break;
         }
         case STemplateArgument::STA_ENUMERATOR: {
-          binding->value = build_E_variable(sarg->getEnumerator());
+          binding->setValue(build_E_variable(sarg->getEnumerator()));
           break;
         }
         case STemplateArgument::STA_REFERENCE: {
-          binding->value = build_E_variable(sarg->getReference());
+          binding->setValue(build_E_variable(sarg->getReference()));
           break;
         }
         case STemplateArgument::STA_POINTER: {
-          binding->value = build_E_addrOf(build_E_variable(sarg->getPointer()));
+          binding->setValue(build_E_addrOf(build_E_variable(sarg->getPointer())));
           break;
         }
         case STemplateArgument::STA_MEMBER: {
-          binding->value = build_E_addrOf(build_E_variable(sarg->getMember()));
+          binding->setValue(build_E_addrOf(build_E_variable(sarg->getMember())));
           break;
         }
         case STemplateArgument::STA_DEPEXPR: {
-          binding->value = sarg->getDepExpr();
+          binding->setValue(sarg->getDepExpr());
           break;
         }
         default: {
@@ -2143,7 +2143,7 @@ void cloneDefaultArguments(Variable *inst, TemplateInfo *instTI,
   for (; !instParam.isDone() && !primaryParam.isDone();
        instParam.adv(), primaryParam.adv()) {
     if (primaryParam.data()->value) {
-      instParam.data()->value = primaryParam.data()->value->clone();
+      instParam.data()->setValue(primaryParam.data()->value->clone());
       instTI->uninstantiatedDefaultArgs++;
     }
     else {
@@ -2325,7 +2325,9 @@ void Env::instantiateDefaultArgs(Variable *instV, int neededDefaults)
   for (int i = noDefaults+m; i < noDefaults+n+m; i++) {
     Variable *param = ft->params.nth(i);
     if (param->value) {
-      param->value->tcheck(*this, param->value);
+      Expression *value0 = param->value;
+      param->value->tcheck(*this, value0);
+      param->setValue(value0);
       instTI->uninstantiatedDefaultArgs--;
     }
     else {
@@ -3685,7 +3687,7 @@ bool Env::mergeParameterLists(Variable *prior,
 
     // merge their default values
     if (src->value && !dest->value) {
-      dest->value = src->value;
+      dest->setValue(src->value);
     }
 
     // do they use the same name?
@@ -3708,7 +3710,7 @@ bool Env::mergeParameterLists(Variable *prior,
       Variable *v = makeVariable(dest->loc, src->name, src->type, dest->flags);
 
       // copy a few other fields, including default value
-      v->value = dest->value;
+      v->setValue(dest->value);
       v->defaultParamType = dest->defaultParamType;
       v->scope = dest->scope;
       v->setScopeKind(dest->getScopeKind());
@@ -3821,7 +3823,7 @@ Type *Env::applyArgumentMapToType(MType &map, Type *origSrc)
           // TODO: I should be substituting the template parameters
           // in the default argument too... but for now I will just
           // use it without modification
-          rp->value = sp->value;
+          rp->setValue(sp->value);
         }
 
         rft->addParam(rp);

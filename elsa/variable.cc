@@ -556,7 +556,12 @@ int Variable::overloadSetSize() const
 
 bool Variable::isPureVirtualMethod() const
 {
-  bool ret = type && type->isMethod() && value;
+  // NOTE: use getHasValue() here instead of testing for the existance
+  // of the value field.  The value field is AST and there are some
+  // modes of usage where we serialize the typesystem but not the AST;
+  // the behavior of this method before and after serialization would
+  // alter in such a case.
+  bool ret = type && type->isMethod() && getHasValue();
   // FIX: figure out how to add these assertions without having to
   // include cc_ast.h
 //   if (ret) {
