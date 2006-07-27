@@ -1,3 +1,8 @@
+2006-07-27  Hendrik Tews  <tews@debian>
+
+	ELSA
+	* finished caml roots debugging (regrtest passed)
+
 2006-07-27  Hendrik Tews  <tews@tandem.cs.ru.nl>
 
 	ELSA

@@ -920,7 +920,7 @@ void HGen::emitCommonFuncs(rostring virt, bool hasChildren)
     if(hasChildren)
       out << " =0";
     out << ";\n";
-    out << "  void detachOcaml();\n";
+    out << "  " << virt << "void detachOcaml();\n";
   }
 
   out << "\n";

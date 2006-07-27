@@ -1345,7 +1345,7 @@ void CompoundType::detachOcamlInfo() {
   
   SFOREACH_OBJLIST_NC(Variable, dataMembers, iter)
     iter.data()->detachOcaml();
-  FOREACH_OBJLIST_NC(BaseClassSubobj, virtualBases, iter)
+  FOREACH_OBJLIST_NC(BaseClass, bases, iter)
     iter.data()->detachOcaml();
   SFOREACH_OBJLIST_NC(Variable, conversionOperators, iter)
     iter.data()->detachOcaml();

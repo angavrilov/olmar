@@ -10,47 +10,6 @@ extern "C" {
 #include <iomanip.h>
 
 
-#ifdef DEBUG_CAML_GLOBAL_ROOTS
-
-static SObjSet<value const *> debug_caml_roots;
-static int debug_caml_root_max;
-
-void debug_caml_register_global_root (value * val) {
-  cerr << "register root " << hex << val << dec << endl;
-  if(debug_caml_roots.contains(val)) {
-    cerr << "second registration of caml root " << hex << val << dec << endl;
-    xassert(false);
-  }
-  debug_caml_roots.add(val);
-  if(debug_caml_roots.size() > debug_caml_root_max)
-    debug_caml_root_max = debug_caml_roots.size();
-  caml_register_global_root(val);
-}
-
-void debug_caml_remove_global_root (value * val) {
-  if(!debug_caml_roots.contains(val)) {
-    cerr << "remove nonexisting caml root " << hex << val << dec << endl;
-    xassert(false);
-  }
-  debug_caml_roots.remove(val);
-  caml_remove_global_root(val);
-}
-
-void print_caml_root_status() {
-  cerr << "active caml roots: " << debug_caml_roots.size()
-       << " (max was " << debug_caml_root_max << " )\n";
-  if(debug_caml_roots.size() != 0) {
-    cerr << "active roots: " << hex;
-    for(SObjSetIter<value const *> iter(debug_caml_roots); !iter.isDone();
-	  iter.adv()) {
-      cerr << iter.data() << " ";
-    }
-    cerr << dec << "\n";
-  }
-}
-#endif
-
-
 CircularAstPart::CircularAstPart() : 
   ca_type(CA_Empty), 
   val(Val_unit),
@@ -1902,6 +1861,53 @@ value ocaml_from_CompoundType_Keyword(const CompoundType::Keyword &id,
   xassert(false);
 }
 
+
+//**************************************************************************
+//******************************* debug caml roots *************************
+
+#ifdef DEBUG_CAML_GLOBAL_ROOTS
+
+#undef caml_register_global_root
+#undef caml_remove_global_root
+
+static SObjSet<value const *> debug_caml_roots;
+static int debug_caml_root_max;
+
+void debug_caml_register_global_root (value * val) {
+  // cerr << "register root " << hex << val << dec << endl;
+  if(debug_caml_roots.contains(val)) {
+    cerr << "second registration of caml root " << hex << val << dec << endl;
+    xassert(false);
+  }
+  debug_caml_roots.add(val);
+  if(debug_caml_roots.size() > debug_caml_root_max)
+    debug_caml_root_max = debug_caml_roots.size();
+  caml_register_global_root(val);
+}
+
+void debug_caml_remove_global_root (value * val) {
+  if(!debug_caml_roots.contains(val)) {
+    cerr << "remove nonexisting caml root " << hex << val << dec << endl;
+    xassert(false);
+  }
+  debug_caml_roots.remove(val);
+  caml_remove_global_root(val);
+}
+
+void check_caml_root_status() {
+  if(debug_caml_roots.size() == 0) 
+    return;
+  cerr << "active caml roots: " << debug_caml_roots.size()
+       << " (max was " << debug_caml_root_max << " )\n";
+  cerr << "active roots: " << hex;
+  for(SObjSetIter<value const *> iter(debug_caml_roots); !iter.isDone();
+      iter.adv()) {
+    cerr << iter.data() << " ";
+    xassert(false);
+    cerr << dec << "\n";
+  }
+}
+#endif
 
 
 

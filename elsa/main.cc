@@ -368,14 +368,16 @@ void marshal_to_ocaml(char ** argv, const char * inputFname,
     caml_start_up_done = true;
   }
   
-  ToOcamlData ocaml_data;
+  { // start a block here to limit the livetime of ocaml_data
+    ToOcamlData ocaml_data;
 
-  ocaml_unit = unit->toOcaml(&ocaml_data);
-  xassert(ocaml_data.stack.size() == 0);
-  finish_circular_pointers(&ocaml_data);
-  unit->detachOcaml();
+    ocaml_unit = unit->toOcaml(&ocaml_data);
+    xassert(ocaml_data.stack.size() == 0);
+    finish_circular_pointers(&ocaml_data);
+    unit->detachOcaml();
+  }
 #ifdef DEBUG_CAML_GLOBAL_ROOTS
-  print_caml_root_status();
+  check_caml_root_status();
 #endif
 
   static value * marshal_callback = NULL;

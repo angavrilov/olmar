@@ -19,7 +19,7 @@
 #define caml_remove_global_root debug_caml_remove_global_root
 void debug_caml_register_global_root (value *);
 void debug_caml_remove_global_root (value *);
-void print_caml_root_status();
+void check_caml_root_status();
 
 #endif
 
