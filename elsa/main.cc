@@ -373,6 +373,10 @@ void marshal_to_ocaml(char ** argv, const char * inputFname,
   ocaml_unit = unit->toOcaml(&ocaml_data);
   xassert(ocaml_data.stack.size() == 0);
   finish_circular_pointers(&ocaml_data);
+  unit->detachOcaml();
+#ifdef DEBUG_CAML_GLOBAL_ROOTS
+  print_caml_root_status();
+#endif
 
   static value * marshal_callback = NULL;
   if(marshal_callback == NULL)

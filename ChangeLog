@@ -1,3 +1,9 @@
+2006-07-27  Hendrik Tews  <tews@tandem.cs.ru.nl>
+
+	ELSA
+	* finished detach for CType and templates
+	* debug caml roots started
+
 2006-07-27  Hendrik Tews  <tews@debian>
 
 	AST:

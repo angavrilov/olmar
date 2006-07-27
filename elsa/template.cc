@@ -144,6 +144,16 @@ value TypeVariable::toOcaml(ToOcamlData * data){
 }
 
 
+// ocaml serialization, cleanup ocaml_val
+// hand written ocaml serialization function
+void TypeVariable::detachOcaml() {
+  if(ocaml_val == 0) return;
+  NamedAtomicType::detachOcaml();
+
+  // no data itself
+}
+
+
 // -------------------- PseudoInstantiation ------------------
 PseudoInstantiation::PseudoInstantiation(CompoundType *p)
   : NamedAtomicType(p? p->name : NULL),
@@ -248,6 +258,19 @@ value PseudoInstantiation::toOcaml(ToOcamlData * data){
   CAMLreturn(ocaml_val);
 }
 
+
+// ocaml serialization, cleanup ocaml_val
+// hand written ocaml serialization function
+void PseudoInstantiation::detachOcaml() {
+  if(ocaml_val == 0) return;
+  NamedAtomicType::detachOcaml();
+
+  primary->detachOcamlInfo();
+  FOREACH_OBJLIST_NC(STemplateArgument, args, iter)
+    iter.data()->detachOcaml();
+}
+
+
 // -------------------- DependentQType ------------------
 DependentQType::DependentQType(AtomicType *f)
   : NamedAtomicType(NULL /*name*/),    // gets changed later
@@ -317,9 +340,17 @@ void DependentQType::traverse(TypeVisitor &vis)
 // hand written ocaml serialization function
 value DependentQType::toOcaml(ToOcamlData *){
   // Hendrik
-  cerr << "DependentQType::toOcaml" << endl;
+  cerr << "DependentQType::toOcaml not implemented" << endl;
   xassert(false);
 }
+
+
+void DependentQType::detachOcaml() {
+  // Hendrik
+  cerr << "DependentQType::detachOcaml not implemented" << endl;
+  xassert(false);
+}
+
 
 // ------------------ TemplateParams ---------------
 TemplateParams::TemplateParams(TemplateParams const &obj)
@@ -1235,6 +1266,64 @@ value STemplateArgument::toOcaml(ToOcamlData * data){
 
   data->stack.remove(this);
   CAMLreturn(ocaml_val);
+}
+
+
+// ocaml serialization, cleanup ocaml_val
+// hand written ocaml serialization function
+void STemplateArgument::detachOcaml() {
+  if(ocaml_val == 0) return;
+  caml_remove_global_root(&ocaml_val);
+  ocaml_val = 0;
+
+  switch(kind){
+
+  case STA_NONE:
+    break;
+
+  case STA_TYPE:
+    getType()->detachOcaml();
+    break;
+
+  case STA_INT:
+    detach_ocaml_int(getInt());
+    break;
+
+  case STA_ENUMERATOR:
+    getEnumerator()->detachOcaml();
+    break;
+
+  case STA_REFERENCE:
+    getReference()->detachOcaml();
+    break;
+
+  case STA_POINTER:
+    getPointer()->detachOcaml();
+    break;
+
+  case STA_MEMBER:
+    getMember()->detachOcaml();
+    break;
+
+  case STA_DEPEXPR:
+    getDepExpr()->detachOcaml();
+    break;
+
+  case STA_TEMPLATE:
+    xassert(false); 		// not implemented yet
+    // ??->detachOcaml();
+    break;
+
+  case STA_ATOMIC:
+    // HT: deal with the atomic const problem if we arrive here
+    xassert(false);
+    // arg = sta_value.at->detachOcaml();
+    break;
+
+  default:
+    xassert(false);
+    break;
+  }
 }
 
 

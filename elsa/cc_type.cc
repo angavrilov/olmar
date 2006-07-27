@@ -2249,6 +2249,17 @@ value PointerType::toOcaml(ToOcamlData * data){
 }
 
 
+// ocaml serialization, cleanup ocaml_val
+// hand written ocaml serialization function
+void PointerType::detachOcaml() {
+  if(ocaml_val == 0) return;
+  CType::detachOcaml();
+
+  detach_ocaml_CVFlags(cv);
+  atType->detachOcaml();
+}
+
+
 // ------------------- ReferenceType ---------------
 ReferenceType::ReferenceType(CType *a)
   : atType(a)
@@ -2358,6 +2369,17 @@ value ReferenceType::toOcaml(ToOcamlData * data){
   data->stack.remove(this);
   CAMLreturn(ocaml_val);
 }
+
+
+// ocaml serialization, cleanup ocaml_val
+// hand written ocaml serialization function
+void ReferenceType::detachOcaml() {
+  if(ocaml_val == 0) return;
+  CType::detachOcaml();
+
+  atType->detachOcaml();
+}
+
 
 // -------------------- FunctionType::ExnSpec --------------
 FunctionType::ExnSpec::ExnSpec(ExnSpec const &obj)
@@ -2775,6 +2797,23 @@ value FunctionType::toOcaml(ToOcamlData * data){
   CAMLreturn(ocaml_val);
 }
 
+
+// ocaml serialization, cleanup ocaml_val
+// hand written ocaml serialization function
+void FunctionType::detachOcaml() {
+  if(ocaml_val == 0) return;
+  CType::detachOcaml();
+
+  detach_ocaml_function_flags(flags);
+  retType->detachOcaml();
+  SFOREACH_OBJLIST_NC(Variable, params, iter)
+    iter.data()->detachOcaml();
+  if(exnSpec)
+    SFOREACH_OBJLIST_NC(CType, exnSpec->types, iter)
+      iter.data()->detachOcaml();
+}
+
+
 // -------------------- ArrayType ------------------
 void ArrayType::checkWellFormedness() const
 {
@@ -2912,6 +2951,18 @@ value ArrayType::toOcaml(ToOcamlData * data){
   CAMLreturn(ocaml_val);
 }
 
+
+// ocaml serialization, cleanup ocaml_val
+// hand written ocaml serialization function
+void ArrayType::detachOcaml() {
+  if(ocaml_val == 0) return;
+  CType::detachOcaml();
+
+  eltType->detachOcaml();
+  detach_ocaml_int(size);
+}
+
+
 // ---------------- PointerToMemberType ---------------
 PointerToMemberType::PointerToMemberType(NamedAtomicType *inClassNAT0, CVFlags c, CType *a)
   : inClassNAT(inClassNAT0), cv(c), atType(a)
@@ -3042,6 +3093,19 @@ value PointerToMemberType::toOcaml(ToOcamlData * data){
   data->stack.remove(this);
   CAMLreturn(ocaml_val);
 }
+
+
+// ocaml serialization, cleanup ocaml_val
+// hand written ocaml serialization function
+void PointerToMemberType::detachOcaml() {
+  if(ocaml_val == 0) return;
+  CType::detachOcaml();
+
+  inClassNAT->detachOcaml();
+  detach_ocaml_CVFlags(cv);
+  atType->detachOcaml();
+}
+
 
 // ---------------------- toMLString ---------------------
 // print out a type as an ML-style string

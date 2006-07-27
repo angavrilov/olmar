@@ -914,7 +914,6 @@ public:
   virtual void detachOcaml();
 };
 
-//continue here with POinterType, dont forget the staff in template.h
 
 // type of a pointer
 class PointerType : public CType {
@@ -943,6 +942,7 @@ public:
   virtual void traverse(TypeVisitor &vis);
   // ocaml serialization method
   virtual value toOcaml(ToOcamlData *);
+  virtual void detachOcaml();
 };
 
 
@@ -972,6 +972,7 @@ public:
   virtual void traverse(TypeVisitor &vis);
   // ocaml serialization method
   virtual value toOcaml(ToOcamlData *);
+  virtual void detachOcaml();
 };
 
 
@@ -1094,6 +1095,7 @@ public:
   virtual void traverse(TypeVisitor &vis);
   // ocaml serialization method
   virtual value toOcaml(ToOcamlData *);
+  virtual void detachOcaml();
 };
 
 
@@ -1139,6 +1141,7 @@ public:
   virtual void traverse(TypeVisitor &vis);
   // ocaml serialization method
   virtual value toOcaml(ToOcamlData *);
+  virtual void detachOcaml();
 };
 
 
@@ -1181,6 +1184,7 @@ public:
   virtual void traverse(TypeVisitor &vis);
   // ocaml serialization method
   virtual value toOcaml(ToOcamlData *);
+  virtual void detachOcaml();
 };
 
 

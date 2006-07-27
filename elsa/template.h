@@ -34,6 +34,7 @@ public:
   bool isAssociated() const;
   // ocaml serialization method
   virtual value toOcaml(ToOcamlData *);
+  virtual void detachOcaml();
 };
 
 
@@ -65,6 +66,7 @@ public:      // funcs
   virtual void traverse(TypeVisitor &vis);
   // ocaml serialization method
   virtual value toOcaml(ToOcamlData *);
+  virtual void detachOcaml();
 };
 
 
@@ -97,6 +99,7 @@ public:      // data
   virtual void traverse(TypeVisitor &vis);
   // ocaml serialization method
   virtual value toOcaml(ToOcamlData *);
+  virtual void detachOcaml();
 };
 
 
@@ -491,6 +494,7 @@ public:
 
   // ocaml serialization method
   virtual value toOcaml(ToOcamlData *);
+  virtual void detachOcaml();
 };
 
 SObjList<STemplateArgument> *cloneSArgs(SObjList<STemplateArgument> &sargs);
