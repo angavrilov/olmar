@@ -733,6 +733,11 @@ public:      // funcs
   // If 't' was derived from an expression, it is passed as 'expr'.
   Type *sizeofType(Type *t, int &size, Expression * /*nullable*/ expr);
 
+  Expression *makeConvertedArg(Expression * const arg,
+                               ImplicitConversion const &ic);
+
+  bool elaborateImplicitConversionArgToParam(Type *paramType, Expression *&arg);
+
   // ------------ new lookup mechanism ---------------
 private:     // funcs
   void unqualifiedLookup(LookupSet &set, Scope * /*nullable*/ scope,

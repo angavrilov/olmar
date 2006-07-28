@@ -12,6 +12,13 @@
 #include "implconv.h"      // ImplicitConversion
 
 
+// forwards in this file
+
+// helper functions for elaboration not during elaboration stage, but during
+// type checking.
+E_addrOf *makeAddr(TypeFactory &tfac, SourceLoc loc, Expression *e);
+
+
 void gdbScopeSeq(ScopeSeq &ss)
 {
   cout << "scope sequence" << endl;
@@ -5376,6 +5383,108 @@ ASTTypeId *Env::buildASTTypeId(Type *type)
                                       NULL /*init*/));
 }
 
+// This function is called *after* the arguments have been type
+// checked and overload resolution performed (if necessary).  It must
+// compare the actual arguments to the parameters.  It also must
+// finish the job started above of resolving address-of overloaded
+// function names, by comparing to the parameter.
+//
+// One bad aspect of the current design is the need to pass both 'args'
+// and 'argInfo'.  Only by having both pieces of information can I do
+// resolution of overloaded address-of.  I'd like to consolidate that
+// at some point...
+//
+// Note that 'args' *never* includes the receiver object, whereas
+// 'argInfo' *always* includes the type of the receiver object (or
+// NULL) as its first element.
+//
+// It returns the # of default args used.
+
+// Elaboration: if 'ic' involves a user-defined conversion, then modify the
+// AST to make that explicit.
+Expression *Env::makeConvertedArg(Expression * const arg,
+                                  ImplicitConversion const &ic)
+{
+  Expression *newarg = arg;
+
+  switch (ic.kind) {
+  case ImplicitConversion::IC_NONE:
+    // an error message is already printed above.
+    break;
+  case ImplicitConversion::IC_STANDARD:
+    if (ic.scs & SC_GROUP_1_MASK) {
+      switch (ic.scs & SC_GROUP_1_MASK) {
+      case SC_LVAL_TO_RVAL:
+        // TODO
+        break;
+      case SC_ARRAY_TO_PTR:
+        // TODO
+        break;
+      case SC_FUNC_TO_PTR:
+        newarg = makeAddr(env.tfac, env.loc(), arg);
+        break;
+      default:
+        // only 3 kinds in SC_GROUP_1_MASK
+        xfailure("shouldn't reach here");
+        break;
+      }
+    } else {
+      // TODO
+    }
+    break;
+  case ImplicitConversion::IC_USER_DEFINED:
+    // TODO
+    break;
+  case ImplicitConversion::IC_ELLIPSIS:
+    // TODO
+    break;
+  case ImplicitConversion::IC_AMBIGUOUS:
+    xfailure("IC_AMBIGUOUS -- what does this mean here? (25f0c1af-5aea-4528-b994-ccaac0b3a8f1)");
+    break;
+  default:
+    xfailure("shouldn't reach here");
+    break;
+  }
+  return newarg;
+}
+
+// quarl 2006-07-26
+//    used in function call parameter type checking and also initializer
+bool Env::elaborateImplicitConversionArgToParam(Type *paramType, Expression *&arg)
+{
+  // try to convert the argument to the parameter
+  Type *src = arg->getType();
+  ImplicitConversion ic =
+    getImplicitConversion(env,
+                          arg->getSpecial(env.lang),
+                          src,
+                          paramType,
+                          false /*destIsReceiver*/);
+
+  if (!ic) {
+    if (paramType->isArrayType()) {
+      // quarl 2006-07-26
+      //    This seems to be a case that's not handled in
+      //    getImplicitConversion and it seems to persist because this case
+      //    can't occur in a function call, but now shows up in an
+      //    initializer.
+      return true;
+    }
+
+    return false;        // error
+  }
+
+  // Elaboration: if 'ic' involves a user-defined conversion, then
+  // modify the AST to make that explicit
+  arg = env.makeConvertedArg(arg, ic);
+
+  // at least note that we plan to use this conversion, so
+  // if it involves template functions, instantiate them
+  env.instantiateTemplatesInConversion(ic);
+
+  return true;           // success
+}
+
 
 // ------------------------ SavedScopePair -------------------------
 SavedScopePair::SavedScopePair(Scope *s)
@@ -5477,6 +5586,22 @@ DisambiguationErrorTrapper::~DisambiguationErrorTrapper()
   env.errors.prependMessages(existingErrors);
 }
 
+
+// ------------------------------------------------------------
+//
+// helper functions for elaboration not during elaboration stage, but during
+// type checking.
+
+// make a address-of operator.  This is not a method because it's used in
+// cc_tcheck to elaborate implicit conversions
+E_addrOf *makeAddr(TypeFactory &tfac, SourceLoc loc, Expression *e)
+{
+  // "&e"
+  E_addrOf *amprE = new E_addrOf(e);
+  amprE->type = tfac.makePointerType(CV_CONST, e->type);
+
+  return amprE;
+}
 
 // -------- diagnostics --------
 Type *Env::errorType()

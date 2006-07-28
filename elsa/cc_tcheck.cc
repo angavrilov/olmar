@@ -43,10 +43,6 @@
 
 // forwards in this file
 
-// helper functions for elaboration not during elaboration stage, but during
-// type checking.
-E_addrOf *makeAddr(TypeFactory &tfac, SourceLoc loc, Expression *e);
-
 void tcheckPQName(PQName *&name, Env &env, Scope *scope = NULL,
                   LookupFlags lflags = LF_NONE);
 
@@ -3824,13 +3820,23 @@ void Declarator::mid_tcheck(Env &env, Tcheck &dt)
     // skip it
   }
   else if (init) {
-    // TODO: check the initializer for compatibility with
-    // the declared type
-
+    tcheck_init(env);
+    // quarl 2006-07-26
+    //    Check the initializer for compatibility with the declared type.
+    //    This also does some elaborations like function address-of.
+    if (IN_expr *initexpr = init->ifIN_expr()) {
+      if (!env.elaborateImplicitConversionArgToParam(type, initexpr->e)) {
+        // quarl 2006-07-26
+        //    This should be an error, but since too many test cases currently
+        //    fail this, it's just a warning for now.  getImplicitConversion
+        //    is incomplete.
+        env.warning(/*type,*/ stringc
+                    << "cannot convert initializer type `" << initexpr->e->getType()->toString()
+                    << "' to type `" << type->toString() << "'");
+      }
+    }
     // TODO: check compatibility with dflags; e.g. we can't allow
     // an initializer for a global variable declared with 'extern'
-
-    tcheck_init(env);
   }
 
   // pull the scope back out of the stack; if this is a
@@ -5595,6 +5601,9 @@ Type *E_variable::itcheck_var_set(Env &env, Expression *&replacement,
     return replacement->type;
   }
 
+  // XXX TODO: if not in a function or method call, and if
+  // var->type->isFunctionType(), make an E_addrof.
+
   // return a reference because this is an lvalue
   return makeLvalType(env, var->type);
 }
@@ -5915,71 +5924,6 @@ void ArgExpression::mid_tcheck(Env &env, ArgumentInfo &info)
 }
 
 
-// This function is called *after* the arguments have been type
-// checked and overload resolution performed (if necessary).  It must
-// compare the actual arguments to the parameters.  It also must
-// finish the job started above of resolving address-of overloaded
-// function names, by comparing to the parameter.
-//
-// One bad aspect of the current design is the need to pass both 'args'
-// and 'argInfo'.  Only by having both pieces of information can I do
-// resolution of overloaded address-of.  I'd like to consolidate that
-// at some point...
-//
-// Note that 'args' *never* includes the receiver object, whereas
-// 'argInfo' *always* includes the type of the receiver object (or
-// NULL) as its first element.
-//
-// It returns the # of default args used.
-
-// Elaboration: if 'ic' involves a user-defined conversion, then modify the
-// AST to make that explicit.
-Expression *makeConvertedArg(Env &env, Expression * const arg,
-                             ImplicitConversion const &ic)
-{
-  Expression *newarg = arg;
-
-  switch (ic.kind) {
-  case ImplicitConversion::IC_NONE:
-    // an error message is already printed above.
-    break;
-  case ImplicitConversion::IC_STANDARD:
-    if (ic.scs & SC_GROUP_1_MASK) {
-      switch (ic.scs & SC_GROUP_1_MASK) {
-      case SC_LVAL_TO_RVAL:
-        // TODO
-        break;
-      case SC_ARRAY_TO_PTR:
-        // TODO
-        break;
-      case SC_FUNC_TO_PTR:
-        newarg = makeAddr(env.tfac, env.loc(), arg);
-        break;
-      default:
-        // only 3 kinds in SC_GROUP_1_MASK
-        xfailure("shouldn't reach here");
-        break;
-      }
-    } else {
-      // TODO
-    }
-    break;
-  case ImplicitConversion::IC_USER_DEFINED:
-    // TODO
-    break;
-  case ImplicitConversion::IC_ELLIPSIS:
-    // TODO
-    break;
-  case ImplicitConversion::IC_AMBIGUOUS:
-    xfailure("IC_AMBIGUOUS -- what does this mean here? (25f0c1af-5aea-4528-b994-ccaac0b3a8f1)");
-    break;
-  default:
-    xfailure("shouldn't reach here");
-    break;
-  }
-  return newarg;
-}
-
 int compareArgsToParams(Env &env, FunctionType *ft, FakeList<ArgExpression> *args,
                         ArgumentInfoArray &argInfo)
 {
@@ -5999,7 +5943,7 @@ int compareArgsToParams(Env &env, FunctionType *ft, FakeList<ArgExpression> *arg
         ImplicitConversion ic;
         ic.kind = ImplicitConversion::IC_STANDARD;
         ic.scs = SC_FUNC_TO_PTR;
-        arg->expr = makeConvertedArg(env, arg->expr, ic);
+        arg->expr = env.makeConvertedArg(arg->expr, ic);
       }
     }
 
@@ -6094,28 +6038,16 @@ int compareArgsToParams(Env &env, FunctionType *ft, FakeList<ArgExpression> *arg
                                          argInfo[paramIndex].overloadSet);
 
     if (!param->type->isGeneralizedDependent()) {
-      // try to convert the argument to the parameter
-      ImplicitConversion ic = getImplicitConversion(env,
-        arg->getSpecial(env.lang),
-        arg->getType(),
-        param->type,
-        false /*destIsReceiver*/);
-      if (!ic) {
+      if (env.elaborateImplicitConversionArgToParam(param->type, arg->expr)) {
+        xassert(arg->ambiguity == NULL);
+      } else {
         env.error(arg->getType(), stringc
-          << "cannot convert argument type `" << arg->getType()->toString()
-          << "' to parameter " << paramIndex
-          << " type `" << param->type->toString() << "'");
+                  << "cannot convert argument type `" << arg->getType()->toString()
+                  << "' to parameter " << paramIndex
+                  << " type `" << param->type->toString() << "'");
       }
-
-      // Elaboration: if 'ic' involves a user-defined conversion, then
-      // modify the AST to make that explicit
-      xassert(arg->ambiguity == NULL);
-      arg->expr = makeConvertedArg(env, arg->expr, ic);
-
-      // at least note that we plan to use this conversion, so
-      // if it involves template functions, instantiate them
-      env.instantiateTemplatesInConversion(ic);
     }
+
   }
 
   if (!env.doCompareArgsToParams) {
@@ -9674,21 +9606,5 @@ void ND_usingDir::tcheck(Env &env)
   }
 }
 
-
-// ------------------------------------------------------------
-//
-// helper functions for elaboration not during elaboration stage, but during
-// type checking.
-
-// make a address-of operator.  This is not a method because it's used in
-// cc_tcheck to elaborate implicit conversions
-E_addrOf *makeAddr(TypeFactory &tfac, SourceLoc loc, Expression *e)
-{
-  // "&e"
-  E_addrOf *amprE = new E_addrOf(e);
-  amprE->type = tfac.makePointerType(CV_CONST, e->type);
-
-  return amprE;
-}
 
 // EOF

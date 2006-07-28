@@ -142,7 +142,7 @@ Type *ImplicitConversion::inner_getConcreteDestType
   SimpleTypeId destPolyType = destType->asSimpleTypeC()->type;
   return ::getConcreteDestType(tfac, srcType, sconv, destPolyType);
 }
-  
+
 
 string ImplicitConversion::debugString() const
 {
@@ -150,7 +150,7 @@ string ImplicitConversion::debugString() const
   sb << kindNames[kind];
 
   if (kind == IC_STANDARD || kind == IC_USER_DEFINED) {
-    sb << "(" << toString(scs); 
+    sb << "(" << toString(scs);
 
     if (kind == IC_USER_DEFINED) {
       sb << ", " << user->name << " @ " << toString(user->loc)
@@ -168,6 +168,7 @@ string ImplicitConversion::debugString() const
 ImplicitConversion getImplicitConversion
   (Env &env, SpecialExpr special, Type *src, Type *dest, bool destIsReceiver)
 {
+  xassert(src && dest);
   ImplicitConversion ret;
 
   if (src->asRval()->isGeneralizedDependent()) {
@@ -202,7 +203,7 @@ ImplicitConversion getImplicitConversion
       src->asRval()->isCompoundType()) {
     CompoundType *destCt = dest->asCompoundType();
     CompoundType *srcCt = src->asRval()->asCompoundType();
-    
+
     if (srcCt->hasBaseClass(destCt)) {
       ret.addStdConv(SC_DERIVED_TO_BASE);
       return ret;
@@ -216,7 +217,7 @@ ImplicitConversion getImplicitConversion
       (dest->asRval()->isCompoundType() &&
        dest->asRval()->isConst())) {
     CompoundType *ct = dest->asRval()->asCompoundType();
-    
+
     // (in/t0514.cc) conversion to a template class specialization
     // requires that the specialization be instantiated
     env.ensureClassBodyInstantiated(ct);
@@ -314,7 +315,7 @@ StandardConversion tryCallCtor
       return SC_ERROR;     // requires at least 2 arguments
     }
   }
-  
+
   Variable const *param = ft->params.firstC();
   return getStandardConversion(NULL /*errorMsg*/, special, src, param->type);
 }
@@ -362,7 +363,7 @@ void test_getImplicitConversion(
   // turn any resulting messags into warnings, so I can see their
   // results without causing the final exit status to be nonzero
   env.errors.markAllAsWarnings();
-  
+
   // put the old messages back
   env.errors.takeMessages(existing);
 
