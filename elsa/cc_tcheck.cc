@@ -5601,9 +5601,6 @@ Type *E_variable::itcheck_var_set(Env &env, Expression *&replacement,
     return replacement->type;
   }
 
-  // XXX TODO: if not in a function or method call, and if
-  // var->type->isFunctionType(), make an E_addrof.
-
   // return a reference because this is an lvalue
   return makeLvalType(env, var->type);
 }
