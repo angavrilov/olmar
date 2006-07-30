@@ -6,3 +6,4 @@ t0539_*.cc
 alltests
 .serialno
 *.qdir
+.gdbinit
