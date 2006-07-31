@@ -199,7 +199,7 @@ public:
   bool isType() const { return hasFlag(DF_TYPEDEF); }
 
   bool linkerVisibleName() const;
-  bool linkerVisibleName(bool evenIfStatic) const;
+  bool linkerVisibleName(bool evenIfStaticLinkage) const;
 
   // true if this name refers to a class or struct or union
   bool isClass() const;

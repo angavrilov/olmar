@@ -142,7 +142,7 @@ bool Variable::linkerVisibleName() const {
   return linkerVisibleName(false);
 }
 
-bool Variable::linkerVisibleName(bool evenIfStatic) const {
+bool Variable::linkerVisibleName(bool evenIfStaticLinkage) const {
 //    bool oldAnswer;
 //    if (scope) oldAnswer = scope->linkerVisible();
 //    else oldAnswer = hasFlag(DF_GLOBAL);
@@ -170,7 +170,7 @@ bool Variable::linkerVisibleName(bool evenIfStatic) const {
   //     isStaticLinkage() now handles this implication with help from
   //     typechecking.  A function can both be a static member and have static
   //     linkage (via inline).
-  if (!evenIfStatic) {
+  if (!evenIfStaticLinkage) {
     if (isStaticLinkage()) {
       return false;
     }
@@ -496,6 +496,12 @@ string Variable::fullyQualifiedMangledName0() {
 //   xassert(linkerVisibleName());
 
   stringBuilder fqName;
+
+  // dsw: prepend with the filename if is global and static; this
+  // ensures proper linking
+  if (isStaticLinkage()) {
+    fqName << "file:" << sourceLocManager->getFile(loc) << ";";
+  }
 
   // quarl 2006-07-10
   //    Prepend with either "D:" or "F:" for data/function.  This way we
