@@ -4,6 +4,7 @@
 #include "gramlex.h"     // this module
 #include "trace.h"       // debugging trace()
 #include "ccsstr.h"      // CCSubstrate
+#include "ocsstr.h"      // OCSubstrate
 #include "ckheap.h"      // checkHeap
 
 #include <fstream.h>     // cout, ifstream
@@ -71,7 +72,8 @@ GrammarLexer::FileState &GrammarLexer::FileState::
 // ---------------------- GrammarLexer --------------------------
 GrammarLexer::GrammarLexer(isEmbedTok test, StringTable &strtbl,
                            char const *fname, istream *source,
-                           EmbeddedLang *userEmb)
+                           EmbeddedLang *cc_userEmb,
+			   EmbeddedLang *oc_userEmb)
   : yyFlexLexer(source),
     altReporter(*this),
     fileState(fname, source),
@@ -80,7 +82,9 @@ GrammarLexer::GrammarLexer(isEmbedTok test, StringTable &strtbl,
     embedStart(0),
     embedFinish(0),
     embedMode(0),
-    embedded(userEmb? userEmb : new CCSubstrate(&altReporter)),
+    embedded(NULL),
+    oc_embedded(oc_userEmb? oc_userEmb : new OCSubstrate(&altReporter)),
+    cc_embedded(cc_userEmb? cc_userEmb : new CCSubstrate(&altReporter)),
     embedTokTest(test),
     allowInit(false),
     prevState(0),       // same as INITIAL, but this value isn't used
@@ -125,7 +129,9 @@ GrammarLexer::~GrammarLexer()
     //checkHeap();
   }
 
-  delete embedded;
+  // ignore embedded pointer because it's a shared pointer
+  delete oc_embedded;
+  delete cc_embedded;
 }
 
 

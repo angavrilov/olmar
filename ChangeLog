@@ -1,3 +1,9 @@
+2006-08-01  Hendrik Tews  <tews@debian>
+
+	AST
+	* support two embedded processors (for ocaml and c++) now
+	* start ocaml embedded processor in ocsstr.{h,cc}
+
 2006-07-31  Hendrik Tews  <tews@debian>
 
 	* started to implement/use polymorphic 'a in ast nodes before

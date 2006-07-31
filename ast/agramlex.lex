@@ -180,6 +180,7 @@ SLWHITE   [ \t]
       BEGIN(EMBED);
     }
 
+    embedded = cc_embedded;
     embedded->reset();
     embedFinish = ';';
     allowInit = yytext[0]=='p';
@@ -202,6 +203,7 @@ SLWHITE   [ \t]
   embedFinish = '}';
   allowInit = false;
 
+  embedded = yytext[0] == 'o' ? oc_embedded : cc_embedded;
   embedded->reset();
   embedMode = TOK_EMBEDDED_CODE;
   return yytext[0]=='v'? TOK_VERBATIM :
@@ -214,6 +216,7 @@ SLWHITE   [ \t]
   embedStart = '{';
   embedFinish = '}';
   allowInit = false;
+  embedded = cc_embedded;
   embedded->reset();
   embedMode = TOK_EMBEDDED_CODE;
 
@@ -257,6 +260,8 @@ SLWHITE   [ \t]
       if (yytext[0] == '=') {
         // switch to a special mode that will handle the '=' and
         // jump right back into embedded mode
+	// this is only needed/supported for embedded C++ 
+	xassert(embedded == cc_embedded); 
         BEGIN(INITVAL);
       }
       else {
@@ -274,6 +279,7 @@ SLWHITE   [ \t]
       // and similarly for the other flag
       embedded->isDeclaration = (embedFinish == ';');
 
+      embedded = NULL; // provoke exceptions here
       // caller can get text from embedded->text
       return embedMode;
     }
@@ -291,6 +297,7 @@ SLWHITE   [ \t]
     TOK_UPD_COL;
     BEGIN(EMBED);
     embedded->reset();
+    embedded = cc_embedded;
     allowInit = false;
     return TOK_EQUALS;
   }

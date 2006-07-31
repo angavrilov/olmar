@@ -85,7 +85,14 @@ private:     // data
                                    // embedded processing
   char embedFinish;                // which character ends the embedded section
   int embedMode;                   // TOK_FUNDECL_BODY or TOK_FUN_BODY
-  EmbeddedLang *embedded;          // (owner) the processor
+  EmbeddedLang *embedded;          // (shared pointer) current embedded 
+                                   // processor, 
+                                   // either oc_embedded or cc_embedded, 
+                                   // might be NULL
+  EmbeddedLang *oc_embedded;	   // (owner) embedded processor for 
+                                   // ocaml_type_verbatim
+  EmbeddedLang *cc_embedded;	   // (owner) embedded processor for 
+                                   // all other verbatims/embeddings
   isEmbedTok embedTokTest;         // for printing diagnostics
   bool allowInit;                  // true if embedded can have an initializer
 
@@ -135,7 +142,9 @@ public:      // funcs
                StringTable &strtable,
                char const *fname = "<stdin>",
                istream * /*owner*/ source = NULL,
-               EmbeddedLang * /*owner*/ embedded = NULL /*i.e. assume C lexics*/);
+               EmbeddedLang * /*owner*/ cc_embedded = NULL, /*i.e. assume C lexics*/
+	       EmbeddedLang * /*owner*/ oc_embedded = NULL /*i.e. assume Ocaml lexics*/);
+  
 
   // clean up
   ~GrammarLexer();

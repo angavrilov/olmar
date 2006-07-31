@@ -21,6 +21,7 @@ Makefile
 gendoc
 TAGS
 ccsstr
+ocsstr
 diff
 astgen.works
 changes

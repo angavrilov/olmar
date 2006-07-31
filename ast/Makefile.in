@@ -2,7 +2,7 @@
 # see license.txt for copyright and terms of use
 
 # main targets
-all: ccsstr astgen libast.a example.o ext1.o ocamlhelp.o
+all: ccsstr ocsstr astgen libast.a example.o ext1.o ocamlhelp.o
 
 
 # directories of other software
@@ -90,11 +90,21 @@ ccsstr: ccsstr.cc ccsstr.h $(CCSSTR_OBJS)
 	$(CXX) -o $@ -DTEST_CCSSTR $(CCFLAGS) ccsstr.cc $(CCSSTR_OBJS) $(LDFLAGS)
 
 
+# ------------------------- ocsstr ---------------------
+OCSSTR_OBJS := \
+  reporterr.o \
+  embedded.o
+
+ocsstr: ocsstr.cc ocsstr.h $(CCSSTR_OBJS)
+	$(CXX) -o $@ -DTEST_OCSSTR $(CCFLAGS) ocsstr.cc $(OCSSTR_OBJS) $(LDFLAGS)
+
+
 # ------------------------- astgen ---------------------
 ASTGEN_OBJS := \
   gramlex.o \
   agrampar.tab.o \
   ccsstr.o \
+  ocsstr.o \
   agramlex.yy.o \
   reporterr.o \
   embedded.o \
@@ -169,13 +179,14 @@ doc: gendoc gendoc/configure.txt gendoc/demo.h
 
 
 # ------------------------ misc ---------------------
-check: ccsstr
+check: ccsstr ocsstr
 	./ccsstr
+	./ocsstr
 
 # delete outputs of compiler, linker
 clean:
 	rm -f *.o tmp *.d
-	rm -f agrampar astgen ccsstr towner exampletest libast.a
+	rm -f agrampar astgen ccsstr ocsstr towner exampletest libast.a
 	rm -f agrampar.output
 	rm -f example.{h.cc} ext1.{h,cc}
 	rm -f agramlex.yy.cc
