@@ -13,7 +13,8 @@ ocaml_type_verbatim {
 (***************************** Variable *******************************)
 
 (* this will be inserted in the middle in the ast type defintion *)
-and variable = {
+and 'a variable = {
+  poly_var : 'a;
   loc : sourceLoc;
   (* might be None for abstract declarators (?) *)
   var_name : string option;
@@ -21,32 +22,34 @@ and variable = {
   (* var_type is circular for compound types that have an implicit 
    * typedef variable
    *)
-  var_type : cType option ref;
+  var_type : 'a cType option ref;
   flags : declFlags;
-  value : expression_type option;
-  defaultParam : cType option;
+  value : 'a expression_type option;
+  defaultParam : 'a cType option;
   (* funcDefn is circular at least for destructor calls (in/t0009.cc)
    * then it points back to a member in the class
    * the original pointer might be NULL, so this might be None even
    * after resolving circularities
    *)
-  funcDefn : function_type option ref;
+  funcDefn : 'a function_type option ref;
   (* overload : overloadSet *)
   (* scope : Scope; *)
 }
 
 (***************************** CType **********************************)
 
-and baseClass = {
-  compound : compound_info;		(* the base class itself *)
+and 'a baseClass = {
+  poly_base : 'a;
+  compound : 'a compound_info;		(* the base class itself *)
   bc_access : accessKeyword;		(* public, protected ... *)
   is_virtual : bool;
 }
 
-and compound_info = {
+and 'a compound_info = {
+  compound_info_poly : 'a;
   (* fields stored in the super class NamedAtomicType *)
   compound_name : string;			(* user assigned name ?? *)
-  typedef_var : variable;		(* implicit typdef variable ???? *)
+  typedef_var : 'a variable;		(* implicit typdef variable ???? *)
   ci_access : accessKeyword;		(* accessibility in wider context *)
 
   (* fields of CompoundType itself:
@@ -54,13 +57,13 @@ and compound_info = {
    *)
   is_forward_decl : bool;
   keyword : compoundType_Keyword; 	(* keyword used for this compound *)
-  data_members : variable list;		(* nonstatic data members *)
-  bases : baseClass list;		(* base classes *)
+  data_members : 'a variable list;		(* nonstatic data members *)
+  bases : 'a baseClass list;		(* base classes *)
 
   (* subobj : ?? root of the subobject hierarchy *)
 
-  conversion_operators : variable list;
-  friends : variable list;
+  conversion_operators : 'a variable list;
+  friends : 'a variable list;
   inst_name : string;			(* name for debugging purposes *)
 
   (* mutable syntax : typeSpecifier_type = TS_classSpec list;  * ast node *)
@@ -70,75 +73,77 @@ and compound_info = {
    * might stay None after resolving circularities because the 
    * C++ pointer might be NULL
    *)
-  self_type : cType option ref;		(* type of the compound *)
+  self_type : 'a cType option ref;	(* type of the compound *)
 }
 
-and atomicType = 
-  | SimpleType of simpleTypeId
+and 'a atomicType = 
+  | SimpleType of 'a * simpleTypeId
 
       (* IMPORTANT: if one adds more fields to CompoundType one has also to 
        * change PseudoInstantiation and its serialization
        *)
       (* CompoundType( compound info) *)
-  | CompoundType of compound_info
+  | CompoundType of 'a * 'a compound_info
 
       (* PseudoInstantiation( user given name, ?, public/protected, 
        *           original class template info record, template arguments)
        * variable might be void (regtest 568 , in/t0566.cc)
        *)
-  | PseudoInstantiation of string * variable option * accessKeyword * 
-      compound_info * sTemplateArgument list
+  | PseudoInstantiation of 'a * string * 'a variable option * accessKeyword * 
+      'a compound_info * 'a sTemplateArgument list
 
       (* EnumType( user given name, ?, public/protected, constants)
        *    ignore the next valye field 
        *)
-  | EnumType of string * variable * accessKeyword * (string * int) list
+  | EnumType of 'a * string * 'a variable * accessKeyword * (string * int) list
 
       (* TypeVariable( user given name, ?, public/protected)  *)
-  | TypeVariable of string * variable * accessKeyword
+  | TypeVariable of 'a * string * 'a variable * accessKeyword
 
 
-and cType = 
-  | CVAtomicType of cVFlags * atomicType
+and 'a cType = 
+  | CVAtomicType of 'a * cVFlags * 'a atomicType
       (* PointerType( volatile, pointed type) *)
-  | PointerType of cVFlags * cType
+  | PointerType of 'a * cVFlags * 'a cType
       (* ReferenceType( referenced type ) *)
-  | ReferenceType of cType
+  | ReferenceType of 'a * 'a cType
       (* FunctionType(flags, return type, parameter list, exception spec)
        * where exceptions spec is either
        *   | None       no exception spec
        *   | Some list  list of specified exceptions (which can be empty)
        *)
-  | FunctionType of function_flags * cType * variable list * cType list option
+  | FunctionType of 'a * function_flags * 'a cType * 'a variable list * 
+      'a cType list option
       (* ArrayType( element type, size )*)
-  | ArrayType of cType * array_size
+  | ArrayType of 'a * 'a cType * array_size
       (* PointerToMemberType( ?, volatile, type of pointed member ) *)
-  | PointerToMemberType of atomicType (* = NamedAtomicType *) * cVFlags * cType
+  | PointerToMemberType of 'a * 'a atomicType (* = NamedAtomicType *) * 
+      cVFlags * 'a cType
 
 
 (***************************** TemplateArgument ******************************)
 
-and sTemplateArgument =
+and 'a sTemplateArgument =
                           (* not yet resolved into a valid template argument *)
-  | STA_NONE     
+  | STA_NONE
                           (* type argument *)
-  | STA_TYPE of cType 
+  | STA_TYPE of 'a cType 
                           (* int argument *)
   | STA_INT of int   
                           (* enum argument *)
-  | STA_ENUMERATOR of variable 
+  | STA_ENUMERATOR of 'a variable 
                           (* reference to global object *)
-  | STA_REFERENCE of variable
+  | STA_REFERENCE of 'a variable
                           (* pointer to global object *)
-  | STA_POINTER of variable
+  | STA_POINTER of 'a variable
                           (* pointer to class member *)
-  | STA_MEMBER of variable
+  | STA_MEMBER of 'a variable
                           (* value-dependent expression *)
   | STA_DEPEXPR of expression_type
                           (* template argument (not implemented) *)
   | STA_TEMPLATE
                           (* private to mtype: bind var to AtomicType *)
-  | STA_ATOMIC of atomicType
+  | STA_ATOMIC of 'a atomicType
 
 
 

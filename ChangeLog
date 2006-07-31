@@ -1,3 +1,14 @@
+2006-07-31  Hendrik Tews  <tews@debian>
+
+	* started to implement/use polymorphic 'a in ast nodes before
+	hitting a more serious astgen lexing/parsing problem
+	
+	AST
+	* polymorphicOcamlAST option to add 'a in all ast nodes
+
+	ESLA
+	* use polymorphicOcamlAST option 
+
 2006-07-27  Hendrik Tews  <tews@debian>
 
 	ELSA

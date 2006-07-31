@@ -92,6 +92,10 @@ bool wantXMLPrint = false;
 // (includes a traversal function for marshalling)
 bool wantOcaml = false;
 
+// true if we saw the option polymorphicOcamlAST
+// we then add a polymorphic 'a argument in every ast node
+bool polymorphicOcaml = false;
+
 // true if the user wants the gdb() functions
 bool wantGDB = false;
 
@@ -3510,6 +3514,7 @@ public:         // funcs
   void emitType(TF_class const *c, bool * first_type);
   void ocaml_arg_list(const ASTList<FieldOrCtorArg> & al, bool & first, 
 		      const string & first_string);
+  void ocaml_poly_arg(bool & first, const string & first_string);
   void emitFile();
 };
 
@@ -3552,6 +3557,8 @@ void OTGen::ocaml_type(string type){
 	<< " " << commentEnd;
   }
   else if(isSuperclassTreeNode(type)) {
+    if (polymorphicOcaml)
+      out << "'a ";
     // appent _type to avoid clashes with ocamls keywords
     out << uncapitalize(type) << "_type";
   }
@@ -3582,6 +3589,17 @@ void OTGen::ocaml_arg_list(const ASTList<FieldOrCtorArg> & al, bool & first,
 }
 
 
+void OTGen::ocaml_poly_arg(bool & first, const string & first_string) {
+  if (first) {
+    out << first_string;
+    first = false;
+  }
+  else 
+    out << "* ";
+  out << "'a ";
+}
+
+
 // emit a type definition for the argument class
 void OTGen::emitType(TF_class const *c, bool * first_type) {
   if (*first_type) {
@@ -3591,6 +3609,7 @@ void OTGen::emitType(TF_class const *c, bool * first_type) {
   else 
     out << "and ";
   
+  // ocaml_type outputs " 'a " if needed
   ocaml_type(c->super->name);
   out << " = ";
 
@@ -3609,6 +3628,9 @@ void OTGen::emitType(TF_class const *c, bool * first_type) {
 
       bool first = true;
       string first_string = " of ";
+
+      if(polymorphicOcaml)
+	ocaml_poly_arg(first, first_string);
       ocaml_arg_list(super_args, first, first_string);
       ocaml_arg_list(super_fields, first, first_string);
       ocaml_arg_list(ctor->args, first, first_string);
@@ -3633,6 +3655,9 @@ void OTGen::emitType(TF_class const *c, bool * first_type) {
     }
 
     bool first = true;
+
+    if (polymorphicOcaml)
+      ocaml_poly_arg(first, first_string);
     ocaml_arg_list(super_args, first, first_string);
     ocaml_arg_list(super_fields, first, first_string);
     ocaml_arg_list(super_last_args, first, first_string);
@@ -4225,6 +4250,9 @@ void entry(int argc, char **argv)
 	}
 	else if (op->name.equals("pointerType")) {
 	  grabPointerTypeOption(op);
+	}
+	else if (op->name.equals("polymorphicOcamlAST")) {
+	  polymorphicOcaml = true;
 	}
         else {
           xfatal("unknown option: " << op->name);
