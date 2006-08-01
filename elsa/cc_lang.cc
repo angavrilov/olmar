@@ -3,6 +3,7 @@
 
 #include "cc_lang.h"     // this module
 #include "trace.h"       // tracingSys
+#include "xassert.h"     // xfailure
 
 #include <string.h>      // memset
 
@@ -285,6 +286,17 @@ string CCLang::toString() {
   PRINT(tagsAreTypes);
   PRINT(recognizeCppKeywords);
   PRINT(implicitFuncVariable);
+
+  // an exception since it is not a bool or a 3-way bool:
+  str << "gccFuncBehavior ";
+  switch(gccFuncBehavior) {
+  default: xfailure("illegal gccFuncBehavior");
+  case GFB_none: str << "GFB_none"; break;
+  case GFB_string: str << "GFB_string"; break;
+  case GFB_variable: str << "GFB_variable"; break;
+  }
+  str << '\n';
+
   PRINT(noInnerClasses);
   PRINT(uninitializedGlobalDataIsCommon);
   PRINT(emptyParamsMeansNoInfo);
