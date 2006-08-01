@@ -3522,7 +3522,14 @@ Variable *Env::createDeclaration(
     // was found to be equivalent to the previous declaration
 
     // 10/03/04: merge default arguments
-    if (lang.isCplusplus && type->isFunctionType()) {
+    // UPDATE: dsw: currently the way the builtins are declared, they
+    // can have the FF_NO_PARAM_INFO flag even if we are in C++;
+    // therefore we have to check for that and avoid it or we can get
+    // a mismatch on the number of parameters
+    if (lang.isCplusplus && type->isFunctionType()
+        && !(prior->type->asFunctionType()->flags & FF_NO_PARAM_INFO)
+        && !(type->asFunctionType()->flags & FF_NO_PARAM_INFO)
+        ) {
       mergeDefaultArguments(loc, prior, type->asFunctionType());
     }
 
