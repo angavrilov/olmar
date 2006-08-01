@@ -3397,6 +3397,16 @@ Variable *Env::createDeclaration(
           type->isFunctionType() &&
           compatibleParamCounts(prior->type->asFunctionType(),
                                 type->asFunctionType())) {
+        // dsw: not sure where to do this so I'm doing it here; if the
+        // two types are function types and one has FF_VARARGS and the
+        // other does not it causes me problems in Oink
+        if (prior->type->asFunctionType()->flags | FF_VARARGS) {
+          type->asFunctionType()->flags |= FF_VARARGS;
+        }
+        if (type->asFunctionType()->flags | FF_VARARGS) {
+          prior->type->asFunctionType()->flags |= FF_VARARGS;
+        }
+
         // 10/08/04: In C, the rules for function type declaration
         // compatibility are more complicated, relying on "default
         // argument promotions", a determination of whether the
