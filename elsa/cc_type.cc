@@ -2742,12 +2742,17 @@ Type *TypeFactory::applyCVToType(SourceLoc loc, CVFlags cv, Type *baseType,
   }
 
   CVFlags now = baseType->getCVFlags();
-  if (now | cv == now) {
+  if (wantsQualifiedTypeReuseOptimization() &&
+      now | cv == now) {
     // no change, 'cv' already contained in the existing flags
     return baseType;
   }
   else if (baseType->isArrayType()) {
     // 8.3.4 para 1: apply cv to the element type
+    //
+    // Note: This clones the ArrayType object every time, if someone
+    // is adding const or volatile to an array (possible via typedef).
+    // This is probably a bug.
     ArrayType *at = baseType->asArrayType();
     return makeArrayType(applyCVToType(loc, cv, at->eltType, NULL /*syntax*/),
                          at->size);
@@ -2757,6 +2762,12 @@ Type *TypeFactory::applyCVToType(SourceLoc loc, CVFlags cv, Type *baseType,
     // inappropriate application (e.g. 'const' to a reference)
     return setQualifiers(loc, now | cv, baseType, syntax);
   }
+}
+
+
+bool TypeFactory::wantsQualifiedTypeReuseOptimization()
+{
+  return true;
 }
 
 

@@ -1219,6 +1219,11 @@ public:
   virtual Type *applyCVToType(SourceLoc loc, CVFlags cv, Type *baseType,
                               TypeSpecifier * /*nullable*/ syntax);
 
+  // Return true if this factory wants to reuse type objects in
+  // 'applyCVToType' when the new and existing qualifiers are the same.
+  // By default, returns true.
+  virtual bool wantsQualifiedTypeReuseOptimization();
+
   // build a pointer type from a syntactic description; here I allow
   // the factory to know the name of an AST node, but the default
   // implementation will not use it, so it need not be linked in for

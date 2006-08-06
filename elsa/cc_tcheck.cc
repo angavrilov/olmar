@@ -7718,6 +7718,8 @@ Type *resolveOverloadedBinaryOperator(
 
         // TODO: need to replace the arguments according to their
         // conversions (if any)
+        //
+        // This is what causes in/t0148.cc to fail in Oink.
 
         if (op == OP_BRACKETS) {
           // built-in a[b] is equivalent to *(a+b)
