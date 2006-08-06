@@ -4173,6 +4173,8 @@ SourceLoc getExprNameLoc(Expression const *e)
 
 // 'expr/info' is being passed to 'paramType'; if 'expr' is the
 // name of an overloaded function, resolve it
+//
+// part of the implementation of cppstd 13.4
 void Env::possiblySetOverloadedFunctionVar(Expression *expr, Type *paramType,
                                            LookupSet &set)
 {

@@ -272,7 +272,7 @@ bool Variable::isInstantiation() const
 
 TemplateInfo *Variable::templateInfo() const
 {
-  // 2005-02-23: experiment: alias share's referent's template info
+  // 2005-02-23: experiment: alias shares referent's template info
   return skipAliasC()->templInfo;
 }
 

@@ -3830,9 +3830,18 @@ void Declarator::mid_tcheck(Env &env, Tcheck &dt)
         //    This should be an error, but since too many test cases currently
         //    fail this, it's just a warning for now.  getImplicitConversion
         //    is incomplete.
+        #if 0
+        // SGM 2006-08-05: I am turning this off.  There is nothing
+        // wrong (in the cases I've seen anyway) with the source code
+        // being analyzed, rather there is a bug in Elsa.  We should
+        // either deal with the Elsa bugs, or just be silent about the
+        // problems by default (which is what I am doing now).  There
+        // could be a command line flag to turn this back on, if
+        // desired.
         env.warning(/*type,*/ stringc
                     << "cannot convert initializer type `" << initexpr->e->getType()->toString()
                     << "' to type `" << type->toString() << "'");
+        #endif // 0
       }
     }
     // TODO: check compatibility with dflags; e.g. we can't allow
@@ -6087,6 +6096,27 @@ void compareCtorArgsToParams(Env &env, Variable *ctor,
     if (defaultArgsUsed) {
       env.instantiateDefaultArgs(ctor, defaultArgsUsed);
     }
+                
+    // in/dk1027.cc: instantiate the dtor too
+    //
+    // navigating up to get the class is inelegant..
+    //
+    // this isn't perfect, b/c I'm instantiating the dtor for "new
+    // Foo" as well as other declarations of Foo, but it's probably
+    // close enough
+    CompoundType *ct = ctor->scope->curCompound;
+    xassert(ct);
+    
+    // ugh, hacking it again
+    Variable *dtor = ct->rawLookupVariable(env.str(stringc << "~" << ct->name));
+    if (!dtor) {
+      // not sure if this is possible, but don't care to fully analyze
+      // right now
+      return;
+    }
+    
+    // instantiate it if necessary
+    env.ensureFuncBodyTChecked(dtor);
   }
 }
 

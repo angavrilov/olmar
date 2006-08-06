@@ -863,6 +863,8 @@ failparse t0581.cc "simpler dependent array bound problem"
 failparse t0582.cc "template array bound problem leads to crash"
 testparse t0583.cc
 testparse t0584.cc
+failparse t0585.cc "explicit invocation of dtor of template class"
+testparse t0586.cc
 
 # another set of tests, generally isolated by Daniel
 testparse d0001.cc
