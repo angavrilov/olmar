@@ -110,6 +110,9 @@ int agrampar_yylex(YYSTYPE *lvalp, void *parseParam)
 
     case TOK_EMBEDDED_CODE:
       lvalp->str = box(lexer.curFuncBody());
+      // HT: reset embedded pointer to provoke segfaults whenever 
+      // it is used without my authorization
+      lexer.no_embedded();
       break;
 
     default:

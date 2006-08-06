@@ -30,6 +30,10 @@ private:
   bool star;         // in ST_COMMENT, just seen '*'?
   bool oparen;       // in ST_NORMAL/ST_COMMENT, just seen '('?
 
+  // only implemented in the test frame 
+  // if TEST_OCSSTR is on
+  void print_state();
+
   // so test code can interrogate internal state
   friend class OCSubstrateTest;
 

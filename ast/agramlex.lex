@@ -178,6 +178,9 @@ SLWHITE   [ \t]
     }
     else {
       BEGIN(EMBED);
+      // make sure oc_embedded is only used, if it will be finished with '}'
+      // otherwise change ocsstr first!
+      // this is very clear here
     }
 
     embedded = cc_embedded;
@@ -228,6 +231,10 @@ SLWHITE   [ \t]
   TOK_UPD_COL;
   if (yytext[0] == embedStart) {
     BEGIN(EMBED);
+    // make sure oc_embedded is only entered if it will be finished with '}'
+    // otherwise change ocsstr first!
+    xassert(embedded == cc_embedded || 
+	    embedFinishMatches('}'));
   }
   return yytext[0]=='{'? TOK_LBRACE : TOK_RPAREN;
 }
@@ -279,7 +286,6 @@ SLWHITE   [ \t]
       // and similarly for the other flag
       embedded->isDeclaration = (embedFinish == ';');
 
-      embedded = NULL; // provoke exceptions here
       // caller can get text from embedded->text
       return embedMode;
     }
@@ -296,8 +302,11 @@ SLWHITE   [ \t]
     // yield the '=', switch back into embedded
     TOK_UPD_COL;
     BEGIN(EMBED);
-    embedded->reset();
+    // make sure oc_embedded is only used, if it will be finished with '}'
+    // otherwise change ocsstr first!
+    // this is very clear here
     embedded = cc_embedded;
+    embedded->reset();
     allowInit = false;
     return TOK_EQUALS;
   }

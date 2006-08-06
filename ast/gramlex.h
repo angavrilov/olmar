@@ -158,6 +158,10 @@ public:      // funcs
   StringRef curDeclBody() const { return curFuncBody(); }    // implementation artifact
   StringRef curDeclName() const;
 
+  // reset embedded pointer to NULL
+  // call this whenever embedded processing is finished
+  void no_embedded() { embedded = NULL; };
+
   // read the next token and return its code; returns TOK_EOF for end of file;
   // this function is defined in flex's output source code; this one
   // *does* return TOK_INCLUDE
