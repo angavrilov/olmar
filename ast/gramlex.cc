@@ -82,7 +82,7 @@ GrammarLexer::GrammarLexer(isEmbedTok test, StringTable &strtbl,
     embedStart(0),
     embedFinish(0),
     embedMode(0),
-    embedded(NULL),
+    // embedded is initialized in the body below
     oc_embedded(oc_userEmb? oc_userEmb : new OCSubstrate(&altReporter)),
     cc_embedded(cc_userEmb? cc_userEmb : new CCSubstrate(&altReporter)),
     embedTokTest(test),
@@ -96,6 +96,9 @@ GrammarLexer::GrammarLexer(isEmbedTok test, StringTable &strtbl,
     errors(0)
 {
   trace("tmp") << "source is " << source << endl;
+
+  // stay backward compatible: use first embedded processor by default
+  embedded = cc_embedded;
 
   // grab initial buffer object so we can restore it after
   // processing an include file (turns out this doesn't work

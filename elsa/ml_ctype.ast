@@ -139,7 +139,7 @@ and 'a sTemplateArgument =
                           (* pointer to class member *)
   | STA_MEMBER of 'a variable
                           (* value-dependent expression *)
-  | STA_DEPEXPR of expression_type
+  | STA_DEPEXPR of 'a expression_type
                           (* template argument (not implemented) *)
   | STA_TEMPLATE
                           (* private to mtype: bind var to AtomicType *)

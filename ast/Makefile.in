@@ -150,6 +150,7 @@ ext1.cc: astgen example.ast ext1.ast
 LIB_OBJS := \
   gramlex.o \
   ccsstr.o \
+  ocsstr.o \
   reporterr.o \
   embedded.o \
   asthelp.o \

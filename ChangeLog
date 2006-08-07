@@ -1,5 +1,13 @@
 2006-08-07  Hendrik Tews  <tews@debian>
 
+	AST
+	* make GrammarLexer backward compatible: elkhound can ignore
+	  second embedded processor
+	* ast option polymorphicOcamlAST takes options now: the list of
+	  types that need a 'a
+
+2006-08-07  Hendrik Tews  <tews@debian>
+
 	* finished ocsstr processor
 
 2006-08-01  Hendrik Tews  <tews@debian>

@@ -425,7 +425,7 @@ DISCARDPATTERN="/old/"
 TAGS:
 	otags `find . -name \*.ml -o -name \*.mli |\
 		egrep -v $(DISCARDPATTERN)`
-	etags --append --members \
+	etags --append --members -l c++ \
 		`find . ../ast ../elkhound ../smbase -name \*.h | \
 			egrep -v $(DISCARDPATTERN)` \
 		`find . ../ast ../elkhound ../smbase -name \*.cc | \

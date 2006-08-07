@@ -168,6 +168,10 @@ ASTSpecFile *readAbstractGrammar(char const *fname)
     lexer = new GrammarLexer(isAGramlexEmbed, stringTable, fname, in.xfr());
   }
 
+  // astgen uses two embedded languages, 
+  // therefore reset lexer.embedded here to force proper switching
+  lexer->no_embedded();
+
   ASTParseParams params(*lexer);
 
   traceProgress() << "parsing grammar source..\n";

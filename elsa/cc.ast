@@ -56,7 +56,7 @@ option ocamlVisitor;
 // another newest astgen feature: register a (nullable) pointer type
 option pointerType StringRef;
 // yet another newest feature: add a 'a argument to all ocaml types
-option polymorphicOcamlAST;
+option polymorphicOcamlAST Variable CType;
 // use a new astgen feature: make a visitor!
 option visitor ASTVisitor;
 option dvisitor DelegatorASTVisitor;

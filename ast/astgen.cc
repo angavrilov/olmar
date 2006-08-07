@@ -83,6 +83,8 @@ StringSet listClassesSet;
 ASTList<ListClass> listClasses;
 
 // list of all pointerType option arguments
+// these are those types that can be annotated "nullalble", 
+// although they don't betray themselves as pointer types immediately
 StringSet pointerTypes;
 
 // true if the user wants the xmlPrint stuff
@@ -95,6 +97,10 @@ bool wantOcaml = false;
 // true if we saw the option polymorphicOcamlAST
 // we then add a polymorphic 'a argument in every ast node
 bool polymorphicOcaml = false;
+
+// types appearing on the polymorphicOcamlAST option
+// those extern types get an additional 'a argument
+StringSet polymorphicTypes;
 
 // true if the user wants the gdb() functions
 bool wantGDB = false;
@@ -3563,6 +3569,8 @@ void OTGen::ocaml_type(string type){
     out << uncapitalize(type) << "_type";
   }
   else {
+    if(polymorphicTypes.contains(type))
+      out << "'a ";
     out << uncapitalize(type);
   }
 }
@@ -4147,6 +4155,12 @@ void grabPointerTypeOption(TF_option const *op){
   }
 }
 
+void grapPolymorphicTypes(TF_option const *op){
+  FOREACH_ASTLIST(string, op->args, arg){
+    polymorphicTypes.add(*arg.data());
+  }
+}
+
 void entry(int argc, char **argv)
 {
   TRACE_ARGS();
@@ -4253,6 +4267,7 @@ void entry(int argc, char **argv)
 	}
 	else if (op->name.equals("polymorphicOcamlAST")) {
 	  polymorphicOcaml = true;
+	  grapPolymorphicTypes(op);
 	}
         else {
           xfatal("unknown option: " << op->name);
