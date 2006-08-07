@@ -1,7 +1,8 @@
 open Cc_ast_gen_type
 open Ml_ctype
+open Ast_annotation
 
-let marshal_translation_unit (u : translationUnit_type) fname =
+let marshal_translation_unit (u : annotated translationUnit_type) fname =
   let oc = open_out fname 
   in
     (* 

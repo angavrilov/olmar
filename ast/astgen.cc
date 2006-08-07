@@ -3773,6 +3773,9 @@ void OCGen::emitConstructorCallbacks(TF_class const *cl)
       int args = super_args.count() + super_fields.count() +
 	super_last_args.count() + ctor->args.count() + ctor->fields.count();
 
+      if (polymorphicOcaml)
+	args++;			// add an argument
+
       if(args != 0){
 	// Constructor has arguments
 	for(int i = 0; i < args; i++){
@@ -3796,6 +3799,9 @@ void OCGen::emitConstructorCallbacks(TF_class const *cl)
     bool cyclic = is_cyclic(cl->super);
     int args = super_args.count() + super_fields.count() +
       super_last_args.count();
+
+    if (polymorphicOcaml)
+      args++;			// add an argument
 
     out << "let "
 	<< ocaml_node_callback(cl->super->name, false, cyclic)

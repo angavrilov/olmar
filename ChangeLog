@@ -1,3 +1,12 @@
+2006-08-08  Hendrik Tews  <tews@debian>
+
+	AST
+	* added 'a to generated constructor callbacks
+
+	ELSA
+	* fixed missing 'a for variable, cType and co
+	* started ast_annotation module
+
 2006-08-07  Hendrik Tews  <tews@debian>
 
 	AST

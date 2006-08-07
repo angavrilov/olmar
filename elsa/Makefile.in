@@ -264,6 +264,7 @@ CCPARSE_ML := \
   cc_ast_gen_type.ml \
   cc_ast_gen.ml \
   ml_ctype_constructors.ml \
+  ast_annotation.ml \
   ast_marshal.ml \
   caml_callbacks.ml
 

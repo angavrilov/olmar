@@ -58,8 +58,10 @@ let create_K_UNION_constructor () = K_UNION
 
 (* type variable *)
 
-let create_variable_constructor loc name var_type flags value defparam funcdef =
-  { loc = loc;
+let create_variable_constructor 
+    poly loc name var_type flags value defparam funcdef =
+  { poly_var = poly;
+    loc = loc;
     var_name = name;
     var_type = var_type;
     flags = flags;
@@ -70,8 +72,9 @@ let create_variable_constructor loc name var_type flags value defparam funcdef =
 
 
 (* type baseClass *)
-let create_baseClass_constructor compound access is_virtual =
-  { compound = compound;
+let create_baseClass_constructor poly compound access is_virtual =
+  { poly_base = poly;
+    compound = compound;
     bc_access = access;
     is_virtual = is_virtual;
   }
@@ -80,9 +83,10 @@ let create_baseClass_constructor compound access is_virtual =
 (* type compound_info *)
 
 let create_compound_info_constructor 
-    name typedef_var access is_forward_decl keyword data_members bases 
+    poly name typedef_var access is_forward_decl keyword data_members bases 
     conversion_operators friends inst_name self_type =
-  { compound_name = name;
+  { compound_info_poly = poly;
+    compound_name = name;
     typedef_var = typedef_var;
     ci_access = access;
     is_forward_decl = is_forward_decl;
@@ -97,28 +101,30 @@ let create_compound_info_constructor
 
 (* type atomicType *)
 
-let create_atomic_SimpleType_constructor sid = SimpleType sid
-let create_atomic_CompoundType_constructor ci = CompoundType ci
-let create_atomic_PseudoInstantiation_constructor name var key 
+let create_atomic_SimpleType_constructor poly sid = SimpleType(poly, sid)
+let create_atomic_CompoundType_constructor poly ci = CompoundType(poly, ci)
+let create_atomic_PseudoInstantiation_constructor poly name var key 
     template_info args =
-  PseudoInstantiation(name, var, key, template_info, args)
-let create_atomic_EnumType_constructor nameopt variable key enum_list =
-  EnumType(nameopt, variable, key, enum_list)
-let create_atomic_TypeVariable_constructor name variable key =
-  TypeVariable(name, variable, key)
+  PseudoInstantiation(poly, name, var, key, template_info, args)
+let create_atomic_EnumType_constructor poly nameopt variable key enum_list =
+  EnumType(poly, nameopt, variable, key, enum_list)
+let create_atomic_TypeVariable_constructor poly name variable key =
+  TypeVariable(poly, name, variable, key)
 
 
 
 
 (* type cType *)
-let create_ctype_CVAtomicType_constructor cvs at = CVAtomicType(cvs, at)
-let create_ctype_PointerType_constructor cvs ct = PointerType(cvs, ct)
-let create_ctype_ReferenceType_constructor ct = ReferenceType ct
-let create_ctype_FunctionType_constructor ff ret vars exs = 
-  FunctionType(ff, ret, vars, exs)
-let create_ctype_ArrayType_constructor ct size = ArrayType(ct, size)
-let create_ctype_PointerToMemberType_constructor at cvs ct =
-  PointerToMemberType(at, cvs, ct)
+let create_ctype_CVAtomicType_constructor poly cvs at = 
+  CVAtomicType(poly, cvs, at)
+let create_ctype_PointerType_constructor poly cvs ct = 
+  PointerType(poly, cvs, ct)
+let create_ctype_ReferenceType_constructor poly ct = ReferenceType(poly, ct)
+let create_ctype_FunctionType_constructor poly ff ret vars exs = 
+  FunctionType(poly, ff, ret, vars, exs)
+let create_ctype_ArrayType_constructor poly ct size = ArrayType(poly, ct, size)
+let create_ctype_PointerToMemberType_constructor poly at cvs ct =
+  PointerToMemberType(poly, at, cvs, ct)
 
 
 (* type sTemplateArgument *)
