@@ -112,7 +112,7 @@ bool TypeVariable::isAssociated() const
 // hand written ocaml serialization function
 value TypeVariable::toOcaml(ToOcamlData * data){
   CAMLparam0();
-  CAMLlocal3(val_name, val_var, val_key);
+  CAMLlocalN(child, 4);
   if(ocaml_val) {
     // cerr << "shared ocaml value in Variable\n" << flush;
     CAMLreturn(ocaml_val);
@@ -130,13 +130,14 @@ value TypeVariable::toOcaml(ToOcamlData * data){
     data->stack.add(this);
   }
 
-  val_name = ocaml_from_StringRef(name, data);
-  val_var = typedefVar->toOcaml(data);
-  val_key = ocaml_from_AccessKeyword(access, data);
+  child[0] = ocaml_ast_annotation(this, data);
+  child[1] = ocaml_from_StringRef(name, data);
+  child[2] = typedefVar->toOcaml(data);
+  child[3] = ocaml_from_AccessKeyword(access, data);
 
   caml_register_global_root(&ocaml_val);
-  ocaml_val = caml_callback3(*create_atomic_TypeVariable_constructor_closure,
-			     val_name, val_var, val_key);
+  ocaml_val = caml_callbackN(*create_atomic_TypeVariable_constructor_closure,
+			    4, child);
   xassert(IS_OCAML_AST_VALUE(ocaml_val));
 
   data->stack.remove(this);
@@ -208,7 +209,7 @@ void PseudoInstantiation::traverse(TypeVisitor &vis)
 value PseudoInstantiation::toOcaml(ToOcamlData * data){
   CAMLparam0();
   CAMLlocal2(elem, tmp);
-  CAMLlocalN(childs, 5);
+  CAMLlocalN(childs, 6);
   if(ocaml_val) {
     // cerr << "shared ocaml value in PseudoInstantiation\n" << flush;
     CAMLreturn(ocaml_val);
@@ -226,32 +227,33 @@ value PseudoInstantiation::toOcaml(ToOcamlData * data){
     data->stack.add(this);
   }
 
-  childs[0] = ocaml_from_StringRef(name, data);
+  childs[0] = ocaml_ast_annotation(this, data);
+  childs[1] = ocaml_from_StringRef(name, data);
 
   if(typedefVar) {
-    childs[1] = typedefVar->toOcaml(data);
-    childs[1] = option_some_constr(childs[1]);
+    childs[2] = typedefVar->toOcaml(data);
+    childs[2] = option_some_constr(childs[2]);
   }
   else
-    childs[1] = Val_None;
+    childs[2] = Val_None;
 
-  childs[2] = ocaml_from_AccessKeyword(access, data);
-  childs[3] = primary->toCompoundInfo(data);
+  childs[3] = ocaml_from_AccessKeyword(access, data);
+  childs[4] = primary->toCompoundInfo(data);
 
-  childs[4] = Val_emptylist;
+  childs[5] = Val_emptylist;
 
   for(int i = args.count() -1; i >= 0; i--) {
     elem = args.nth(i)->toOcaml(data);
     tmp = caml_alloc(2, Tag_cons); // allocate a cons cell
     Store_field(tmp, 0, elem);	// store car
-    Store_field(tmp, 1, childs[4]); // store cdr
-    childs[4] = tmp;
+    Store_field(tmp, 1, childs[5]); // store cdr
+    childs[5] = tmp;
   }
 
   caml_register_global_root(&ocaml_val);
   ocaml_val = 
     caml_callbackN(*create_atomic_PseudoInstantiation_constructor_closure,
-		   5, childs);
+		   6, childs);
   xassert(IS_OCAML_AST_VALUE(ocaml_val));
 
   data->stack.remove(this);

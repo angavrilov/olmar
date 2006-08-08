@@ -1431,7 +1431,7 @@ EnumType::Value const *EnumType::getValue(StringRef name) const
 value EnumType::toOcaml(ToOcamlData *data){
   CAMLparam0();
   CAMLlocal4(val_name, val_val, tuple, tmp);
-  CAMLlocalN(childs, 4);
+  CAMLlocalN(childs, 5);
   if(ocaml_val) {
     // cerr << "shared ocaml value found in EnumType\n" << flush;
     CAMLreturn(ocaml_val);
@@ -1449,11 +1449,12 @@ value EnumType::toOcaml(ToOcamlData *data){
     data->stack.add(this);
   }
 
-  childs[0] = ocaml_from_StringRef(name, data);
-  childs[1] = typedefVar->toOcaml(data);
-  childs[2] = ocaml_from_AccessKeyword(access, data);
+  childs[0] = ocaml_ast_annotation(this, data);
+  childs[1] = ocaml_from_StringRef(name, data);
+  childs[2] = typedefVar->toOcaml(data);
+  childs[3] = ocaml_from_AccessKeyword(access, data);
 
-  childs[3] = Val_emptylist;
+  childs[4] = Val_emptylist;
 
   // can't use StringObjDict::foreach, because we need to 
   // share state between the iterations
@@ -1469,13 +1470,13 @@ value EnumType::toOcaml(ToOcamlData *data){
 
     tmp = caml_alloc(2, Tag_cons); // allocate a cons cell
     Store_field(tmp, 0, tuple);	// store car
-    Store_field(tmp, 1, childs[3]); // store cdr
-    childs[3] = tmp;
+    Store_field(tmp, 1, childs[4]); // store cdr
+    childs[4] = tmp;
   }
 
   caml_register_global_root(&ocaml_val);
   ocaml_val = caml_callbackN(*create_atomic_EnumType_constructor_closure,
-			    4, childs);
+			    5, childs);
   xassert(IS_OCAML_AST_VALUE(ocaml_val));
 
   data->stack.remove(this);
@@ -2223,7 +2224,7 @@ void PointerType::traverse(TypeVisitor &vis)
 // hand written ocaml serialization function
 value PointerType::toOcaml(ToOcamlData * data){
   CAMLparam0();
-  CAMLlocal2(caml_flags, caml_at_type);
+  CAMLlocal3(poly, caml_flags, caml_at_type);
   if(ocaml_val) {
     // cerr << "SHARED VALUE FOUND 4!\n" << flush;
     CAMLreturn(ocaml_val);
@@ -2240,12 +2241,13 @@ value PointerType::toOcaml(ToOcamlData * data){
   } else {
     data->stack.add(this);
   }
+  poly = ocaml_ast_annotation(this, data);
   caml_flags = ocaml_from_CVFlags(cv, data);
   caml_at_type = atType->toOcaml(data);
 
   caml_register_global_root(&ocaml_val);
-  ocaml_val = caml_callback2(*create_ctype_PointerType_constructor_closure,
-                             caml_flags, caml_at_type);
+  ocaml_val = caml_callback3(*create_ctype_PointerType_constructor_closure,
+                             poly, caml_flags, caml_at_type);
   xassert(IS_OCAML_AST_VALUE(ocaml_val));
 
   data->stack.remove(this);
@@ -2895,7 +2897,7 @@ void ArrayType::traverse(TypeVisitor &vis)
 // hand written ocaml serialization function
 value ArrayType::toOcaml(ToOcamlData * data){
   CAMLparam0();
-  CAMLlocal2(caml_elt_type, caml_size);
+  CAMLlocal3(poly, caml_elt_type, caml_size);
   if(ocaml_val) {
     // cerr << "shared ocaml value in ArrayType\n" << flush;
     CAMLreturn(ocaml_val);
@@ -2946,11 +2948,12 @@ value ArrayType::toOcaml(ToOcamlData * data){
   }
   xassert(IS_OCAML_AST_VALUE(caml_size));
 
+  poly = ocaml_ast_annotation(this, data);
   caml_elt_type = eltType->toOcaml(data);
 
   caml_register_global_root(&ocaml_val);
-  ocaml_val = caml_callback2(*create_ctype_ArrayType_constructor_closure,
-                             caml_elt_type, caml_size);
+  ocaml_val = caml_callback3(*create_ctype_ArrayType_constructor_closure,
+                             poly, caml_elt_type, caml_size);
   xassert(IS_OCAML_AST_VALUE(ocaml_val));
 
   data->stack.remove(this);
@@ -3069,7 +3072,7 @@ void PointerToMemberType::traverse(TypeVisitor &vis)
 // hand written ocaml serialization function
 value PointerToMemberType::toOcaml(ToOcamlData * data){
   CAMLparam0();
-  CAMLlocal3(caml_in_class, caml_cv, caml_at_type);
+  CAMLlocalN(child, 4); 
   if(ocaml_val) {
     // cerr << "shared ocaml value in PointerToMemberType\n" << flush;
     CAMLreturn(ocaml_val);
@@ -3086,14 +3089,15 @@ value PointerToMemberType::toOcaml(ToOcamlData * data){
   } else {
     data->stack.add(this);
   }
-  caml_in_class = inClassNAT->toOcaml(data);
-  caml_cv = ocaml_from_CVFlags(cv, data);
-  caml_at_type = atType->toOcaml(data);
+  child[0] = ocaml_ast_annotation(this, data);
+  child[1] = inClassNAT->toOcaml(data);
+  child[2] = ocaml_from_CVFlags(cv, data);
+  child[3] = atType->toOcaml(data);
 
   caml_register_global_root(&ocaml_val);
   ocaml_val = 
-    caml_callback3(*create_ctype_PointerToMemberType_constructor_closure,
-		   caml_in_class, caml_cv, caml_at_type);
+    caml_callbackN(*create_ctype_PointerToMemberType_constructor_closure,
+		   4, child);
   xassert(IS_OCAML_AST_VALUE(ocaml_val));
 
   data->stack.remove(this);
