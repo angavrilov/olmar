@@ -102,7 +102,8 @@ let create_compound_info_constructor
 (* type atomicType *)
 
 let create_atomic_SimpleType_constructor poly sid = SimpleType(poly, sid)
-let create_atomic_CompoundType_constructor poly ci = CompoundType(poly, ci)
+  (* CompoundType has no poly arg, it's in the compound_info *)
+let create_atomic_CompoundType_constructor ci = CompoundType ci
 let create_atomic_PseudoInstantiation_constructor poly name var key 
     template_info args =
   PseudoInstantiation(poly, name, var, key, template_info, args)

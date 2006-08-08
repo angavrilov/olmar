@@ -21,7 +21,7 @@ void debug_caml_register_global_root (value *);
 void debug_caml_remove_global_root (value *);
 void check_caml_root_status();
 
-#endif
+#endif // DEBUG_CAML_GLOBAL_ROOTS
 
 
 enum CircularAstType {
@@ -70,6 +70,7 @@ void finish_circular_pointers(ToOcamlData * data);
 extern bool caml_start_up_done;
 
 value ocaml_from_SourceLoc(const SourceLoc &, ToOcamlData *);
+value ocaml_ast_annotation(const void *, ToOcamlData *);
 
 //********************** value generation ************************************
 // for flag sets

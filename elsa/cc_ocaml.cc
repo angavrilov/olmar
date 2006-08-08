@@ -9,6 +9,7 @@ extern "C" {
 #include "cc.ast.gen.h"		// Function->toOcaml
 #include <iomanip.h>
 
+// #define DEBUG_CIRCULARITIES
 
 CircularAstPart::CircularAstPart() : 
   ca_type(CA_Empty), 
@@ -97,9 +98,11 @@ void postpone_circular_CType(ToOcamlData * data, value val,
   xassert(type != NULL);
   CircularAstPart * part = init_ca_part(data, val, field, CA_CType);
   part->ast.type = type;
-  // cerr << "postpone (" << data->postponed_count
-  //      << ") type " << type << " in field " << field
-  //      << " of " << val << "\n";
+# ifdef DEBUG_CIRCULARITIES
+  cerr << "postpone (" << data->postponed_count
+       << ") type " << type << " in field " << field
+       << " of " << hex << "0x" << val << dec << "\n";
+# endif // DEBUG_CIRCULARITIES
 }
 
 // hand written ocaml serialization function
@@ -111,9 +114,11 @@ void postpone_circular_Function(ToOcamlData * data, value val,
   xassert(func != NULL);
   CircularAstPart * part = init_ca_part(data, val, field, CA_Function);
   part->ast.func = func;
-  // cerr << "postpone (" << data->postponed_count
-  //      << ") Function " << func << " in field " << field
-  //      << " of " << val << "\n";
+# ifdef DEBUG_CIRCULARITIES
+  cerr << "postpone (" << data->postponed_count
+       << ") Function " << func << " in field " << field
+       << " of " << hex << "0x" << val << dec << "\n";
+# endif // DEBUG_CIRCULARITIES
 }
 
 
@@ -127,21 +132,27 @@ void finish_circular_pointers(ToOcamlData * data) {
   while(data->postponed_circles != NULL) {
     part = data->postponed_circles;
     data->postponed_circles = data->postponed_circles->next;
-    // cerr << "dispatch (" << data->postponed_count 
-    // 	 << ") in field " << part->field
-    // 	 << " of " << part->val;
+#   ifdef DEBUG_CIRCULARITIES
+    cerr << "dispatch (" << data->postponed_count 
+    	 << ") in field " << part->field
+    	 << " of " << hex << "0x" << part->val << dec;
+#   endif // DEBUG_CIRCULARITIES
     data->postponed_count--;
 
     xassert(data->stack.size() == 0);
   
     switch(part->ca_type) {
     case CA_CType:
-      // cerr << " (CType)\n";
+#     ifdef DEBUG_CIRCULARITIES
+      cerr << " (CType)\n";
+#     endif // DEBUG_CIRCULARITIES
       val = part->ast.type->toOcaml(data);
       break;
 
     case CA_Function:
-      // cerr << " (Function)\n";
+#     ifdef DEBUG_CIRCULARITIES
+      cerr << " (Function)\n";
+#     endif // DEBUG_CIRCULARITIES
       val = part->ast.func->toOcaml(data);
       break;
 
@@ -265,6 +276,23 @@ value ocaml_from_SourceLoc(const SourceLoc &loc, ToOcamlData *d){
   CAMLreturn(result);
 }
 
+
+value ocaml_ast_annotation(const void *thisp, ToOcamlData *d)
+{
+  CAMLparam0();
+  CAMLlocal1(result);
+
+  static value * create_ast_annotation_closure = NULL;
+  if(create_ast_annotation_closure == NULL)
+    create_ast_annotation_closure = caml_named_value("create_ast_annotation");
+  xassert(create_ast_annotation_closure);
+
+  result = caml_copy_int32((int) thisp);
+  result = caml_callback(*create_ast_annotation_closure, result);
+  xassert(IS_OCAML_INT32(result));
+
+  CAMLreturn(result);
+}
 
 
 // hand written ocaml serialization function
@@ -1907,7 +1935,7 @@ void check_caml_root_status() {
     cerr << dec << "\n";
   }
 }
-#endif
+#endif // DEBUG_CAML_GLOBAL_ROOTS
 
 
 

@@ -1,3 +1,11 @@
+2006-08-08  Hendrik Tews  <tews@tandem.cs.ru.nl>
+
+	AST
+	* treat 'a in toOcaml
+
+	ELSA
+	* added annotation to some of the ctype/variable classes
+
 2006-08-08  Hendrik Tews  <tews@debian>
 
 	AST

@@ -645,7 +645,7 @@ void Variable::traverse(TypeVisitor &vis) {
 // hand written ocaml serialization function
 value Variable::toOcaml(ToOcamlData *data){
   CAMLparam0();
-  CAMLlocalN(var, 7);
+  CAMLlocalN(var, 8);
   
   if(ocaml_val) {
     // cerr << "shared ocaml value in Variable\n" << flush;
@@ -663,43 +663,44 @@ value Variable::toOcaml(ToOcamlData *data){
     data->stack.add(this);
   }
 
-  var[0] = ocaml_from_SourceLoc(loc, data);
+  var[0] = ocaml_ast_annotation(this, data);
+  var[1] = ocaml_from_SourceLoc(loc, data);
 
   if(name) {
-    var[1] = ocaml_from_StringRef(name, data);
-    var[1] = option_some_constr(var[1]);
+    var[2] = ocaml_from_StringRef(name, data);
+    var[2] = option_some_constr(var[2]);
   }
   else
-    var[1] = Val_None;
+    var[2] = Val_None;
 
-  // var[2] = type->toOcaml(data);
-  var[2] = ref_None_constr(data);
-  var[3] = ocaml_from_DeclFlags(flags, data);
+  // var[3] = type->toOcaml(data);
+  var[3] = ref_None_constr(data);
+  var[4] = ocaml_from_DeclFlags(flags, data);
 
   if(varValue) {
-    var[4] = varValue->toOcaml(data);
-    var[4] = option_some_constr(var[4]);
-  }
-  else
-    var[4] = Val_None;
-
-  if(defaultParamType) {
-    var[5] = defaultParamType->toOcaml(data);
+    var[5] = varValue->toOcaml(data);
     var[5] = option_some_constr(var[5]);
   }
   else
     var[5] = Val_None;
 
-  var[6] = ref_None_constr(data);
+  if(defaultParamType) {
+    var[6] = defaultParamType->toOcaml(data);
+    var[6] = option_some_constr(var[6]);
+  }
+  else
+    var[6] = Val_None;
+
+  var[7] = ref_None_constr(data);
 
   caml_register_global_root(&ocaml_val);
   ocaml_val = caml_callbackN(*create_variable_constructor_closure,
-                             7, var);
+                             8, var);
   xassert(IS_OCAML_AST_VALUE(ocaml_val));
 
-  postpone_circular_CType(data, ocaml_val, 2, type);
+  postpone_circular_CType(data, ocaml_val, 3, type);
   if(funcDefn)
-    postpone_circular_Function(data, ocaml_val, 6, funcDefn);
+    postpone_circular_Function(data, ocaml_val, 7, funcDefn);
 
   data->stack.remove(this);
   CAMLreturn(ocaml_val);

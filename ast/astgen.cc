@@ -1863,6 +1863,9 @@ void CGen::emitToOcaml(ASTClass const * super, ASTClass const *sub)
   unsigned args_count = super->args.count() + super->fields.count() +
     super->lastArgs.count() + sub_args;
 
+  if(polymorphicOcaml)
+    args_count++;
+
   if(args_count > 0)
     out << "  CAMLlocalN(child, " << args_count << ");\n";
 
@@ -1888,6 +1891,11 @@ void CGen::emitToOcaml(ASTClass const * super, ASTClass const *sub)
       << "  }\n";
 
   unsigned count = 0;
+
+  if(polymorphicOcaml){
+    out << "  child[" << count++ << "] = ocaml_ast_annotation(this, data);\n";
+  }
+    
   emitToOcamlChilds(super->args, count);
   emitToOcamlChilds(super->fields, count);
   if(sub) {

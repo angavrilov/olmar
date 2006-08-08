@@ -297,7 +297,7 @@ void SimpleType::traverse(TypeVisitor &vis)
 // hand written ocaml serialization function
 value SimpleType::toOcaml(ToOcamlData * data){
   CAMLparam0();
-  CAMLlocal1(caml_id);
+  CAMLlocal2(poly, caml_id);
   if(ocaml_val) {
     // cerr << "shared ocaml value in SimpleType\n" << flush;
     CAMLreturn(ocaml_val);
@@ -314,11 +314,12 @@ value SimpleType::toOcaml(ToOcamlData * data){
   } else {
     data->stack.add(this);
   }
+  poly = ocaml_ast_annotation(this, data);
   caml_id = ocaml_from_SimpleTypeId(type, data);
 
   caml_register_global_root(&ocaml_val);
-  ocaml_val = caml_callback(*create_atomic_SimpleType_constructor_closure,
-			    caml_id);
+  ocaml_val = caml_callback2(*create_atomic_SimpleType_constructor_closure,
+			    poly, caml_id);
   xassert(IS_OCAML_AST_VALUE(ocaml_val));
 
   data->stack.remove(this);
@@ -383,7 +384,7 @@ void BaseClass::traverse(TypeVisitor &vis)
 // hand written ocaml serialization function
 value BaseClass::toOcaml(ToOcamlData *data){
   CAMLparam0();
-  CAMLlocal3(oct, oaccess, is_virt);
+  CAMLlocalN(child, 4);
 
   if(ocaml_val) {
     // cerr << "shared ocaml value in BaseClass\n" << flush;
@@ -402,13 +403,14 @@ value BaseClass::toOcaml(ToOcamlData *data){
     data->stack.add(this);
   }
 
-  oct = ct->toCompoundInfo(data);
-  oaccess = ocaml_from_AccessKeyword(access, data);
-  is_virt = ocaml_from_bool(isVirtual, data);
+  child[0] = ocaml_ast_annotation(this, data);
+  child[1] = ct->toCompoundInfo(data);
+  child[2] = ocaml_from_AccessKeyword(access, data);
+  child[3] = ocaml_from_bool(isVirtual, data);
   
   caml_register_global_root(&ocaml_val);
-  ocaml_val = caml_callback3(*create_baseClass_constructor_closure, 
-			    oct, oaccess, is_virt);
+  ocaml_val = caml_callbackN(*create_baseClass_constructor_closure, 
+			    4, child);
   xassert(IS_OCAML_AST_VALUE(ocaml_val));
 
   data->stack.remove(this);
@@ -1216,7 +1218,7 @@ bool CompoundType::isAggregate() const
 // hand written ocaml serialization function
 value CompoundType::toCompoundInfo(ToOcamlData *data){
   CAMLparam0();
-  CAMLlocalN(info, 11);
+  CAMLlocalN(info, 12);
   CAMLlocal2(elem, tmp);
 
   if(ocaml_info) {
@@ -1236,33 +1238,25 @@ value CompoundType::toCompoundInfo(ToOcamlData *data){
     data->stack.add(reinterpret_cast<char *>(this) +8);
   }
 
-  info[0] = ocaml_from_StringRef(name, data);
-  info[1] = typedefVar->toOcaml(data);
-  info[2] = ocaml_from_AccessKeyword(access, data);
-  info[3] = ocaml_from_bool(forward, data);
-  info[4] = ocaml_from_CompoundType_Keyword(keyword, data);
+  info[0] = ocaml_ast_annotation(this, data);
+  info[1] = ocaml_from_StringRef(name, data);
+  info[2] = typedefVar->toOcaml(data);
+  info[3] = ocaml_from_AccessKeyword(access, data);
+  info[4] = ocaml_from_bool(forward, data);
+  info[5] = ocaml_from_CompoundType_Keyword(keyword, data);
   
-  info[5] = Val_emptylist;
+  info[6] = Val_emptylist;
   for(int i = dataMembers.count() -1; i >= 0; i--) {
     elem = dataMembers.nth(i)->toOcaml(data);
-    tmp = caml_alloc(2, Tag_cons);  // allocate a cons cell
-    Store_field(tmp, 0, elem);      // store car
-    Store_field(tmp, 1, info[5]);    // store cdr
-    info[5] = tmp;
-  }
-
-  info[6] = Val_emptylist;
-  for(int i = bases.count() -1; i >= 0; i--) {
-    elem = bases.nth(i)->toOcaml(data);
     tmp = caml_alloc(2, Tag_cons);  // allocate a cons cell
     Store_field(tmp, 0, elem);      // store car
     Store_field(tmp, 1, info[6]);    // store cdr
     info[6] = tmp;
   }
-  
+
   info[7] = Val_emptylist;
-  for(int i = conversionOperators.count() -1; i >= 0; i--) {
-    elem = conversionOperators.nth(i)->toOcaml(data);
+  for(int i = bases.count() -1; i >= 0; i--) {
+    elem = bases.nth(i)->toOcaml(data);
     tmp = caml_alloc(2, Tag_cons);  // allocate a cons cell
     Store_field(tmp, 0, elem);      // store car
     Store_field(tmp, 1, info[7]);    // store cdr
@@ -1270,26 +1264,35 @@ value CompoundType::toCompoundInfo(ToOcamlData *data){
   }
   
   info[8] = Val_emptylist;
-  for(int i = friends.count() -1; i >= 0; i--) {
-    elem = friends.nth(i)->toOcaml(data);
+  for(int i = conversionOperators.count() -1; i >= 0; i--) {
+    elem = conversionOperators.nth(i)->toOcaml(data);
     tmp = caml_alloc(2, Tag_cons);  // allocate a cons cell
     Store_field(tmp, 0, elem);      // store car
     Store_field(tmp, 1, info[8]);    // store cdr
     info[8] = tmp;
   }
   
-  info[9] = ocaml_from_string(instName, data);
+  info[9] = Val_emptylist;
+  for(int i = friends.count() -1; i >= 0; i--) {
+    elem = friends.nth(i)->toOcaml(data);
+    tmp = caml_alloc(2, Tag_cons);  // allocate a cons cell
+    Store_field(tmp, 0, elem);      // store car
+    Store_field(tmp, 1, info[9]);    // store cdr
+    info[9] = tmp;
+  }
+  
+  info[10] = ocaml_from_string(instName, data);
 
-  // info[10] = selfType->toOcaml(data);
-  info[10] = ref_None_constr(data);
+  // info[11] = selfType->toOcaml(data);
+  info[11] = ref_None_constr(data);
   
   caml_register_global_root(&ocaml_info);
   ocaml_info = caml_callbackN(*create_compound_info_constructor_closure,
-                             11, info);
+                             12, info);
   xassert(IS_OCAML_AST_VALUE(ocaml_info));
 
   if(selfType)
-    postpone_circular_CType(data, ocaml_info, 10, selfType);
+    postpone_circular_CType(data, ocaml_info, 11, selfType);
 
   data->stack.remove(reinterpret_cast<char *>(this) +8);
   CAMLreturn(ocaml_info);
@@ -2069,7 +2072,7 @@ void CVAtomicType::traverse(TypeVisitor &vis)
 // hand written ocaml serialization function
 value CVAtomicType::toOcaml(ToOcamlData * data){
   CAMLparam0();
-  CAMLlocal2(caml_flags, caml_atom);
+  CAMLlocal3(poly, caml_flags, caml_atom);
   if(ocaml_val) {
     // cerr << "shared ocaml value in CVAtomicType\n" << flush;
     CAMLreturn(ocaml_val);
@@ -2086,12 +2089,13 @@ value CVAtomicType::toOcaml(ToOcamlData * data){
   } else {
     data->stack.add(this);
   }
+  poly = ocaml_ast_annotation(this, data);
   caml_flags = ocaml_from_CVFlags(cv, data);
   caml_atom = atomic->toOcaml(data);
 
   caml_register_global_root(&ocaml_val);
-  ocaml_val = caml_callback2(*create_ctype_CVAtomicType_constructor_closure,
-                             caml_flags, caml_atom);
+  ocaml_val = caml_callback3(*create_ctype_CVAtomicType_constructor_closure,
+                             poly, caml_flags, caml_atom);
   xassert(IS_OCAML_AST_VALUE(ocaml_val));
 
   data->stack.remove(this);
@@ -2342,7 +2346,7 @@ void ReferenceType::traverse(TypeVisitor &vis)
 // hand written ocaml serialization function
 value ReferenceType::toOcaml(ToOcamlData * data){
   CAMLparam0();
-  CAMLlocal1(caml_at_type);
+  CAMLlocal2(poly, caml_at_type);
   if(ocaml_val) {
     // cerr << "shared ocaml value in ReferenceType\n" << flush;
     CAMLreturn(ocaml_val);
@@ -2359,11 +2363,12 @@ value ReferenceType::toOcaml(ToOcamlData * data){
   } else {
     data->stack.add(this);
   }
+  poly = ocaml_ast_annotation(this, data);
   caml_at_type = atType->toOcaml(data);
 
   caml_register_global_root(&ocaml_val);
-  ocaml_val = caml_callback(*create_ctype_ReferenceType_constructor_closure,
-                             caml_at_type);
+  ocaml_val = caml_callback2(*create_ctype_ReferenceType_constructor_closure,
+                             poly, caml_at_type);
   xassert(IS_OCAML_AST_VALUE(ocaml_val));
 
   data->stack.remove(this);
@@ -2744,7 +2749,7 @@ void FunctionType::traverse(TypeVisitor &vis)
 value FunctionType::toOcaml(ToOcamlData * data){
   CAMLparam0();
   CAMLlocal2(tmp, elem);
-  CAMLlocalN(child, 4);
+  CAMLlocalN(child, 5);
   if(ocaml_val) {
     // cerr << "shared ocaml value in FunctionType\n" << flush;
     CAMLreturn(ocaml_val);
@@ -2761,36 +2766,37 @@ value FunctionType::toOcaml(ToOcamlData * data){
   } else {
     data->stack.add(this);
   }
-  child[0] = ocaml_from_function_flags(flags, data);
-  child[1] = retType->toOcaml(data);
+  child[0] = ocaml_ast_annotation(this, data);
+  child[1] = ocaml_from_function_flags(flags, data);
+  child[2] = retType->toOcaml(data);
 
-  child[2] = Val_emptylist;
+  child[3] = Val_emptylist;
   for(int i = params.count() -1; i >= 0; i--) {
     elem = params.nth(i)->toOcaml(data); 
     tmp = caml_alloc(2, Tag_cons);  // allocate a cons cell
     Store_field(tmp, 0, elem);      // store car
-    Store_field(tmp, 1, child[2]);    // store cdr
-    child[2] = tmp;
+    Store_field(tmp, 1, child[3]);    // store cdr
+    child[3] = tmp;
   }
 
   if(exnSpec){
-    child[3] = Val_emptylist;
+    child[4] = Val_emptylist;
     for(int i = exnSpec->types.count() -1; i >= 0; i--) {
       elem = exnSpec->types.nth(i)->toOcaml(data); 
       tmp = caml_alloc(2, Tag_cons);  // allocate a cons cell
       Store_field(tmp, 0, elem);      // store car
       Store_field(tmp, 1, child[3]);    // store cdr
-      child[3] = tmp;
+      child[4] = tmp;
     }
-    child[3] = option_some_constr(child[3]);
+    child[4] = option_some_constr(child[3]);
   }
   else {
-    child[3] = Val_None;
+    child[4] = Val_None;
   }
 
   caml_register_global_root(&ocaml_val);
   ocaml_val = caml_callbackN(*create_ctype_FunctionType_constructor_closure,
-                             4, child);
+                             5, child);
   xassert(IS_OCAML_AST_VALUE(ocaml_val));
 
   data->stack.remove(this);

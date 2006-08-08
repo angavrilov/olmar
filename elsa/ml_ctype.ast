@@ -83,7 +83,8 @@ and 'a atomicType =
        * change PseudoInstantiation and its serialization
        *)
       (* CompoundType( compound info) *)
-  | CompoundType of 'a * 'a compound_info
+      (* 'a annotation is in compound_info *)
+  | CompoundType of 'a compound_info
 
       (* PseudoInstantiation( user given name, ?, public/protected, 
        *           original class template info record, template arguments)
