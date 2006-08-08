@@ -77,6 +77,11 @@ and 'a compound_info = {
 }
 
 and 'a atomicType = 
+    (* the subtype NamedAtomicType contains the following constructors:
+     * CompoundType, PseudoInstantiation, EnumType, TypeVariable
+     * (i.e, everything apart from SimpleType)
+     *)
+
   | SimpleType of 'a * simpleTypeId
 
       (* IMPORTANT: if one adds more fields to CompoundType one has also to 

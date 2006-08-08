@@ -1,5 +1,6 @@
 
 open Cc_ast_gen_type
+open Ast_annotation
 
 module U = Unix
 
@@ -44,7 +45,7 @@ let pipe_ast oc ast =
   output_string oc
     (String.escaped 
        (Marshal.to_string
-	  (ast : translationUnit_type)
+	  (ast : annotated translationUnit_type)
 	  []));
   output_string oc "\" 0 : ";
   output_string oc "translationUnit_type";
@@ -119,7 +120,7 @@ let main () =
   if not !file_set then
     usage();				(* does not return *)
   let ic = open_in !file in
-  let ast = (Marshal.from_channel ic : translationUnit_type) 
+  let ast = (Marshal.from_channel ic : annotated translationUnit_type) 
   in
     close_in ic;
     dump_to_toplevel ast

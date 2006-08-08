@@ -1,3 +1,10 @@
+2006-08-09  Hendrik Tews  <tews@debian>
+
+	Semantic
+	* adopted programs to changed ast
+	  dumpast : doesn't make sense for recursive asts
+	  hashloc : fails for cyclic ast's
+
 2006-08-08  Hendrik Tews  <tews@debian>
 
 	ELSA
