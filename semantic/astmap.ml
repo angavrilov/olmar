@@ -4,7 +4,13 @@ open Cc_ast_gen_type
 open Ml_ctype
 open Ast_annotation
 
-let annotation_fun a = a
+(**************************************************************************
+ *
+ * contents of astmap.ml with sourceLoc_fun removed
+ *
+ **************************************************************************)
+
+let annotation_fun (((id, c_addr) as a) : int * int) = a
 
 let opt_map f = function
   | None -> None
@@ -1013,6 +1019,12 @@ and attribute_fun = function
 	      string_fun stringRef,
 	      List.map argExpression_fun argExpression_list)
 
+
+(**************************************************************************
+ *
+ * end of astmap.ml 
+ *
+ **************************************************************************)
 
 
 (*** Local Variables: ***)

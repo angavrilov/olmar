@@ -4,8 +4,14 @@ open Cc_ast_gen_type
 open Ml_ctype
 open Ast_annotation
 
+(**************************************************************************
+ *
+ * contents of astiter.ml with sourceLoc_fun removed
+ *
+ **************************************************************************)
 
-let annotation_fun (a : annotated) = ()
+
+let annotation_fun ((id, c_addr) : int * int) = ()
 
 let opt_iter f = function
   | None -> ()
@@ -992,6 +998,13 @@ and attribute_fun = function
       sourceLoc_fun sourceLoc;
       string_fun stringRef;
       List.iter argExpression_fun argExpression_list
+
+
+(**************************************************************************
+ *
+ * end of astiter.ml 
+ *
+ **************************************************************************)
 
 
 (*** Local Variables: ***)

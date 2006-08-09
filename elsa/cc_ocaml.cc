@@ -287,9 +287,9 @@ value ocaml_ast_annotation(const void *thisp, ToOcamlData *d)
     create_ast_annotation_closure = caml_named_value("create_ast_annotation");
   xassert(create_ast_annotation_closure);
 
-  result = caml_copy_int32((int) thisp);
+  result = ocaml_from_int(((unsigned) thisp) >> 1, d);
   result = caml_callback(*create_ast_annotation_closure, result);
-  xassert(IS_OCAML_INT32(result));
+  xassert(IS_OCAML_AST_VALUE(result));
 
   CAMLreturn(result);
 }

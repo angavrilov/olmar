@@ -1,6 +1,11 @@
 2006-08-09  Hendrik Tews  <tews@debian>
 
+	ELSA
+	* changed annotation type to int * int (id, addr >> 1)
+	
 	Semantic
+	* ast_graph started
+
 	* adopted programs to changed ast
 	  dumpast : doesn't make sense for recursive asts
 	  hashloc : fails for cyclic ast's
