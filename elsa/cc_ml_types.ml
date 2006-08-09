@@ -105,6 +105,54 @@ let is_DF_SOURCEFLAGS = function
 type declFlags = declFlag list
 
 
+let string_of_declFlag = function
+  | DF_AUTO         -> "auto"
+  | DF_REGISTER     -> "register"
+  | DF_STATIC       -> "static"
+  | DF_EXTERN       -> "extern"
+  | DF_MUTABLE      -> "mutable"
+  | DF_INLINE       -> "inline"
+  | DF_VIRTUAL      -> "virtual"
+  | DF_EXPLICIT     -> "explicit"
+  | DF_FRIEND       -> "friend"
+  | DF_TYPEDEF      -> "typedef"
+  | DF_NAMESPACE    -> "namespace"
+  | DF_ENUMERATOR   -> "enumerator"
+  | DF_GLOBAL       -> "global"
+  | DF_INITIALIZED  -> "initialized"
+  | DF_BUILTIN      -> "builtin"
+  | DF_PARAMETER    -> "parameter"
+  | DF_MEMBER       -> "member"
+  | DF_DEFINITION   -> "definition"
+  | DF_INLINE_DEFN  -> "inline_defn"
+  | DF_IMPLICIT     -> "implicit"
+  | DF_FORWARD      -> "forward"
+  | DF_TEMPORARY    -> "temporary"
+  | DF_EXTERN_C     -> "extern_c"
+  | DF_SELFNAME     -> "selfname"
+  | DF_BOUND_TPARAM -> "bound_tparam"
+  | DF_TEMPL_PARAM  -> "templ_param"
+  | DF_USING_ALIAS  -> "using_alias"
+  | DF_BITFIELD     -> "bitfield"
+  | DF_ADDRTAKEN    -> "addrtaken"
+  | DF_UNIVERSAL    -> "universal"
+  | DF_EXISTENTIAL  -> "existential"
+  | DF_unused       -> "unused"
+
+let string_of_declFlags = function
+  | [] -> "[]"
+  | hd::tl ->
+      let buf = Buffer.create 20
+      in
+	Printf.bprintf buf "[%s" (string_of_declFlag hd);
+	List.iter
+	  (fun flag -> Printf.bprintf buf ", %s" (string_of_declFlag flag))
+	  tl;
+	Buffer.add_char buf ']';
+	Buffer.contents buf
+
+
+
 (* from strtable.h
  * xmlserilaization as string, hardwired in astgen
  *)

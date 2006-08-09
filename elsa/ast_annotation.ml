@@ -7,6 +7,12 @@
  *)
 type annotated = int * int
 
+(* accessor Functions *)
+
+let id_annotation ((id,_) : annotated) = id
+
+let caddr_annotation ((_, caddr) : annotated) = caddr
+
 let addr_hash = Hashtbl.create 10093
 
 let next_id = ref 1
