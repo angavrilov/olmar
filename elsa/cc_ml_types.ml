@@ -1,10 +1,10 @@
 
 (* type declarations for cc.ast *)
 
-(* SourceLoc is defined as an enum in srcloc.h, here we take the 
+(* SourceLoc is defined as an enum in srcloc.h, here we take the
  * xml representation, which is file * line * char
  *
- * xmlserilaization: hardwired in astgen: 
+ * xmlserilaization: hardwired in astgen:
  * toXml_SourceLoc -> sourceLocManager->getString(loc)
  *)
 type sourceLoc = string * int * int
@@ -19,7 +19,7 @@ type sourceLoc = string * int * int
  * can play (variable, type, enumerator, etc.).  This can be used as
  * a convenient way to toss a new boolean into Variable, though it's
  * close to using all 32 bits, so it might need to be split.
- * 
+ *
  * NOTE: Changes to this enumeration must be accompanied by
  * updates to 'declFlagNames' in cc_flags.cc.
  *)
@@ -74,8 +74,8 @@ type declFlag =
 
   (* not used *)
   | DF_unused      (* = 0x02000000    // (available) *)
-  
-  (* 
+
+  (*
    * ALL_DECLFLAGS  = 0xFFFFFFFF
    * NUM_DECLFLAGS  = 32             // # bits set to 1 in ALL_DECLFLAGS
    *)
@@ -139,17 +139,7 @@ let string_of_declFlag = function
   | DF_EXISTENTIAL  -> "existential"
   | DF_unused       -> "unused"
 
-let string_of_declFlags = function
-  | [] -> "[]"
-  | hd::tl ->
-      let buf = Buffer.create 20
-      in
-	Printf.bprintf buf "[%s" (string_of_declFlag hd);
-	List.iter
-	  (fun flag -> Printf.bprintf buf ", %s" (string_of_declFlag flag))
-	  tl;
-	Buffer.add_char buf ']';
-	Buffer.contents buf
+let string_of_declFlags l = Elsa_util.string_of_flag_list string_of_declFlag l
 
 
 
@@ -159,7 +149,7 @@ let string_of_declFlags = function
 type stringRef = string
 
 
-(* from cc_flags.h 
+(* from cc_flags.h
  * xmlserilaization as int via cpp generated toXml
  *)
 (*
@@ -223,13 +213,60 @@ type simpleTypeId =
   | ST_PRET_SECOND            (*  2nd arg type *)
   | ST_PRET_SECOND_PTR2REF    (*  2nd arg ptr type -> ref type *)
 
-  (* 
+  (*
    * NUM_SIMPLE_TYPES
    * ST_BITMASK = 0xFF          // for extraction for OR with CVFlags
    *)
 
 
-(* also cc_flags.h 
+let string_of_simpleTypeId = function
+  | ST_CHAR                  -> "char"
+  | ST_UNSIGNED_CHAR         -> "unsigned char"
+  | ST_SIGNED_CHAR           -> "signed char"
+  | ST_BOOL                  -> "bool"
+  | ST_INT                   -> "int"
+  | ST_UNSIGNED_INT          -> "unsigned int"
+  | ST_LONG_INT              -> "long int"
+  | ST_UNSIGNED_LONG_INT     -> "unsigned long int"
+  | ST_LONG_LONG             -> "long long"
+  | ST_UNSIGNED_LONG_LONG    -> "unsigned long long"
+  | ST_SHORT_INT             -> "short int"
+  | ST_UNSIGNED_SHORT_INT    -> "unsigned short int"
+  | ST_WCHAR_T               -> "wchar t"
+  | ST_FLOAT                 -> "float"
+  | ST_DOUBLE                -> "double"
+  | ST_LONG_DOUBLE           -> "long double"
+  | ST_FLOAT_COMPLEX         -> "float complex"
+  | ST_DOUBLE_COMPLEX        -> "double complex"
+  | ST_LONG_DOUBLE_COMPLEX   -> "long double complex"
+  | ST_FLOAT_IMAGINARY       -> "float imaginary"
+  | ST_DOUBLE_IMAGINARY      -> "double imaginary"
+  | ST_LONG_DOUBLE_IMAGINARY -> "long double imaginary"
+  | ST_VOID                  -> "void"
+  | ST_ELLIPSIS              -> "ellipsis"
+  | ST_CDTOR                 -> "cdtor"
+  | ST_ERROR                 -> "error"
+  | ST_DEPENDENT             -> "dependent"
+  | ST_IMPLINT               -> "implint"
+  | ST_NOTFOUND              -> "notfound"
+  | ST_PROMOTED_INTEGRAL     -> "promoted integral"
+  | ST_PROMOTED_ARITHMETIC   -> "promoted arithmetic"
+  | ST_INTEGRAL              -> "integral"
+  | ST_ARITHMETIC            -> "arithmetic"
+  | ST_ARITHMETIC_NON_BOOL   -> "arithmetic non bool"
+  | ST_ANY_OBJ_TYPE          -> "any obj type"
+  | ST_ANY_NON_VOID          -> "any non void"
+  | ST_ANY_TYPE              -> "any type"
+  | ST_PRET_STRIP_REF        -> "pret strip ref"
+  | ST_PRET_PTM              -> "pret ptm"
+  | ST_PRET_ARITH_CONV       -> "pret arith conv"
+  | ST_PRET_FIRST            -> "pret first"
+  | ST_PRET_FIRST_PTR2REF    -> "pret first ptr2ref"
+  | ST_PRET_SECOND           -> "pret second"
+  | ST_PRET_SECOND_PTR2REF   -> "pret second ptr2ref"
+
+
+(* also cc_flags.h
  * xmlserilaization as int via cpp generated toXml
  *)
 (* ----------------------- TypeIntr ----------------------
@@ -244,9 +281,15 @@ type typeIntr =
   (* NUM_TYPEINTRS *)
 
 
+let string_of_typeIntr = function
+  | TI_STRUCT -> "struct"
+  | TI_CLASS  -> "class"
+  | TI_UNION  -> "union"
+  | TI_ENUM   -> "enum"
+
 (* also cc_flags.h
  * xmlserilaization as int via cpp generated toXml
- * 
+ *
  * ---------------- access control ------------
  * these are listed from least restrictive to most restrictive,
  * so < can be used to test for retriction level
@@ -256,9 +299,15 @@ type accessKeyword =
   | AK_PROTECTED
   | AK_PRIVATE
   | AK_UNSPECIFIED (* not explicitly specified; typechecking changes it later *)
-  
+
   (* NUM_ACCESS_KEYWORDS *)
 
+
+let string_of_accessKeyword = function
+  | AK_PUBLIC      -> "public"
+  | AK_PROTECTED   -> "protected"
+  | AK_PRIVATE	   -> "private"
+  | AK_UNSPECIFIED -> "unspecified"
 
 
 
@@ -276,9 +325,9 @@ type cVFlag =
   | CV_VOLATILE (* = 0x0800, *)
   | CV_RESTRICT (* = 0x1000,     // C99 *)
   | CV_OWNER    (* = 0x2000,     // experimental extension *)
-  (* 
+  (*
    * CV_ALL      = 0x2C00,
-   * 
+   *
    * CV_SHIFT_AMOUNT = 10,     // shift right this many bits before counting for cvFlagNames
    * NUM_CVFLAGS = 4           // # bits set to 1 in CV_ALL
    *)
@@ -289,12 +338,18 @@ type cVFlag =
  *)
 type cVFlags = cVFlag list
 
+let string_of_cVFlag = function
+  | CV_CONST    -> "const"
+  | CV_VOLATILE -> "volatile"
+  | CV_RESTRICT -> "restrict"
+  | CV_OWNER    -> "owner"
 
+let string_of_cVFlags l = Elsa_util.string_of_flag_list string_of_cVFlag l
 
 (* cc_flags.h
  * xmlserilaization as int via cpp generated toXml
  *
- * --------------- overloadable operators -------------            
+ * --------------- overloadable operators -------------
  * This is all of the unary and binary operators that are overloadable
  * in C++.  While it repeats operators that are also declared above in
  * some form, it makes the design more orthogonal: the operators above
@@ -361,7 +416,7 @@ type overloadableOp =
   | OP_PARENS       (*  () *)
   | OP_COMMA        (*  , *)
   | OP_QUESTION     (*  ?:  (not overloadable, but resolution used nonetheless) *)
-  
+
   (*  gcc extensions *)
   | OP_MINIMUM      (*  <? *)
   | OP_MAXIMUM      (*  >? *)
@@ -382,6 +437,12 @@ type unaryOp =
   (* NUM_UNARYOPS *)
 
 
+let string_of_unaryOp = function
+  | UNY_PLUS    -> "+"
+  | UNY_MINUS   -> "-"
+  | UNY_NOT     -> "!"
+  | UNY_BITNOT  -> "~"
+
 
 (* cc_flags.h
  * xmlserilaization as int via cpp generated toXml
@@ -397,13 +458,20 @@ type effectOp =
   (* NUM_EFFECTOPS *)
 
 
+let string_of_effectOp = function
+  | EFF_POSTINC -> "postinc"
+  | EFF_POSTDEC	-> "postdec"
+  | EFF_PREINC	-> "preinc"
+  | EFF_PREDEC	-> "predec"
+
+
 (* cc_flags.h
  * xmlserilaization as int via cpp generated toXml
  *
  * ------------------------ BinaryOp --------------------------
  *)
 type binaryOp =
-  (* 
+  (*
    * the relationals come first, and in this order, to correspond
    * to RelationOp in predicate.ast (which is now in another
    * repository entirely...)
@@ -449,6 +517,37 @@ type binaryOp =
   (* NUM_BINARYOPS *)
 
 
+let string_of_binaryOp = function
+  | BIN_EQUAL       -> "equal"
+  | BIN_NOTEQUAL    -> "notequal"
+  | BIN_LESS	    -> "less"
+  | BIN_GREATER	    -> "greater"
+  | BIN_LESSEQ	    -> "lesseq"
+  | BIN_GREATEREQ   -> "greatereq"
+  | BIN_MULT	    -> "mult"
+  | BIN_DIV	    -> "div"
+  | BIN_MOD	    -> "mod"
+  | BIN_PLUS	    -> "plus"
+  | BIN_MINUS	    -> "minus"
+  | BIN_LSHIFT	    -> "lshift"
+  | BIN_RSHIFT	    -> "rshift"
+  | BIN_BITAND	    -> "bitand"
+  | BIN_BITXOR	    -> "bitxor"
+  | BIN_BITOR	    -> "bitor"
+  | BIN_AND	    -> "and"
+  | BIN_OR	    -> "or"
+  | BIN_COMMA	    -> "comma"
+  | BIN_MINIMUM	    -> "minimum"
+  | BIN_MAXIMUM	    -> "maximum"
+  | BIN_BRACKETS    -> "brackets"
+  | BIN_ASSIGN	    -> "assign"
+  | BIN_DOT_STAR    -> "dot_star"
+  | BIN_ARROW_STAR  -> "arrow_star"
+  | BIN_IMPLIES	    -> "implies"
+  | BIN_EQUIVALENT  -> "equivalent"
+
+
+
 (* cc_flags.h
  * xmlserilaization as int via cpp generated toXml
  *
@@ -463,6 +562,16 @@ type castKeyword =
   (* NUM_CAST_KEYWORDS *)
 
 
-(*** Local Variables: ***)
-(*** compile-command : "ocamlc.opt -c cc_ml_types.ml" ***)
-(*** End: ***)
+
+let string_of_castKeyword = function
+  | CK_DYNAMIC     -> "dynamic"
+  | CK_STATIC	   -> "static"
+  | CK_REINTERPRET -> "reinterpret"
+  | CK_CONST	   -> "const"
+
+
+
+
+
+
+

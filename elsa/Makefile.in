@@ -258,6 +258,7 @@ cc.gr.gen.h cc.gr.gen.cc: $(CC_GR_MODS) cc_tokens.ids $(ELKHOUND)/elkhound
 # List of ml modules needed by the parser. They are all combined 
 # into one ml_object.o file.
 CCPARSE_ML := \
+  elsa_util.ml \
   cc_ml_types.ml \
   cc_ml_constructors.ml \
   ml_ctype.ml \

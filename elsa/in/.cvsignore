@@ -5,3 +5,5 @@ k0008.cc
 t0539_*.cc
 alltests
 *.oast
+*.oast.dot
+*.oast.ps

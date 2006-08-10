@@ -7,3 +7,5 @@ hide*
 # actually build in my verison of g++
 works
 *.oast
+*.oast.dot
+*.oast.ps

@@ -1,3 +1,11 @@
+2006-08-11  Hendrik Tews  <tews@debian>
+
+	ELSA
+	* added string_of_ functions for some of the enums used in the ast
+
+	SEMANTIC
+	* ast_graph (20/40)
+
 2006-08-10  Hendrik Tews  <tews@debian>
 
 	ELSA
