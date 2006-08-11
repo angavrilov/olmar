@@ -1,5 +1,7 @@
 2006-08-11  Hendrik Tews  <tews@debian>
 
+	* ast_graph (21/40), hit recursion problem
+
 	ELSA
 	* added string_of_ functions for some of the enums used in the ast
 

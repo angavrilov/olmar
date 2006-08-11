@@ -27,10 +27,6 @@ let sourceLoc_fun((file : string), (line : int), (char : int)) = ()
 
 let declFlags_fun(l : declFlag list) = ()
 
-let variable_fun(v : annotated variable) = ()
-
-let cType_fun(c : annotated cType) = ()
-
 let simpleTypeId_fun(id : simpleTypeId) = ()
 
 let typeIntr_fun(keywort : typeIntr) = ()

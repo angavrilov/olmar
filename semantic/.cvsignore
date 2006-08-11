@@ -1,5 +1,6 @@
 *.cmi
 *.cmo
+ast_graph
 dumpast
 hashloc
 temp.oast

@@ -8,7 +8,7 @@ open Ast_util
 
 
 
-(* node type done: 7, 8, 9, 11, 12, 13, 14, 15, 16, 19, 20, 
+(* node type done: 1, 7, 8, 9, 11, 12, 13, 14, 15, 16, 19, 20, 
  *  21, 22, 23, 24, 25, 26, 38, 39, 40
  *)
 
@@ -20,80 +20,105 @@ let print_caddr = ref false
 let not_implemented () =
   if 0 = 0 then 0 else assert false
 
-(**************************************************************************
- *
- * contents of astiter.ml with sourceLoc_fun removed
- *
- **************************************************************************)
 
-
-(* 
- * 
- * let opt_iter f = function
- *   | None -> ()
- *   | Some x -> f x
- *)
 
 let any_label (field_name, value) =
   Printf.fprintf !oc "\\n%s: %s" field_name value
-
-(* let int_fun (i : int) = ()
- *)
 
 let string_opt = function
   | None -> "(nil)"
   | Some s -> s
 
-(* let sourceLoc_fun((file : string), (line : int), (char : int)) = ()
- *)
+let count_rev base l =
+  let counter = ref (List.length l)
+  in
+    List.rev_map 
+      (fun x -> decr counter; (x, Printf.sprintf "%s[%d]" base !counter)) 
+      l
 
-(* let variable_fun(v : annotated variable) = ()
- * 
- * let cType_fun(c : annotated cType) = ()
- * 
- * let accessKeyword_fun(keyword : accessKeyword) = ()
- *)
+let start_label name color id =
+  Printf.fprintf !oc "    \"%d\" [color=\"%s\", label=\"%s %d" 
+    id color name id
 
-(* let overloadableOp_fun(op :overloadableOp) = ()
- * 
- * let unaryOp_fun(op : unaryOp) = ()
- * 
- * let effectOp_fun(op : effectOp) = ()
- * 
- * let binaryOp_fun(op : binaryOp) = ()
- * 
- * let castKeyword_fun(keyword : castKeyword) = ()
- * 
- * let function_flags_fun(flags : function_flags) = ()
- * 
- * 
- * let array_size_fun = function
- *   | NO_SIZE -> ()
- *   | DYN_SIZE -> ()
- *   | FIXED_SIZE(int) -> int_fun int
- * 
- * let compoundType_Keyword_fun = function
- *   | K_STRUCT -> ()
- *   | K_CLASS -> ()
- *   | K_UNION -> ()
- * 
- * 
- * (\***************** variable ***************************\)
- * 
- * 1 let rec variable_fun(v : annotated variable) =
- *   sourceLoc_fun v.loc;
- *   opt_iter string_fun v.var_name;
- * 
- *   (\* POSSIBLY CIRCULAR *\)
- *   opt_iter cType_fun !(v.var_type);
- *   declFlags_fun v.flags;
- *   opt_iter expression_fun v.value;
- *   opt_iter cType_fun v.defaultParam;
- * 
- *   (\* POSSIBLY CIRCULAR *\)
- *   opt_iter func_fun !(v.funcDefn)
- * 
- * 
+let finish_label caddr =
+  output_string !oc "\"];\n"
+
+
+let loc_label (file, line, char) =
+  ("loc", Printf.sprintf "%s:%d:%d" file line char)
+
+let child_edge id (cid,label) =
+  Printf.fprintf !oc "    \"%d\" -> \"%d\" [label=\"%s\"];\n" id cid label
+
+let child_edges id childs = 
+  List.iter (child_edge id) childs
+
+  
+let opt_child child_fun field_name opt child_list = 
+  match opt with
+    | None -> child_list
+    | Some c -> (child_fun c, field_name) :: child_list
+
+let caddr_label caddr =
+  ("caddr", Printf.sprintf "0x%lx" (Int32.shift_left (Int32.of_int caddr) 1))
+
+let ast_node color annot name (labels :(string*string) list) childs =
+  let id = id_annotation annot
+  in
+    start_label name color id;
+    List.iter any_label 
+      (if !print_caddr then
+	 labels @ [(caddr_label (caddr_annotation annot))]
+       else
+	 labels);
+    finish_label ();
+    child_edges id childs;
+    id
+
+let ast_loc_node color annot loc name labels childs =
+  ast_node color annot name ((loc_label loc) :: labels) childs
+
+(***************** colors *****************************)
+
+let color_TranslationUnit = "red"
+let color_TF = "firebrick2"
+let color_Declaration = "cyan"
+let color_Declarator = "SkyBlue"
+let color_Function = "magenta"
+let color_IDeclarator = "SteelBlue"
+let color_Member = "SlateBlue1"
+let color_MemberList = "SlateBlue4"
+let color_PQName = "SkyBlue"
+let color_Variable = "purple"
+let color_TypeSpecifier = "OliveDrab"
+let color_Statement = "yellow"
+let color_handler = "khaki1"
+let color_FullExpression = "coral"
+let color_Expression = "orange"
+let color_ArgExpression = "DarkOrange"
+let color_ArgExpressionListOpt = "tomato"
+let color_Condition = "OrangeRed"
+let color_Initializer = "gold"
+let color_ASTTypeID = "MediumAquamarine"
+let color_Enumerator = "PaleTurquoise"
+
+
+
+(***************** variable ***************************)
+
+let rec variable_fun (v : annotated variable) =
+  ast_loc_node color_Variable v.poly_var v.loc "Variable"
+    [("name", string_opt v.var_name);
+     ("flags", string_of_declFlags v.flags)
+    ]
+    (opt_child cType_fun "type" !(v.var_type)
+       (opt_child expression_fun "varValue" v.value
+	  (opt_child cType_fun "defaultParamType" v.defaultParam
+	     (opt_child func_fun "funcDefn" !(v.funcDefn) []))))
+
+
+
+(*
  * (\***************** cType ******************************\)
  * 
  * 2 and baseClass_fun baseClass =
@@ -195,83 +220,11 @@ let string_opt = function
  *)
 
 
-let count_rev base l =
-  let counter = ref (List.length l)
-  in
-    List.rev_map 
-      (fun x -> decr counter; (x, Printf.sprintf "%s[%d]" base !counter)) 
-      l
-
-let start_label name color id =
-  Printf.fprintf !oc "    \"%d\" [color=\"%s\", label=\"%s %d" 
-    id color name id
-
-let finish_label caddr =
-  output_string !oc "\"];\n"
-
-
-let loc_label (file, line, char) =
-  ("loc", Printf.sprintf "%s:%d:%d" file line char)
-
-let child_edge id (cid,label) =
-  Printf.fprintf !oc "    \"%d\" -> \"%d\" [label=\"%s\"];\n" id cid label
-
-let child_edges id childs = 
-  List.iter (child_edge id) childs
-
-  
-let opt_child child_fun field_name opt child_list = 
-  match opt with
-    | None -> child_list
-    | Some c -> (child_fun c, field_name) :: child_list
-
-let caddr_label caddr =
-  ("caddr", Printf.sprintf "0x%lx" (Int32.shift_left (Int32.of_int caddr) 1))
-
-let ast_node color annot name (labels :(string*string) list) childs =
-  let id = id_annotation annot
-  in
-    start_label name color id;
-    List.iter any_label 
-      (if !print_caddr then
-	 labels @ [(caddr_label (caddr_annotation annot))]
-       else
-	 labels);
-    finish_label ();
-    child_edges id childs;
-    id
-
-let ast_loc_node color annot loc name labels childs =
-  ast_node color annot name ((loc_label loc) :: labels) childs
-
-(***************** colors *****************************)
-
-let color_TranslationUnit = "red"
-let color_TF = "firebrick2"
-let color_Declaration = "cyan"
-let color_Declarator = "SkyBlue"
-let color_Function = "magenta"
-let color_IDeclarator = "SteelBlue"
-let color_Member = "SlateBlue1"
-let color_MemberList = "SlateBlue4"
-let color_PQName = "DarkViolet"
-let color_TypeSpecifier = "OliveDrab"
-let color_Statement = "yellow"
-let color_handler = "khaki1"
-let color_FullExpression = "coral"
-let color_Expression = "orange"
-let color_ArgExpression = "DarkOrange"
-let color_ArgExpressionListOpt = "tomato"
-let color_Condition = "OrangeRed"
-let color_Initializer = "gold"
-let color_ASTTypeID = "MediumAquamarine"
-let color_Enumerator = "PaleTurquoise"
-
 
 
 (***************** generated ast nodes ****************)
 
-let rec translationUnit_fun 
+and translationUnit_fun 
                ((annot, topForm_list) : annotated translationUnit_type) =
   ast_node color_TranslationUnit annot "TranslationUnit" []
     (count_rev "topForms" (List.rev_map topForm_fun topForm_list))
@@ -398,7 +351,6 @@ and pQName_fun pq =
 
 and templateArgument_fun _ = not_implemented ()
 and operatorName_fun _ = not_implemented ()
-and variable_fun _ = not_implemented ()
 
 and typeSpecifier_fun ts =
   let tsnode name labels childs = 
