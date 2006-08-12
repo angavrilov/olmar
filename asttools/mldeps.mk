@@ -14,6 +14,8 @@ astmap.cmo: ../elsa/ml_ctype.cmo ../elsa/cc_ml_types.cmo \
     ../elsa/cc_ast_gen_type.cmo ../elsa/ast_annotation.cmo 
 astmap.cmx: ../elsa/ml_ctype.cmx ../elsa/cc_ml_types.cmx \
     ../elsa/cc_ast_gen_type.cmx ../elsa/ast_annotation.cmx 
+dense_set.cmo: dense_set.cmi 
+dense_set.cmx: dense_set.cmi 
 dumpast.cmo: ../elsa/cc_ast_gen_type.cmo ../elsa/ast_annotation.cmo 
 dumpast.cmx: ../elsa/cc_ast_gen_type.cmx ../elsa/ast_annotation.cmx 
 hashloc.cmo: ../elsa/ml_ctype.cmo ../elsa/cc_ml_types.cmo \

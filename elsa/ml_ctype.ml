@@ -3,13 +3,13 @@
  *
  * non-recursive part of the CType and Variable type structure
  *
- * 
+ *
  * The cType and variable types are mutually recursive with the
  * other astgen generated types. Therefore, the relevant type definitions
- * are in a ocaml_type_verbatim in the file ml_ctype.ast, which is 
+ * are in a ocaml_type_verbatim in the file ml_ctype.ast, which is
  * processed by astgen.
- * 
- * This file contains those few types that do not take part in the 
+ *
+ * This file contains those few types that do not take part in the
  * recursion.
  *
  **************************************************************************)
@@ -17,10 +17,18 @@
 
 open Cc_ml_types
 
-type array_size = 
+type array_size =
   | NO_SIZE				(* size unspecified *)
   | DYN_SIZE				(* some gnu extension *)
   | FIXED_SIZE of int			(* suppostly >= 0 *)
+
+
+
+let string_of_array_size = function
+  | NO_SIZE	  -> "unspecified"
+  | DYN_SIZE	  -> "dynamic"
+  | FIXED_SIZE i  -> Printf.sprintf "%d fixed" i
+
 
 
 (* flags for FunctionType *)
@@ -40,9 +48,30 @@ type function_flag =
 type function_flags = function_flag list
 
 
+
+let string_of_function_flag = function
+  | FF_METHOD        -> "method"
+  | FF_VARARGS	     -> "varargs"
+  | FF_CONVERSION    -> "conversion"
+  | FF_CTOR	     -> "ctor"
+  | FF_DTOR	     -> "dtor"
+  | FF_BUILTINOP     -> "builtinop"
+  | FF_NO_PARAM_INFO -> "no_param_info"
+  | FF_DEFAULT_ALLOC -> "default_alloc"
+  | FF_KANDR_DEFN    -> "kandr_defn"
+
+let string_of_function_flags l =
+  Elsa_util.string_of_flag_list string_of_function_flag l
+
+
 type compoundType_Keyword =
     (* this is aparently a subset of typeIntr *)
   | K_STRUCT
   | K_CLASS
   | K_UNION
 
+
+let string_of_compoundType_Keyword = function
+  | K_STRUCT -> "struct"
+  | K_CLASS  -> "class"
+  | K_UNION  -> "union"

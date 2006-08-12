@@ -33,3 +33,8 @@ let register_ast_annotation_callbacks () =
   
 
 
+let last_pseudo_id = ref 0
+
+let pseudo_annotation () =
+  incr last_pseudo_id;
+  (- !last_pseudo_id, 0)

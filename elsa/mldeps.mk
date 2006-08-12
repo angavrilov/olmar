@@ -2,8 +2,8 @@ cc_ml_types.cmo: elsa_util.cmo
 cc_ml_types.cmx: elsa_util.cmx 
 cc_ml_constructors.cmo: cc_ml_types.cmo 
 cc_ml_constructors.cmx: cc_ml_types.cmx 
-ml_ctype.cmo: cc_ml_types.cmo 
-ml_ctype.cmx: cc_ml_types.cmx 
+ml_ctype.cmo: elsa_util.cmo cc_ml_types.cmo 
+ml_ctype.cmx: elsa_util.cmx cc_ml_types.cmx 
 cc_ast_gen_type.cmo: ml_ctype.cmo cc_ml_types.cmo 
 cc_ast_gen_type.cmx: ml_ctype.cmx cc_ml_types.cmx 
 cc_ast_gen.cmo: cc_ast_gen_type.cmo 

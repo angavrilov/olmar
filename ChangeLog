@@ -1,3 +1,8 @@
+2006-08-12  Hendrik Tews  <tews@debian>
+
+	* solved recursion problem with dense_set.ml
+	* ast_graph (24/40)
+
 2006-08-11  Hendrik Tews  <tews@debian>
 
 	* ast_graph (21/40), hit recursion problem

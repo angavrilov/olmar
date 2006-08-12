@@ -10,8 +10,10 @@ test_ast: ast_graph
 	dot -Tps nodes.dot > nodes.ps
 
 ASTGRAPH_ML=\
+	dense_set.ml \
 	../elsa/elsa_util.ml \
 	../elsa/cc_ml_types.ml \
+	../elsa/ml_ctype.ml \
 	../elsa/ast_annotation.ml \
 	ast_util.ml \
 	ast_graph.ml
@@ -23,6 +25,9 @@ ast_graph: $(ASTGRAPH_ML:.ml=.cmo)
 	$(MAKE) -C ../elsa $@
 
 %.cmo: %.ml
+	$(OCAMLC) -I ../elsa -c $<
+
+%.cmi: %.mli
 	$(OCAMLC) -I ../elsa -c $<
 
 
