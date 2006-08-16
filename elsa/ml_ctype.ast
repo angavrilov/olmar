@@ -131,25 +131,25 @@ and 'a cType =
 
 and 'a sTemplateArgument =
                           (* not yet resolved into a valid template argument *)
-  | STA_NONE
+  | STA_NONE of 'a
                           (* type argument *)
-  | STA_TYPE of 'a cType 
+  | STA_TYPE of 'a * 'a cType 
                           (* int argument *)
-  | STA_INT of int   
+  | STA_INT of 'a * int   
                           (* enum argument *)
-  | STA_ENUMERATOR of 'a variable 
+  | STA_ENUMERATOR of 'a * 'a variable 
                           (* reference to global object *)
-  | STA_REFERENCE of 'a variable
+  | STA_REFERENCE of 'a * 'a variable
                           (* pointer to global object *)
-  | STA_POINTER of 'a variable
+  | STA_POINTER of 'a * 'a variable
                           (* pointer to class member *)
-  | STA_MEMBER of 'a variable
+  | STA_MEMBER of 'a * 'a variable
                           (* value-dependent expression *)
-  | STA_DEPEXPR of 'a expression_type
+  | STA_DEPEXPR of 'a * 'a expression_type
                           (* template argument (not implemented) *)
-  | STA_TEMPLATE
+  | STA_TEMPLATE of 'a
                           (* private to mtype: bind var to AtomicType *)
-  | STA_ATOMIC of 'a atomicType
+  | STA_ATOMIC of 'a * 'a atomicType
 
 
 

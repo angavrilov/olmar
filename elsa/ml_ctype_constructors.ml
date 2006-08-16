@@ -129,16 +129,20 @@ let create_ctype_PointerToMemberType_constructor poly at cvs ct =
 
 
 (* type sTemplateArgument *)
-let create_STA_NONE_constructor () = STA_NONE
-let create_STA_TYPE_constructor ctype = STA_TYPE ctype
-let create_STA_INT_constructor i = STA_INT i
-let create_STA_ENUMERATOR_constructor variable = STA_ENUMERATOR variable
-let create_STA_REFERENCE_constructor variable = STA_REFERENCE variable
-let create_STA_POINTER_constructor variable = STA_POINTER variable
-let create_STA_MEMBER_constructor variable = STA_MEMBER variable
-let create_STA_DEPEXPR_constructor expr = STA_DEPEXPR expr
-let create_STA_TEMPLATE_constructor () = assert false (* not implemented yet *)
-let create_STA_ATOMIC_constructor atomic_type = STA_ATOMIC atomic_type
+let create_STA_NONE_constructor poly = STA_NONE poly
+let create_STA_TYPE_constructor poly ctype = STA_TYPE(poly, ctype)
+let create_STA_INT_constructor poly i = STA_INT(poly, i)
+let create_STA_ENUMERATOR_constructor poly variable = 
+  STA_ENUMERATOR(poly, variable)
+let create_STA_REFERENCE_constructor poly variable = 
+  STA_REFERENCE(poly, variable)
+let create_STA_POINTER_constructor poly variable = STA_POINTER(poly, variable)
+let create_STA_MEMBER_constructor poly variable = STA_MEMBER(poly, variable)
+let create_STA_DEPEXPR_constructor poly expr = STA_DEPEXPR(poly, expr)
+let create_STA_TEMPLATE_constructor poly = 
+  assert false (* not implemented yet *)
+let create_STA_ATOMIC_constructor poly atomic_type = 
+  STA_ATOMIC(poly, atomic_type)
 
 
 

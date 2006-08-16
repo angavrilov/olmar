@@ -19,7 +19,11 @@ let next_id = ref 1
 
 let create_ast_annotation (c_addr : int) = 
   try
-    (Hashtbl.find addr_hash c_addr, c_addr)
+    let res = (Hashtbl.find addr_hash c_addr, c_addr)
+    in
+      (* currently we never ask a second time for an annotation *)
+      assert false;
+      res
   with
     | Not_found ->
 	let id = !next_id
@@ -28,8 +32,11 @@ let create_ast_annotation (c_addr : int) =
 	  incr next_id;
 	  (id, c_addr)
 
+let max_annotation() = !next_id -1
+
 let register_ast_annotation_callbacks () =
-  Callback.register "create_ast_annotation" create_ast_annotation
+  Callback.register "create_ast_annotation" create_ast_annotation;
+  Callback.register "ocaml_max_annotation" max_annotation
   
 
 

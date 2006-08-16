@@ -55,7 +55,10 @@ let count_rev base l =
       (fun x -> decr counter; (x, Printf.sprintf "%s[%d]" base !counter)) 
       l
 
+let nodes_counter = ref 0
+
 let start_label name color id =
+  incr nodes_counter;
   Printf.fprintf !oc "    \"%d\" [color=\"%s\", label=\"%s %d" 
     id color name id
 
@@ -66,7 +69,10 @@ let finish_label caddr =
 let loc_label (file, line, char) =
   ("loc", Printf.sprintf "%s:%d:%d" file line char)
 
+let edge_counter = ref 0
+
 let child_edge id (cid,label) =
+  incr edge_counter;
   Printf.fprintf !oc "    \"%d\" -> \"%d\" [label=\"%s\"];\n" id cid label
 
 let child_edges id childs = 
@@ -1263,7 +1269,9 @@ let main () =
   in
     start_file !file;
     ignore(translationUnit_fun ast);
-    finish_file ()
+    finish_file ();
+    Printf.printf "graph with %d nodes and %d edges generated\n%!"
+      !nodes_counter !edge_counter
       
 ;;
 

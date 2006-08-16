@@ -71,6 +71,7 @@ extern bool caml_start_up_done;
 
 value ocaml_from_SourceLoc(const SourceLoc &, ToOcamlData *);
 value ocaml_ast_annotation(const void *, ToOcamlData *);
+int get_max_annotation(void);
 
 //********************** value generation ************************************
 // for flag sets

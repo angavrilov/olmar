@@ -277,6 +277,7 @@ value ocaml_from_SourceLoc(const SourceLoc &loc, ToOcamlData *d){
 }
 
 
+// hand written ocaml serialization function
 value ocaml_ast_annotation(const void *thisp, ToOcamlData *d)
 {
   CAMLparam0();
@@ -287,11 +288,28 @@ value ocaml_ast_annotation(const void *thisp, ToOcamlData *d)
     create_ast_annotation_closure = caml_named_value("create_ast_annotation");
   xassert(create_ast_annotation_closure);
 
-  result = ocaml_from_int(((unsigned) thisp) >> 1, d);
+  result = ocaml_from_int(((unsigned) thisp) >> 2, d);
   result = caml_callback(*create_ast_annotation_closure, result);
   xassert(IS_OCAML_AST_VALUE(result));
 
   CAMLreturn(result);
+}
+
+
+int get_max_annotation()
+{
+  // don't allocate in here, but play save
+  CAMLparam0();
+  CAMLlocal1(max);
+
+  static value * ocaml_max_annotation = NULL;
+  if(ocaml_max_annotation == NULL)
+    ocaml_max_annotation = caml_named_value("ocaml_max_annotation");
+  xassert(ocaml_max_annotation);
+
+  max = caml_callback(*ocaml_max_annotation, Val_unit);
+  xassert(Is_long(max));
+  CAMLreturn(Int_val(max));
 }
 
 

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-rm temp.oast
+rm -f temp.oast
 
 ast_files=$(find .. -name \*.oast -print)
 

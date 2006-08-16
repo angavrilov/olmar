@@ -201,16 +201,35 @@ and cType_fun = function
 			  cType_fun cType)
 
 and sTemplateArgument_fun = function
-  | STA_NONE -> STA_NONE
-  | STA_TYPE(cType) -> STA_TYPE(cType_fun cType)
-  | STA_INT(int) -> STA_INT(int_fun int)
-  | STA_ENUMERATOR(variable) -> STA_ENUMERATOR(variable_fun variable)
-  | STA_REFERENCE(variable) -> STA_REFERENCE(variable_fun variable)
-  | STA_POINTER(variable) -> STA_POINTER(variable_fun variable)
-  | STA_MEMBER(variable) -> STA_MEMBER(variable_fun variable)
-  | STA_DEPEXPR(expression) -> STA_DEPEXPR(expression_fun expression)
-  | STA_TEMPLATE -> STA_TEMPLATE
-  | STA_ATOMIC(atomicType) -> STA_ATOMIC(atomicType_fun atomicType)
+  | STA_NONE annot -> 
+      STA_NONE(annotation_fun annot)
+
+  | STA_TYPE(annot, cType) -> 
+      STA_TYPE(annotation_fun annot, cType_fun cType)
+
+  | STA_INT(annot, int) -> 
+      STA_INT(annotation_fun annot, int_fun int)
+
+  | STA_ENUMERATOR(annot, variable) -> 
+      STA_ENUMERATOR(annotation_fun annot, variable_fun variable)
+
+  | STA_REFERENCE(annot, variable) -> 
+      STA_REFERENCE(annotation_fun annot, variable_fun variable)
+
+  | STA_POINTER(annot, variable) -> 
+      STA_POINTER(annotation_fun annot, variable_fun variable)
+
+  | STA_MEMBER(annot, variable) -> 
+      STA_MEMBER(annotation_fun annot, variable_fun variable)
+
+  | STA_DEPEXPR(annot, expression) -> 
+      STA_DEPEXPR(annotation_fun annot, expression_fun expression)
+
+  | STA_TEMPLATE annot -> 
+      STA_TEMPLATE(annotation_fun annot)
+
+  | STA_ATOMIC(annot, atomicType) -> 
+      STA_ATOMIC(annotation_fun annot, atomicType_fun atomicType)
 
 
 
@@ -1027,6 +1046,3 @@ and attribute_fun = function
  **************************************************************************)
 
 
-(*** Local Variables: ***)
-(*** compile-command: "ocamlc.opt -c -I ../elsa astmap.ml" ***)
-(*** End: ***)

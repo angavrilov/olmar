@@ -39,6 +39,19 @@ let cType_annotation = function
   | PointerToMemberType(annot, _, _, _)
     -> annot
 
+let sTemplateArgument_annotation = function
+  | STA_NONE annot
+  | STA_TYPE(annot, _)
+  | STA_INT(annot, _)
+  | STA_ENUMERATOR(annot, _)
+  | STA_REFERENCE(annot, _)
+  | STA_POINTER(annot, _)
+  | STA_MEMBER(annot, _)
+  | STA_DEPEXPR(annot, _)
+  | STA_TEMPLATE annot
+  | STA_ATOMIC(annot, _) ->
+      annot
+
 let translationUnit_annotation ((annot, _) : 'a translationUnit_type) =
   annot
 
@@ -190,7 +203,7 @@ let fullExpression_annotation ((annot, _) : 'a fullExpression_type) = annot
 
 let argExpression_annotation ((annot, _) : 'a argExpression_type) = annot
 
-let argExpressionListOpt_annotation 
+let argExpressionListOpt_annotation
     ((annot, _) : 'a argExpressionListOpt_type) = annot
 
 let init_annotation = function
@@ -222,7 +235,7 @@ let namespaceDecl_annotation = function
   | ND_usingDecl(annot, _)
   | ND_usingDir(annot, _)
     -> annot
-      
+
 let aSTTypeof_annotation = function
   | TS_typeof_expr(annot, _)
   | TS_typeof_type(annot, _)
@@ -234,7 +247,7 @@ let designator_annotation = function
     -> annot
 
 let attributeSpecifierList_annotation = function
-  | AttributeSpecifierList_cons(annot, _, _) 
+  | AttributeSpecifierList_cons(annot, _, _)
     -> annot
 
 let attributeSpecifier_annotation = function

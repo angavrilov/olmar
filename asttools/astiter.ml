@@ -215,16 +215,43 @@ and cType_fun x =
 
 
 and sTemplateArgument_fun = function
-  | STA_NONE -> ()
-  | STA_TYPE(cType) -> cType_fun cType
-  | STA_INT(int) -> int_fun int
-  | STA_ENUMERATOR(variable) -> variable_fun variable
-  | STA_REFERENCE(variable) -> variable_fun variable
-  | STA_POINTER(variable) -> variable_fun variable
-  | STA_MEMBER(variable) -> variable_fun variable
-  | STA_DEPEXPR(expression) -> expression_fun expression
-  | STA_TEMPLATE -> ()
-  | STA_ATOMIC(atomicType) -> atomicType_fun atomicType
+  | STA_NONE annot -> 
+      annotation_fun annot
+
+  | STA_TYPE(annot, cType) -> 
+      annotation_fun annot;
+      cType_fun cType
+
+  | STA_INT(annot, int) -> 
+      annotation_fun annot;
+      int_fun int
+
+  | STA_ENUMERATOR(annot, variable) -> 
+      annotation_fun annot;
+      variable_fun variable
+
+  | STA_REFERENCE(annot, variable) -> 
+      annotation_fun annot;
+      variable_fun variable
+
+  | STA_POINTER(annot, variable) -> 
+      annotation_fun annot;
+      variable_fun variable
+
+  | STA_MEMBER(annot, variable) -> 
+      annotation_fun annot;
+      variable_fun variable
+
+  | STA_DEPEXPR(annot, expression) -> 
+      annotation_fun annot;
+      expression_fun expression
+
+  | STA_TEMPLATE annot -> 
+      annotation_fun annot
+
+  | STA_ATOMIC(annot, atomicType) -> 
+      annotation_fun annot;
+      atomicType_fun atomicType
 
 
 
@@ -1165,6 +1192,3 @@ and attribute_fun x =
  **************************************************************************)
 
 
-(*** Local Variables: ***)
-(*** compile-command: "ocamlc.opt -c -I ../elsa astiter.ml" ***)
-(*** End: ***)

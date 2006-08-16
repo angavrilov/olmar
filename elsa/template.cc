@@ -1138,7 +1138,7 @@ char const *toString(STemplateArgument::Kind k)
 // hand written ocaml serialization function
 value STemplateArgument::toOcaml(ToOcamlData * data){
   CAMLparam0();
-  CAMLlocal1(arg);
+  CAMLlocal2(annot, arg);
   if(ocaml_val) {
     // cerr << "shared ocaml value in STemplateArgument!\n" << flush;
     CAMLreturn(ocaml_val);
@@ -1163,6 +1163,9 @@ value STemplateArgument::toOcaml(ToOcamlData * data){
   static value * create_STA_ATOMIC_constructor_closure = NULL;
 
   caml_register_global_root(&ocaml_val);
+  
+  // the annotation is always used
+  annot = ocaml_ast_annotation(this, data);
 
   switch(kind){
 
@@ -1171,7 +1174,7 @@ value STemplateArgument::toOcaml(ToOcamlData * data){
       create_STA_NONE_constructor_closure = 
         caml_named_value("create_STA_NONE_constructor");
     xassert(create_STA_NONE_constructor_closure);
-    ocaml_val = caml_callback(*create_STA_NONE_constructor_closure, Val_unit);
+    ocaml_val = caml_callback(*create_STA_NONE_constructor_closure, annot);
     break;
 
   case STA_TYPE:
@@ -1180,7 +1183,8 @@ value STemplateArgument::toOcaml(ToOcamlData * data){
         caml_named_value("create_STA_TYPE_constructor");
     xassert(create_STA_TYPE_constructor_closure);
     arg = getType()->toOcaml(data);
-    ocaml_val = caml_callback(*create_STA_TYPE_constructor_closure, arg);
+    ocaml_val = 
+      caml_callback2(*create_STA_TYPE_constructor_closure, annot, arg);
     break;
 
   case STA_INT:
@@ -1189,7 +1193,7 @@ value STemplateArgument::toOcaml(ToOcamlData * data){
         caml_named_value("create_STA_INT_constructor");
     xassert(create_STA_INT_constructor_closure);
     arg = ocaml_from_int(getInt(), data);
-    ocaml_val = caml_callback(*create_STA_INT_constructor_closure, arg);
+    ocaml_val = caml_callback2(*create_STA_INT_constructor_closure, annot, arg);
     break;
 
   case STA_ENUMERATOR:
@@ -1198,7 +1202,8 @@ value STemplateArgument::toOcaml(ToOcamlData * data){
         caml_named_value("create_STA_ENUMERATOR_constructor");
     xassert(create_STA_ENUMERATOR_constructor_closure);
     arg = getEnumerator()->toOcaml(data);
-    ocaml_val = caml_callback(*create_STA_ENUMERATOR_constructor_closure, arg);
+    ocaml_val = 
+      caml_callback2(*create_STA_ENUMERATOR_constructor_closure, annot, arg);
     break;
 
   case STA_REFERENCE:
@@ -1207,7 +1212,8 @@ value STemplateArgument::toOcaml(ToOcamlData * data){
         caml_named_value("create_STA_REFERENCE_constructor");
     xassert(create_STA_REFERENCE_constructor_closure);
     arg = getReference()->toOcaml(data);
-    ocaml_val = caml_callback(*create_STA_REFERENCE_constructor_closure, arg);
+    ocaml_val = 
+      caml_callback2(*create_STA_REFERENCE_constructor_closure, annot, arg);
     break;
 
   case STA_POINTER:
@@ -1216,7 +1222,8 @@ value STemplateArgument::toOcaml(ToOcamlData * data){
         caml_named_value("create_STA_POINTER_constructor");
     xassert(create_STA_POINTER_constructor_closure);
     arg = getPointer()->toOcaml(data);
-    ocaml_val = caml_callback(*create_STA_POINTER_constructor_closure, arg);
+    ocaml_val = 
+      caml_callback2(*create_STA_POINTER_constructor_closure, annot, arg);
     break;
 
   case STA_MEMBER:
@@ -1225,7 +1232,8 @@ value STemplateArgument::toOcaml(ToOcamlData * data){
         caml_named_value("create_STA_MEMBER_constructor");
     xassert(create_STA_MEMBER_constructor_closure);
     arg = getMember()->toOcaml(data);
-    ocaml_val = caml_callback(*create_STA_MEMBER_constructor_closure, arg);
+    ocaml_val = 
+      caml_callback2(*create_STA_MEMBER_constructor_closure, annot, arg);
     break;
 
   case STA_DEPEXPR:
@@ -1234,7 +1242,8 @@ value STemplateArgument::toOcaml(ToOcamlData * data){
         caml_named_value("create_STA_DEPEXPR_constructor");
     xassert(create_STA_DEPEXPR_constructor_closure);
     arg = getDepExpr()->toOcaml(data);
-    ocaml_val = caml_callback(*create_STA_DEPEXPR_constructor_closure, arg);
+    ocaml_val = 
+      caml_callback2(*create_STA_DEPEXPR_constructor_closure, annot, arg);
     break;
 
   case STA_TEMPLATE:
@@ -1245,7 +1254,7 @@ value STemplateArgument::toOcaml(ToOcamlData * data){
     xassert(create_STA_TEMPLATE_constructor_closure);
     // arg = ??
     ocaml_val = caml_callback(*create_STA_TEMPLATE_constructor_closure, 
-			      Val_unit);
+			      annot);
     break;
 
   case STA_ATOMIC:
@@ -1256,7 +1265,9 @@ value STemplateArgument::toOcaml(ToOcamlData * data){
         caml_named_value("create_STA_ATOMIC_constructor");
     xassert(create_STA_ATOMIC_constructor_closure);
     // arg = sta_value.at->
-    ocaml_val = caml_callback(*create_STA_ATOMIC_constructor_closure, Val_unit);
+    ocaml_val = 
+      caml_callback2(*create_STA_ATOMIC_constructor_closure, annot, 
+		    /* place unit here, until we have arg */ Val_unit);
     break;
 
   default:

@@ -1,5 +1,14 @@
 2006-08-16  Hendrik Tews  <tews@debian>
 
+	ELSA
+	* ocaml_max_annotation for statistics
+	* added 'a to sTemplateArgument
+
+	SEMANTIC
+	* adoption and small fixes
+	
+2006-08-16  Hendrik Tews  <tews@debian>
+
 	* ast_graph (32/40)
 
 2006-08-12  Hendrik Tews  <tews@debian>
