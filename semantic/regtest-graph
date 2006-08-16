@@ -2,6 +2,8 @@
 
 # ast_files=$(find .. -name \*.oast -print)
 
+trap "echo Interupted; exit 1" SIGINT
+
 
 ast_files_1_1=$(ls ../elsa/in/t*.oast)
 ast_files_1_2=$(ls ../elsa/in/d*.oast)
@@ -23,19 +25,50 @@ ast_files_13=$(ls ../elsa/in/big/nonport.i.oast)
 
 ast_files="$ast_files_1 $ast_files_2 $ast_files_3 $ast_files_4 $ast_files_5 $ast_files_6 $ast_files_7 $ast_files_8 $ast_files_9 $ast_files_10 $ast_files_11 $ast_files_12 $ast_files_13"
 
+
+function usage(){
+    echo "usage: regtest-graph [-skip <n>]"
+    exit 1
+}
+
+skip=0
+typeset -i count=0
+
+echo args: $#
+
+while [ $# -ge 1 ] ; do
+    case $1 in
+	-skip)	
+	    if [ $# -lt 2 ] ; then
+		usage
+	    fi
+	    skip=$2
+	    shift;;
+	*)  usage;;
+    esac
+    shift
+done
+
+#exit
+
 for f in $ast_files ; do
-    echo test $f
-    ./ast_graph $f -o $f.dot
-    result=$?
-    if [ ! $result -eq 0 ] ; then
-	echo ast_graph exit $result on $f >&2
-	exit $result
+    if [ $skip -gt $count ]; then
+	echo "[$count] skip $f"
+    else
+	echo "[$count] test $f"
+	./ast_graph $f -o $f.dot
+	result=$?
+	if [ ! $result -eq 0 ] ; then
+	    echo ast_graph exit $result on $f >&2
+	    exit $result
+	fi
+	dot -Tps $f.dot -o $f.ps
+	result=$?
+	if [ ! $result -eq 0 ] ; then
+	    echo dot exit $result on $f >&2
+	    exit $result
+	fi
     fi
-    dot -Tps $f.dot -o $f.ps
-    result=$?
-    if [ ! $result -eq 0 ] ; then
-	echo dot exit $result on $f >&2
-	exit $result
-    fi
+    count=$count+1
 done
 

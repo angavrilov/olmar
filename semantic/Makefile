@@ -2,11 +2,12 @@
 OCAMLC   := ocamlc.opt
 
 all: test_ast
+#all: path_to_node.cmo
 #all: ast_graph
 
 .PHONY: test_ast
 test_ast: ast_graph
-	./ast_graph ../elsa/in/t0009.cc.oast
+	./ast_graph ../elsa/in/t0566.cc.oast
 	dot -Tps nodes.dot > nodes.ps
 
 ASTGRAPH_ML=\

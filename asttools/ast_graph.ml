@@ -7,9 +7,9 @@ open Ast_util
 
 
 
-
-(* node type done: 1, 3, 4, 5, 7, 8, 9, 11, 12, 13, 14, 15, 16, 19, 20, 
- *  21, 22, 23, 24, 25, 26, 38, 39, 40
+(* node type done: 1, 2, 3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 
+ *  15, 16, 17, 18, 19, 20, 
+ *  21, 22, 23, 24, 25, 26, 27, 28, 29, 37, 38, 39, 40
  *)
 
 let oc = ref stdout;;
@@ -24,18 +24,25 @@ let visited (annot : annotated) =
   DS.mem (id_annotation annot) visited_nodes
 
 let visit (annot : annotated) =
-  Printf.eprintf "visit %d\n%!" (id_annotation annot);
+  (* Printf.eprintf "visit %d\n%!" (id_annotation annot); *)
   DS.add (id_annotation annot) visited_nodes
-
-
 
 let not_implemented () =
   if 0 = 0 then 0 else assert false
 
-
+let dot_escape s =
+  let b = Buffer.create (max 31 (String.length s))
+  in
+    for i = 0 to String.length s -1 do
+      match s.[i] with
+	| '\\' -> Buffer.add_string b "\\\\"
+	| '"' -> Buffer.add_string b "\\\""
+	| c -> Buffer.add_char b c
+    done;
+    Buffer.contents b
 
 let any_label (field_name, value) =
-  Printf.fprintf !oc "\\n%s: %s" field_name value
+  Printf.fprintf !oc "\\n%s: %s" field_name (dot_escape value)
 
 let string_opt = function
   | None -> "(nil)"
@@ -104,6 +111,7 @@ let color_TF = "firebrick2"
 let color_Declaration = "cyan"
 let color_Declarator = "SkyBlue"
 let color_Function = "magenta"
+let color_MemberInit = "HotPink"
 let color_IDeclarator = "SteelBlue"
 let color_Member = "SlateBlue1"
 let color_MemberList = "SlateBlue4"
@@ -117,6 +125,7 @@ let color_Expression = "orange"
 let color_ArgExpression = "DarkOrange"
 let color_ArgExpressionListOpt = "tomato"
 let color_Condition = "OrangeRed"
+let color_OperatorName = "chocolate1"
 let color_Initializer = "gold"
 let color_ASTTypeID = "MediumAquamarine"
 let color_Enumerator = "PaleTurquoise"
@@ -124,6 +133,14 @@ let color_CType = "green"
 let color_ATomicType = "LimeGreen"
 let color_Compound_info = "LawnGreen"
 let color_Enum_Value = "OliveDrab1"
+let color_BaseClassSpec = "PaleGreen"
+let color_BaseClass = "SpringGreen"
+let color_exceptionSpec = "salmon"
+let color_TemplateDeclaration = "brown3"
+let color_TemplateParameter = "tan3"
+let color_TemplateArgument = "peru"
+let color_NamespaceDecl = "grey50"
+
 
 (***************** variable ***************************)
 
@@ -142,14 +159,17 @@ let rec variable_fun (v : annotated variable) =
   end
 
 
-(*
- * (\***************** cType ******************************\)
- * 
- * 2 and baseClass_fun baseClass =
- *   compound_info_fun baseClass.compound;
- *   accessKeyword_fun baseClass.bc_access;
- *   bool_fun baseClass.is_virtual
- *)
+(***************** cType ******************************)
+
+and baseClass_fun bc =
+  if visited bc.poly_base then retval bc.poly_base
+  else begin
+    visit bc.poly_base;
+    ast_node color_BaseClass bc.poly_base "BaseClass"
+      [("access", string_of_accessKeyword bc.bc_access);
+       ("isVirtual", string_of_bool bc.is_virtual)]
+      [(compound_info_fun bc.compound, "ct")]
+  end
 
 and compound_info_fun info = 
   if visited info.compound_info_poly then retval info.compound_info_poly 
@@ -174,9 +194,9 @@ and compound_info_fun info =
        @ (opt_child cType_fun "selfType" !(info.self_type) []))
   end
 
-and baseClass_fun _ = not_implemented ()
 
 and enum_value_fun (string, int) =
+  (* assert(false); *)
   ast_node color_Enum_Value (pseudo_annotation ()) "Enum::Value"
     [("name", string);
      ("value", string_of_int int)]
@@ -214,7 +234,6 @@ and atomicType_fun at =
 			  sTemplateArgument_fun sTemplateArgument_list))))
 
 	| EnumType(annot, string, variable, accessKeyword, string_int_list) ->
-	    assert(false);
 	    visit annot;
 	    atnode "EnumType" 
 	      [("name", string);
@@ -367,10 +386,6 @@ and topForm_fun tf =
 	      [(namespaceDecl_fun namespaceDecl, "decl")]
 
 
-and templateDeclaration_fun _ = not_implemented ()
-and namespaceDecl_fun _ = not_implemented ()
-
-
 
 and func_fun(annot, declFlags, typeSpecifier, declarator, memberInit_list, 
 	 s_compound_opt, handler_list, statement_opt, bool) =
@@ -395,17 +410,15 @@ and func_fun(annot, declFlags, typeSpecifier, declarator, memberInit_list,
   end
 
 
-and memberInit_fun _ = not_implemented ()
-
-(* 
- * 
- * 10 and memberInit_fun(annot, pQName, argExpression_list, statement_opt) =
- *   pQName_fun pQName;
- *   List.iter argExpression_fun argExpression_list;
- *   opt_iter statement_fun statement_opt
- * 
- * 
- *)
+and memberInit_fun(annot, pQName, argExpression_list, statement_opt) =
+  if visited annot then retval annot
+  else begin
+    visit annot;
+    ast_node color_MemberInit annot "MemberInit" []
+      ((pQName_fun pQName, "name")
+       :: (count_rev "args" (List.rev_map argExpression_fun argExpression_list))
+       @ (opt_child statement_fun "ctorStatement" statement_opt []))
+  end
 
 and declaration_fun(annot, declFlags, typeSpecifier, declarator_list) =
   if visited annot then retval annot
@@ -416,6 +429,7 @@ and declaration_fun(annot, declFlags, typeSpecifier, declarator_list) =
       ((typeSpecifier_fun typeSpecifier, "spec") ::
 	 count_rev "decllist" (List.rev_map declarator_fun declarator_list))
   end
+
 
 and aSTTypeId_fun(annot, typeSpecifier, declarator) =
   if visited annot then retval annot
@@ -459,9 +473,6 @@ and pQName_fun pq =
 	| PQ_variable(annot, loc, variable) -> 
 	    pq_node "PQ_variable" [] [(variable_fun variable, "var")]
 
-
-and templateArgument_fun _ = not_implemented ()
-and operatorName_fun _ = not_implemented ()
 
 
 and typeSpecifier_fun ts =
@@ -509,16 +520,19 @@ and typeSpecifier_fun ts =
 	    tsnode "TS_typeof" [] [(aSTTypeof_fun aSTTypeof, "atype")]
 
 
-and baseClassSpec_fun _ = not_implemented ()
 and aSTTypeof_fun _ = not_implemented ()
 
-(*
- * 
- * 37 and baseClassSpec_fun(annot, bool, accessKeyword, pQName) =
- *   bool_fun bool;
- *   accessKeyword_fun accessKeyword;
- *   pQName_fun pQName
- *)
+
+and baseClassSpec_fun(annot, bool, accessKeyword, pQName) =
+  if visited annot then retval annot
+  else begin
+    visit annot;
+    ast_node color_BaseClassSpec annot "BaseClassSpec"
+      [("isVirtual", string_of_bool bool);
+       ("access", string_of_accessKeyword accessKeyword)]
+      [(pQName_fun pQName, "name")]
+  end
+
 
 and enumerator_fun(annot, loc, stringRef, expression_opt) =
   if visited annot then retval annot
@@ -630,24 +644,38 @@ and iDeclarator_fun idecl =
 	    inode "D_grouping" [] [(iDeclarator_fun iDeclarator, "base")]
 
 
-and exceptionSpec_fun _ = not_implemented ()
+and exceptionSpec_fun(annot, aSTTypeId_list) =
+  if visited annot then retval annot
+  else begin
+    visit annot;
+    ast_node color_exceptionSpec annot "ExceptionSpec" []
+      (count_rev "types" (List.rev_map aSTTypeId_fun aSTTypeId_list))
+  end
 
-(* 
- * 17 and exceptionSpec_fun(annot, aSTTypeId_list) =
- *   List.iter aSTTypeId_fun aSTTypeId_list
- * 
- * 
- * 18 and operatorName_fun = function
- *   | ON_newDel(annot, bool_is_new, bool_is_array) -> 
- *       bool_fun bool_is_new;
- *       bool_fun bool_is_array
- * 
- *   | ON_operator(annot, overloadableOp) -> 
- *       overloadableOp_fun overloadableOp
- * 
- *   | ON_conversion(annot, aSTTypeId) -> 
- *       aSTTypeId_fun aSTTypeId
- *)
+
+and operatorName_fun on = 
+  let annot = operatorName_annotation on
+  in 
+    if visited annot then retval annot
+    else
+      let _ = visit annot in
+      let onode = ast_node color_OperatorName annot
+      in match on with
+	| ON_newDel(annot, bool_is_new, bool_is_array) -> 
+	    onode "ON_newDel" 
+	      [("is_new", string_of_bool bool_is_new);
+	       ("is_array", string_of_bool bool_is_array)]
+	      []
+
+	| ON_operator(annot, overloadableOp) -> 
+	    onode "ON_operator"
+	      [("op", string_of_overloadableOp overloadableOp)]
+	      []
+
+	| ON_conversion(annot, aSTTypeId) -> 
+	    onode "ON_conversion" []
+	      [(aSTTypeId_fun aSTTypeId, "type")]
+
 
 and statement_fun s =
   let annot = statement_annotation s
@@ -1020,56 +1048,97 @@ and init_fun i =
 
 and designator_fun _ = not_implemented ()
 
-(* 27 and templateDeclaration_fun = function
- *   | TD_func(annot, templateParameter_opt, func) -> 
- *       opt_iter templateParameter_fun templateParameter_opt;
- *       func_fun func
- * 
- *   | TD_decl(annot, templateParameter_opt, declaration) -> 
- *       opt_iter templateParameter_fun templateParameter_opt;
- *       declaration_fun declaration
- * 
- *   | TD_tmember(annot, templateParameter_opt, templateDeclaration) -> 
- *       opt_iter templateParameter_fun templateParameter_opt;
- *       templateDeclaration_fun templateDeclaration
- * 
- * 
- * 28 and templateParameter_fun = function
- *   | TP_type(annot, loc, stringRef, aSTTypeId_opt, templateParameter_opt) -> 
- *       string_fun stringRef;
- *       opt_iter aSTTypeId_fun aSTTypeId_opt;
- *       opt_iter templateParameter_fun templateParameter_opt
- * 
- *   | TP_nontype(annot, loc, aSTTypeId, templateParameter_opt) -> 
- *       aSTTypeId_fun aSTTypeId;
- *       opt_iter templateParameter_fun templateParameter_opt
- * 
- * 
- * 29 and templateArgument_fun = function
- *   | TA_type(annot, aSTTypeId, templateArgument_opt) -> 
- *       aSTTypeId_fun aSTTypeId;
- *       opt_iter templateArgument_fun templateArgument_opt
- * 
- *   | TA_nontype(annot, expression, templateArgument_opt) -> 
- *       expression_fun expression;
- *       opt_iter templateArgument_fun templateArgument_opt
- * 
- *   | TA_templateUsed(annot, templateArgument_opt) -> 
- *       opt_iter templateArgument_fun templateArgument_opt
- * 
- * 
- * 30 and namespaceDecl_fun = function
- *   | ND_alias(annot, stringRef, pQName) -> 
- *       string_fun stringRef;
- *       pQName_fun pQName
- * 
- *   | ND_usingDecl(annot, pQName) -> 
- *       pQName_fun pQName
- * 
- *   | ND_usingDir(annot, pQName) -> 
- *       pQName_fun pQName
- * 
- * 
+
+and templateDeclaration_fun td = 
+  let annot = templateDeclaration_annotation td
+  in
+    if visited annot then retval annot
+    else
+      let _ = visit annot in
+      let tdnode name params childs = 
+	ast_node color_TemplateDeclaration annot name []
+	  (opt_child templateParameter_fun "params" params childs)
+      in match td with
+	| TD_func(annot, templateParameter_opt, func) -> 
+	    tdnode "TD_func" templateParameter_opt
+	      [(func_fun func, "f")]
+
+	| TD_decl(annot, templateParameter_opt, declaration) -> 
+	    tdnode "TD_decl" templateParameter_opt
+	      [(declaration_fun declaration, "d")]
+
+	| TD_tmember(annot, templateParameter_opt, templateDeclaration) -> 
+	    tdnode "TD_tmember" templateParameter_opt
+	      [(templateDeclaration_fun templateDeclaration, "d")]
+
+
+and templateParameter_fun tp = 
+  let annot = templateParameter_annotation tp
+  in
+    if visited annot then retval annot
+    else
+      let _ = visit annot in
+      let tpnode name next labels childs =
+	ast_loc_node color_TemplateParameter annot (templateParameter_loc tp)
+	  name labels
+	  (opt_child templateParameter_fun "next" next childs)
+      in match tp with
+	| TP_type(annot, loc, stringRef, 
+		  aSTTypeId_opt, templateParameter_opt) -> 
+	    tpnode "TP_type" templateParameter_opt 
+	      [("name", stringRef)]
+	      (opt_child aSTTypeId_fun "defaultType" aSTTypeId_opt [])
+
+	| TP_nontype(annot, loc, aSTTypeId, templateParameter_opt) -> 
+	    tpnode "TP_nontype" templateParameter_opt []
+	      [(aSTTypeId_fun aSTTypeId, "param")]
+
+
+
+and templateArgument_fun ta = 
+  let annot = templateArgument_annotation ta
+  in
+    if visited annot then retval annot
+    else
+      let _ = visit annot in
+      let tanode name next childs = 
+	ast_node color_TemplateArgument annot name []
+	  (opt_child templateArgument_fun "next" next childs)
+      in match ta with
+	| TA_type(annot, aSTTypeId, templateArgument_opt) -> 
+	    tanode "TA_type" templateArgument_opt 
+	      [(aSTTypeId_fun aSTTypeId, "type")]
+
+	| TA_nontype(annot, expression, templateArgument_opt) -> 
+	    tanode "TA_nontype" templateArgument_opt
+	      [(expression_fun expression, "expr")]
+
+	| TA_templateUsed(annot, templateArgument_opt) -> 
+	    tanode "TA_templateUsed" templateArgument_opt []
+
+
+and namespaceDecl_fun nd = 
+  let annot = namespaceDecl_annotation nd
+  in 
+    if visited annot then retval annot
+    else
+      let _ = visit annot in
+      let ndnode = ast_node color_NamespaceDecl annot
+      in match nd with
+	| ND_alias(annot, stringRef, pQName) -> 
+	    ndnode "ND_alias" 
+	      [("alias", stringRef)]
+	      [(pQName_fun pQName, "original")]
+
+	| ND_usingDecl(annot, pQName) -> 
+	    ndnode "ND_usingDecl" []
+	      [(pQName_fun pQName, "name")]
+
+	| ND_usingDir(annot, pQName) -> 
+	    ndnode "ND_usingDir" []
+	      [(pQName_fun pQName, "name")]
+
+(* 
  * 31 and fullExpressionAnnot_fun(declaration_list) =
  *     List.iter declaration_fun declaration_list
  * 
@@ -1126,11 +1195,15 @@ and designator_fun _ = not_implemented ()
 
 let out_file = ref ""
 
+let size_flag = ref false
 
 let arguments = Arg.align
   [
     ("-o", Arg.Set_string out_file,
      "file set output file name");
+    ("-size", Arg.Set size_flag,
+     " limit size of output")
+
   ]
 
 let usage_msg = 
@@ -1162,8 +1235,15 @@ let start_file infile =
   output_string !oc "digraph ";
   Printf.fprintf !oc "\"%s\"" infile;
   output_string !oc " {\n";
+  if !size_flag then
+    output_string !oc "size=\"90,90\";\n";
   output_string !oc 
-    "    color=white    node [ color = grey95, style = filled ]\n"
+    "    color=white;\n";
+  output_string !oc
+    "    node [ style = filled ];\n";
+  output_string !oc
+    "    edge [ arrowtail=odot ];\n"
+
 
 let finish_file () =
   output_string !oc "}\n"

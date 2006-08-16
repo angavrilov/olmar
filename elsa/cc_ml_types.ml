@@ -424,6 +424,50 @@ type overloadableOp =
   (* NUM_OVERLOADABLE_OPS *)
 
 
+let string_of_overloadableOp = function
+  | OP_NOT         -> "not"
+  | OP_BITNOT	   -> "bitnot"
+  | OP_PLUSPLUS	   -> "plusplus"
+  | OP_MINUSMINUS  -> "minusminus"
+  | OP_PLUS	   -> "plus"
+  | OP_MINUS	   -> "minus"
+  | OP_STAR	   -> "star"
+  | OP_AMPERSAND   -> "ampersand"
+  | OP_DIV	   -> "div"
+  | OP_MOD	   -> "mod"
+  | OP_LSHIFT	   -> "lshift"
+  | OP_RSHIFT	   -> "rshift"
+  | OP_BITXOR	   -> "bitxor"
+  | OP_BITOR	   -> "bitor"
+  | OP_ASSIGN	   -> "assign"
+  | OP_PLUSEQ	   -> "pluseq"
+  | OP_MINUSEQ	   -> "minuseq"
+  | OP_MULTEQ	   -> "multeq"
+  | OP_DIVEQ	   -> "diveq"
+  | OP_MODEQ	   -> "modeq"
+  | OP_LSHIFTEQ	   -> "lshifteq"
+  | OP_RSHIFTEQ	   -> "rshifteq"
+  | OP_BITANDEQ	   -> "bitandeq"
+  | OP_BITXOREQ	   -> "bitxoreq"
+  | OP_BITOREQ	   -> "bitoreq"
+  | OP_EQUAL	   -> "equal"
+  | OP_NOTEQUAL	   -> "notequal"
+  | OP_LESS	   -> "less"
+  | OP_GREATER	   -> "greater"
+  | OP_LESSEQ	   -> "lesseq"
+  | OP_GREATEREQ   -> "greatereq"
+  | OP_AND	   -> "and"
+  | OP_OR	   -> "or"
+  | OP_ARROW	   -> "arrow"
+  | OP_ARROW_STAR  -> "arrow_star"
+  | OP_BRACKETS	   -> "brackets"
+  | OP_PARENS	   -> "parens"
+  | OP_COMMA	   -> "comma"
+  | OP_QUESTION	   -> "question"
+  | OP_MINIMUM	   -> "minimum"
+  | OP_MAXIMUM	   -> "maximum"
+
+
 (* cc_flags.h
  * xmlserilaization as int via cpp generated toXml
  *

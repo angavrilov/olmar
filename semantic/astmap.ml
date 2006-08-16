@@ -6,7 +6,7 @@ open Ast_annotation
 
 (**************************************************************************
  *
- * contents of astmap.ml with sourceLoc_fun removed
+ * contents of astmap.ml 
  *
  **************************************************************************)
 
