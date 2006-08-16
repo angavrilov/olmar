@@ -21,7 +21,7 @@ ast_files_9=$(ls ../elsa/in/gnu/*.oast)
 ast_files_10=$(ls ../elsa/in/kandr/*.oast)
 ast_files_11=$(ls ../elsa/in/msvc/*.oast)
 ast_files_12=$(ls ../elsa/in/std/*.oast)
-ast_files_13=$(ls ../elsa/in/big/nonport.i.oast)
+ast_files_13=$(ls ../elsa/in/big/*.oast)
 
 ast_files="$ast_files_1 $ast_files_2 $ast_files_3 $ast_files_4 $ast_files_5 $ast_files_6 $ast_files_7 $ast_files_8 $ast_files_9 $ast_files_10 $ast_files_11 $ast_files_12 $ast_files_13"
 
@@ -34,7 +34,7 @@ function usage(){
 skip=0
 typeset -i count=0
 
-echo args: $#
+#echo args: $#
 
 while [ $# -ge 1 ] ; do
     case $1 in
@@ -62,7 +62,14 @@ for f in $ast_files ; do
 	    echo ast_graph exit $result on $f >&2
 	    exit $result
 	fi
-	dot -Tps $f.dot -o $f.ps
+	echo $f | grep -q big
+	if [ $? = 0 ] ; then
+	    dot -v -Tps $f.dot -o $f.ps
+	    result=$?
+	else
+	    dot -Tps $f.dot -o $f.ps
+	    result=$?
+	fi
 	result=$?
 	if [ ! $result -eq 0 ] ; then
 	    echo dot exit $result on $f >&2

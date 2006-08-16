@@ -1,5 +1,6 @@
 
 OCAMLC   := ocamlc.opt -g
+OCAMLOPT := ocamlopt.opt 
 
 #all: hashloc
 all: test_ast
@@ -11,8 +12,9 @@ TOCLEAN =
 
 TOCLEAN += nodes.dot nodes.ps
 .PHONY: test_ast
+# -skip 840
 test_ast: ast_graph
-	./ast_graph ../elsa/in/t0566.cc.oast
+	./ast_graph ../elsa/in/gnu/g0010.cc.oast
 	dot -Tps nodes.dot > nodes.ps
 
 ASTGRAPH_ML=\
@@ -24,9 +26,17 @@ ASTGRAPH_ML=\
 	ast_util.ml \
 	ast_graph.ml
 
-TOCLEAN += ast_graph
-ast_graph: $(ASTGRAPH_ML:.ml=.cmo)
+TOCLEAN += ast_graph.byte
+ast_graph.byte: $(ASTGRAPH_ML:.ml=.cmo)
 	$(OCAMLC) -o $@ $^
+
+TOCLEAN += ast_graph.native
+ast_graph.native: $(ASTGRAPH_ML:.ml=.cmx)
+	$(OCAMLOPT) -o $@ $^
+
+TOCLEAN += ast_graph
+ast_graph: ast_graph.native
+	cp ast_graph.native ast_graph
 
 TOCLEAN += dumpast
 dumpast: dumpast.ml
@@ -53,6 +63,9 @@ clean:
 TOCLEAN += *.cmo
 %.cmo: %.ml
 	$(OCAMLC) -I ../elsa -c $<
+
+%.cmx: %.ml
+	$(OCAMLOPT) -I ../elsa -c $<
 
 TOCLEAN += *.cmi
 %.cmi: %.mli

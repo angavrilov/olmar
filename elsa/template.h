@@ -428,8 +428,10 @@ protected:  // data
   value ocaml_val;       // cache ocaml serialization result
 
 public:
-  STemplateArgument() : kind(STA_NONE) { sta_value.i = 0; }
-  STemplateArgument(CType *t) : kind(STA_TYPE) { sta_value.t = t; }
+  STemplateArgument() : kind(STA_NONE), ocaml_val(0) { sta_value.i = 0; }
+  STemplateArgument(CType *t) : kind(STA_TYPE), ocaml_val(0) { 
+    sta_value.t = t; 
+  }
   STemplateArgument(STemplateArgument const &obj);
 
   virtual ~STemplateArgument() {};

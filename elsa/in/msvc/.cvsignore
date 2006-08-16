@@ -1,1 +1,3 @@
 *.oast
+*.oast.dot
+*.oast.ps

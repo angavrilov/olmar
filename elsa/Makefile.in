@@ -16,13 +16,18 @@ ELKHOUND := @ELKHOUND@
 OCAMLC   := @OCAMLC@
 OCAMLDIR := @OCAMLDIR@
 
+OCAMLOPT := ocamlopt.opt
+
 # stuff inside those other directories
 LIBSMBASE   := $(SMBASE)/libsmbase.a
 LIBAST      := $(AST)/libast.a
 LIBELKHOUND := $(ELKHOUND)/libelkhound.a
-LIBOCAMLRUN := $(OCAMLDIR)/libcamlrun.a
+LIBOCAMLRUN := $(OCAMLDIR)
 
-OCAMLLIBS := $(LIBOCAMLRUN) -lcurses -ldl
+#bytecode
+OCAMLLIBS := -L $(LIBOCAMLRUN) -lcamlrun -lcurses -ldl
+#native
+OCAMLLIBS := -L $(LIBOCAMLRUN) -lasmrun -ldl
 
 # external tools
 PERL := @PERL@
@@ -124,6 +129,9 @@ TOCLEAN += *.o *.d
 TOCLEAN += *.cmo *.cmi *.cmx
 %.cmo: %.ml
 	$(OCAMLC) -c $<
+
+%.cmx: %.ml
+	$(OCAMLOPT) -c $<
 
 
 # compile a special module; -O0 will override any earlier setting
@@ -278,8 +286,12 @@ depend: mldeps
 mldeps:
 	ocamldep $(CCPARSE_ML) > mldeps.mk
 
-ml_object.o: $(CCPARSE_ML:.ml=.cmo) 
-	$(OCAMLC) -custom -output-obj -o $@ $^
+#
+ml_object.byte.o: $(CCPARSE_ML:.ml=.cmo) 
+	$(OCAMLC) -output-obj -o $@ $^
+
+ml_object.native.o: $(CCPARSE_ML:.ml=.cmx) 
+	$(OCAMLOPT) -output-obj -o $@ $^
 
 ../ast/ocamlhelp.o: ../ast/ocamlhelp.cc ../ast/ocamlhelp.h
 	$(MAKE) -C ../ast ocamlhelp.o
@@ -290,7 +302,7 @@ ml_object.o: $(CCPARSE_ML:.ml=.cmo)
 # rearrange as different parts of the code are in flux)
 CCPARSE_OBJS := \
   ../ast/ocamlhelp.o \
-  ml_object.o \
+  ml_object.native.o \
   cc_ocaml.o \
   variable.o \
   cc_type.o \

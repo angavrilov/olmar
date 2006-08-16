@@ -1919,8 +1919,11 @@ value ocaml_from_CompoundType_Keyword(const CompoundType::Keyword &id,
 static SObjSet<value const *> debug_caml_roots;
 static int debug_caml_root_max;
 
+// #include <fstream.h>       // ofstream
+// static ofstream rootlog("rootlog");
+
 void debug_caml_register_global_root (value * val) {
-  // cerr << "register root " << hex << val << dec << endl;
+  // rootlog << "register root " << hex << val << dec << endl;
   if(debug_caml_roots.contains(val)) {
     cerr << "second registration of caml root " << hex << val << dec << endl;
     xassert(false);

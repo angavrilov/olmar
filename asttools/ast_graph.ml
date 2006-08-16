@@ -7,9 +7,9 @@ open Ast_util
 
 
 
-(* node type done: 1, 2, 3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 
- *  15, 16, 17, 18, 19, 20, 
- *  21, 22, 23, 24, 25, 26, 27, 28, 29, 37, 38, 39, 40
+
+(* node type done: 1 - 30, 32, 33, 37 - 40
+   not done: 31, 34, 35, 36
  *)
 
 let oc = ref stdout;;
@@ -27,8 +27,9 @@ let visit (annot : annotated) =
   (* Printf.eprintf "visit %d\n%!" (id_annotation annot); *)
   DS.add (id_annotation annot) visited_nodes
 
+
 let not_implemented () =
-  if 0 = 0 then 0 else assert false
+  if 1 = 0 then 0 else assert false
 
 let dot_escape s =
   let b = Buffer.create (max 31 (String.length s))
@@ -37,6 +38,7 @@ let dot_escape s =
       match s.[i] with
 	| '\\' -> Buffer.add_string b "\\\\"
 	| '"' -> Buffer.add_string b "\\\""
+	| '\n' -> Buffer.add_string b "\\n"
 	| c -> Buffer.add_char b c
     done;
     Buffer.contents b
@@ -124,6 +126,7 @@ let color_MemberList = "SlateBlue4"
 let color_PQName = "SkyBlue"
 let color_Variable = "purple"
 let color_TypeSpecifier = "OliveDrab"
+let color_ASTTypeof = "SeaGreen"
 let color_Statement = "yellow"
 let color_handler = "khaki1"
 let color_FullExpression = "coral"
@@ -145,7 +148,9 @@ let color_exceptionSpec = "salmon"
 let color_TemplateDeclaration = "brown3"
 let color_TemplateParameter = "tan3"
 let color_TemplateArgument = "peru"
+let color_STemplateArgument = "maroon"
 let color_NamespaceDecl = "grey50"
+let color_Designator = "LemonChiffon"
 
 
 (***************** variable ***************************)
@@ -257,8 +262,6 @@ and atomicType_fun at =
 
 
 
-and sTemplateArgument_fun _ = not_implemented ()
-
 
 and cType_fun t = 
   let annot = cType_annotation t 
@@ -316,19 +319,44 @@ and cType_fun t =
 	       (cType_fun cType, "atType")]
 
 
-(*
- * 6 and sTemplateArgument_fun = function
- *   | STA_NONE -> ()
- *   | STA_TYPE(cType) -> cType_fun cType
- *   | STA_INT(int) -> int_fun int
- *   | STA_ENUMERATOR(variable) -> variable_fun variable
- *   | STA_REFERENCE(variable) -> variable_fun variable
- *   | STA_POINTER(variable) -> variable_fun variable
- *   | STA_MEMBER(variable) -> variable_fun variable
- *   | STA_DEPEXPR(expression) -> expression_fun expression
- *   | STA_TEMPLATE -> ()
- *   | STA_ATOMIC(atomicType) -> atomicType_fun atomicType
- *)
+and sTemplateArgument_fun ta = 
+  let annot = sTemplateArgument_annotation ta
+  in
+    if visited annot then retval annot
+    else 
+      let _ = visit annot in
+      let tanode = ast_node color_STemplateArgument annot in
+      let tanode_1c name field child = tanode name [] [(child, field)]
+      in match ta with
+	| STA_NONE annot -> 
+	    tanode "STA_NONE" [] []
+
+	| STA_TYPE(annot, cType) -> 
+	    tanode "STA_TYPE" [] [(cType_fun cType, "sta_value.t")]
+
+	| STA_INT(annot, int) -> 
+	    tanode "STA_INT" [("sta_value.i", string_of_int int)] []
+
+	| STA_ENUMERATOR(annot, variable) -> 
+	    tanode_1c "STA_ENUMERATOR" "sta_value.v" (variable_fun variable)
+
+	| STA_REFERENCE(annot, variable) -> 
+	    tanode_1c "STA_REFERENCE" "sta_value.v" (variable_fun variable)
+
+	| STA_POINTER(annot, variable) -> 
+	    tanode_1c "STA_POINTER" "sta_value.v" (variable_fun variable)
+
+	| STA_MEMBER(annot, variable) ->
+	    tanode_1c "STA_MEMBER" "sta_value.v" (variable_fun variable)
+
+	| STA_DEPEXPR(annot, expression) -> 
+	    tanode_1c "STA_DEPEXPR" "sta_value.e" (expression_fun expression)
+
+	| STA_TEMPLATE annot -> 
+	    tanode "STA_TEMPLATE" [] []
+
+	| STA_ATOMIC(annot, atomicType) -> 
+	    tanode_1c "STA_ATOMIC" "sta_value.at" (atomicType_fun atomicType)
 
 
 
@@ -525,8 +553,6 @@ and typeSpecifier_fun ts =
 	| TS_typeof(annot, loc, cVFlags, aSTTypeof) -> 
 	    tsnode "TS_typeof" [] [(aSTTypeof_fun aSTTypeof, "atype")]
 
-
-and aSTTypeof_fun _ = not_implemented ()
 
 
 and baseClassSpec_fun(annot, bool, accessKeyword, pQName) =
@@ -1052,9 +1078,6 @@ and init_fun i =
 		 [(init_fun init, "init")])
 
 
-and designator_fun _ = not_implemented ()
-
-
 and templateDeclaration_fun td = 
   let annot = templateDeclaration_annotation td
   in
@@ -1147,26 +1170,45 @@ and namespaceDecl_fun nd =
 (* 
  * 31 and fullExpressionAnnot_fun(declaration_list) =
  *     List.iter declaration_fun declaration_list
- * 
- * 
- * 32 and aSTTypeof_fun = function
- *   | TS_typeof_expr(annot, fullExpression) -> 
- *       fullExpression_fun fullExpression
- * 
- *   | TS_typeof_type(annot, aSTTypeId) -> 
- *       aSTTypeId_fun aSTTypeId
- * 
- * 
- * 33 and designator_fun = function
- *   | FieldDesignator(annot, loc, stringRef) -> 
- *       string_fun stringRef
- * 
- *   | SubscriptDesignator(annot, loc, expression, expression_opt) -> 
- *       expression_fun expression;
- *       opt_iter expression_fun expression_opt
- * 
- * 
- * 34 and attributeSpecifierList_fun = function
+ *)
+
+
+and aSTTypeof_fun a = 
+  let annot = aSTTypeof_annotation a
+  in
+    if visited annot then retval annot
+    else
+      let _ = visited annot in
+      let anode = ast_node color_ASTTypeof annot
+      in match a with
+	| TS_typeof_expr(annot, fullExpression) -> 
+	    anode "TS_typeof_expr" [] 
+	      [(fullExpression_fun fullExpression, "expr")]
+
+	| TS_typeof_type(annot, aSTTypeId) -> 
+	    anode "TS_typeof_type" []
+	      [(aSTTypeId_fun aSTTypeId, "atype")]
+
+
+
+and designator_fun d = 
+  let annot = designator_annotation d
+  in 
+    if visited annot then retval annot
+    else
+      let _ = visit annot in
+      let dnode = ast_loc_node color_Designator annot (designator_loc d)
+      in match d with
+	| FieldDesignator(annot, loc, stringRef) -> 
+	    dnode "FieldDesignator" [("id", stringRef)] []
+
+	| SubscriptDesignator(annot, loc, expression, expression_opt) -> 
+	    dnode "SubscriptDesignator" []
+	      ((expression_fun expression, "idx_expr") ::
+		 opt_child expression_fun "idx_expr2" expression_opt [])
+
+
+(* 34 and attributeSpecifierList_fun = function
  *   | AttributeSpecifierList_cons(annot, attributeSpecifier, 
  * 				attributeSpecifierList) -> 
  *       attributeSpecifier_fun attributeSpecifier;

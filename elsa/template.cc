@@ -887,7 +887,7 @@ void TemplateInfo::debugPrint(int depth, bool printPartialInsts)
 
 // ------------------- STemplateArgument ---------------
 STemplateArgument::STemplateArgument(STemplateArgument const &obj)
-  : kind(obj.kind)
+  : kind(obj.kind), ocaml_val(0)
 {
   if (kind == STA_TYPE) {
     sta_value.t = obj.sta_value.t;

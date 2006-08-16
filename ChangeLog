@@ -1,3 +1,19 @@
+2006-08-17  Hendrik Tews  <tews@debian>
+
+	* changed to native ocaml compilation (still need to clean up
+	  Makefiles) 
+
+	ELSA
+	* fixed ocaml_val init in STemplateArgument
+
+	Semantic
+	* ast_graph 36/40, regression tests finished
+	  the remaining 4 functions are not connected
+
+	* new regression test regtest-oast uses check-oast to typecheck
+	  the ocaml ast
+	* checked for all regression tests except big/*
+
 2006-08-16  Hendrik Tews  <tews@debian>
 
 	ELSA
