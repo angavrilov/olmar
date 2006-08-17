@@ -1345,4 +1345,82 @@ void D_attribute::tcheck(Env &env, Declarator::Tcheck &dt)
 }
 
 
+// ocaml serialization method
+// hand written ocaml serialization function
+value D_attribute::toOcaml(ToOcamlData * data){
+  CAMLparam0();
+  CAMLlocalN(child, 4);
+  CAMLlocal4(a_spec_list, a_spec, tmp, elem);
+  if(ocaml_val) {
+    // cerr << "shared ocaml value in D_attribute\n" << flush;
+    CAMLreturn(ocaml_val);
+  }
+
+  static value * create_D_attribute_constructor_closure = NULL;
+  if(create_D_attribute_constructor_closure == NULL)
+    create_D_attribute_constructor_closure = 
+      caml_named_value("create_D_attribute_constructor");
+  xassert(create_D_attribute_constructor_closure);
+
+  if(data->stack.contains(this)) {
+    cerr << "cyclic ast detected during ocaml serialization\n";
+    xassert(false);
+  } else {
+    data->stack.add(this);
+  }
+  child[0] = ocaml_ast_annotation(this, data);
+  child[1] = ocaml_from_SourceLoc(loc, data);
+  child[2] = base->toOcaml(data);
+
+  a_spec_list = Val_emptylist;
+  AttributeSpecifierList * ll = alist;
+  while(ll) {
+    a_spec = Val_emptylist;
+    AttributeSpecifier *l = ll->spec;
+    while(l) {
+      elem = l->attr->toOcaml(data);
+      tmp = caml_alloc(2, Tag_cons);  // allocate a const cell
+      Store_field(tmp, 0, elem);      // store car
+      Store_field(tmp, 1, a_spec);    // store cdr
+      a_spec = tmp;
+      l = l->next;
+    }
+
+// Hendrik: need to List.rev a_spec
+
+    tmp = caml_alloc(2, Tag_cons);    // allocate a cons cell
+    Store_field(tmp, 0, a_spec);      // store car
+    Store_field(tmp, 1, a_spec_list); // store cdr
+    a_spec_list = tmp;
+    ll = ll->next;
+  }
+
+// Hendrik: need to List.rev a_spec_list
+
+  child[3] = a_spec_list;
+  caml_register_global_root(&ocaml_val);
+  ocaml_val = caml_callbackN(*create_D_attribute_constructor_closure,
+                             4, child);
+  xassert(IS_OCAML_AST_VALUE(ocaml_val));
+
+  data->stack.remove(this);
+  CAMLreturn(ocaml_val);
+}
+
+
+void D_attribute::detachOcaml() {
+  if(ocaml_val == 0) return;
+  D_grouping::detachOcaml();
+
+  AttributeSpecifierList *ll = alist;
+  while(ll) {
+    AttributeSpecifier *l = ll->spec;
+    while(l) {
+      l->attr->detachOcaml();
+      l = l->next;
+    }
+    ll = ll->next;
+  }
+}
+
 // EOF

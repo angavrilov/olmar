@@ -350,101 +350,11 @@ class Member (SourceLoc loc) {
 }
 
 
-// Syntactically, a Declarator introduces a name of a declared thing,
-// and also optionally adds type constructors to the base type of the
-// specifier.  It may have an initializing expression, depending on
-// the context.
-class Declarator (
-  IDeclarator decl,                    // syntax of type designation
-  nullable Initializer init            // optional data initializer
-) {
-  // FakeList link; use 'setNext' to set 'next'
-  public Declarator *next = NULL;
-  public void setNext(Declarator *newNext);
+// HT: Move Declarator and IDeclarator to the end of this file.
+// This way I can extend the ocaml type definition of IDeclarator 
+// in a separate file. This extension is needed because of the 
+// hacky way ("clever idea") D_attribute are introduced in gnu.ast.
 
-  // ambiguity representation
-  public Declarator *ambiguity = NULL;
-  public void addAmbiguity(Declarator *alternative);
-  custom traverse { if (ambiguity) ambiguity->traverse(vis); }
-
-  // print ambiguities
-  public void printAmbiguities(ostream &os, int indent) const;
-  custom preemptDebugPrint {
-    if (ambiguity) {
-      printAmbiguities(os, indent);
-      return;     // skip the normal, unambiguous-node print code
-    }
-  }
-
-  // dig down and find the name being declared; may return NULL
-  public PQName const *getDeclaratorIdC() const;
-  public PQName *getDeclaratorId()
-    { return const_cast<PQName*>(getDeclaratorIdC()); };
-  public void setDeclaratorId(PQName *n);
-
-  public SourceLoc getLoc() const;
-}
-
-
-// inner declarator; things *recursively* buried inside declarators;
-// cannot have initializers; the internal structure can be ignored
-// once typechecking determines what type is denoted
-class IDeclarator(SourceLoc loc) {
-  // dig down and find the name being declared; may return NULL
-  pure_virtual PQName const *getDeclaratorIdC() const;
-  public PQName *getDeclaratorId()
-    { return const_cast<PQName*>(getDeclaratorIdC()); };
-
-  // dig down one IDeclarator level, yielding the 'base' field,
-  // unless this is a leaf (in which case return NULL)
-  pure_virtual IDeclarator const *getBaseC() const;
-  public IDeclarator *getBase()
-    { return const_cast<IDeclarator*>(getBaseC()); };
-
-  // skip any toplevel grouping operators
-  public IDeclarator *skipGroups();
-
-  // true if this declarator is "obviously" declaring a function type,
-  // i.e. the innermost non-D_name, non-D_grouping constructor is
-  // D_func
-  public bool bottomIsDfunc() const;
-
-  // "x" (NULL means abstract declarator or anonymous parameter);
-  // this is used for ctors and dtors as well as ordinary names
-  // (dtor names start with "~"); it's also used for operator names
-  -> D_name(nullable PQName name);
-
-  // "*x" (as in "int *x")
-  -> D_pointer(CVFlags cv,  // optional qualifiers applied to ptr type
-               IDeclarator base);
-
-  // "&x"
-  -> D_reference(IDeclarator base);
-
-  // "f(int)"
-  -> D_func(IDeclarator base,                       // D_name of function, typically
-            FakeList<ASTTypeId> *params,            // params with optional default values
-            CVFlags cv,                             // optional "const" for member functions
-            nullable ExceptionSpec exnSpec);        // throwable exceptions
-
-  // "a[5]" or "b[]"
-  -> D_array(IDeclarator base, nullable Expression size);
-
-  // "c : 2"
-  //
-  // I use a PQName here instead of a StringRef for uniformity
-  // (so every IDeclarator ends with a PQName); there are never
-  // qualifiers on a bitfield name
-  -> D_bitfield(nullable PQName name, Expression bits);
-
-  // "X::*p"
-  -> D_ptrToMember(PQName nestedName, CVFlags cv, IDeclarator base);
-
-  // declarator grouping operator: it's semantically irrelevant
-  // (i.e. equivalent to just 'base' alone), but plays a role in
-  // disambiguation
-  -> D_grouping(IDeclarator base);
-}
 
 // specification of what a function can throw; if an ExceptionSpec
 // pointer is NULL, it means there is no specification, i.e. anything
@@ -847,5 +757,110 @@ class NamespaceDecl {
   -> ND_usingDir(PQName name);
 }
 
+
+// Syntactically, a Declarator introduces a name of a declared thing,
+// and also optionally adds type constructors to the base type of the
+// specifier.  It may have an initializing expression, depending on
+// the context.
+class Declarator (
+  IDeclarator decl,                    // syntax of type designation
+  nullable Initializer init            // optional data initializer
+) {
+  // FakeList link; use 'setNext' to set 'next'
+  public Declarator *next = NULL;
+  public void setNext(Declarator *newNext);
+
+  // ambiguity representation
+  public Declarator *ambiguity = NULL;
+  public void addAmbiguity(Declarator *alternative);
+  custom traverse { if (ambiguity) ambiguity->traverse(vis); }
+
+  // print ambiguities
+  public void printAmbiguities(ostream &os, int indent) const;
+  custom preemptDebugPrint {
+    if (ambiguity) {
+      printAmbiguities(os, indent);
+      return;     // skip the normal, unambiguous-node print code
+    }
+  }
+
+  // dig down and find the name being declared; may return NULL
+  public PQName const *getDeclaratorIdC() const;
+  public PQName *getDeclaratorId()
+    { return const_cast<PQName*>(getDeclaratorIdC()); };
+  public void setDeclaratorId(PQName *n);
+
+  public SourceLoc getLoc() const;
+}
+
+
+// HT: IDeclarator *must* be the last class in this file.
+// This way I can extend the ocaml type definition of IDeclarator 
+// in a separate file. This extension is needed because of the 
+// hacky way ("clever idea") D_attribute are introduced in gnu.ast.
+
+// inner declarator; things *recursively* buried inside declarators;
+// cannot have initializers; the internal structure can be ignored
+// once typechecking determines what type is denoted
+class IDeclarator(SourceLoc loc) {
+  // dig down and find the name being declared; may return NULL
+  pure_virtual PQName const *getDeclaratorIdC() const;
+  public PQName *getDeclaratorId()
+    { return const_cast<PQName*>(getDeclaratorIdC()); };
+
+  // dig down one IDeclarator level, yielding the 'base' field,
+  // unless this is a leaf (in which case return NULL)
+  pure_virtual IDeclarator const *getBaseC() const;
+  public IDeclarator *getBase()
+    { return const_cast<IDeclarator*>(getBaseC()); };
+
+  // skip any toplevel grouping operators
+  public IDeclarator *skipGroups();
+
+  // true if this declarator is "obviously" declaring a function type,
+  // i.e. the innermost non-D_name, non-D_grouping constructor is
+  // D_func
+  public bool bottomIsDfunc() const;
+
+  // "x" (NULL means abstract declarator or anonymous parameter);
+  // this is used for ctors and dtors as well as ordinary names
+  // (dtor names start with "~"); it's also used for operator names
+  -> D_name(nullable PQName name);
+
+  // "*x" (as in "int *x")
+  -> D_pointer(CVFlags cv,  // optional qualifiers applied to ptr type
+               IDeclarator base);
+
+  // "&x"
+  -> D_reference(IDeclarator base);
+
+  // "f(int)"
+  -> D_func(IDeclarator base,                       // D_name of function, typically
+            FakeList<ASTTypeId> *params,            // params with optional default values
+            CVFlags cv,                             // optional "const" for member functions
+            nullable ExceptionSpec exnSpec);        // throwable exceptions
+
+  // "a[5]" or "b[]"
+  -> D_array(IDeclarator base, nullable Expression size);
+
+  // "c : 2"
+  //
+  // I use a PQName here instead of a StringRef for uniformity
+  // (so every IDeclarator ends with a PQName); there are never
+  // qualifiers on a bitfield name
+  -> D_bitfield(nullable PQName name, Expression bits);
+
+  // "X::*p"
+  -> D_ptrToMember(PQName nestedName, CVFlags cv, IDeclarator base);
+
+  // declarator grouping operator: it's semantically irrelevant
+  // (i.e. equivalent to just 'base' alone), but plays a role in
+  // disambiguation
+  -> D_grouping(IDeclarator base);
+}
+
+// HT: Nothing should follow here. 
+// IDeclarator *must* be the last class in this file. 
+// See explanation before IDeclarator.
 
 // EOF

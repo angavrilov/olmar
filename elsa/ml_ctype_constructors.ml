@@ -1,5 +1,5 @@
 
-(* hand written constructor callbacks for ml_ctype *)
+(* hand written constructor callbacks for cType/Variable/D_attribute *)
 
 open Ml_ctype
 open Cc_ast_gen_type
@@ -145,6 +145,16 @@ let create_STA_ATOMIC_constructor poly atomic_type =
   STA_ATOMIC(poly, atomic_type)
 
 
+(******************************************************************************
+ *
+ * D_attribute hack
+ *
+*******************************************************************************)
+
+
+let create_D_attribute_constructor poly loc idecl a_list_list =
+  D_attribute(poly, loc, idecl, a_list_list)
+
 
 
 (* all this is hand written, so put all callback registration in here *)
@@ -219,3 +229,7 @@ let register_ml_ctype_constructor_callbacks () =
     create_STA_TEMPLATE_constructor;
   Callback.register "create_STA_ATOMIC_constructor"
     create_STA_ATOMIC_constructor;
+
+  (* D_attribute hack *)
+  Callback.register "create_D_attribute_constructor" 
+    create_D_attribute_constructor;

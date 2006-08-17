@@ -236,12 +236,16 @@ class Expression {
 
 
 // a sequence of __attribute__((..)) specifiers
+// HT: not used in ocaml, next should probably have 
+// a proper nullable attribute
 class AttributeSpecifierList(
   AttributeSpecifier spec,
   AttributeSpecifierList /*nullable*/ next
 );
 
 
+// HT: not used in ocaml, next should probably have 
+// a proper nullable attribute
 // a single __attribute__((...)) specifier; there may be many
 // individual attributes inside the parens
 class AttributeSpecifier(
@@ -274,6 +278,15 @@ class Attribute(SourceLoc loc) {
 }
 
   
+// HT: Because of the following "clever idea" I have to use a separate
+// gnu_attribute_hack.ast file, that extends (via ocaml_type_verbatim)
+// the ocaml type definition of iDeclarator_type with a case 
+// for D_attribute. The advantage here is that on the ocaml side we can
+// use a more convenient attribute_type list list for the alist field 
+// instead of the cumbersome AttributeSpecifierList.
+//
+// Therefore, if you change anything here, check with gnu_attribute_hack.ast!
+
 // Here's a clever idea: rather than making a completely new node to
 // carry the attributes, I will inherit from D_grouping!  Then
 // everyone will treat D_attribute like D_grouping, basically ignoring
@@ -304,6 +317,10 @@ verbatim {
     virtual D_attribute *clone() const;
 
     virtual void tcheck(Env &env, Declarator::Tcheck &dt);
+
+    // ocaml serialization methods
+    virtual value toOcaml(ToOcamlData *);
+    virtual void detachOcaml();
   };
 }
 

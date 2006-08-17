@@ -69,6 +69,12 @@ CC_AST_MODS := cc.ast
 CC_GR_MODS  := cc.gr
 EXT_OBJS    :=
 
+# ocaml type D_attribute hack: do only for GNU language extension
+USE_GNU := @USE_GNU@
+ifeq ($(USE_GNU),1)
+  CC_AST_MODS += gnu_attribute_hack.ast
+endif
+
 # type checker
 CC_AST_MODS += cc_tcheck.ast
 
@@ -83,7 +89,6 @@ CC_AST_MODS += cc_elaborate.ast
 
 
 # optional: GNU language extension
-USE_GNU := @USE_GNU@
 ifeq ($(USE_GNU),1)
   LEXER_MODS  += gnu.lex
   TOK_MODS    += gnu_ext.tok
@@ -449,8 +454,7 @@ TAGS:
 
 
 .PHONY: all.ast
-all.ast: cc.ast cc_print.ast cfg.ast kandr.ast cc_elaborate.ast \
-		cc_tcheck.ast gnu.ast ml_ctype.ast
+all.ast: $(CC_AST_MODS) 
 	rm -f all.ast
 	for f in $^ ; do \
 		echo "//=========================== start of $$f" >> all.ast; \

@@ -3711,11 +3711,6 @@ void OTGen::emitFile()
   }
 
   out << endl;
-  out << "(*** Local Variables: ***)" << endl;
-  out << "(*** compile-command : \"ocamlc.opt -c " 
-      << sm_basename(destFname)
-      << "\" ***)" << endl;
-  out << "(*** End: ***)" << endl;
 }
 
 
@@ -3892,11 +3887,6 @@ void OCGen::emitFile()
   emitRegisterCallbacks();
 
   out << endl;
-  out << "(*** Local Variables: ***)" << endl;
-  out << "(*** compile-command : \"ocamlc.opt -c " 
-      << sm_basename(destFname)
-      << "\" ***)" << endl;
-  out << "(*** End: ***)" << endl;
 }
 
 

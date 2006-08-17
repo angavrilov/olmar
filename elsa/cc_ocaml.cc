@@ -1952,9 +1952,9 @@ void check_caml_root_status() {
   for(SObjSetIter<value const *> iter(debug_caml_roots); !iter.isDone();
       iter.adv()) {
     cerr << iter.data() << " ";
-    xassert(false);
     cerr << dec << "\n";
   }
+  xassert(false);
 }
 #endif // DEBUG_CAML_GLOBAL_ROOTS
 

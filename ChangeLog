@@ -1,5 +1,16 @@
 2006-08-17  Hendrik Tews  <tews@debian>
 
+	ELSA
+	* D_attribute hack: gnu_attribute_hack.ast extends
+	  iDeclarator_type
+	* reordered classes in cc.ast Declarator/IDeclarator are at the
+	  end now
+	* D_attribute methods are in gnu.cc, callbacks are in
+	  ml_ctype_constructors 
+	
+
+2006-08-17  Hendrik Tews  <tews@debian>
+
 	* changed to native ocaml compilation (still need to clean up
 	  Makefiles) 
 

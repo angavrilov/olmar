@@ -1,0 +1,19 @@
+
+// HT: This file must be included right after cc.ast, 
+// if the GNU language extension is used. Here I extend
+// the ocaml type definition of IDeclarator with a case for
+// D_attribute. This extension is needed because of the 
+// hacky way ("clever idea") D_attribute is introduced in gnu.ast.
+
+// A verbatim in the first place is treated specifically by astgen.
+// Therefore put something before the verbatim.
+class IDeclarator{}
+
+ocaml_type_verbatim {
+
+  (* extend iDeclarator_type *)
+  | D_attribute of 'a * sourceLoc * 'a iDeclarator_type 
+     (* the following is more convenient than AttributeSpecifierList *)
+      * 'a attribute_type list list 
+
+}
