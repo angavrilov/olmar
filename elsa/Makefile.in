@@ -13,10 +13,7 @@ all: cc.ast.gen.h tlexer ccparse quickocamltest
 SMBASE   := @SMBASE@
 AST      := @AST@
 ELKHOUND := @ELKHOUND@
-OCAMLC   := @OCAMLC@
 OCAMLDIR := @OCAMLDIR@
-
-OCAMLOPT := ocamlopt.opt
 
 # stuff inside those other directories
 LIBSMBASE   := $(SMBASE)/libsmbase.a
@@ -24,14 +21,23 @@ LIBAST      := $(AST)/libast.a
 LIBELKHOUND := $(ELKHOUND)/libelkhound.a
 LIBOCAMLRUN := $(OCAMLDIR)
 
-#bytecode
-OCAMLLIBS := -L $(LIBOCAMLRUN) -lcamlrun -lcurses -ldl
-#native
-OCAMLLIBS := -L $(LIBOCAMLRUN) -lasmrun -ldl
-
 # external tools
 PERL := @PERL@
+OCAMLC   := @OCAMLC@
+OCAMLOPT := @OCAMLOPT@
+OCAMLCC  := @OCAMLCC@
 MYFLEX := $(PERL) $(SMBASE)/run-flex.pl -nobackup -copies
+
+NATIVE_OCAML := @NATIVE_OCAML@
+OCAML_OBJ_EXT := @OCAML_OBJ_EXT@
+
+ifeq ($(NATIVE_OCAML),1)
+#native
+OCAMLLIBS := -L $(LIBOCAMLRUN) -lasmrun -ldl
+else
+#bytecode
+OCAMLLIBS := -L $(LIBOCAMLRUN) -lcamlrun -lcurses -ldl
+endif
 
 # list of files to clean in 'clean' (etc.) targets
 # (these get added to below)
@@ -293,14 +299,11 @@ mldeps:
 	ocamldep $(CCPARSE_ML) > mldeps.mk
 
 # have two entries to facilitate compiling all ml files
-elsa_cmo_objects: $(CCPARSE_ML:.ml=.cmo) 
-elsa_cmx_objects: $(CCPARSE_ML:.ml=.cmx) 
+elsa_ml_objects: $(CCPARSE_ML:.ml=.$(OCAML_OBJ_EXT)) 
 
-ml_object.byte.o: $(CCPARSE_ML:.ml=.cmo) 
-	$(OCAMLC) -output-obj -o $@ $^
+ml_object.o: $(CCPARSE_ML:.ml=.$(OCAML_OBJ_EXT)) 
+	$(OCAMLCC) -output-obj -o $@ $^	
 
-ml_object.native.o: $(CCPARSE_ML:.ml=.cmx) 
-	$(OCAMLOPT) -output-obj -o $@ $^
 
 $(AST)/ocamlhelp.o: $(AST)/ocamlhelp.cc $(AST)/ocamlhelp.h
 	$(MAKE) -C $(AST) ocamlhelp.o
@@ -316,7 +319,7 @@ $(AST)/ast_util.cmx: $(AST)/ast_util.ml
 # rearrange as different parts of the code are in flux)
 CCPARSE_OBJS := \
   $(AST)/ocamlhelp.o \
-  ml_object.native.o \
+  ml_object.o \
   cc_ocaml.o \
   variable.o \
   cc_type.o \
@@ -537,6 +540,8 @@ doc: gendoc gendoc/configure.txt gendoc/dependencies.png gendoc/3.4.5.png
 # sm: I haven't carefully inspected the set of files counted,
 # and it appears to not count cc_tokens.tok (which it should).
 # I don't care about fixing right now it though.
+#
+# HT: have to count the ocaml files (don't care either)
 
 GENREGEX := '\.gen\.\|lexer\.yy\|cc_tokens'
 .PHONY: count-loc
@@ -562,6 +567,9 @@ count-loc:
 clean:
 	rm -f $(TOCLEAN)
 	cd outdir && ls | grep -v CVS | xargs rm -f
+	find . -name \*.oast -exec rm {} \;
+	find . -name \*.oast.dot -exec rm {} \;
+	find . -name \*.oast.ps -exec rm {} \;
 
 distclean: clean
 	rm -f $(TODISTCLEAN)

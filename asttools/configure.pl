@@ -6,7 +6,7 @@ use strict 'subs';
 # default location of smbase relative to this package
 $SMBASE = "../smbase";
 $req_smcv = 1.03;            # required sm_config version number
-$thisPackage = "elsa";
+$thisPackage = "semantic";
 
 print "Configuring $thisPackage ...\n\n";
 
@@ -42,12 +42,8 @@ if ($smcv < $req_smcv) {
 # -------------- END common block ---------------
 
 # defaults
-@LDFLAGS = ("-g -Wall");
 $AST = "../ast";
-$ELKHOUND = "../elkhound";
-$USE_GNU = "1";
-$USE_KANDR = "1";
-$GCOV_MODS = "";
+$ELSA = "../elsa";
 
 
 sub usage {
@@ -55,14 +51,8 @@ sub usage {
 
   print(<<"EOF");
 package options:
-  -prof              enable profiling
-  -gcov=<mods>       enable coverage testing for modules <mods>
-  -devel             add options useful while developing (-Werror)
-  -gnu=[0/1]         enable GNU extensions? [$USE_GNU]
-  -kandr=[0/1]       enable K&R extensions? [$USE_KANDR]
   -ast=<dir>:        specify where the ast system is [$AST]
-  -elkhound=<dir>:   specify where the elkhound system is [$ELKHOUND]
-  -useSerialNumbers: give serial numbers to some objects for debugging
+  -elsa=<dir>:       specify where the elsa system is [$ELSA]
 EOF
 }
 
@@ -87,35 +77,11 @@ foreach $optionAndValue (@ARGV) {
   }
   # -------------- END common block 2 -------------
 
-  elsif ($arg eq "prof") {
-    push @CCFLAGS, "-pg";
-    push @LDFLAGS, "-pg";
-  }
-
-  elsif ($arg eq "gcov") {
-    $GCOV_MODS = getOptArg();
-  }
-
-  elsif ($arg eq "devel") {
-    push @CCFLAGS, "-Werror";
-  }
-
   elsif ($arg eq "ast") {
     $AST = getOptArg();
   }
-  elsif ($arg eq "elkhound") {
-    $ELKHOUND = getOptArg();
-  }
-
-  elsif ($arg eq "gnu") {
-    $USE_GNU = getBoolArg();
-  }
-  elsif ($arg eq "kandr") {
-    $USE_KANDR = getBoolArg();
-  }
-
-  elsif ($arg eq "useSerialNumbers") {
-    push @CCFLAGS, "-DUSE_SERIAL_NUMBERS=1";
+  elsif ($arg eq "elsa") {
+    $ELSA = getOptArg();
   }
 
   else {
@@ -129,72 +95,55 @@ finishedOptionProcessing();
 # ------------------ check for needed components ----------------
 test_smbase_presence();
 
-test_CXX_compiler();
-
 # ast
-if (! -f "$AST/asthelp.h") {
-  die "I cannot find asthelp.h in `$AST'.\n" .
-      "The ast system is required for elsa.\n" .
+if (! -f "$AST/ast_util.ml") {
+  die "I cannot find ast_util.ml in `$AST'.\n" .
+      "The ast system is required for this package.\n" .
       "If it's in a different location, use the -ast=<dir> option.\n";
 }
 
-# elkhound
-if (! -f "$ELKHOUND/glr.h") {
-  die "I cannot find glr.h in `$ELKHOUND'.\n" .
-      "The elkhound system is required for elsa.\n" .
-      "If it's in a different location, use the -elkhound=<dir> option.\n";
+if (! -f "$ELSA/ast_annotation.ml") {
+  die "I cannot find ast_annotation.ml in `$ELSA'.\n" .
+      "The elsa system is required for this package.\n" .
+      "If it's in a different location, use the -ast=<dir> option.\n";
 }
 
-$PERL = get_PERL_variable();
 
 # ocaml
 ($OCAMLDIR, $OCAMLC, $OCAMLOPT, $OCAMLCC, $OCAML_NATIVE, 
  $OCAML_OBJ_EXT, $OCAML_LIB_EXT) = 
     test_ocaml_compiler();
 
-
 # ------------------ config.summary -----------------
 $summary = getStandardConfigSummary();
 
 $summary .= <<"OUTER_EOF";
 cat <<EOF
-  LDFLAGS:       @LDFLAGS
   SMBASE:        $SMBASE
   AST:           $AST
-  ELKHOUND:      $ELKHOUND
-  USE_GNU:       $USE_GNU
-  USE_KANDR:     $USE_KANDR
+  ELSA:          $ELSA
   OCAMLC:        $OCAMLC
   OCAMLOPT:      $OCAMLOPT
   OCAMLCC:       $OCAMLCC
-  OCAML_OBJ_EXT: $OCAML_OBJ_EXT
-  OCAML_NATIVE:  $OCAML_NATIVE
   OCAML LIB DIR: $OCAMLDIR
+  OCAML_OBJ_EXT: $OCAML_OBJ_EXT
+  OCAML_LIB_EXT: $OCAML_LIB_EXT
 EOF
 OUTER_EOF
-
-if ($GCOV_MODS) {
-  $summary .= "echo \"  GCOV_MODS:   $GCOV_MODS\"\n";
-}
 
 writeConfigSummary($summary);
 
 
 # ------------------- config.status ------------------
-writeConfigStatus("LDFLAGS" => "@LDFLAGS",
-                  "SMBASE" => "$SMBASE",
+writeConfigStatus("SMBASE" => "$SMBASE",
                   "AST" => "$AST",
-                  "ELKHOUND" => "$ELKHOUND",
-                  "PERL" => "$PERL",
+                  "ELSA" => "$ELSA",
 		  "OCAMLC" => "$OCAMLC",
-		  "OCAMLCC" => "$OCAMLCC",
 		  "OCAMLOPT" => "$OCAMLOPT",
+		  "OCAMLCC" => "$OCAMLCC",
 		  "OCAMLDIR" => "$OCAMLDIR",
-		  "NATIVE_OCAML" => "$OCAML_NATIVE",
 		  "OCAML_OBJ_EXT" => "$OCAML_OBJ_EXT",
-                  "USE_GNU" => "$USE_GNU",
-                  "USE_KANDR" => "$USE_KANDR",
-                  "GCOV_MODS" => "$GCOV_MODS");
+		  "OCAML_LIB_EXT" => "$OCAML_LIB_EXT");
 
 
 # ----------------- final actions -----------------
@@ -207,4 +156,4 @@ exit(0);
 
 
 # silence warnings
-pretendUsed($thisPackage, $OCAML_LIB_EXT);
+pretendUsed($thisPackage, $OCAML_NATIVE);

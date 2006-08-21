@@ -9,6 +9,8 @@ $SMBASE = ".";
 get_sm_config_version();
 $thisPackage = "smbase";
 
+print "Configuring $thisPackage ...\n\n";
+
 sub usage {
   standardUsage();
 

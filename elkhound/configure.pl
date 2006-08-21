@@ -8,6 +8,8 @@ $SMBASE = "../smbase";
 $req_smcv = 1.03;            # required sm_config version number
 $thisPackage = "elkhound";
 
+print "Configuring $thisPackage ...\n\n";
+
 # -------------- BEGIN common block ---------------
 # do an initial argument scan to find if smbase is somewhere else
 for (my $i=0; $i < @ARGV; $i++) {

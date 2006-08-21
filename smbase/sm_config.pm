@@ -31,6 +31,9 @@ sub get_sm_config_version {
   # 1.04: 2005-05-04: re-added -no-dash-g and -no-dash-O2
 }
 
+# default: try to detect ocamlopt
+$try_ocamlopt=1;
+
 # standard prefix of the usage string
 sub standardUsage {
   print(<<"EOF");
@@ -46,6 +49,7 @@ standard (sm_config) options:
   -target=<target>:  cross compilation target, e.g., "i386-mingw32msvc"
   -no-dash-g:        disable -g
   -no-dash-O2:       disable -O2
+  -no-ocamlopt:      disable ocamlopt (for bytecode compilation testing only)
 EOF
 
   if ($main::thisPackage ne "smbase") {
@@ -61,6 +65,8 @@ EOF
 sub handleStandardOption {
   my $arg = $main::option;
   my $val = $main::value;
+
+  # printf "handleStandardOption arg=$arg, val=$val!\n";
 
   if ($arg eq "h" ||
       $arg eq "help") {
@@ -96,6 +102,12 @@ sub handleStandardOption {
   
   elsif ($arg eq "no-dash-O2") {
     $main::no_dash_O2 = 1;
+  }
+
+  elsif ($arg eq "no-ocamlopt") {
+    $try_ocamlopt = 0;
+    # successful return !!
+    1;
   }
 
   else {
@@ -310,8 +322,8 @@ sub slurpFile {
 
 # -------------- check ocaml compiler and get ocaml lib dir ------------
 sub test_ocaml_compiler {
-  my($ocamlc,$lib);
-  print("Testing ocaml compiler... ");
+  my($ocamlc,$ocamlopt,$ocamlcc,$native,$obj_ext,$lib_ext,$lib);
+  print("Searching ocaml compiler... ");
 
   if(open(OCAML, "ocamlc.opt -where|")){
     print("ocamlc.opt found\n");
@@ -319,6 +331,7 @@ sub test_ocaml_compiler {
     chomp($lib);
     close OCAML;
     $ocamlc = "ocamlc.opt";
+    $ocamlcc = $ocamlc;
   }
   elsif(open(OCAML, "ocamlc -where|")){
     print("ocamlc found\n");
@@ -326,6 +339,7 @@ sub test_ocaml_compiler {
     chomp($lib);
     close OCAML;
     $ocamlc = "ocamlc";
+    $ocamlcc = $ocamlc;
   }
   else {
     print(<<"EOF");
@@ -346,9 +360,39 @@ Cannot read "caml/mlvalues.h" in
 EOF
 
     exit(1);
-    }
+  }
 
-  return($lib, $ocamlc);
+  print("Searching native ocaml compiler... ");
+  if($try_ocamlopt && open(OCAMLOPT, "ocamlopt.opt -where|")){
+    print("ocamlopt.opt found\n");
+    close OCAMLOPT;
+    $ocamlopt="ocamlopt.opt";
+    $ocamlcc = $ocamlopt;
+    $native=1
+  }
+  elsif($try_ocamlopt && open(OCAMLOPT, "ocamlopt -where|")){
+    print("ocamlopt found\n");
+    close OCAMLOPT;
+    $ocamlopt="ocamlopt";
+    $ocamlcc = $ocamlopt;
+    $native=1
+  }
+  else {
+    print(
+      "\nNeither ocamlopt not ocamlopt.opt found. Use bytecode compilation.\n");
+    $ocamlopt="[ocamlopt not found]";
+    $native=0
+  }
+
+  if ($native) {
+    $obj_ext="cmx";
+    $lib_ext="cmxa";
+  }
+  else {
+    $obj_ext="cmo";
+    $lib_ext="cma";
+  }
+  return($lib, $ocamlc, $ocamlopt, $ocamlcc, $native, $obj_ext, $lib_ext);
 }
 
 

@@ -8,6 +8,8 @@ $SMBASE = "../smbase";
 $req_smcv = 1.03;            # required sm_config version number
 $thisPackage = "ast";
 
+print "Configuring $thisPackage ...\n\n";
+
 # -------------- BEGIN common block ---------------
 # do an initial argument scan to find if smbase is somewhere else
 for (my $i=0; $i < @ARGV; $i++) {
@@ -95,14 +97,18 @@ test_CXX_compiler();
 $PERL = get_PERL_variable();
 
 # ocaml
-($OCAMLDIR, $OCAMLC) = test_ocaml_compiler();
-
+($OCAMLDIR, $OCAMLC, $OCAMLOPT, $OCAMLCC, $OCAML_NATIVE, 
+ $OCAML_OBJ_EXT, $OCAML_LIB_EXT) = 
+    test_ocaml_compiler();
 
 # ------------------ config.summary -----------------
 $summary = getStandardConfigSummary();
 
 $summary .= <<"OUTER_EOF";
 cat <<EOF
+  OCAMLC:        $OCAMLC
+  OCAMLOPT:      $OCAMLOPT
+  OCAML_OBJ_EXT: $OCAML_OBJ_EXT
   OCAML LIB DIR: $OCAMLDIR
 EOF
 OUTER_EOF
@@ -113,6 +119,8 @@ writeConfigSummary($summary);
 # ------------------- config.status ------------------
 writeConfigStatus("PERL" => "$PERL",
 		  "OCAMLC" => "$OCAMLC",
+		  "OCAMLOPT" => "$OCAMLOPT",
+		  "OCAML_OBJ_EXT" => "$OCAML_OBJ_EXT",
 		  "OCAMLDIR" => "$OCAMLDIR");
 
 
@@ -126,7 +134,7 @@ exit(0);
 
 
 # silence warnings
-pretendUsed($thisPackage);
+pretendUsed($thisPackage, $OCAML_NATIVE, $OCAML_LIB_EXT, $OCAMLCC);
 
 
 # EOF

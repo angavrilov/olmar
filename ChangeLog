@@ -1,5 +1,10 @@
 2006-08-21  Hendrik Tews  <tews@debian>
 
+	* configure/Makefile cleanup; use elsa configure system in
+	  semantic subdir
+
+2006-08-21  Hendrik Tews  <tews@debian>
+
 	AST
 	* changed ocaml serialization to strict left-to-right order 
 

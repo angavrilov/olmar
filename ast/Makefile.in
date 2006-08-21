@@ -1,10 +1,9 @@
 # Makefile.in for ast
 # see license.txt for copyright and terms of use
 
-# bytecode
-OCAML_OBJ_EXT := cmo
-# native code
-OCAML_OBJ_EXT := cmx
+# set to ``cmo'' for ocaml bytecode compilation
+# and to ``cmx'' for native compilation
+OCAML_OBJ_EXT := @OCAML_OBJ_EXT@
 
 # main targets
 all: ccsstr ocsstr astgen libast.a example.o ext1.o ocamlhelp.o \
@@ -14,13 +13,13 @@ all: ccsstr ocsstr astgen libast.a example.o ext1.o ocamlhelp.o \
 # directories of other software
 SMBASE := @SMBASE@
 LIBSMBASE := $(SMBASE)/libsmbase.a
-OCAMLC   := @OCAMLC@
 OCAMLDIR := @OCAMLDIR@
 
-OCAMLOPT := ocamlopt.opt
 
 # external tools
 PERL := @PERL@
+OCAMLC   := @OCAMLC@
+OCAMLOPT := @OCAMLOPT@
 MYFLEX := $(PERL) $(SMBASE)/run-flex.pl
 
 # TODO: agramlex.yy.cc apparently has backing up, which should
@@ -43,6 +42,10 @@ AR     := ar
 RANLIB := ranlib
 
 
+# list of files to clean in 'clean' (etc.) targets
+# (these get added to below)
+TOCLEAN =
+
 # compile .cc to .o
 %.o: %.cc
 	$(CXX) -c -o $@ $< $(CCFLAGS)
@@ -61,8 +64,7 @@ TOCLEAN += *.cmo *.cmi *.cmx
 %.cmx: %.ml
 	$(OCAMLOPT) -c $<
 
-ast_cmo_objects: ast_util.cmo
-ast_cmx_objects: ast_util.cmx
+ast_objects: ast_util.$(OCAML_OBJ_EXT)
 
 # remake the generated Makefile if its inputs have changed
 Makefile: Makefile.in config.status
@@ -205,6 +207,7 @@ check: ccsstr ocsstr
 
 # delete outputs of compiler, linker
 clean:
+	rm -f $(TOCLEAN)
 	rm -f *.o tmp *.d
 	rm -f agrampar astgen ccsstr ocsstr towner exampletest libast.a
 	rm -f agrampar.output
