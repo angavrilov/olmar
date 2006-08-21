@@ -1386,7 +1386,7 @@ value D_attribute::toOcaml(ToOcamlData * data){
       l = l->next;
     }
 
-// Hendrik: need to List.rev a_spec
+    a_spec = ocaml_list_rev(a_spec);
 
     tmp = caml_alloc(2, Tag_cons);    // allocate a cons cell
     Store_field(tmp, 0, a_spec);      // store car
@@ -1394,8 +1394,7 @@ value D_attribute::toOcaml(ToOcamlData * data){
     a_spec_list = tmp;
     ll = ll->next;
   }
-
-// Hendrik: need to List.rev a_spec_list
+  a_spec_list = ocaml_list_rev(a_spec_list);
 
   child[3] = a_spec_list;
   caml_register_global_root(&ocaml_val);

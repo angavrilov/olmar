@@ -1769,6 +1769,15 @@ string detach_from_function(string type) {
 
 void CGen::emitOcamlFromList(ListClass const *cls) {
   const string & cname = cls->elementClassName;
+  bool is_ast_list;
+  
+  if(cls->lkind == LK_ASTList)
+    is_ast_list = true;
+  else if(cls->lkind == LK_FakeList)
+    is_ast_list = false;
+  else
+    xassert(false);		// lkind == LK_None !!
+  
 
   // one cannot have a list of pointers, so just assert it
   // FakeList requires a next field in the element type
@@ -1787,21 +1796,31 @@ void CGen::emitOcamlFromList(ListClass const *cls) {
       << "  CAMLlocal3(result, tmp, elem);\n"
       << "  result = Val_emptylist;\n\n";
 
-  out << "  for(int i = l.count() -1; i >= 0; i--) {\n"
-      << "    elem = ";
-  if(isTreeNode(cname)) {
-    out << "l.nth(i)->toOcaml(data);";
+  string access;
+  if(is_ast_list) {
+    out << "  FOREACH_ASTLIST_NC(" << cname << ", l, iter) {" << endl;
+    access = "iter.data()";
   }
   else {
-    out << ocaml_from_function(cname) << "(l.nth(i), data);";
+    out << "  FAKELIST_FOREACH_NC(" << cname << ", (&l), ptr) {" << endl;
+    access = "ptr";
   }
+
+  out << "    elem = ";
+  if(isTreeNode(cname))
+    out << access << "->toOcaml(data);";
+  else
+    out << ocaml_from_function(cname) << "(* " << access 
+	<< ", data)";
   out << " // serialize element\n";
 
-  out << "    tmp = caml_alloc(2, Tag_cons);  // allocate a cons cell\n"
-      << "    Store_field(tmp, 0, elem);      // store car\n"
-      << "    Store_field(tmp, 1, result);    // store cdr\n"
+  out << "    tmp = caml_alloc(2, Tag_cons);     // allocate a cons cell\n"
+      << "    Store_field(tmp, 0, elem);         // store car\n"
+      << "    Store_field(tmp, 1, result);       // store cdr\n"
       << "    result = tmp;\n"
       << "  }" << endl;
+
+  out << "  result = ocaml_list_rev(result);" << endl;
 
   out << "  CAMLreturn(result);\n";
   out << "}\n\n";

@@ -53,8 +53,10 @@ for f in $ast_files ; do
     if [ $skip -gt $count ]; then
 	echo "[$count] skip $f"
     else
-	echo "[$count] test $f"
-	./check-oast $f
+	echo "[$count] test $f "
+	size=$(ls -l $f | awk '{print $5;}')
+	TIMEFORMAT="user time %U s size $size"
+	time ./check-oast $f
 	result=$?
 	if [ ! $result -eq 0 ] ; then
 	    echo check-oast exit $result on $f >&2

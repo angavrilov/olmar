@@ -1,14 +1,23 @@
 # Makefile.in for ast
 # see license.txt for copyright and terms of use
 
+# bytecode
+OCAML_OBJ_EXT := cmo
+# native code
+OCAML_OBJ_EXT := cmx
+
 # main targets
-all: ccsstr ocsstr astgen libast.a example.o ext1.o ocamlhelp.o
+all: ccsstr ocsstr astgen libast.a example.o ext1.o ocamlhelp.o \
+	ast_util.$(OCAML_OBJ_EXT)
 
 
 # directories of other software
 SMBASE := @SMBASE@
 LIBSMBASE := $(SMBASE)/libsmbase.a
+OCAMLC   := @OCAMLC@
 OCAMLDIR := @OCAMLDIR@
+
+OCAMLOPT := ocamlopt.opt
 
 # external tools
 PERL := @PERL@
@@ -44,6 +53,16 @@ ocamlhelp.o: ocamlhelp.cc
 	$(CXX) -c -o $@ $< $(CCFLAGS) -I $(OCAMLDIR)
 	@perl $(SMBASE)/depend.pl -o $@ $< $(CCFLAGS) -I $(OCAMLDIR) > $*.d
 
+
+TOCLEAN += *.cmo *.cmi *.cmx
+%.cmo: %.ml
+	$(OCAMLC) -c $<
+
+%.cmx: %.ml
+	$(OCAMLOPT) -c $<
+
+ast_cmo_objects: ast_util.cmo
+ast_cmx_objects: ast_util.cmx
 
 # remake the generated Makefile if its inputs have changed
 Makefile: Makefile.in config.status

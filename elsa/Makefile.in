@@ -133,10 +133,10 @@ TOCLEAN += *.o *.d
 
 TOCLEAN += *.cmo *.cmi *.cmx
 %.cmo: %.ml
-	$(OCAMLC) -c $<
+	$(OCAMLC) -c -I $(AST) $<
 
 %.cmx: %.ml
-	$(OCAMLOPT) -c $<
+	$(OCAMLOPT) -c -I $(AST) $<
 
 
 # compile a special module; -O0 will override any earlier setting
@@ -271,6 +271,7 @@ cc.gr.gen.h cc.gr.gen.cc: $(CC_GR_MODS) cc_tokens.ids $(ELKHOUND)/elkhound
 # List of ml modules needed by the parser. They are all combined 
 # into one ml_object.o file.
 CCPARSE_ML := \
+  $(AST)/ast_util.ml \
   elsa_util.ml \
   cc_ml_types.ml \
   cc_ml_constructors.ml \
@@ -291,22 +292,30 @@ depend: mldeps
 mldeps:
 	ocamldep $(CCPARSE_ML) > mldeps.mk
 
-#
+# have two entries to facilitate compiling all ml files
+elsa_cmo_objects: $(CCPARSE_ML:.ml=.cmo) 
+elsa_cmx_objects: $(CCPARSE_ML:.ml=.cmx) 
+
 ml_object.byte.o: $(CCPARSE_ML:.ml=.cmo) 
 	$(OCAMLC) -output-obj -o $@ $^
 
 ml_object.native.o: $(CCPARSE_ML:.ml=.cmx) 
 	$(OCAMLOPT) -output-obj -o $@ $^
 
-../ast/ocamlhelp.o: ../ast/ocamlhelp.cc ../ast/ocamlhelp.h
-	$(MAKE) -C ../ast ocamlhelp.o
+$(AST)/ocamlhelp.o: $(AST)/ocamlhelp.cc $(AST)/ocamlhelp.h
+	$(MAKE) -C $(AST) ocamlhelp.o
 
+$(AST)/ast_util.cmo: $(AST)/ast_util.ml
+	$(MAKE) -C $(AST) $@
+
+$(AST)/ast_util.cmx: $(AST)/ast_util.ml
+	$(MAKE) -C $(AST) $@
 
 # list of modules needed for the parser; ideally they're in an order
 # that finds serious compilation problems earliest (it's ok to
 # rearrange as different parts of the code are in flux)
 CCPARSE_OBJS := \
-  ../ast/ocamlhelp.o \
+  $(AST)/ocamlhelp.o \
   ml_object.native.o \
   cc_ocaml.o \
   variable.o \
@@ -445,11 +454,11 @@ TAGS:
 	otags `find . -name \*.ml -o -name \*.mli |\
 		egrep -v $(DISCARDPATTERN)`
 	etags --append --members -l c++ \
-		`find . ../ast ../elkhound ../smbase -name \*.h | \
+		`find . $(AST) $(ELKHOUND) ../smbase -name \*.h | \
 			egrep -v $(DISCARDPATTERN)` \
-		`find . ../ast ../elkhound ../smbase -name \*.cc | \
+		`find . $(AST) $(ELKHOUND) ../smbase -name \*.cc | \
 			egrep -v $(DISCARDPATTERN)` \
-		`find . ../ast ../elkhound ../smbase -name \*.cpp | \
+		`find . $(AST) $(ELKHOUND) ../smbase -name \*.cpp | \
 			egrep -v $(DISCARDPATTERN)`
 
 

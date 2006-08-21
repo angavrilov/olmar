@@ -28,3 +28,6 @@ changes
 history.txt
 tmp.txt
 testcout
+*.cmi
+*.cmo
+*.cmx

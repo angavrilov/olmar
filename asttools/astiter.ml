@@ -595,6 +595,13 @@ and iDeclarator_fun x =
 	  sourceLoc_fun sourceLoc;
 	  iDeclarator_fun iDeclarator
 
+      | D_attribute(annot, sourceLoc, iDeclarator, attribute_list_list) ->
+	  annotation_fun annot;
+	  sourceLoc_fun sourceLoc;
+	  iDeclarator_fun iDeclarator;
+	  List.iter (List.iter attribute_fun) attribute_list_list
+
+
 
 and exceptionSpec_fun(annot, aSTTypeId_list) =
   if visited annot then ()
@@ -1140,28 +1147,30 @@ and designator_fun x =
 	  opt_iter expression_fun expression_opt
 
 
-and attributeSpecifierList_fun x = 
-  let annot = attributeSpecifierList_annotation x
-  in
-    if visited annot then ()
-    else match x with
-      | AttributeSpecifierList_cons(annot, attributeSpecifier, 
-				    attributeSpecifierList) -> 
-	  annotation_fun annot;
-	  attributeSpecifier_fun attributeSpecifier;
-	  attributeSpecifierList_fun 
-	    attributeSpecifierList
-
-
-and attributeSpecifier_fun x = 
-  let annot = attributeSpecifier_annotation x
-  in
-    if visited annot then ()
-    else match x with
-      | AttributeSpecifier_cons(annot, attribute, attributeSpecifier) -> 
-	  annotation_fun annot;
-	  attribute_fun attribute;
-	  attributeSpecifier_fun attributeSpecifier
+(* 
+ * and attributeSpecifierList_fun x = 
+ *   let annot = attributeSpecifierList_annotation x
+ *   in
+ *     if visited annot then ()
+ *     else match x with
+ *       | AttributeSpecifierList_cons(annot, attributeSpecifier, 
+ * 				    attributeSpecifierList) -> 
+ * 	  annotation_fun annot;
+ * 	  attributeSpecifier_fun attributeSpecifier;
+ * 	  attributeSpecifierList_fun 
+ * 	    attributeSpecifierList
+ * 
+ * 
+ * and attributeSpecifier_fun x = 
+ *   let annot = attributeSpecifier_annotation x
+ *   in
+ *     if visited annot then ()
+ *     else match x with
+ *       | AttributeSpecifier_cons(annot, attribute, attributeSpecifier) -> 
+ * 	  annotation_fun annot;
+ * 	  attribute_fun attribute;
+ * 	  attributeSpecifier_fun attributeSpecifier
+ *)
 
 
 and attribute_fun x = 

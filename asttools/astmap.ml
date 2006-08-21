@@ -529,6 +529,13 @@ and iDeclarator_fun = function
 		 sourceLoc_fun sourceLoc,
 		 iDeclarator_fun iDeclarator)
 
+  | D_attribute(annot, sourceLoc, iDeclarator, attribute_list_list) ->
+      D_attribute(annotation_fun annot,
+		  sourceLoc_fun sourceLoc,
+		  iDeclarator_fun iDeclarator,
+		  List.map (List.map attribute_fun) attribute_list_list)
+
+
 
 and exceptionSpec_fun(annot, aSTTypeId_list) =
   (annotation_fun annot,

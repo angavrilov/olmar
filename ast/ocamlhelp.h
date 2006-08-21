@@ -39,9 +39,9 @@ extern "C" {
 
 // -------------------------- ocaml helpers -----------------------
 
-// take this only if we really want the ocaml interface
-// _and_ have defined the value type
 
+// callback for List.rev
+value ocaml_list_rev(value l);
 
 // The class ToOcamlData is not used in any way here. It only 
 // appears here because all the serialization functions have a 

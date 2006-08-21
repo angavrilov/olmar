@@ -43,5 +43,5 @@ Printexc.catch main ()
 
   
 (*** Local Variables: ***)
-(*** compile-command: "/usr/local/stow/ocaml-ty-2006-06-22/bin/ocamlc.opt -o check-oast -I ../elsa safeUnmarshal.cma ast_annotation.cmo elsa_util.cmo cc_ml_types.cmo ml_ctype.cmo cc_ast_gen_type.cmo check-oast.ml" ***)
+(*** compile-command: "./make-check-oast" ***)
 (*** End: ***)

@@ -3,9 +3,9 @@ OCAMLC   := ocamlc.opt -g
 OCAMLOPT := ocamlopt.opt 
 
 #all: hashloc
-all: test_ast
+#all: test_ast
 #all: path_to_node.cmo
-#all: ast_graph
+all: ast_graph
 #all: ast_graph astiter.cmo astiternodes.cmo astmap.cmo dumpast hashloc
 
 TOCLEAN =
@@ -52,18 +52,40 @@ TOCLEAN += hashloc
 hashloc: $(HASHLOC_ML:.ml=.cmo)
 	$(OCAMLC) -o $@ $^
 
+CHECKOAST_ML=\
+	../elsa/ast_annotation.ml \
+	../elsa/elsa_util.ml \
+	../elsa/cc_ml_types.ml \
+	../elsa/ml_ctype.ml \
+	../elsa/cc_ast_gen_type.ml \
+	check-oast.ml
+
+TOCLEAN += check-oast
+check-oast: $(CHECKOAST_ML:.ml=.cmx)
+	$(OCAMLOPT) -o $@ -I ../elsa safeUnmarshal.cmxa $^
+
 
 ../elsa/%.cmo: ../elsa/%.ml
-	$(MAKE) -C ../elsa $@
+	$(MAKE) -C ../elsa elsa_cmo_objects
+
+../elsa/%.cmx: ../elsa/%.ml
+	$(MAKE) -C ../elsa elsa_cmx_objects
+
 
 .PHONY: clean
 clean:
 	rm -f $(TOCLEAN)
 
+.PHONY: tyclean
+tyclean:
+	(cd ../elsa; rm -f *.cmi *.cmo *.cmx)
+	(cd ../ast; rm -f *.cmi *.cmo *.cmx)
+
 TOCLEAN += *.cmo
 %.cmo: %.ml
 	$(OCAMLC) -I ../elsa -c $<
 
+TOCLEAN += *.cmx *.o
 %.cmx: %.ml
 	$(OCAMLOPT) -I ../elsa -c $<
 

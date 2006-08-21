@@ -34,10 +34,14 @@ function usage(){
 skip=0
 typeset -i count=0
 
+dot=dot
+
 #echo args: $#
 
 while [ $# -ge 1 ] ; do
     case $1 in
+	-parse)
+	    dot=dot-parseonly;;
 	-skip)	
 	    if [ $# -lt 2 ] ; then
 		usage
@@ -64,15 +68,15 @@ for f in $ast_files ; do
 	fi
 	echo $f | grep -q big
 	if [ $? = 0 ] ; then
-	    dot -v -Tps $f.dot -o $f.ps
+	    $dot -v -Tps $f.dot -o $f.ps
 	    result=$?
 	else
-	    dot -Tps $f.dot -o $f.ps
+	    $dot -Tps $f.dot -o $f.ps
 	    result=$?
 	fi
 	result=$?
 	if [ ! $result -eq 0 ] ; then
-	    echo dot exit $result on $f >&2
+	    echo $dot exit $result on $f >&2
 	    exit $result
 	fi
     fi

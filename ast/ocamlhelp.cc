@@ -14,3 +14,13 @@ value option_some_constr(value v){
   xassert(IS_OCAML_AST_VALUE(result));
   CAMLreturn(result);
 }
+
+
+value ocaml_list_rev(value l){
+  CAMLparam1(l);
+  static value * list_rev_callback = NULL;
+  if(list_rev_callback == NULL)
+    list_rev_callback = caml_named_value("List.rev");
+  xassert(list_rev_callback);
+  CAMLreturn(caml_callback(*list_rev_callback, l));
+}

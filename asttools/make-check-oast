@@ -1,0 +1,24 @@
+#!/bin/bash
+
+#set -x
+
+OCAML_TY_DIR=/usr/local/stow/ocaml-ty-2006-06-22/bin
+OCAMLC=$OCAML_TY_DIR/ocamlc.opt
+OCAMLOPT=$OCAML_TY_DIR/ocamlopt.opt
+
+version=$(file ../elsa/*cmi | head -1 | \
+    sed -e ' s/.*file (\([^)]*\)) (Version \([0-9]*\).*/\1-\2/')
+
+echo version = $version
+
+if [ $version = ".cmi-010" ] ; then
+    (cd ../elsa; rm -f *cmi *cmo *cmx)
+    (cd ../ast; rm -f *cmi *cmo *cmx)
+
+    make -C ../ast OCAMLC=$OCAMLC OCAMLOPT=$OCAMLOPT ast_cmx_objects
+    make -C ../elsa OCAMLC=$OCAMLC OCAMLOPT=$OCAMLOPT elsa_cmx_objects
+fi
+
+
+make OCAMLC=$OCAMLC OCAMLOPT=$OCAMLOPT check-oast
+

@@ -118,6 +118,7 @@ let iDeclarator_annotation = function
   | D_bitfield(annot, _, _, _)
   | D_ptrToMember(annot, _, _, _, _)
   | D_grouping(annot, _, _)
+  | D_attribute(annot, _, _, _)
     -> annot
 
 let exceptionSpec_annotation ((annot, _) : 'a exceptionSpec_type) = annot
@@ -326,6 +327,7 @@ let iDeclarator_loc = function
   | D_bitfield(_, loc, _, _)
   | D_ptrToMember(_, loc, _, _, _)
   | D_grouping(_, loc, _)
+  | D_attribute(_, loc, _, _)
     -> loc
 
 let statement_loc = function

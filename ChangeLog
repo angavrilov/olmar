@@ -1,3 +1,13 @@
+2006-08-21  Hendrik Tews  <tews@debian>
+
+	AST
+	* changed ocaml serialization to strict left-to-right order 
+
+	SEMANTIC
+	* changed dot generation to strict left-to-right evaluation:
+	  graphs should be generated left-to-right
+	* added D_attribute case
+
 2006-08-17  Hendrik Tews  <tews@debian>
 
 	ELSA

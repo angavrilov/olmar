@@ -351,101 +351,11 @@ class Member (SourceLoc loc) {
 }
 
 
-// Syntactically, a Declarator introduces a name of a declared thing,
-// and also optionally adds type constructors to the base type of the
-// specifier.  It may have an initializing expression, depending on
-// the context.
-class Declarator (
-  IDeclarator decl,                    // syntax of type designation
-  nullable Initializer init            // optional data initializer
-) {
-  // FakeList link; use 'setNext' to set 'next'
-  public Declarator *next = NULL;
-  public void setNext(Declarator *newNext);
+// HT: Move Declarator and IDeclarator to the end of this file.
+// This way I can extend the ocaml type definition of IDeclarator 
+// in a separate file. This extension is needed because of the 
+// hacky way ("clever idea") D_attribute are introduced in gnu.ast.
 
-  // ambiguity representation
-  public Declarator *ambiguity = NULL;
-  public void addAmbiguity(Declarator *alternative);
-  custom traverse { if (ambiguity) ambiguity->traverse(vis); }
-
-  // print ambiguities
-  public void printAmbiguities(ostream &os, int indent) const;
-  custom preemptDebugPrint {
-    if (ambiguity) {
-      printAmbiguities(os, indent);
-      return;     // skip the normal, unambiguous-node print code
-    }
-  }
-
-  // dig down and find the name being declared; may return NULL
-  public PQName const *getDeclaratorIdC() const;
-  public PQName *getDeclaratorId()
-    { return const_cast<PQName*>(getDeclaratorIdC()); };
-  public void setDeclaratorId(PQName *n);
-
-  public SourceLoc getLoc() const;
-}
-
-
-// inner declarator; things *recursively* buried inside declarators;
-// cannot have initializers; the internal structure can be ignored
-// once typechecking determines what type is denoted
-class IDeclarator(SourceLoc loc) {
-  // dig down and find the name being declared; may return NULL
-  pure_virtual PQName const *getDeclaratorIdC() const;
-  public PQName *getDeclaratorId()
-    { return const_cast<PQName*>(getDeclaratorIdC()); };
-
-  // dig down one IDeclarator level, yielding the 'base' field,
-  // unless this is a leaf (in which case return NULL)
-  pure_virtual IDeclarator const *getBaseC() const;
-  public IDeclarator *getBase()
-    { return const_cast<IDeclarator*>(getBaseC()); };
-
-  // skip any toplevel grouping operators
-  public IDeclarator *skipGroups();
-
-  // true if this declarator is "obviously" declaring a function type,
-  // i.e. the innermost non-D_name, non-D_grouping constructor is
-  // D_func
-  public bool bottomIsDfunc() const;
-
-  // "x" (NULL means abstract declarator or anonymous parameter);
-  // this is used for ctors and dtors as well as ordinary names
-  // (dtor names start with "~"); it's also used for operator names
-  -> D_name(nullable PQName name);
-
-  // "*x" (as in "int *x")
-  -> D_pointer(CVFlags cv,  // optional qualifiers applied to ptr type
-               IDeclarator base);
-
-  // "&x"
-  -> D_reference(IDeclarator base);
-
-  // "f(int)"
-  -> D_func(IDeclarator base,                       // D_name of function, typically
-            FakeList<ASTTypeId> *params,            // params with optional default values
-            CVFlags cv,                             // optional "const" for member functions
-            nullable ExceptionSpec exnSpec);        // throwable exceptions
-
-  // "a[5]" or "b[]"
-  -> D_array(IDeclarator base, nullable Expression size);
-
-  // "c : 2"
-  //
-  // I use a PQName here instead of a StringRef for uniformity
-  // (so every IDeclarator ends with a PQName); there are never
-  // qualifiers on a bitfield name
-  -> D_bitfield(nullable PQName name, Expression bits);
-
-  // "X::*p"
-  -> D_ptrToMember(PQName nestedName, CVFlags cv, IDeclarator base);
-
-  // declarator grouping operator: it's semantically irrelevant
-  // (i.e. equivalent to just 'base' alone), but plays a role in
-  // disambiguation
-  -> D_grouping(IDeclarator base);
-}
 
 // specification of what a function can throw; if an ExceptionSpec
 // pointer is NULL, it means there is no specification, i.e. anything
@@ -849,472 +759,134 @@ class NamespaceDecl {
 }
 
 
+// Syntactically, a Declarator introduces a name of a declared thing,
+// and also optionally adds type constructors to the base type of the
+// specifier.  It may have an initializing expression, depending on
+// the context.
+class Declarator (
+  IDeclarator decl,                    // syntax of type designation
+  nullable Initializer init            // optional data initializer
+) {
+  // FakeList link; use 'setNext' to set 'next'
+  public Declarator *next = NULL;
+  public void setNext(Declarator *newNext);
+
+  // ambiguity representation
+  public Declarator *ambiguity = NULL;
+  public void addAmbiguity(Declarator *alternative);
+  custom traverse { if (ambiguity) ambiguity->traverse(vis); }
+
+  // print ambiguities
+  public void printAmbiguities(ostream &os, int indent) const;
+  custom preemptDebugPrint {
+    if (ambiguity) {
+      printAmbiguities(os, indent);
+      return;     // skip the normal, unambiguous-node print code
+    }
+  }
+
+  // dig down and find the name being declared; may return NULL
+  public PQName const *getDeclaratorIdC() const;
+  public PQName *getDeclaratorId()
+    { return const_cast<PQName*>(getDeclaratorIdC()); };
+  public void setDeclaratorId(PQName *n);
+
+  public SourceLoc getLoc() const;
+}
+
+
+// HT: IDeclarator *must* be the last class in this file.
+// This way I can extend the ocaml type definition of IDeclarator 
+// in a separate file. This extension is needed because of the 
+// hacky way ("clever idea") D_attribute are introduced in gnu.ast.
+
+// inner declarator; things *recursively* buried inside declarators;
+// cannot have initializers; the internal structure can be ignored
+// once typechecking determines what type is denoted
+class IDeclarator(SourceLoc loc) {
+  // dig down and find the name being declared; may return NULL
+  pure_virtual PQName const *getDeclaratorIdC() const;
+  public PQName *getDeclaratorId()
+    { return const_cast<PQName*>(getDeclaratorIdC()); };
+
+  // dig down one IDeclarator level, yielding the 'base' field,
+  // unless this is a leaf (in which case return NULL)
+  pure_virtual IDeclarator const *getBaseC() const;
+  public IDeclarator *getBase()
+    { return const_cast<IDeclarator*>(getBaseC()); };
+
+  // skip any toplevel grouping operators
+  public IDeclarator *skipGroups();
+
+  // true if this declarator is "obviously" declaring a function type,
+  // i.e. the innermost non-D_name, non-D_grouping constructor is
+  // D_func
+  public bool bottomIsDfunc() const;
+
+  // "x" (NULL means abstract declarator or anonymous parameter);
+  // this is used for ctors and dtors as well as ordinary names
+  // (dtor names start with "~"); it's also used for operator names
+  -> D_name(nullable PQName name);
+
+  // "*x" (as in "int *x")
+  -> D_pointer(CVFlags cv,  // optional qualifiers applied to ptr type
+               IDeclarator base);
+
+  // "&x"
+  -> D_reference(IDeclarator base);
+
+  // "f(int)"
+  -> D_func(IDeclarator base,                       // D_name of function, typically
+            FakeList<ASTTypeId> *params,            // params with optional default values
+            CVFlags cv,                             // optional "const" for member functions
+            nullable ExceptionSpec exnSpec);        // throwable exceptions
+
+  // "a[5]" or "b[]"
+  -> D_array(IDeclarator base, nullable Expression size);
+
+  // "c : 2"
+  //
+  // I use a PQName here instead of a StringRef for uniformity
+  // (so every IDeclarator ends with a PQName); there are never
+  // qualifiers on a bitfield name
+  -> D_bitfield(nullable PQName name, Expression bits);
+
+  // "X::*p"
+  -> D_ptrToMember(PQName nestedName, CVFlags cv, IDeclarator base);
+
+  // declarator grouping operator: it's semantically irrelevant
+  // (i.e. equivalent to just 'base' alone), but plays a role in
+  // disambiguation
+  -> D_grouping(IDeclarator base);
+}
+
+// HT: Nothing should follow here. 
+// IDeclarator *must* be the last class in this file. 
+// See explanation before IDeclarator.
+
 // EOF
 //=========================== end  of  cc.ast
-//=========================== start of cc_print.ast
-// cc_print.ast            see license.txt for copyright and terms of use
-// extension module for cc.ast that supports printing C++
-// syntax from the AST
+//=========================== start of gnu_attribute_hack.ast
 
-verbatim {
-  class PrintEnv;               // cc_print.h
-  class CodeOutStream;          // cc_print.h
+// HT: This file must be included right after cc.ast, 
+// if the GNU language extension is used. Here I extend
+// the ocaml type definition of IDeclarator with a case for
+// D_attribute. This extension is needed because of the 
+// hacky way ("clever idea") D_attribute is introduced in gnu.ast.
+
+// A verbatim in the first place is treated specifically by astgen.
+// Therefore put something before the verbatim.
+class IDeclarator{}
+
+ocaml_type_verbatim {
+
+  (* extend iDeclarator_type *)
+  | D_attribute of 'a * sourceLoc * 'a iDeclarator_type 
+     (* the following is more convenient than AttributeSpecifierList *)
+      * 'a attribute_type list list 
+
 }
-
-
-class TranslationUnit {
-  // This is the toplevel entry point to the pretty printer.
-  public void print(PrintEnv &env);
-}
-
-
-class TopForm {
-  pure_virtual void print(PrintEnv &env);
-}
-
-
-class Function {
-  public void print(PrintEnv &env);
-}
-
-
-class Declaration {
-  public void print(PrintEnv &env);
-}
-
-
-class ASTTypeId {
-  public void print(PrintEnv &env);
-}
-
-
-class PQName {
-  pure_virtual void print(PrintEnv &env);
-}
-
-verbatim {
-  // so clients outside cc_print.cc can print these lists; this
-  // does *not* print the surrounding angle brackets
-  void printTemplateArgumentFakeList(PrintEnv &env, FakeList<TemplateArgument> *args);
-}
-
-
-class TypeSpecifier {
-  pure_virtual void print(PrintEnv &env);
-}
-
-
-class BaseClassSpec {
-  public void print(PrintEnv &env);
-}
-
-
-class Member {
-  pure_virtual void print(PrintEnv &env);
-}
-
-
-class Enumerator {
-  public void print(PrintEnv &env);
-}
-
-
-class Declarator {
-  public void print(PrintEnv &env);
-}
-
-
-class IDeclarator {
-  public void print(PrintEnv &env);
-}
-
-
-class ExceptionSpec {
-  public void print(PrintEnv &env);
-}
-
-
-class Statement {
-  public void print(PrintEnv &env);
-  pure_virtual void iprint(PrintEnv &env);
-}
-
-
-class Condition {
-  pure_virtual void print(PrintEnv &env);
-}
-
-
-class Handler {
-  public void print(PrintEnv &env);
-}
-
-
-class FullExpression {
-  public void print(PrintEnv &env);
-}
-
-
-class Expression {
-  public void print(PrintEnv &env);
-  pure_virtual void iprint(PrintEnv &env);
-
-  public string exprToString() const;
-  public string asString() const { return exprToString(); };
-}
-
-verbatim {                               
-  // for debugging
-  char *expr_toString(Expression const *e);
-  int expr_debugPrint(Expression const *e);
-}
-
-
-class Initializer {
-  pure_virtual void print(PrintEnv &env);
-}
-
-
-class TemplateDeclaration {
-  public void print(PrintEnv &env);
-  pure_virtual void iprint(PrintEnv &env);
-}
-
-
-class TemplateParameter {
-  pure_virtual void print(PrintEnv &env);
-}
-
-
-class TemplateArgument {
-  pure_virtual void print(PrintEnv &env);
-}
-
-
-class NamespaceDecl {
-  pure_virtual void print(PrintEnv &env);
-}
-//=========================== end  of  cc_print.ast
-//=========================== start of cfg.ast
-// cfg.ast
-// AST extension to cc.ast for storing and computing a CFG
-
-// the methods declared here are defined in cfg.cc
-
-verbatim {
-  #define CFG_EXTENSION   // this extension module is active
-
-  #include "cfg.h"        // NextPtr
-}
-
-class Statement {
-  // control flow successor edge; interpretation depends on the exact
-  // kind of statement this is, however, so that's best left to
-  // 'getSuccessors()', and this is therefore protected
-  protected NextPtr next;
-  public friend class CFGEnv;     // allow CFGEnv to write 'next'
-  
-  // retrieve all successors of this node, given how we got to this
-  // node ('isContinue'), and put them into 'dest'; this can only
-  // be called after 'computeCFG' has finished; if this returns an
-  // empty set, it means that after the statement, the function returns
-  public void getSuccessors(NextPtrList &dest, bool isContinue);
-  public string successorsToString() const;
-  custom debugPrint {
-    ind(os, indent) << "succ=" << successorsToString() << endl;
-  }
-
-  // compute the CFG within this statement (e.g. a compound statement that
-  // is a function body)
-  public void computeCFG(CFGEnv &env);
-  pure_virtual void icfg(CFGEnv &env);    // TODO: make this private (must modify astgen)
-  
-  // switch has many outgoing edges, so it needs more than just 'next'
-  -> S_switch {
-       // pointers to all of the cases (& default) in this switch; when
-       // interpreted as a NextPtr, all 'continue' flags are false
-       private SObjList<Statement> cases;
-       public friend class CFGEnv;     // allow CFGEnv to write 'cases'
-       public friend class Statement;  // for Statement::getSuccessors
-     }
-}
-
-
-// EOF
-//=========================== end  of  cfg.ast
-//=========================== start of kandr.ast
-// kandr.ast            see license.txt for copyright and terms of use
-// derived from oink.ast
-// nominal author: dsw
-
-// extension module to cc.ast; goes with kandr.gr
-
-verbatim {
-  #define KANDR_EXTENSION         // this extension module is active
-}
-
-class PQName {
-  // Used in D_func::traverse to traverse kandr_params
-  -> PQ_name {
-    // FakeList link; use 'setNext' to set 'next'
-    public PQ_name *next = NULL;
-    public void setNext(PQ_name *newNext);
-  }
-}
-
-class IDeclarator {
-  // retrieve the innermost D_func constructor
-  pure_virtual D_func *getD_func();
-
-  -> D_func(FakeList<PQ_name> *kAndR_params = NULL); // params if a K&R function
-}
-//=========================== end  of  kandr.ast
-//=========================== start of cc_elaborate.ast
-// cc_elaborate.ast            see license.txt for copyright and terms of use
-// extension to cc.ast defining data for an elaboration pass
-// see also cc_elaborate.h
-
-
-// IMPORTANT: If you add elaboration fields here, then you must also
-// add traverse() calls visiting them in LoweredASTVisitor.
-
-
-verbatim {
-  class ElabVisitor;             // cc_elaborate.h
-  string refersTo(Variable *v);  // cc_ast_aux.cc
-}
-
-
-// Objects with a FullExpressionAnnot have their own scope containing
-// both these declarations and their sub-expressions.  The
-// declarations come semantically before the sub-expression with which
-// this object is associated.
-class FullExpressionAnnot (ASTList<Declaration> declarations) {
-  public bool noTemporaries() const { return declarations.isEmpty(); };
-}
-
-
-class Function {
-  // for EA_ELIM_RETURN_BY_VALUE, this variable is the hidden
-  // parameter bound to the object into which the return value
-  // will be constructed
-  //
-  // NOTE!: If this function is a ctor, then the semantics is as if we
-  // have this line in the code before the MemberInit-s:
-  //   this = &retVar;
-  public(xml_TY) Variable *retVar = NULL;
-  custom debugPrint { ind(os,indent) << "retVar: " << refersTo(retVar) << "\n"; }
-
-  // to be called when the function exits; should only be non-NULL for
-  // dtor Functions: it is the superclass and member dtors that are
-  // implicitly called
-  public(field,nullable,xml_AST,owner) Statement *dtorStatement = NULL;
-
-  // is this function implicitly defined?  dsw: I need to know so that
-  // the linker imitator doesn't think there is a double-definition
-  // when the same class occurs in two different translation units
-  //
-  // sm: this is now redundant with Variable::isImplicitMemberFunc()
-  public(field,xml) bool implicitlyDefined = false;
-}
-
-
-class PQName {  
-  // denote an existing Variable; avoids having to create syntax
-  -> PQ_variable(Variable *var);
-}
-
-
-class TypeSpecifier {
-  // denote an existing CType
-  -> TS_type(CType *type);
-}
-
-
-class MemberInit {
-  // A single MemberInit seems very much like a single expression to
-  // me, since it is a ctor call and an IN_ctor is also
-  private(xml_AST) FullExpressionAnnot *annot = NULL;
-  public bool hasAnnot();
-  public FullExpressionAnnot *getAnnot();
-
-  // a MemberInit calls a ctor
-  public(field,nullable,xml_AST,owner) Statement *ctorStatement = NULL;
-}
-
-
-class Declarator {
-  // each declarator has a construction statement, that does its
-  // initialization, and a destruction statement, that calls any
-  // needed destructors; the latter is to be evaluated when this
-  // declarator goes out of scope
-  public(field,nullable,xml_AST,owner) Statement *ctorStatement = NULL;
-  public(field,nullable,xml_AST,owner) Statement *dtorStatement = NULL;
-
-  // the 'dflags' are the syntactic declaration flags attached
-  // to the declaration in which this declarator appears
-  public void elaborateCDtors(ElabVisitor &env, DeclFlags dflags = DF_NONE);
-}
-
-
-class IDeclarator {
-  -> D_func {
-//         // elaborate the parameters
-//         public void elaborateParameterCDtors(ElabVisitor &env);
-  }
-}
-
-
-class Statement {
-  -> S_return() {
-    // This is for the copy ctor that is needed when you do a return
-    // by value of a CompoundType.  It always will copy into the
-    // *FunctionType::retVar for the function that it is in.
-    public(field,nullable,xml_AST,owner) Statement *ctorStatement = NULL;
-
-    // this function sets 'ctorStatement', and returns a visitor boolean
-    public bool elaborate(ElabVisitor &env);
-  }
-}
-
-
-class Handler {
-    // the global that the throw argument is copy-ctored into, if
-    // thrown by value; this should be linked to the globalVar in
-    // E_throw by a backend
-    public(xml_TY) Variable *globalVar = NULL;
-    custom debugPrint { ind(os,indent) << "globalVar: " << refersTo(globalVar) << "\n"; }
-    // we need this so that the temporary that is made when an
-    // exception is caught by value has some place to go; that is, a
-    // Handler has to have all the necessary components of an
-    // E_funCall, as that's how it behaves
-    private(xml_AST) FullExpressionAnnot *annot = NULL;
-    public bool hasAnnot();
-    public FullExpressionAnnot *getAnnot();
-    // local temporary and ctor for it if we catch by value
-    public(field,nullable,xml_AST,owner) Expression *localArg=NULL;
-    // dtor for the globalVar if it is a CompoundType or ref to one
-    public(field,nullable,xml_AST,owner) Statement *globalDtorStatement = NULL;
-
-    public void elaborate(ElabVisitor &env);
-}
-
-
-class FullExpression {
-  private(xml_AST) FullExpressionAnnot *annot = NULL;
-  public bool hasAnnot();
-  public FullExpressionAnnot *getAnnot();
-}
-
-
-class Expression {
-  // All of the 'elaborate()' functions of Expression return a visitor
-  // boolean: true to elaborate the children automatically, false to
-  // skip the children.  See the SES in cc_elaborate.cc.
-
-  -> E_funCall {
-    // Pass by value (for class-valued objects) is elaborated by saying there
-    // is another function parameter, the 'return object'.  At the call site,
-    // we specify an object (reference) that will be bound to that parameter,
-    // and the function implementation is expected to write to that object.
-    public(field,nullable,xml_AST,owner) Expression *retObj = NULL;
-  }
-
-  -> E_constructor {
-    // did we manufacture it? needed during elaboration
-    public(field,xml) bool artificial = false;
-
-    // similar to E_funCall; object being constructed
-    public(field,nullable,xml_AST,owner) Expression *retObj = NULL;
-  }
-
-  -> E_new {
-    // this statement implements the 'new' operation in terms of more
-    // primitive concepts like allocation and calling the constructor;
-    // after elaboration, and analysis can just ignore the E_new and
-    // look at the 'ctorStatement' instead
-    public(field,nullable,xml_AST,owner) Statement *ctorStatement = NULL;
-
-    // I need a place to put the variable being ctored because
-    // E_constructor needs to point at a variable.  Note that this var
-    // is really on the heap.
-    public(xml_TY) Variable *heapVar = NULL;
-    custom debugPrint { ind(os,indent) << "heapVar: " << refersTo(heapVar) << "\n"; }
-
-    public bool elaborate(ElabVisitor &env);
-  }
-
-  -> E_delete {
-    // this implements destruction and deallocation; NOTE: E_delete is
-    // already an expression and so will already be inside a
-    // FullExpression; to make it a dtorStatement adds an extra layer
-    // of FullExpression; we do it anyway
-    public(field,nullable,xml_AST,owner) Statement *dtorStatement = NULL;
-
-    public bool elaborate(ElabVisitor &env);
-  }
-
-  -> E_throw {
-    // the global that the throw argument is copy-ctored into, if
-    // thrown by value
-    public(xml_TY) Variable *globalVar = NULL;
-    custom debugPrint { ind(os,indent) << "globalVar: " << refersTo(globalVar) << "\n"; }
-
-    public(field,nullable,xml_AST,owner) Statement *globalCtorStatement=NULL;
-
-    public bool elaborate(ElabVisitor &env);
-  }
-}
-
-
-class Initializer {
-  // [cppstd 1.9 para 12 and 13] "A full-expression is an expression
-  // that is not a subexpression of another expression.  If a language
-  // construct is defined to produce an implicit call of a function, a
-  // use of the language construct is considered to be an expression
-  // for the purposes of this definition.
-
-  // [Note: certain contexts in C++ cause the evaluation of a
-  // full-expression that results from a syntactic construct other
-  // than expression (5.18).  For example, in 8.5, another syntax for
-  // initializer is '( expression-list )' but the resulting construct
-  // is a function call upon a constructor function with
-  // expression-list as an argument list; such a function call is a
-  // full-expression.  For example, in 8.5, another syntax for
-  // initializer is '= initializer-clause' but again the resulting
-  // construct might be a function call upon a constructor function
-  // with one assignment-expression as an argument; again, the
-  // function call is a full-expression. ]
-
-  // Therefore, the arguments to IN_ctor and IN_expr are *not*
-  // FullExpressions because the whole of Initializer is.  I think the
-  // FullExpressionAnnot is redundant in the case of IN_compound, but
-  // I like sharing it in Initializer and an extra layer doesn't hurt.
-
-  // TODO: sm: Currently, we associate a FullExpressionAnnot with
-  // Initializer, which means we get one for every element of a
-  // compound initializer.  This wastes a lot of space, and doesn't
-  // make sense for IN_compound.  I think we should say that (only)
-  // the entire initializer is a single Full Expression, but that
-  // requires adding another layer, like:
-  //
-  //   Initializer                   // has FullExpressionAnnot
-  //     -> IN_cinit(CInitializer)
-  //     -> IN_ctor(..)
-  //   CInitializer                  // "C" for compound
-  //     -> CI_expr
-  //     -> CI_compound(..)
-  //
-  // But I'll leave it for now.
-
-  private(xml_AST) FullExpressionAnnot *annot = NULL;
-  public bool hasAnnot();
-  public FullExpressionAnnot *getAnnot();
-}
-
-
-// EOF
-//=========================== end  of  cc_elaborate.ast
+//=========================== end  of  gnu_attribute_hack.ast
 //=========================== start of cc_tcheck.ast
 // cc_tcheck.ast            see license.txt for copyright and terms of use
 // extension module for cc.ast that defines the entry points
@@ -2089,6 +1661,443 @@ class NamespaceDecl {
 
 // EOF
 //=========================== end  of  cc_tcheck.ast
+//=========================== start of cc_print.ast
+// cc_print.ast            see license.txt for copyright and terms of use
+// extension module for cc.ast that supports printing C++
+// syntax from the AST
+
+verbatim {
+  class PrintEnv;               // cc_print.h
+  class CodeOutStream;          // cc_print.h
+}
+
+
+class TranslationUnit {
+  // This is the toplevel entry point to the pretty printer.
+  public void print(PrintEnv &env);
+}
+
+
+class TopForm {
+  pure_virtual void print(PrintEnv &env);
+}
+
+
+class Function {
+  public void print(PrintEnv &env);
+}
+
+
+class Declaration {
+  public void print(PrintEnv &env);
+}
+
+
+class ASTTypeId {
+  public void print(PrintEnv &env);
+}
+
+
+class PQName {
+  pure_virtual void print(PrintEnv &env);
+}
+
+verbatim {
+  // so clients outside cc_print.cc can print these lists; this
+  // does *not* print the surrounding angle brackets
+  void printTemplateArgumentFakeList(PrintEnv &env, FakeList<TemplateArgument> *args);
+}
+
+
+class TypeSpecifier {
+  pure_virtual void print(PrintEnv &env);
+}
+
+
+class BaseClassSpec {
+  public void print(PrintEnv &env);
+}
+
+
+class Member {
+  pure_virtual void print(PrintEnv &env);
+}
+
+
+class Enumerator {
+  public void print(PrintEnv &env);
+}
+
+
+class Declarator {
+  public void print(PrintEnv &env);
+}
+
+
+class IDeclarator {
+  public void print(PrintEnv &env);
+}
+
+
+class ExceptionSpec {
+  public void print(PrintEnv &env);
+}
+
+
+class Statement {
+  public void print(PrintEnv &env);
+  pure_virtual void iprint(PrintEnv &env);
+}
+
+
+class Condition {
+  pure_virtual void print(PrintEnv &env);
+}
+
+
+class Handler {
+  public void print(PrintEnv &env);
+}
+
+
+class FullExpression {
+  public void print(PrintEnv &env);
+}
+
+
+class Expression {
+  public void print(PrintEnv &env);
+  pure_virtual void iprint(PrintEnv &env);
+
+  public string exprToString() const;
+  public string asString() const { return exprToString(); };
+}
+
+verbatim {                               
+  // for debugging
+  char *expr_toString(Expression const *e);
+  int expr_debugPrint(Expression const *e);
+}
+
+
+class Initializer {
+  pure_virtual void print(PrintEnv &env);
+}
+
+
+class TemplateDeclaration {
+  public void print(PrintEnv &env);
+  pure_virtual void iprint(PrintEnv &env);
+}
+
+
+class TemplateParameter {
+  pure_virtual void print(PrintEnv &env);
+}
+
+
+class TemplateArgument {
+  pure_virtual void print(PrintEnv &env);
+}
+
+
+class NamespaceDecl {
+  pure_virtual void print(PrintEnv &env);
+}
+//=========================== end  of  cc_print.ast
+//=========================== start of cfg.ast
+// cfg.ast
+// AST extension to cc.ast for storing and computing a CFG
+
+// the methods declared here are defined in cfg.cc
+
+verbatim {
+  #define CFG_EXTENSION   // this extension module is active
+
+  #include "cfg.h"        // NextPtr
+}
+
+class Statement {
+  // control flow successor edge; interpretation depends on the exact
+  // kind of statement this is, however, so that's best left to
+  // 'getSuccessors()', and this is therefore protected
+  protected NextPtr next;
+  public friend class CFGEnv;     // allow CFGEnv to write 'next'
+  
+  // retrieve all successors of this node, given how we got to this
+  // node ('isContinue'), and put them into 'dest'; this can only
+  // be called after 'computeCFG' has finished; if this returns an
+  // empty set, it means that after the statement, the function returns
+  public void getSuccessors(NextPtrList &dest, bool isContinue);
+  public string successorsToString() const;
+  custom debugPrint {
+    ind(os, indent) << "succ=" << successorsToString() << endl;
+  }
+
+  // compute the CFG within this statement (e.g. a compound statement that
+  // is a function body)
+  public void computeCFG(CFGEnv &env);
+  pure_virtual void icfg(CFGEnv &env);    // TODO: make this private (must modify astgen)
+  
+  // switch has many outgoing edges, so it needs more than just 'next'
+  -> S_switch {
+       // pointers to all of the cases (& default) in this switch; when
+       // interpreted as a NextPtr, all 'continue' flags are false
+       private SObjList<Statement> cases;
+       public friend class CFGEnv;     // allow CFGEnv to write 'cases'
+       public friend class Statement;  // for Statement::getSuccessors
+     }
+}
+
+
+// EOF
+//=========================== end  of  cfg.ast
+//=========================== start of cc_elaborate.ast
+// cc_elaborate.ast            see license.txt for copyright and terms of use
+// extension to cc.ast defining data for an elaboration pass
+// see also cc_elaborate.h
+
+
+// IMPORTANT: If you add elaboration fields here, then you must also
+// add traverse() calls visiting them in LoweredASTVisitor.
+
+
+verbatim {
+  class ElabVisitor;             // cc_elaborate.h
+  string refersTo(Variable *v);  // cc_ast_aux.cc
+}
+
+
+// Objects with a FullExpressionAnnot have their own scope containing
+// both these declarations and their sub-expressions.  The
+// declarations come semantically before the sub-expression with which
+// this object is associated.
+class FullExpressionAnnot (ASTList<Declaration> declarations) {
+  public bool noTemporaries() const { return declarations.isEmpty(); };
+}
+
+
+class Function {
+  // for EA_ELIM_RETURN_BY_VALUE, this variable is the hidden
+  // parameter bound to the object into which the return value
+  // will be constructed
+  //
+  // NOTE!: If this function is a ctor, then the semantics is as if we
+  // have this line in the code before the MemberInit-s:
+  //   this = &retVar;
+  public(xml_TY) Variable *retVar = NULL;
+  custom debugPrint { ind(os,indent) << "retVar: " << refersTo(retVar) << "\n"; }
+
+  // to be called when the function exits; should only be non-NULL for
+  // dtor Functions: it is the superclass and member dtors that are
+  // implicitly called
+  public(field,nullable,xml_AST,owner) Statement *dtorStatement = NULL;
+
+  // is this function implicitly defined?  dsw: I need to know so that
+  // the linker imitator doesn't think there is a double-definition
+  // when the same class occurs in two different translation units
+  //
+  // sm: this is now redundant with Variable::isImplicitMemberFunc()
+  public(field,xml) bool implicitlyDefined = false;
+}
+
+
+class PQName {  
+  // denote an existing Variable; avoids having to create syntax
+  -> PQ_variable(Variable *var);
+}
+
+
+class TypeSpecifier {
+  // denote an existing CType
+  -> TS_type(CType *type);
+}
+
+
+class MemberInit {
+  // A single MemberInit seems very much like a single expression to
+  // me, since it is a ctor call and an IN_ctor is also
+  private(xml_AST) FullExpressionAnnot *annot = NULL;
+  public bool hasAnnot();
+  public FullExpressionAnnot *getAnnot();
+
+  // a MemberInit calls a ctor
+  public(field,nullable,xml_AST,owner) Statement *ctorStatement = NULL;
+}
+
+
+class Declarator {
+  // each declarator has a construction statement, that does its
+  // initialization, and a destruction statement, that calls any
+  // needed destructors; the latter is to be evaluated when this
+  // declarator goes out of scope
+  public(field,nullable,xml_AST,owner) Statement *ctorStatement = NULL;
+  public(field,nullable,xml_AST,owner) Statement *dtorStatement = NULL;
+
+  // the 'dflags' are the syntactic declaration flags attached
+  // to the declaration in which this declarator appears
+  public void elaborateCDtors(ElabVisitor &env, DeclFlags dflags = DF_NONE);
+}
+
+
+class IDeclarator {
+  -> D_func {
+//         // elaborate the parameters
+//         public void elaborateParameterCDtors(ElabVisitor &env);
+  }
+}
+
+
+class Statement {
+  -> S_return() {
+    // This is for the copy ctor that is needed when you do a return
+    // by value of a CompoundType.  It always will copy into the
+    // *FunctionType::retVar for the function that it is in.
+    public(field,nullable,xml_AST,owner) Statement *ctorStatement = NULL;
+
+    // this function sets 'ctorStatement', and returns a visitor boolean
+    public bool elaborate(ElabVisitor &env);
+  }
+}
+
+
+class Handler {
+    // the global that the throw argument is copy-ctored into, if
+    // thrown by value; this should be linked to the globalVar in
+    // E_throw by a backend
+    public(xml_TY) Variable *globalVar = NULL;
+    custom debugPrint { ind(os,indent) << "globalVar: " << refersTo(globalVar) << "\n"; }
+    // we need this so that the temporary that is made when an
+    // exception is caught by value has some place to go; that is, a
+    // Handler has to have all the necessary components of an
+    // E_funCall, as that's how it behaves
+    private(xml_AST) FullExpressionAnnot *annot = NULL;
+    public bool hasAnnot();
+    public FullExpressionAnnot *getAnnot();
+    // local temporary and ctor for it if we catch by value
+    public(field,nullable,xml_AST,owner) Expression *localArg=NULL;
+    // dtor for the globalVar if it is a CompoundType or ref to one
+    public(field,nullable,xml_AST,owner) Statement *globalDtorStatement = NULL;
+
+    public void elaborate(ElabVisitor &env);
+}
+
+
+class FullExpression {
+  private(xml_AST) FullExpressionAnnot *annot = NULL;
+  public bool hasAnnot();
+  public FullExpressionAnnot *getAnnot();
+}
+
+
+class Expression {
+  // All of the 'elaborate()' functions of Expression return a visitor
+  // boolean: true to elaborate the children automatically, false to
+  // skip the children.  See the SES in cc_elaborate.cc.
+
+  -> E_funCall {
+    // Pass by value (for class-valued objects) is elaborated by saying there
+    // is another function parameter, the 'return object'.  At the call site,
+    // we specify an object (reference) that will be bound to that parameter,
+    // and the function implementation is expected to write to that object.
+    public(field,nullable,xml_AST,owner) Expression *retObj = NULL;
+  }
+
+  -> E_constructor {
+    // did we manufacture it? needed during elaboration
+    public(field,xml) bool artificial = false;
+
+    // similar to E_funCall; object being constructed
+    public(field,nullable,xml_AST,owner) Expression *retObj = NULL;
+  }
+
+  -> E_new {
+    // this statement implements the 'new' operation in terms of more
+    // primitive concepts like allocation and calling the constructor;
+    // after elaboration, and analysis can just ignore the E_new and
+    // look at the 'ctorStatement' instead
+    public(field,nullable,xml_AST,owner) Statement *ctorStatement = NULL;
+
+    // I need a place to put the variable being ctored because
+    // E_constructor needs to point at a variable.  Note that this var
+    // is really on the heap.
+    public(xml_TY) Variable *heapVar = NULL;
+    custom debugPrint { ind(os,indent) << "heapVar: " << refersTo(heapVar) << "\n"; }
+
+    public bool elaborate(ElabVisitor &env);
+  }
+
+  -> E_delete {
+    // this implements destruction and deallocation; NOTE: E_delete is
+    // already an expression and so will already be inside a
+    // FullExpression; to make it a dtorStatement adds an extra layer
+    // of FullExpression; we do it anyway
+    public(field,nullable,xml_AST,owner) Statement *dtorStatement = NULL;
+
+    public bool elaborate(ElabVisitor &env);
+  }
+
+  -> E_throw {
+    // the global that the throw argument is copy-ctored into, if
+    // thrown by value
+    public(xml_TY) Variable *globalVar = NULL;
+    custom debugPrint { ind(os,indent) << "globalVar: " << refersTo(globalVar) << "\n"; }
+
+    public(field,nullable,xml_AST,owner) Statement *globalCtorStatement=NULL;
+
+    public bool elaborate(ElabVisitor &env);
+  }
+}
+
+
+class Initializer {
+  // [cppstd 1.9 para 12 and 13] "A full-expression is an expression
+  // that is not a subexpression of another expression.  If a language
+  // construct is defined to produce an implicit call of a function, a
+  // use of the language construct is considered to be an expression
+  // for the purposes of this definition.
+
+  // [Note: certain contexts in C++ cause the evaluation of a
+  // full-expression that results from a syntactic construct other
+  // than expression (5.18).  For example, in 8.5, another syntax for
+  // initializer is '( expression-list )' but the resulting construct
+  // is a function call upon a constructor function with
+  // expression-list as an argument list; such a function call is a
+  // full-expression.  For example, in 8.5, another syntax for
+  // initializer is '= initializer-clause' but again the resulting
+  // construct might be a function call upon a constructor function
+  // with one assignment-expression as an argument; again, the
+  // function call is a full-expression. ]
+
+  // Therefore, the arguments to IN_ctor and IN_expr are *not*
+  // FullExpressions because the whole of Initializer is.  I think the
+  // FullExpressionAnnot is redundant in the case of IN_compound, but
+  // I like sharing it in Initializer and an extra layer doesn't hurt.
+
+  // TODO: sm: Currently, we associate a FullExpressionAnnot with
+  // Initializer, which means we get one for every element of a
+  // compound initializer.  This wastes a lot of space, and doesn't
+  // make sense for IN_compound.  I think we should say that (only)
+  // the entire initializer is a single Full Expression, but that
+  // requires adding another layer, like:
+  //
+  //   Initializer                   // has FullExpressionAnnot
+  //     -> IN_cinit(CInitializer)
+  //     -> IN_ctor(..)
+  //   CInitializer                  // "C" for compound
+  //     -> CI_expr
+  //     -> CI_compound(..)
+  //
+  // But I'll leave it for now.
+
+  private(xml_AST) FullExpressionAnnot *annot = NULL;
+  public bool hasAnnot();
+  public FullExpressionAnnot *getAnnot();
+}
+
+
+// EOF
+//=========================== end  of  cc_elaborate.ast
 //=========================== start of gnu.ast
 // gnu.ast            see license.txt for copyright and terms of use
 // extension to cc.ast to support GNU language extensions
@@ -2328,12 +2337,16 @@ class Expression {
 
 
 // a sequence of __attribute__((..)) specifiers
+// HT: not used in ocaml, next should probably have 
+// a proper nullable attribute
 class AttributeSpecifierList(
   AttributeSpecifier spec,
   AttributeSpecifierList /*nullable*/ next
 );
 
 
+// HT: not used in ocaml, next should probably have 
+// a proper nullable attribute
 // a single __attribute__((...)) specifier; there may be many
 // individual attributes inside the parens
 class AttributeSpecifier(
@@ -2366,6 +2379,15 @@ class Attribute(SourceLoc loc) {
 }
 
   
+// HT: Because of the following "clever idea" I have to use a separate
+// gnu_attribute_hack.ast file, that extends (via ocaml_type_verbatim)
+// the ocaml type definition of iDeclarator_type with a case 
+// for D_attribute. The advantage here is that on the ocaml side we can
+// use a more convenient attribute_type list list for the alist field 
+// instead of the cumbersome AttributeSpecifierList.
+//
+// Therefore, if you change anything here, check with gnu_attribute_hack.ast!
+
 // Here's a clever idea: rather than making a completely new node to
 // carry the attributes, I will inherit from D_grouping!  Then
 // everyone will treat D_attribute like D_grouping, basically ignoring
@@ -2396,12 +2418,43 @@ verbatim {
     virtual D_attribute *clone() const;
 
     virtual void tcheck(Env &env, Declarator::Tcheck &dt);
+
+    // ocaml serialization methods
+    virtual value toOcaml(ToOcamlData *);
+    virtual void detachOcaml();
   };
 }
 
 
 // EOF
 //=========================== end  of  gnu.ast
+//=========================== start of kandr.ast
+// kandr.ast            see license.txt for copyright and terms of use
+// derived from oink.ast
+// nominal author: dsw
+
+// extension module to cc.ast; goes with kandr.gr
+
+verbatim {
+  #define KANDR_EXTENSION         // this extension module is active
+}
+
+class PQName {
+  // Used in D_func::traverse to traverse kandr_params
+  -> PQ_name {
+    // FakeList link; use 'setNext' to set 'next'
+    public PQ_name *next = NULL;
+    public void setNext(PQ_name *newNext);
+  }
+}
+
+class IDeclarator {
+  // retrieve the innermost D_func constructor
+  pure_virtual D_func *getD_func();
+
+  -> D_func(FakeList<PQ_name> *kAndR_params = NULL); // params if a K&R function
+}
+//=========================== end  of  kandr.ast
 //=========================== start of ml_ctype.ast
 // (*** set this in -*- mode: tuareg;-*-  ****)
 
@@ -2482,6 +2535,11 @@ and 'a compound_info = {
 }
 
 and 'a atomicType = 
+    (* the subtype NamedAtomicType contains the following constructors:
+     * CompoundType, PseudoInstantiation, EnumType, TypeVariable
+     * (i.e, everything apart from SimpleType)
+     *)
+
   | SimpleType of 'a * simpleTypeId
 
       (* IMPORTANT: if one adds more fields to CompoundType one has also to 
@@ -2531,25 +2589,25 @@ and 'a cType =
 
 and 'a sTemplateArgument =
                           (* not yet resolved into a valid template argument *)
-  | STA_NONE
+  | STA_NONE of 'a
                           (* type argument *)
-  | STA_TYPE of 'a cType 
+  | STA_TYPE of 'a * 'a cType 
                           (* int argument *)
-  | STA_INT of int   
+  | STA_INT of 'a * int   
                           (* enum argument *)
-  | STA_ENUMERATOR of 'a variable 
+  | STA_ENUMERATOR of 'a * 'a variable 
                           (* reference to global object *)
-  | STA_REFERENCE of 'a variable
+  | STA_REFERENCE of 'a * 'a variable
                           (* pointer to global object *)
-  | STA_POINTER of 'a variable
+  | STA_POINTER of 'a * 'a variable
                           (* pointer to class member *)
-  | STA_MEMBER of 'a variable
+  | STA_MEMBER of 'a * 'a variable
                           (* value-dependent expression *)
-  | STA_DEPEXPR of 'a expression_type
+  | STA_DEPEXPR of 'a * 'a expression_type
                           (* template argument (not implemented) *)
-  | STA_TEMPLATE
+  | STA_TEMPLATE of 'a
                           (* private to mtype: bind var to AtomicType *)
-  | STA_ATOMIC of 'a atomicType
+  | STA_ATOMIC of 'a * 'a atomicType
 
 
 

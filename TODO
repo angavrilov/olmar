@@ -1,0 +1,10 @@
+
+* serialize type fields to Ocaml, eg. Expression::type
+
+* attributes in elsa/in/gnu/attr02.c seem incomplete
+
+Questions to Scott McPeak:
+
+* first attribute in elsa/in/gnu/cil/regparam0.i does not appear in
+   the ast??
+
