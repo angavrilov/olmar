@@ -20,5 +20,5 @@ if [ $version = ".cmi-010" ] ; then
 fi
 
 
-make OCAMLC=$OCAMLC OCAMLOPT=$OCAMLOPT check-oast
+make OCAMLC=$OCAMLC OCAMLOPT=$OCAMLOPT OCAMLCC=$OCAMLOPT check-oast
 

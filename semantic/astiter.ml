@@ -35,6 +35,8 @@ let bool_fun (b : bool) = ()
 
 let int_fun (i : int) = ()
 
+let nativeint_fun (i : nativeint) = ()
+
 let string_fun (s : string) = ()
 
 let sourceLoc_fun((file : string), (line : int), (char : int)) = ()
@@ -152,14 +154,15 @@ and atomicType_fun x =
 	  compound_info_fun compound_info;
 	  List.iter sTemplateArgument_fun sTemplateArgument_list
 
-      | EnumType(annot, string, variable, accessKeyword, string_int_list) ->
+      | EnumType(annot, string, variable, accessKeyword, 
+		 string_nativeint_list) ->
 	  annotation_fun annot;
 	  string_fun string;
 	  variable_fun variable;
 	  accessKeyword_fun accessKeyword;
-	  List.iter (fun (string, int) -> 
-		       (string_fun string; int_fun int))
-	    string_int_list
+	  List.iter (fun (string, nativeint) -> 
+		       (string_fun string; nativeint_fun nativeint))
+	    string_nativeint_list
 
       | TypeVariable(annot, string, variable, accessKeyword) ->
 	  annotation_fun annot;

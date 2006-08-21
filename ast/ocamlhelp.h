@@ -28,6 +28,7 @@ extern "C" {
 
 // returns true on int32 objects (among other custom blocks)
 #define IS_OCAML_INT32(x) (Is_block(x) && Tag_hd(Hd_val(x)) == Custom_tag)
+// returns true on string objects
 #define IS_OCAML_STRING(x) (Is_block(x) && Tag_hd(Hd_val(x)) == String_tag)
 
 // code snipped to examine block size & tags
@@ -73,6 +74,10 @@ value ocaml_from_bool(const bool &b, ToOcamlData *d){
 inline
 value ocaml_from_int(const int &i, ToOcamlData *d){
   // don't allocate
+  /* 
+   * if(!(i <= Max_long && Min_long <= i))
+   *   xassert(false);
+   */
   xassert(i <= Max_long && Min_long <= i);
   return(Val_int(i));
 }

@@ -101,7 +101,8 @@ and 'a atomicType =
       (* EnumType( user given name, ?, public/protected, constants)
        *    ignore the next valye field 
        *)
-  | EnumType of 'a * string * 'a variable * accessKeyword * (string * int) list
+  | EnumType of 'a * string * 'a variable * accessKeyword * 
+      (string * nativeint) list
 
       (* TypeVariable( user given name, ?, public/protected)  *)
   | TypeVariable of 'a * string * 'a variable * accessKeyword

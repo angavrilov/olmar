@@ -214,10 +214,10 @@ and compound_info_fun info =
   end
 
 
-and enum_value_fun (string, int) =
+and enum_value_fun (string, nativeint) =
   ast_node color_Enum_Value (pseudo_annotation ()) "Enum::Value"
     [("name", string);
-     ("value", string_of_int int)]
+     ("value", Nativeint.to_string nativeint)]
     []
 
 and atomicType_fun at = 
@@ -254,7 +254,8 @@ and atomicType_fun at =
 	       in
 		 l1 @ l2 @ l3)
 
-	| EnumType(annot, string, variable, accessKeyword, string_int_list) ->
+	| EnumType(annot, string, variable, accessKeyword, 
+		   string_nativeint_list) ->
 	    visit annot;
 	    atnode "EnumType" 
 	      [("name", string);
@@ -262,7 +263,7 @@ and atomicType_fun at =
 	      (let x1 = variable_fun variable, "typedefVar" in
 	       let l2 = 
 		 count_rev "values"
-		   (List.rev_map enum_value_fun string_int_list)
+		   (List.rev_map enum_value_fun string_nativeint_list)
 	       in 
 		 x1 :: l2)
 

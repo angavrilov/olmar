@@ -1,3 +1,11 @@
+2006-08-22  Hendrik Tews  <tews@debian>
+
+	ELSA
+	* changed enum value field to nativeint
+
+	SEMANTIC
+	* fixed another dense set bug
+
 2006-08-21  Hendrik Tews  <tews@debian>
 
 	* configure/Makefile cleanup; use elsa configure system in

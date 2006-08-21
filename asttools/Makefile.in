@@ -1,11 +1,15 @@
 # Makefile.in
 # this is the Makefile for the semantic actions on ocaml ast's
 
+OCAML_OBJ_EXT := @OCAML_OBJ_EXT@
+
+#all: ast_graph
 #all: hashloc
 #all: test_ast
 #all: path_to_node.cmo
-all: ast_graph
-#all: ast_graph astiter.cmo astiternodes.cmo astmap.cmo dumpast hashloc
+all: ast_graph astiter.$(OCAML_OBJ_EXT) \
+	astiternodes.$(OCAML_OBJ_EXT) astmap.$(OCAML_OBJ_EXT) \
+	dumpast hashloc
 
 
 # directories of other software; 
@@ -25,6 +29,17 @@ OCAML_LIB_EXT := @OCAML_LIB_EXT@
 # list of files to clean in 'clean' (etc.) targets
 # (these get added to below)
 TOCLEAN =
+TODISTCLEAN =
+
+# re-create the Makefile if Makefile.in has changed
+TODISTCLEAN += Makefile
+Makefile: Makefile.in config.status
+	./config.status
+
+# reconfigure if the configure script has changed
+config.status: configure.pl $(SMBASE)/sm_config.pm
+	./config.status -reconfigure
+
 
 
 ASTGRAPH_ML=\
@@ -43,7 +58,7 @@ ast_graph: $(ASTGRAPH_ML:.ml=.$(OCAML_OBJ_EXT))
 
 TOCLEAN += dumpast
 dumpast: dumpast.ml
-	$(OCAMLC) -o $@ -I $(ELSA) unix.$(OCAML_LIB_EXT) $^
+	$(OCAMLCC) -o $@ -I $(ELSA) unix.$(OCAML_LIB_EXT) $^
 
 # hashloc is not working currently
 HASHLOC_ML=\
@@ -81,10 +96,10 @@ test_ast: ast_graph
 
 
 $(ELSA)/%.cmo: $(ELSA)/%.ml
-	$(MAKE) -C $(ELSA) elsa_cmo_objects
+	$(MAKE) -C $(ELSA) elsa_ml_objects
 
 $(ELSA)/%.cmx: $(ELSA)/%.ml
-	$(MAKE) -C $(ELSA) elsa_cmx_objects
+	$(MAKE) -C $(ELSA) elsa_ml_objects
 
 
 .PHONY: clean

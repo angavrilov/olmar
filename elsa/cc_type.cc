@@ -1463,7 +1463,7 @@ value EnumType::toOcaml(ToOcamlData *data){
     Value const * elem = iter.value();
     iter.next();
     val_name = ocaml_from_StringRef(elem->name, data);
-    val_val = ocaml_from_int(elem->value, data);
+    val_val = caml_copy_nativeint(elem->value);
     tuple = caml_alloc(2, 0); 	// allocate a tuple cell
     Store_field(tuple, 0, val_name); // fill the tuple
     Store_field(tuple, 1, val_val);
@@ -1473,6 +1473,8 @@ value EnumType::toOcaml(ToOcamlData *data){
     Store_field(tmp, 1, childs[4]); // store cdr
     childs[4] = tmp;
   }
+
+  childs[4] = ocaml_list_rev(childs[4]);
 
   caml_register_global_root(&ocaml_val);
   ocaml_val = caml_callbackN(*create_atomic_EnumType_constructor_closure,
@@ -1497,7 +1499,7 @@ void EnumType::detachOcaml() {
     Value const * elem = iter.value();
     iter.next();
     detach_ocaml_StringRef(elem->name);
-    detach_ocaml_int(elem->value);
+    // detach_ocaml_nativeint(elem->value);
   }
 }
 

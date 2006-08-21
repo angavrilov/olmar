@@ -132,17 +132,35 @@ and cType_fun x =
 
 
 and sTemplateArgument_fun = function
-  | STA_NONE -> ()
-  | STA_TYPE(cType) -> cType_fun cType
-  | STA_INT(int) -> ()
-  | STA_ENUMERATOR(variable) -> variable_fun variable
-  | STA_REFERENCE(variable) -> variable_fun variable
-  | STA_POINTER(variable) -> variable_fun variable
-  | STA_MEMBER(variable) -> variable_fun variable
-  | STA_DEPEXPR(expression) -> expression_fun expression
-  | STA_TEMPLATE -> ()
-  | STA_ATOMIC(atomicType) -> atomicType_fun atomicType
+  | STA_NONE annot -> 
+      ()
 
+  | STA_TYPE(annot, cType) -> 
+      cType_fun cType
+
+  | STA_INT(annot, int) -> 
+      ()
+
+  | STA_ENUMERATOR(annot, variable) -> 
+      variable_fun variable
+
+  | STA_REFERENCE(annot, variable) -> 
+      variable_fun variable
+
+  | STA_POINTER(annot, variable) -> 
+      variable_fun variable
+
+  | STA_MEMBER(annot, variable) -> 
+      variable_fun variable
+
+  | STA_DEPEXPR(annot, expression) -> 
+      expression_fun expression
+
+  | STA_TEMPLATE annot -> 
+      ()
+
+  | STA_ATOMIC(annot, atomicType) -> 
+      atomicType_fun atomicType
 
 
 (***************** generated ast nodes ****************)
@@ -379,6 +397,10 @@ and iDeclarator_fun x =
 
       | D_grouping(annot, sourceLoc, iDeclarator) -> 
 	  iDeclarator_fun iDeclarator
+
+      | D_attribute(annot, sourceLoc, iDeclarator, attribute_list_list) ->
+	  iDeclarator_fun iDeclarator;
+	  List.iter (List.iter attribute_fun) attribute_list_list
 
 
 and exceptionSpec_fun(annot, aSTTypeId_list) =

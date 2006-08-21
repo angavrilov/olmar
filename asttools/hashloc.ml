@@ -189,6 +189,8 @@ let bool_fun b = (b : bool)
 
 let int_fun i = (i : int)
 
+let nativeint_fun i = (i : nativeint)
+
 let sourceLoc_fun((file : string), (line : int), (char : int) as loc) = 
   (loc : sourceLoc)
 
@@ -317,14 +319,14 @@ and atomicType_fun x =
 			    List.map sTemplateArgument_fun 
 			      sTemplateArgument_list)
 
-    | EnumType(annot, string, variable, accessKeyword, string_int_list) ->
+    | EnumType(annot, string, variable, accessKeyword, string_nativeint_list) ->
 	EnumType(annotation_fun annot,
 		 string_fun string,
 		 variable_fun variable,
 		 accessKeyword_fun accessKeyword,
-		 List.map (fun (string,int) -> 
-			     (string_fun string, int_fun int))
-		   string_int_list)
+		 List.map (fun (string,nativeint) -> 
+			     (string_fun string, nativeint_fun nativeint))
+		   string_nativeint_list)
 
     | TypeVariable(annot, string, variable, accessKeyword) ->
 	TypeVariable(annotation_fun annot,
@@ -740,6 +742,12 @@ and iDeclarator_fun x =
 	D_grouping(annotation_fun annot,
 		   sourceLoc_fun sourceLoc,
 		   iDeclarator_fun iDeclarator)
+
+    | D_attribute(annot, sourceLoc, iDeclarator, attribute_list_list) ->
+	D_attribute(annotation_fun annot,
+		    sourceLoc_fun sourceLoc,
+		    iDeclarator_fun iDeclarator,
+		    List.map (List.map attribute_fun) attribute_list_list)
 
 
 and exceptionSpec_fun(annot, aSTTypeId_list) =

@@ -64,7 +64,7 @@ TOCLEAN += *.cmo *.cmi *.cmx
 %.cmx: %.ml
 	$(OCAMLOPT) -c $<
 
-ast_objects: ast_util.$(OCAML_OBJ_EXT)
+ast_ml_objects: ast_util.$(OCAML_OBJ_EXT)
 
 # remake the generated Makefile if its inputs have changed
 Makefile: Makefile.in config.status

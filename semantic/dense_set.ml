@@ -23,7 +23,7 @@ let get_position i =
 let mem el set =
   let (string_i, char_i, mask) = get_position el
   in
-    if char_i > String.length set.(string_i)
+    if char_i >= String.length set.(string_i)
     then false
     else
       ((int_of_char set.(string_i).[char_i]) land mask) <> 0
@@ -42,7 +42,7 @@ let mem el set =
 let add el set =
   let (string_i, char_i, mask) = get_position el
   in
-    if char_i > String.length set.(string_i)
+    if char_i >= String.length set.(string_i)
     then
       expand set string_i char_i;
     set.(string_i).[char_i] <- 
