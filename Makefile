@@ -22,12 +22,13 @@ clean:
 	$(MAKE) -C elsa clean
 	$(MAKE) -C semantic clean
 
+# I generate distributions out of cvs, where there are no Makefiles
 distclean:
-	$(MAKE) -C smbase distclean
-	$(MAKE) -C ast distclean
-	$(MAKE) -C elkhound distclean
-	$(MAKE) -C elsa distclean
-	$(MAKE) -C semantic distclean
+	$(MAKE) -C smbase -f Makefile.in distclean
+	$(MAKE) -C ast -f Makefile.in distclean
+	$(MAKE) -C elkhound -f Makefile.in distclean
+	$(MAKE) -C elsa -f Makefile.in distclean
+	$(MAKE) -C semantic -f Makefile.in distclean
 	rm -rf test
 
 doc:
