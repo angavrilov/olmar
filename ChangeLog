@@ -1,5 +1,9 @@
 2006-08-22  Hendrik Tews  <tews@debian>
 
+	* prepare for snapshot
+
+2006-08-22  Hendrik Tews  <tews@debian>
+
 	ELSA
 	* changed enum value field to nativeint
 

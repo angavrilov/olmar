@@ -28,6 +28,7 @@ distclean:
 	$(MAKE) -C elkhound distclean
 	$(MAKE) -C elsa distclean
 	$(MAKE) -C semantic distclean
+	rm -rf test
 
 doc:
 	$(MAKE) -C smbase doc

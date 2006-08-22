@@ -111,6 +111,10 @@ tyclean:
 	(cd $(ELSA); rm -f *.cmi *.cmo *.cmx)
 	(cd $(AST); rm -f *.cmi *.cmo *.cmx)
 
+.PHONY: distclean
+distclean: clean
+
+
 TOCLEAN += *.cmo
 %.cmo: %.ml
 	$(OCAMLC) -I $(ELSA) -c $<

@@ -1,0 +1,26 @@
+#!/bin/bash
+
+set -x
+
+elsarep=ithif59.inf.tu-dresden.de:/sun/theorie/tews/Privat/Store
+repdir=src/elsa
+
+dir=/tmp/tews/elsa
+cvscache=elsa.tar.gz
+
+rm -rf $dir
+
+pushd $(dirname $dir)
+
+if [ -f $cvscache ] ; then
+    tar -xzf $cvscache
+else
+    cvs -d $elsarep export -d $(basename $dir) -r HEAD $repdir
+    tar -czf $cvscache $(basename $dir)
+fi
+
+cd $dir
+
+make distclean
+
+
