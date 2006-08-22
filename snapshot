@@ -21,6 +21,10 @@ fi
 
 cd $dir
 
+for d in smbase ast elkhound elkhound/c elsa semantic ; do
+    cp $d/Makefile.in $d/Makefile
+done
+
 make distclean
 
 

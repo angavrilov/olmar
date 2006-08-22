@@ -113,6 +113,7 @@ tyclean:
 
 .PHONY: distclean
 distclean: clean
+	rm -f Makefile config.status config.summary
 
 
 TOCLEAN += *.cmo
