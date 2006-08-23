@@ -1,12 +1,14 @@
 #!/bin/bash
 
-set -x
+#set -x
 
 elsarep=ithif59.inf.tu-dresden.de:/sun/theorie/tews/Privat/Store
 repdir=src/elsa
 
 dir=/tmp/tews/elsa
 cvscache=elsa.tar.gz
+
+orig_elsa_release=/tmp/tews/elsa-2005.08.22b
 
 rm -rf $dir
 
@@ -27,4 +29,64 @@ done
 
 make distclean
 
+
+echo ===========================================================================
+echo ============================     ADDED FILES    ===========================
+echo ===========================================================================
+
+add		elsa/ChangeLog
+generated 	/tmp/tews/elsa-2005.08.22b/ast/agrampar.codes.h
+generated 	/tmp/tews/elsa-2005.08.22b/ast/agrampar.tab.cc
+generated 	/tmp/tews/elsa-2005.08.22b/ast/agrampar.tab.h
+add		elsa/ast/ast_util.ml
+compile errors	/tmp/tews/elsa-2005.08.22b/ast/exampletest.cc
+
+fix gendoc problem:
+add gendoc subdirs to cvs ...
+
+/tmp/tews/elsa-2005.08.22b/ast/gendoc
+elsa/ast/ocamlhelp.cc
+elsa/ast/ocamlhelp.h
+elsa/ast/ocsstr.cc
+elsa/ast/ocsstr.h
+/tmp/tews/elsa-2005.08.22b/elkhound/c/lexer1yy.cc
+/tmp/tews/elsa-2005.08.22b/elkhound/examples/arith/arithyy.cc
+/tmp/tews/elsa-2005.08.22b/elkhound/gendoc
+/tmp/tews/elsa-2005.08.22b/elkhound/grampar.codes.h
+/tmp/tews/elsa-2005.08.22b/elkhound/grampar.tab.cc
+/tmp/tews/elsa-2005.08.22b/elkhound/grampar.tab.h
+elsa/elsa/all.ast
+elsa/elsa/ast_annotation.ml
+elsa/elsa/ast_marshal.ml
+elsa/elsa/caml_callbacks.ml
+elsa/elsa/cc_ml_constructors.ml
+elsa/elsa/cc_ml_types.ml
+elsa/elsa/cc_ocaml.cc
+elsa/elsa/cc_ocaml.h
+/tmp/tews/elsa-2005.08.22b/elsa/doc/er.ps
+elsa/elsa/doc/tracing-options.txt
+elsa/elsa/elsa_util.ml
+/tmp/tews/elsa-2005.08.22b/elsa/gendoc
+elsa/elsa/gnu_attribute_hack.ast
+elsa/elsa/in/c/.cvsignore
+elsa/elsa/in/c99/.cvsignore
+elsa/elsa/in/gnu/bugs/.cvsignore
+elsa/elsa/in/gnu/cil/.cvsignore
+elsa/elsa/in/kandr/.cvsignore
+elsa/elsa/in/msvc/.cvsignore
+elsa/elsa/in/std/.cvsignore
+elsa/elsa/ml_ctype.ast
+elsa/elsa/ml_ctype.ml
+elsa/elsa/ml_ctype_constructors.ml
+elsa/elsa/mldeps.mk
+elsa/semantic
+/tmp/tews/elsa-2005.08.22b/smbase/gendoc
+elsa/snapshot
+
+
+
+cd $(dirname $dir)
+diff -rq $(basename $dir) $orig_elsa_release | \
+    grep -v "differ$" | \
+    sed -e 's/Only in //' -e 's|: |/|'
 

@@ -29,7 +29,7 @@ distclean:
 	$(MAKE) -C elkhound -f Makefile.in distclean
 	$(MAKE) -C elsa -f Makefile.in distclean
 	$(MAKE) -C semantic -f Makefile.in distclean
-	rm -rf test
+	rm -rf test TODO
 
 doc:
 	$(MAKE) -C smbase doc
