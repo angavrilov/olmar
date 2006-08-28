@@ -129,7 +129,6 @@ diff -rq $(basename $dir) $orig_elsa_release | \
     sed -e 's/Only in //' -e 's|: |/|' | \
     grep -v -f $elsa_cvs_dir/addcheck_ignored_files
 
-set -x
 mv $(basename $dir) $snapshot_name
 
 tar -czf $snapshot_tar $snapshot_name 
@@ -149,5 +148,20 @@ if [  ${answer:=y} = y -o $answer = Y ] ; then
     cd $snapshot_name
     $elsa_cvs_dir/reconfigure
     make
-    
+
+    echo
+    echo =======================================================================
+    echo -n "run tests [Y/n]:"
+    read answer
+    if [  ${answer:=y} = y -o $answer = Y ] ; then
+	(cd elsa; ./regrtest -ocaml)
+
+	echo
+	echo ===================================================================
+	echo -n "continue tests [Y/n]:"
+	read answer
+	if [  ${answer:=y} = y -o $answer = Y ] ; then
+	    (cd semantic; ./regtest-graph -parse)
+	fi
+    fi
 fi

@@ -529,10 +529,6 @@ doc: gendoc gendoc/configure.txt \
 	gendoc/dependencies.png gendoc/dependencies.ps gendoc/3.4.5.png
 	@echo "built documentation"
 
-.PHONY: test
-test: ccparse
-	./regrtest -ocaml
-
 #TOCLEAN += TAGS
 #TAGS:
 #	@ETAGS@ *.cc *.h
