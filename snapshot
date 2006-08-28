@@ -89,6 +89,7 @@ echo ===========================================================================
 # added elsa/elsa/mldeps.mk
 # added elsa/semantic
 # added elsa/snapshot
+# added elsa/addcheck_ignored_files
 #
 # generated /tmp/tews/elsa-2005.08.22b/ast/agrampar.codes.h
 # generated /tmp/tews/elsa-2005.08.22b/ast/agrampar.tab.cc

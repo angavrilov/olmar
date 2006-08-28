@@ -525,7 +525,8 @@ gendoc/3.4.5.png: gendoc/3.4.5.ps
 	convert -geometry 300x400 $^ $@
 
 .PHONY: doc
-doc: gendoc gendoc/configure.txt gendoc/dependencies.png gendoc/3.4.5.png
+doc: gendoc gendoc/configure.txt \
+	gendoc/dependencies.png gendoc/dependencies.ps gendoc/3.4.5.png
 	@echo "built documentation"
 
 #TOCLEAN += TAGS

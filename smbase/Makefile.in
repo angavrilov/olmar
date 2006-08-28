@@ -382,7 +382,7 @@ gendoc/configure.txt: configure
 
 # build auto-generated documentation
 .PHONY: doc
-doc: gendoc gendoc/dependencies.png gendoc/configure.txt
+doc: gendoc gendoc/dependencies.png gendoc/dependencies.ps gendoc/configure.txt
 	@echo "built documentation"
 
 

@@ -29,6 +29,7 @@
 ^elsa/elsa/mldeps.mk$
 ^elsa/semantic$
 ^elsa/snapshot$
+^elsa/addcheck_ignored_files$
 ^/tmp/tews/elsa-2005.08.22b/ast/agrampar.codes.h$
 ^/tmp/tews/elsa-2005.08.22b/ast/agrampar.tab.cc$
 ^/tmp/tews/elsa-2005.08.22b/ast/agrampar.tab.h$

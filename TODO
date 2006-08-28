@@ -1,3 +1,7 @@
+   
+
+* update dependency graph in elsa/gendoc, include ocaml modules, check
+   for all modules
 
 * serialize type fields to Ocaml, eg. Expression::type
 
