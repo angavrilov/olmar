@@ -1,8 +1,0 @@
-.gdbinit
-ast.cc
-ast.h
-gcom.cc
-gcom.h
-lexer
-parser
-tokens.tok

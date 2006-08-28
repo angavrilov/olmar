@@ -1,7 +1,0 @@
-.gdbinit
-sless.out
-tmp.in
-sless.cc
-sless.h
-*.o
-sless
