@@ -1,9 +1,0 @@
-a.out
-hide*
-*.error*.cc
-k0008.cc
-t0539_*.cc
-alltests
-.serialno
-*.qdir
-.gdbinit
