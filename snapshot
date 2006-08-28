@@ -6,6 +6,8 @@
 elsarep=/home/tews/Store
 repdir=src/elsa
 create_tar_cache=0
+snapshot_name=$(date +"elsa-ocaml-%d-%b-%Y")
+snapshot_tar=$snapshot_name.tar.gz
 
 dir=/tmp/tews/elsa
 cvscache=elsa.tar.gz
@@ -13,7 +15,9 @@ cvscache=elsa.tar.gz
 orig_elsa_release_tar=/home/tews/src/elsa-2005.08.22b.tar.gz
 orig_elsa_release=/tmp/tews/elsa-2005.08.22b
 
+rm -rf $(dirname $dir)/elsa-ocaml*
 rm -rf $dir
+rm -rf $(dirname $dir)/build
 
 elsa_cvs_dir=$(pwd)
 
@@ -125,3 +129,25 @@ diff -rq $(basename $dir) $orig_elsa_release | \
     sed -e 's/Only in //' -e 's|: |/|' | \
     grep -v -f $elsa_cvs_dir/addcheck_ignored_files
 
+set -x
+mv $(basename $dir) $snapshot_name
+
+tar -czf $snapshot_tar $snapshot_name 
+
+echo ===========================================================================
+echo ===========================     tar generated    ==========================
+echo ===========================================================================
+
+
+echo -n "test distribution [Y/n]:"
+read answer
+
+if [  ${answer:=y} = y -o $answer = Y ] ; then
+    mkdir build
+    cd build
+    tar -xzf ../$snapshot_tar
+    cd $snapshot_name
+    $elsa_cvs_dir/reconfigure
+    make
+    
+fi

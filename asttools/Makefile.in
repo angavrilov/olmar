@@ -85,11 +85,15 @@ TOCLEAN += check-oast
 check-oast: $(CHECKOAST_ML:.ml=.$(OCAML_OBJ_EXT))
 	$(OCAMLCC) -o $@ -I $(ELSA) safeUnmarshal.$(OCAML_LIB_EXT) $^
 
+.PHONY: test
+test: ast_graph
+	./regtest-graph -parse
+
 .PHONY: doc
 doc:
 	echo "nothing to do"
 
-# a test target
+# target for testing one file
 TOCLEAN += nodes.dot nodes.ps
 .PHONY: test_ast
 # -skip 840

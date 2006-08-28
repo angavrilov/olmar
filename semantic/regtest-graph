@@ -27,7 +27,7 @@ ast_files="$ast_files_1 $ast_files_2 $ast_files_3 $ast_files_4 $ast_files_5 $ast
 
 
 function usage(){
-    echo "usage: regtest-graph [-skip <n>]"
+    echo "usage: regtest-graph [-parse] [-skip <n>]"
     exit 1
 }
 

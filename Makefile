@@ -37,3 +37,7 @@ doc:
 	$(MAKE) -C elkhound doc
 	$(MAKE) -C elsa doc
 	$(MAKE) -C semantic doc
+
+test:
+	$(MAKE) -C elsa test
+	$(MAKE) -C semantic test
