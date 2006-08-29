@@ -277,7 +277,7 @@ cc.gr.gen.h cc.gr.gen.cc: $(CC_GR_MODS) cc_tokens.ids $(ELKHOUND)/elkhound
 # List of ml modules needed by the parser. They are all combined 
 # into one ml_object.o file.
 CCPARSE_ML := \
-  $(AST)/ast_util.ml \
+  $(AST)/astgen_util.ml \
   elsa_util.ml \
   cc_ml_types.ml \
   cc_ml_constructors.ml \
@@ -308,10 +308,10 @@ ml_object.o: $(CCPARSE_ML:.ml=.$(OCAML_OBJ_EXT))
 $(AST)/ocamlhelp.o: $(AST)/ocamlhelp.cc $(AST)/ocamlhelp.h
 	$(MAKE) -C $(AST) ocamlhelp.o
 
-$(AST)/ast_util.cmo: $(AST)/ast_util.ml
+$(AST)/astgen_util.cmo: $(AST)/astgen_util.ml
 	$(MAKE) -C $(AST) $@
 
-$(AST)/ast_util.cmx: $(AST)/ast_util.ml
+$(AST)/astgen_util.cmx: $(AST)/astgen_util.ml
 	$(MAKE) -C $(AST) $@
 
 # list of modules needed for the parser; ideally they're in an order

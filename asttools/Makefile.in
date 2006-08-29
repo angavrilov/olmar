@@ -74,11 +74,13 @@ hashloc: $(HASHLOC_ML:.ml=.$(OCAML_OBJ_EXT))
 # check-oast depends the safeUnmarshal library, 
 # see http://www.pps.jussieu.fr/~henry/marshal/
 CHECKOAST_ML=\
+	dense_set.ml \
 	$(ELSA)/ast_annotation.ml \
 	$(ELSA)/elsa_util.ml \
 	$(ELSA)/cc_ml_types.ml \
 	$(ELSA)/ml_ctype.ml \
 	$(ELSA)/cc_ast_gen_type.ml \
+	ast_util.ml \
 	check-oast.ml
 
 TOCLEAN += check-oast

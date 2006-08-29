@@ -862,7 +862,7 @@ and attribute_fun x =
 
 
 
-
+let check_inside = ref false
 
 let file = ref None
 

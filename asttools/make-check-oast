@@ -21,6 +21,7 @@ fi
 if [ ${version:=".cmi-010"} = ".cmi-010" ] ; then
     (cd ../elsa; rm -f *cmi *cmo *cmx)
     (cd ../ast; rm -f *cmi *cmo *cmx)
+    rm -f *cmi *cmo *cmx
 
     make -C ../ast OCAMLC=$OCAMLC OCAMLOPT=$OCAMLOPT ast_ml_objects
     make -C ../elsa OCAMLC=$OCAMLC OCAMLOPT=$OCAMLOPT elsa_ml_objects

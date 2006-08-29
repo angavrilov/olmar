@@ -7,7 +7,7 @@ OCAML_OBJ_EXT := @OCAML_OBJ_EXT@
 
 # main targets
 all: ccsstr ocsstr astgen libast.a example.o ext1.o ocamlhelp.o \
-	ast_util.$(OCAML_OBJ_EXT)
+	astgen_util.$(OCAML_OBJ_EXT)
 
 
 # directories of other software
@@ -64,7 +64,7 @@ TOCLEAN += *.cmo *.cmi *.cmx
 %.cmx: %.ml
 	$(OCAMLOPT) -c $<
 
-ast_ml_objects: ast_util.$(OCAML_OBJ_EXT)
+ast_ml_objects: astgen_util.$(OCAML_OBJ_EXT)
 
 # remake the generated Makefile if its inputs have changed
 Makefile: Makefile.in config.status

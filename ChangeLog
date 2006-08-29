@@ -1,5 +1,7 @@
 2006-08-29  Hendrik Tews  <tews@tandem.cs.ru.nl>
 
+	* rename ast/ast_util -> ast/astgen_util
+
 	* bug hunting with ocaml-ty
 
 2006-08-28  Hendrik Tews  <tews@tandem.cs.ru.nl>

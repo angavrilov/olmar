@@ -1,5 +1,5 @@
 
-open Ast_util
+open Astgen_util
 open Cc_ml_constructors
 open Ml_ctype_constructors
 open Cc_ast_gen
