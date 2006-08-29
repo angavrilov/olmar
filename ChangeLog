@@ -1,3 +1,7 @@
+2006-08-29  Hendrik Tews  <tews@tandem.cs.ru.nl>
+
+	* bug hunting with ocaml-ty
+
 2006-08-28  Hendrik Tews  <tews@tandem.cs.ru.nl>
 
 	* checked added/deleted files in the snapshot

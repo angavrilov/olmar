@@ -565,6 +565,11 @@ count-loc:
 
 
 # -------------------- clean, etc. -------------------
+.PHONY: clean-ml-obj
+clean-ml-obj:
+	rm -rf *cmi *cmo *cmx
+	(cd $(AST); rm -rf *cmi *cmo *cmx)
+
 clean:
 	rm -f $(TOCLEAN)
 	cd outdir && ls | grep -v CVS | xargs rm -f
