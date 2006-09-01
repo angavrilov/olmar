@@ -1,3 +1,8 @@
+2006-09-01  Hendrik Tews  <tews@tandem.cs.ru.nl>
+
+	* new option -inside for check-oast: descend into ast on error,
+	trying to locate the problem
+
 2006-08-29  Hendrik Tews  <tews@tandem.cs.ru.nl>
 
 	* rename ast/ast_util -> ast/astgen_util

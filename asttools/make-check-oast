@@ -2,9 +2,22 @@
 
 #set -x
 
+#native=no
+
 OCAML_TY_DIR=/usr/local/stow/ocaml-ty-2006-06-22/bin
 OCAMLC=$OCAML_TY_DIR/ocamlc.opt
 OCAMLOPT=$OCAML_TY_DIR/ocamlopt.opt
+
+if [ ${native:="yes"} = "yes" ] ; then
+    OCAML_OBJ_EXT="cmx"
+    OCAMLCC=$OCAMLOPT
+else
+    OCAML_OBJ_EXT="cmo"
+    OCAMLCC=$OCAMLC
+fi
+
+makevars="OCAMLC=$OCAMLC OCAMLOPT=$OCAMLOPT OCAMLCC=$OCAMLCC OCAML_OBJ_EXT=$OCAML_OBJ_EXT"
+
 
 # first try if cmi are available at all
 file ../elsa/*cmi 2>&1 >/dev/null
@@ -23,10 +36,10 @@ if [ ${version:=".cmi-010"} = ".cmi-010" ] ; then
     (cd ../ast; rm -f *cmi *cmo *cmx)
     rm -f *cmi *cmo *cmx
 
-    make -C ../ast OCAMLC=$OCAMLC OCAMLOPT=$OCAMLOPT ast_ml_objects
-    make -C ../elsa OCAMLC=$OCAMLC OCAMLOPT=$OCAMLOPT elsa_ml_objects
+    make -C ../ast $makevars ast_ml_objects
+    make -C ../elsa $makevars elsa_ml_objects
 fi
 
 
-make OCAMLC=$OCAMLC OCAMLOPT=$OCAMLOPT OCAMLCC=$OCAMLOPT check-oast
+make $makevars check-oast
 
