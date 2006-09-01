@@ -1,3 +1,8 @@
+(*  Copyright 2006 Hendrik Tews, All rights reserved.                  *)
+(*  See file license.txt for terms of use                              *)
+(***********************************************************************)
+
+(* blueprint for an iteration function over the complete ast *)
 
 open Cc_ml_types
 open Cc_ast_gen_type

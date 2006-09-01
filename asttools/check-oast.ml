@@ -1,3 +1,25 @@
+(*  Copyright 2006 Hendrik Tews, All rights reserved.                  *)
+(*  See file license.txt for terms of use                              *)
+(***********************************************************************)
+
+(* employ the SafeUnmarshal module (http://www.pps.jussieu.fr/~henry/marshal/)
+ * to check the consistency of C++ generated ast
+ *
+ * To use it you have to patch the SafeUnmarshal sources slightly. See
+ *
+ * http://caml.inria.fr/pub/ml-archives/caml-list/2006/08/033e1bf470934a2ea02d9c99bd9bd9b6.en.html
+ *
+ * and 
+ * - add check to otherlibs/safe_unmarshaling/safeUnmarshal.{ml,mli} 
+ *   as described in point 4
+ * - fix check_block in otherlibs/safe_unmarshaling/check.ml as
+ *   described in point 5
+ *
+ * If you use normal ocaml in parallel with the SafeUnmarshal patched one
+ * (like I do) you might find it handy to use ``make-check-oast'' and 
+ * ``make tyclean'' or ``make clean-ml-obj'' in subdir elsa
+ *)
+
 
 open Cc_ml_types
 open Cc_ast_gen_type

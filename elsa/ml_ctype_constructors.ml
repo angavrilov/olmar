@@ -1,3 +1,6 @@
+(*  Copyright 2006 Hendrik Tews, All rights reserved.                  *)
+(*  See file license.txt for terms of use                              *)
+(***********************************************************************)
 
 (* hand written constructor callbacks for cType/Variable/D_attribute *)
 

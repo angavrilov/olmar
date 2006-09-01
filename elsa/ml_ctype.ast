@@ -1,4 +1,23 @@
-// (*** set this in -*- mode: tuareg;-*-  ****)
+//  (visit this in -*- mode: tuareg;-*- )                              *
+//                                                                     *
+//  Copyright 2006 Hendrik Tews, All rights reserved.                  *
+//  See file license.txt for terms of use                              *
+//**********************************************************************
+
+//**************************************************************************
+//
+// mutually recursive part of the CType and Variable type structure
+//
+//
+// The cType and variable types are mutually recursive with the
+// other astgen generated types. Therefore, the relevant type definitions
+// must get included in the type definition that astgen generates.
+// This is achived via this astgen input file.
+//
+// Those types of the CType/Variable hierarchy which are not recursive 
+// are in ml_ctype.ml.
+//
+//**************************************************************************
 
 
 // astgen treats the first verbatim in a file special
@@ -6,7 +25,7 @@
 // However, I want this material added at the end, so 
 // put a dummy class her.
 
-class DummyWithNoUse ();
+class IDeclarator{}
 
 ocaml_type_verbatim {
 

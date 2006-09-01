@@ -1,9 +1,22 @@
+(*  Copyright 2006 Hendrik Tews, All rights reserved.                  *)
+(*  See file license.txt for terms of use                              *)
+(***********************************************************************)
 
+(* densely populated set of positive integers
+ * (use a bitmap internally)
+ *)
+
+(* type of sets: use big string arrays as bitmaps 
+ * on 32 bit architecture the array holds 9 strings
+ * on 64 bit architecture it holds 5 string
+ * initially the strings are empty, but they grow on demand 
+ * to accomodate all positive integers (yes, including max_int!) *)
 type t = string array
 
-    (* just small enough to end up in the minor heap *)
+(* start size: just small enough to end up in the minor heap *)
 let string_min_length = 1023
 
+(* expand the string with index string_i to accomodate byte number char_i*)
 let expand set string_i char_i =
   let new_size = 2.0 ** (ceil (log (float_of_int char_i) /. log 2.0) +. 0.25) in
   let new_size = int_of_float(new_size +. 0.5) in
@@ -15,11 +28,13 @@ let expand set string_i char_i =
     String.fill s old_len (new_size - old_len) '\000';
     set.(string_i) <- s
 
+(* compute array and byte index for bit number i *)
 let get_position i =
   (i / ( Sys.max_string_length * 8),
    (i mod ( Sys.max_string_length * 8)) / 8,
    1 lsl (i mod 8))
 
+(* check whether el is in the set set *)
 let mem el set =
   let (string_i, char_i, mask) = get_position el
   in
@@ -39,6 +54,7 @@ let mem el set =
  *)
 	
 
+(* add el to the set set *)
 let add el set =
   let (string_i, char_i, mask) = get_position el
   in
@@ -59,11 +75,13 @@ let add el set =
  *)
 
 
+(* array size to accomodate all positive integers *)
 let array_size = 
   int_of_float 
     (ceil
-       (float_of_int max_int) /. (float_of_int Sys.max_string_length) /. 8.0)
+       ((float_of_int max_int) /. (float_of_int Sys.max_string_length) /. 8.0))
 
+(* create a new set *)
 let make () =
   let a = Array.make array_size ""
   in

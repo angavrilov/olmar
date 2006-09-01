@@ -1,5 +1,10 @@
 #!/bin/bash
 
+# regression test  (need to run regrtest -ocaml in ../elsa before)
+#
+# run hashloc on all marshaled ast's found
+# does not make sense at the moment, because hashloc fails on cyclic data
+
 rm -f temp.oast
 
 ast_files=$(find .. -name \*.oast -print)

@@ -1,3 +1,8 @@
+(*  Copyright 2006 Hendrik Tews, All rights reserved.                  *)
+(*  See file license.txt for terms of use                              *)
+(***********************************************************************)
+
+(* register all callback functions *)
 
 open Astgen_util
 open Cc_ml_constructors

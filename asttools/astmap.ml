@@ -1,3 +1,11 @@
+(*  Copyright 2006 Hendrik Tews, All rights reserved.                  *)
+(*  See file license.txt for terms of use                              *)
+(***********************************************************************)
+
+(* blueprint for a mapping function for the whole ast 
+ * 
+ * need to add support for cycles and maybe a few other things
+ *)
 
 open Cc_ml_types
 open Cc_ast_gen_type

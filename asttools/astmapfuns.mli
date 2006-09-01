@@ -1,3 +1,12 @@
+(*  Copyright 2006 Hendrik Tews, All rights reserved.                  *)
+(*  See file license.txt for terms of use                              *)
+(***********************************************************************)
+
+(* not meant to be compiled
+ * just the output of ocamlc -i astmap.ml
+ * probably out of date
+ *)
+
 val annotation_fun : int * int -> int * int
 val string_fun : string -> string
 val bool_fun : bool -> bool

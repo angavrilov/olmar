@@ -6,7 +6,7 @@ use strict 'subs';
 # default location of smbase relative to this package
 $SMBASE = "../smbase";
 $req_smcv = 1.03;            # required sm_config version number
-$thisPackage = "semantic";
+$thisPackage = "asttools";
 
 print "Configuring $thisPackage ...\n\n";
 
@@ -96,7 +96,7 @@ finishedOptionProcessing();
 test_smbase_presence();
 
 # ast
-if (! -f "$AST/ast_util.ml") {
+if (! -f "$AST/astgen_util.ml") {
   die "I cannot find ast_util.ml in `$AST'.\n" .
       "The ast system is required for this package.\n" .
       "If it's in a different location, use the -ast=<dir> option.\n";

@@ -1,3 +1,8 @@
+(*  Copyright 2006 Hendrik Tews, All rights reserved.                  *)
+(*  See file license.txt for terms of use                              *)
+(***********************************************************************)
+
+(* dump ast via toplevel, compiles but does not work because of cycles *)
 
 open Cc_ast_gen_type
 open Ast_annotation

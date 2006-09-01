@@ -1,5 +1,8 @@
+(*  Copyright 2006 Hendrik Tews, All rights reserved.                  *)
+(*  See file license.txt for terms of use                              *)
+(***********************************************************************)
 
-(* constructor callbacks for cc.ast *)
+(* constructor callbacks for the types in cc_ml_types *)
 
 open Cc_ml_types
 

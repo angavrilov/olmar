@@ -1,4 +1,7 @@
-// ocsstr.cc            see license.txt for copyright and terms of use
+//  Copyright 2006 Hendrik Tews, All rights reserved.                  *
+//  See file license.txt for terms of use                              *
+//**********************************************************************
+
 // code for ocsstr.h
 
 #include "ocsstr.h"

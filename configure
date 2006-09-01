@@ -9,4 +9,4 @@
 (cd ast && ./configure "$@") || exit
 (cd elkhound && ./configure "$@") || exit
 (cd elsa && ./configure "$@") || exit
-(cd semantic && ./configure "$@") || exit
+(cd asttools && ./configure "$@") || exit

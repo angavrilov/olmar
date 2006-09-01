@@ -1,3 +1,13 @@
+(*  Copyright 2006 Hendrik Tews, All rights reserved.                  *)
+(*  See file license.txt for terms of use                              *)
+(***********************************************************************)
+
+(* blueprint for an iteration function for the whole ast
+ * in contrast to astiter.ml does only visit the nodes, 
+ * but not the base data types like int, string
+ *)
+
+
 (* 
  * generate this file as follows
  * - start with a copy of astiter.ml

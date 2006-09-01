@@ -68,7 +68,6 @@ echo ===========================================================================
 # added elsa/ast/ocamlhelp.h
 # added elsa/ast/ocsstr.cc
 # added elsa/ast/ocsstr.h
-# added elsa/ChangeLog
 # added elsa/elsa/all.ast
 # added elsa/elsa/ast_annotation.ml
 # added elsa/elsa/ast_marshal.ml

@@ -1,4 +1,13 @@
+(*  Copyright 2006 Hendrik Tews, All rights reserved.                  *)
+(*  See file license.txt for terms of use                              *)
+(***********************************************************************)
 
+(* check if source code locations are shared as far as possible
+ *
+ * does not work if cycles are present (Uncaught exception: Not_found)
+ * the check on the size of the live data only works in bytecode
+ * in native code some variables become garbage earlier
+ *)
 
 open Cc_ml_types
 open Cc_ast_gen_type
@@ -19,18 +28,18 @@ let the ref_opt = match !ref_opt with
 
 module DS = Dense_set
 
-let visited_nodes = DS.make ()
+let visited_nodes = ref None
 
 let visited (annot : annotated) =
-  DS.mem (id_annotation annot) visited_nodes
+  DS.mem (id_annotation annot) (the visited_nodes)
 
 let visit (annot : annotated) =
   (* Printf.eprintf "visit %d\n%!" (id_annotation annot); *)
   let id = id_annotation annot
   in
-    if DS.mem id visited_nodes then
+    if DS.mem id (the visited_nodes) then
       Printf.printf "Recursive visit of node %d\n%!" id;
-    DS.add (id_annotation annot) visited_nodes
+    DS.add (id_annotation annot) (the visited_nodes)
 
 
 let cType_hash = Hashtbl.create 203
@@ -45,7 +54,8 @@ let strings_fast = ref None
 
 let locs_fast = ref None
 
-let init_hashs() =
+let init_state() =
+  visited_nodes := Some (DS.make ());
   strings := Some(Hashtbl.create 50);
   locs := Some(Hashtbl.create 1487);
   strings_fast := Some(Hashtbl.create 50);
@@ -1357,7 +1367,7 @@ let main () =
     else !file ^ ".compact"
   in
   let oc = open_out (ofile) in
-  let _ = init_hashs() in
+  let _ = init_state() in
   let ast = ref None in
   let live_before = get_live() in
   let _ = ast := 
@@ -1368,7 +1378,7 @@ let main () =
    * let live_clean = Gc.full_major(); (Gc.stat()).Gc.live_words 
    *)
   let _ = ast := Some (translationUnit_fun (the ast)) in
-  let _ = init_hashs() in
+  let _ = init_state() in
   let live_compact = get_live() in
   let _ = Marshal.to_channel oc (the ast) [] in
   let _ = ast := None in

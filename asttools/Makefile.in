@@ -1,12 +1,21 @@
+#  Copyright 2006 Hendrik Tews, All rights reserved.    #
+#  See file license.txt for terms of use                #
+#########################################################
+
 # Makefile.in
-# this is the Makefile for the semantic actions on ocaml ast's
+# this is the Makefile for the ocaml ast tools
 
 OCAML_OBJ_EXT := @OCAML_OBJ_EXT@
 
-#all: ast_graph
-#all: hashloc
-#all: test_ast
-#all: path_to_node.cmo
+# use the first goal for development, for release put it in comment and use all
+
+first: count-ast
+#first: ast_graph
+#first: hashloc
+#first: test_ast
+#first: path_to_node.cmo
+
+
 all: ast_graph astiter.$(OCAML_OBJ_EXT) \
 	astiternodes.$(OCAML_OBJ_EXT) astmap.$(OCAML_OBJ_EXT) \
 	dumpast hashloc
@@ -40,6 +49,14 @@ Makefile: Makefile.in config.status
 config.status: configure.pl $(SMBASE)/sm_config.pm
 	./config.status -reconfigure
 
+COUNTAST_ML=\
+	dense_set.ml \
+	$(ELSA)/ast_annotation.ml \
+	ast_util.ml \
+	count-ast.ml
+
+count-ast: $(COUNTAST_ML:.ml=.$(OCAML_OBJ_EXT))
+	$(OCAMLCC) -o $@ $^
 
 
 ASTGRAPH_ML=\
@@ -120,6 +137,7 @@ tyclean:
 .PHONY: distclean
 distclean: clean
 	rm -f Makefile config.status config.summary
+	rm -f astmapfuns.mli
 
 
 TOCLEAN += *.cmo

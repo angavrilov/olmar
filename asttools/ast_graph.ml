@@ -1,3 +1,21 @@
+(*  Copyright 2006 Hendrik Tews, All rights reserved.                  *)
+(*  See file license.txt for terms of use                              *)
+(***********************************************************************)
+
+(* generate a dot graph from the ast
+ *
+ * to make use of it you need the graphviz package (http://www.graphviz.org/)
+ * 
+ * to visualize the graph 
+ * - zgrviewer on the dot file (http://zvtm.sourceforge.net/zgrviewer.html)
+ * - run dot -Tps nodes.dot > nodes.ps
+ *        if ghostview cannot allocate a bitmap big enough to hold 
+ *        the graph you can experiment with the -size option or change
+ *        the dot file to get multiple pages
+ * - run dot -Tfig nodes.dot > nodes.fig  and use xfig
+ *        works surprisingly good, even for the biggest graphs
+ * - consult the dot documentation for other options (jpeg for instance)
+ *)          
 
 open Cc_ml_types
 open Cc_ast_gen_type

@@ -1,3 +1,8 @@
+//  Copyright 2006 Hendrik Tews, All rights reserved.                  *
+//  See file license.txt for terms of use                              *
+//**********************************************************************
+
+// attribute hack: extend the iDeclarator_type
 
 // HT: This file must be included right after cc.ast, 
 // if the GNU language extension is used. Here I extend

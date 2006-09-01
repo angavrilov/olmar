@@ -1,3 +1,14 @@
+(*  Copyright 2006 Hendrik Tews, All rights reserved.                  *)
+(*  See file license.txt for terms of use                              *)
+(***********************************************************************)
+
+(* various simple utility functions on C++ ast's
+ *
+ * contains
+ *   *_annotation : * -> annotation
+ *   *_loc : * -> sourceLoc
+ *   typeSpecifier_cv : typeSpecifier -> cVFlags
+ *)
 
 open Cc_ml_types
 open Cc_ast_gen_type

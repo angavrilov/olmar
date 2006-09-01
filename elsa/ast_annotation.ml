@@ -1,9 +1,16 @@
-(* define the annotation type that gets inserted 
- * into every node of the ocaml ast
- *)
+(*  Copyright 2006 Hendrik Tews, All rights reserved.                  *)
+(*  See file license.txt for terms of use                              *)
+(***********************************************************************)
 
-(* the first int is a unique number for identification, 
- * the second is the C++ address (shifted left to fit)
+(* annotation type for ast nodes, utility functions *)
+
+(*
+ * an element of annotated gets inserted 
+ * into every node of the ocaml ast
+ *
+ * the first int is a unique number for identification, 
+ * the second is the address of the C++ object in memory
+ * (shifted left to fit into an ocaml int)
  *)
 type annotated = int * int
 

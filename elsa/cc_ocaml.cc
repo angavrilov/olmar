@@ -1,4 +1,7 @@
-// cc_flags.h            see license.txt for copyright and terms of use
+//  Copyright 2006 Hendrik Tews, All rights reserved.                  *
+//  See file license.txt for terms of use                              *
+//**********************************************************************
+
 // implementation of cc_ocaml.h -- ocaml serialization utility functions
 
 

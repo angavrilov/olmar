@@ -1,9 +1,18 @@
 #!/bin/bash
 
-# ast_files=$(find .. -name \*.oast -print)
+# regression test  (need to run regrtest -ocaml in ../elsa before)
+#
+# run ast_graph and dot on all ast files found
+#
+# takes a long time because doing graph layout with dot is time consuming
+# to improve to timings you can patch dot to exit after parsing the dot file
+# call this dot-parseonly, place it into the PATH and use the option -parse
+
 
 trap "echo Interupted; exit 1" SIGINT
 
+
+# ast_files=$(find .. -name \*.oast -print)
 
 ast_files_1_1=$(ls ../elsa/in/t*.oast)
 ast_files_1_2=$(ls ../elsa/in/d*.oast)

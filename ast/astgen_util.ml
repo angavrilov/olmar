@@ -1,3 +1,6 @@
+(*  Copyright 2006 Hendrik Tews, All rights reserved.                  *)
+(*  See file license.txt for terms of use                              *)
+(***********************************************************************)
 
 (* 
  * make List.rev accessible from the C side 

@@ -1,10 +1,20 @@
-The software in this directory is
+The following files 
+
+    ast_annotation.ml ast_marshal.ml caml_callbacks.ml
+    cc_ml_constructors.ml cc_ml_types.ml cc_ocaml.cc cc_ocaml.h
+    elsa_util.ml gnu_attribute_hack.ast ml_ctype.ast
+    ml_ctype_constructors.ml ml_ctype.ml
+
+in this directory are
+Copyright (c) 2006, Hendrik Tews, all right reserved.
+
+All other software in this directory is
 Copyright (c) 2002, Regents of the University of California
 All rights reserved.
 
-Redistribution and use in source and binary forms, with or without
-modification, are permitted provided that the following conditions are
-met:
+Redistribution and use in source and binary forms of all material
+within this directory, with or without modification, are
+permitted provided that the following conditions are met:
 
     * Redistributions of source code must retain the above copyright
       notice, this list of conditions and the following disclaimer.

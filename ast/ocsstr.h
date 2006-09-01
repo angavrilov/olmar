@@ -1,4 +1,7 @@
-// ocsstr.h            see license.txt for copyright and terms of use
+//  Copyright 2006 Hendrik Tews, All rights reserved.                  *
+//  See file license.txt for terms of use                              *
+//**********************************************************************
+
 // Ocaml substrate for the ast file parser
 
 // This only implements a limited ocaml grammar, which is sufficient

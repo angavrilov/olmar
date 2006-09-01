@@ -1,10 +1,19 @@
 #!/bin/bash
 
-# ast_files=$(find .. -name \*.oast -print)
+
+# regression test  (need to run regrtest -ocaml in ../elsa before)
+#
+# runs check-oast on all ast files found (check their internal consistency)
+# (check-oast requires ocaml with the SafeUnmarshal library, see check-oast.ml)
+#
+# currently the SafeUnmarshal consitency check works only on small files
+# (it takes more than 2 hours to input a 4.7MB of marshaled ast on my machine)
+# you might kill this if it gets to slow
 
 trap "echo Interupted; exit 1" SIGINT
 
 
+# ast_files=$(find .. -name \*.oast -print)
 ast_files_1_1=$(ls ../elsa/in/t*.oast)
 ast_files_1_2=$(ls ../elsa/in/d*.oast)
 ast_files_1_3=$(ls ../elsa/in/k*.oast)

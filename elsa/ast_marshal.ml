@@ -1,3 +1,9 @@
+(*  Copyright 2006 Hendrik Tews, All rights reserved.                  *)
+(*  See file license.txt for terms of use                              *)
+(***********************************************************************)
+
+(* marshal the ocaml ast to a file *)
+
 open Cc_ast_gen_type
 open Ml_ctype
 open Ast_annotation

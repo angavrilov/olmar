@@ -1,5 +1,16 @@
+(*  Copyright 2006 Hendrik Tews, All rights reserved.                  *)
+(*  See file license.txt for terms of use                              *)
+(***********************************************************************)
 
+(* densely populated set of positive integers
+ * (use a bitmap internally)
+ *)
 
+(* type of sets (will use a string array as bitmap)
+ * a freshly made set (returned from make) will occupy about 1KB
+ * it will grow on demand to accomodate 
+ * all positive integers (yes, even including max_int!)
+ *)
 type t
 
     (* test if an positive integer is in the given set *)

@@ -1,5 +1,8 @@
+(*  Copyright 2006 Hendrik Tews, All rights reserved.                  *)
+(*  See file license.txt for terms of use                              *)
+(***********************************************************************)
 
-(* type declarations for cc.ast *)
+(* simple types needed in the ocaml ast *)
 
 (* SourceLoc is defined as an enum in srcloc.h, here we take the
  * xml representation, which is file * line * char

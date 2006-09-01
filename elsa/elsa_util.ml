@@ -1,3 +1,8 @@
+(*  Copyright 2006 Hendrik Tews, All rights reserved.                  *)
+(*  See file license.txt for terms of use                              *)
+(***********************************************************************)
+
+(* general utility functions *)
 
 let string_of_flag_list string_of_elem = function
   | [] -> "[]"

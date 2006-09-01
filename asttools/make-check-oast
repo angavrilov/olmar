@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# compile check-oast with the SaveUnmarshal ocaml compiler
+# need to adopt the its location in OCAML_TY_DIR below
+
 #set -x
 
 #native=no
