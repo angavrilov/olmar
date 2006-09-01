@@ -1,12 +1,3 @@
-config.status
-config.summary
-Makefile
 *.cmi
 *.cmo
 *.cmx
-ast_graph
-ast_graph.native
-check-oast
-dumpast
-hashloc
-temp.oast

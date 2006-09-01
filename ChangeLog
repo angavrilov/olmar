@@ -1,5 +1,7 @@
 2006-09-01  Hendrik Tews  <tews@tandem.cs.ru.nl>
 
+	* move semantic to asttools
+
 	* new option -inside for check-oast: descend into ast on error,
 	trying to locate the problem
 
