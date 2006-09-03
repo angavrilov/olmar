@@ -9,4 +9,5 @@ ast_graph.native
 check-oast
 dumpast
 hashloc
+count-ast
 temp.oast
