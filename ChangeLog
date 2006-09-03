@@ -1,3 +1,7 @@
+2006-09-04  Hendrik Tews  <tews@debian>
+
+	* started asttools/doc/index.html
+
 2006-09-04  Hendrik Tews  <tews@tandem.cs.ru.nl>
 
 	* added count-ast example

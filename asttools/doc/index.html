@@ -1,0 +1,218 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 TRANSITIONAL//EN" "HTTP://WWW.W3.ORG/TR/HTML4/LOOSE.DTD">
+<HTML> <HEAD>
+<TITLE>Olmar : Process C++ Programs in Ocaml</TITLE>
+</HEAD>
+
+<BODY>
+<div style="background:#ffa500; color:#0048ff; text-align:center">
+<H1>Olmar : Process C++ Programs in Ocaml</H1>
+</div>
+
+
+<span style="color:#0048ff;"><STRONG>Olmar</STRONG></span>
+connects <A HREF="http://www.cs.berkeley.edu/~smcpeak/elkhound/"
+>Elsa, the Elkhound based C/C++ parser and typechecker,</A> with <A
+HREF="http://caml.inria.fr/ocaml/" >Ocaml.</A> More precisely,
+the <span
+style="color:#0048ff;"><STRONG>Olmar</STRONG></span> extension can
+translate Elsa's internal abstract syntax tree
+into a value of an Ocaml variant type. This value can then be
+further processed with a pure Ocaml program. I prefer to have
+standalone Ocaml programs. Therefore I let Elsa
+marshal the abstract syntax tree as an Ocaml value to disk.
+However, it is also possible to link the Ocaml code into the Elsa
+executable.
+
+
+<div style="background:#ffa500; color:#0048ff; text-align:center">
+<H2>Distribution</H2>
+</div>
+
+In principle <span
+style="color:#0048ff;"><STRONG>Olmar</STRONG></span> is a patch
+for the <A
+HREF="http://www.cs.berkeley.edu/~smcpeak/elkhound/sources/ast/"
+>astgen tool</A> and for Elsa. In the future <span
+style="color:#0048ff;"><STRONG>Olmar</STRONG></span> will
+hopefully get integrated into the Elsa/Elkhound distribution. At
+the moment <span
+style="color:#0048ff;"><STRONG>Olmar</STRONG></span> is based on
+the latest Elsa distribution 2005.08.22b.
+<P>
+
+For
+simplicity I only distribute a complete
+smbase/Ast/Elkhound/Elsa/<span
+style="color:#0048ff;"><STRONG>Olmar</STRONG></span> system now. If
+you want to have pure Elsa, please download it from <A
+HREF="http://www.cs.berkeley.edu/~smcpeak/elkhound/" >Elsa website.</A>
+
+
+<div style="background:#ffa500; color:#0048ff; text-align:center">
+<H2>Download and Installation</H2>
+</div>
+
+<H3>System requirements</H3>
+
+<UL>
+<LI>C++ compiler
+</LI>
+<LI>Flex</LI>
+<LI>perl5</LI>
+<LI>(I believe some Yacc variant, like bison)</LI>
+<LI>and of course Ocaml</LI>
+</UL>
+
+
+See also <A HREF="http://www.cs.berkeley.edu/~smcpeak/elkhound/"
+>Elsa's requirements (under point Download) and <A HREF="http://www.cs.berkeley.edu/~smcpeak/elkhound/matrices/matrix-2005.08.22b.html" >Elsa's
+success/failure matix</A></A>
+<P>
+
+(It appears to run on a 64bit system. However, there are quite a
+few warning about casts between pointer and integer. I guess it
+is pure luck that it passes the regression tests.)
+
+
+
+<H3>Download Elsa+Olmar</H3>
+choose from the following alternative:
+<UL>
+<LI>Releases:
+</LI>
+<LI><A HREF="http://www.cs.ru.nl/cvsanon" >View the cvs
+repository</A> with <A HREF="http://www.viewvc.org/" >viewcvs</A>
+</LI>
+<LI>anonymous cvs access
+</LI>
+</UL>
+
+<H3>Installation</H3>
+
+The whole thing consists of five packages/sudirectories: smbase,
+ast, elkhound, elsa, and asttools.
+
+
+
+<div style="background:#ffa500; color:#0048ff; text-align:center">
+<H2>Technology</H2>
+</div>
+
+The goal of <span
+style="color:#0048ff;"><STRONG>Olmar</STRONG></span> is to make
+the abstract syntax tree of a C or C++ program available as an
+Ocaml variant type, such that one can use pattern matching to
+process C and C++ programs.
+<P>
+
+Elsa can output its internal abstract syntax tree in XML, or
+(mainly for debugging purposes) in plain ASCII. In principle 
+one could read the XML into Ocaml, for instance with <A
+HREF="http://www.ocaml-programming.de/packages/documentation/pxp/"
+>PXP.</A> PXP reads XML into an Ocaml object hierarchy.
+As far as I know, there is, however, no simple way to translate
+XML into an Ocaml variant type. With PXP one could either write a
+pull parser or a visitor on the ocaml object tree. Both
+approaches are a kind of high-level XML parsing that require some
+form of typechecking the XML and a lot of error code. I did not
+want to write this kind of XML typechecking code. Therefore <span
+style="color:#0048ff;"><STRONG>Olmar</STRONG></span> uses a
+completely different approach.
+<P>
+
+
+<span style="color:#0048ff;"><STRONG>Olmar</STRONG></span> simply
+adds a method <KBD>toOcaml</KBD> to each class in Elsa's abstract
+syntax tree. This method traverses the syntax tree, thereby
+reconstructing it in Ocaml. At the end the Ocaml value is
+marshaled into a file. Elsa is linked with some Ocaml code, the
+ocaml runtime and some C++ glue code. (In reality the whole story
+is slightly more complicated, because Elsa's ast can be circular
+and because C++ pointers might be <KBD>NULL</KBD>. Anyway ...)
+<P>
+
+
+Elsa internal abstract syntax tree falls into two parts. About 35
+different node types (about 150 classes) describe the C++ syntax. 
+Elsa's type checker adds some more types of nodes to describe C++
+types in a syntax independent way. A node type might be split
+into several subtypes (very similar to Ocaml variants). The node
+type for C++ expressions, for instance, is modelled with 36
+classes, for each kind of expression one. In Ocaml such node
+types are of course modelled with a variant type. Elsa's abstract
+syntax tree contains also unstructured node types (i.e., without
+subtypes). In Ocaml those nodes are represented as a tuple or a
+record. 
+<P>
+
+I wanted to keep <span
+style="color:#0048ff;"><STRONG>Olmar</STRONG></span> mostly
+independent from the encoding of variant constructors in Ocaml.
+Therefore, I register an Ocaml callback function for each variant
+constructor and each tuple type. The C++ code calls these
+callbacks in order to construct Ocaml values (instead of
+allocating memory itself and filling it). Only list and option
+values are created directly in C++. For now I prefer this
+hopefully less error prone variant over more efficient code.
+<P>
+
+
+The code for the 35 syntax node types is generated automatically
+from an ast description file. Therefore, to add the
+<KBD>toOcaml</KBD> method to these syntax classes one only needs
+to patch astgen. With <span
+style="color:#0048ff;"><STRONG>Olmar</STRONG></span> astgen
+additionally generates an Ocaml type definition and Ocaml code
+for the abovementioned callback functions. Finally astgen also
+generates the <KBD>toOcaml</KBD> method in C++.
+<P>
+
+The syntax tree nodes for Elsa's typechecker are, unfortunately,
+not generated from ast descriptions. I had to write all the
+necessary Ocaml and C++ code myself. In the end this turned out
+to be much more work than improving astgen...
+
+
+<div style="background:#ffa500; color:#0048ff; text-align:center">
+<H2>Olmar's contribution: ast_graph, visualizing C++ syntax trees</H2>
+</div>
+
+At the moment the <KBD>asttools</KBD> subdirectory in the
+distribution contains only one useful tool:
+<span style="color:#0048ff;"><STRONG>ast_graph.</STRONG></span>
+<span style="color:#0048ff;"><STRONG>ast_graph</STRONG></span>
+generates the abstract syntax tree in the <A
+HREF="http://www.graphviz.org/doc/info/lang.html" >dot
+language.</A> One can then use the tools from the <A
+HREF="http://www.graphviz.org/" >graphviz</A> package to
+visualize the syntax tree.
+<P>
+
+For instance
+
+
+<div style="background:#ffa500; color:#0048ff; text-align:center">
+<H2>Using Olmar</H2>
+</div>
+
+
+
+
+
+
+
+
+<HR><FONT SIZE="-2">
+last changed on
+<!-- hhmts start --> 4 Sep 2006
+<!-- hhmts end -->
+by <A HREF="http://www.cs.ru.nl/~tews">Hendrik</A>
+</FONT></BODY> </HTML>
+
+
+<!-- LOCAL VARIABLES: -->
+<!-- MODE: HTML-HELPER -->
+<!-- VERSION-CONTROL: T -->
+<!-- KEPT-NEW-VERSIONS: 5 -->
+<!-- DELETE-OLD-VERSIONS: T -->
+<!-- END: -->
