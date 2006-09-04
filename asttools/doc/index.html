@@ -4,9 +4,27 @@
 </HEAD>
 
 <BODY>
+<TABLE border="0" width="100%">
+<TR><TD valign="bottom" width="80%">
 <div style="background:#ffa500; color:#0048ff; text-align:center">
 <H1>Olmar : Process C++ Programs in Ocaml</H1>
 </div>
+</TD>
+<TD valign="top" width="20%">
+<A HREF="crc.jpg" ><IMG SRC="crc-small.jpg"  alt="crc-small.jpg"
+></A>
+The ocaml garbage collector (byterun/minor_gc.c)
+</TD></TR>
+</TABLE>
+
+
+<!-- 
+ ! - <A HREF="crc.jpg" ><IMG SRC="crc-small.jpg"  alt="crc-small.jpg"
+ ! - width="10%" align="right"></A>
+ ! - <div style="background:#ffa500; color:#0048ff; text-align:center">
+ ! - <H1>Olmar : Process C++ Programs in Ocaml</H1>
+ ! - </div>
+  -->
 
 
 <span style="color:#0048ff;"><STRONG>Olmar</STRONG></span>
@@ -49,7 +67,7 @@ HREF="http://www.cs.berkeley.edu/~smcpeak/elkhound/" >Elsa website.</A>
 
 
 <div style="background:#ffa500; color:#0048ff; text-align:center">
-<H2>Download and Installation</H2>
+<H2>Download / Compile / Use</H2>
 </div>
 
 <H3>System requirements</H3>
@@ -78,20 +96,80 @@ is pure luck that it passes the regression tests.)
 <H3>Download Elsa+Olmar</H3>
 choose from the following alternative:
 <UL>
-<LI>Releases:
+<LI>Releases: <A HREF="http://www.cs.ru/nl/olmar/elsa-2005.08.22b-olmar-2006.09.04.tar.gz" >elsa-2005.08.22b-olmar-2006.09.04.tar.gz</A>
 </LI>
-<LI><A HREF="http://www.cs.ru.nl/cvsanon" >View the cvs
-repository</A> with <A HREF="http://www.viewvc.org/" >viewcvs</A>
+<LI><A HREF="http://www.cs.ru.nl/cvsanon" >Browse the cvs
+repository</A>
 </LI>
-<LI>anonymous cvs access
-</LI>
+<LI>via anonymous cvs access, use
+<P>
+<BLOCKQUOTE><PRE>
+cvs -d :pserver:anon@cvs-srv.cs.kun.nl:/robin co elsa
+</PRE>
+</BLOCKQUOTE></LI>
 </UL>
 
-<H3>Installation</H3>
+<H3>Configure</H3>
+<BLOCKQUOTE><PRE>
+configure -no-dash-O2
+</PRE>
+</BLOCKQUOTE>
+Leave out the <KBD>-no-dash-O2</KBD> option if you want to
+compile the C++ code with <KBD>-O2</KBD>. You can use the
+environment variables <KBD>CC</KBD> and <KBD>CXX</KBD> to set the
+C and C++ compiler, respectively.
+<P>
 
 The whole thing consists of five packages/sudirectories: smbase,
-ast, elkhound, elsa, and asttools.
+ast, elkhound, elsa, and asttools. The configure script and the
+makefile of the base directory simply start the appropriate
+action in each subdirectory. <KBD>configure --help</KBD> in the
+base directory will therefore give you the help text of all the
+configure scripts in the subdirectories.
+<P>
 
+
+<H3>Compile</H3>
+<BLOCKQUOTE><PRE>make</PRE></BLOCKQUOTE>
+this will create the C++ parser <KBD>elsa/ccparse</KBD>, the AST
+Graph utility <KBD>asttools/ast_graph</KBD>, and the <span
+style="color:#0048ff;"><STRONG>Olmar</STRONG></span> example
+application <KBD>asttool/count-ast</KBD>.
+<P>
+
+<H3>Try it</H3>
+<UL>
+<LI>preprocess the C++ sources (elsa does not include a preprocessor):
+<BLOCKQUOTE><PRE>
+g++ -E -o crc.ii smbase/crc.cpp 
+</PRE>
+</BLOCKQUOTE>
+</LI>
+<LI>run elsa on it and marshal the abstract syntax tree into
+<KBD>crc.oast</KBD>:
+<BLOCKQUOTE><PRE>
+elsa/ccparse -oc crc.oast crc.ii
+</PRE>
+</BLOCKQUOTE>
+</LI>
+<LI>use AST Graph to generate a dot graph description
+<BLOCKQUOTE><PRE>
+asttools/ast_graph -o crc.dot crc.oast 
+</PRE>
+</BLOCKQUOTE>
+</LI>
+<LI>View the graph, using one of the following lines
+<BLOCKQUOTE><PRE>
+zgrviewer crc.dot
+dotty crc.dot
+dot -Tps crc.dot -o crc.ps; gv crc.ps
+</PRE>
+</BLOCKQUOTE>
+</LI>
+<LI>or generate a jpeg from it (<KBD>dot -Tjpeg</KBD>):
+<A HREF="crc.jpg" ><IMG SRC="crc-small.jpg"  alt="crc-small.jpg" width="30%" align="center"></A>
+</LI>
+</UL>
 
 
 <div style="background:#ffa500; color:#0048ff; text-align:center">

@@ -6,7 +6,7 @@ all:
 	$(MAKE) -C ast
 	$(MAKE) -C elkhound
 	$(MAKE) -C elsa
-	$(MAKE) -C asttools
+	$(MAKE) -C asttools all
 
 check:
 	$(MAKE) -C smbase check

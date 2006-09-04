@@ -1386,7 +1386,7 @@ let size_flag = ref false
 let arguments = Arg.align
   [
     ("-o", Arg.Set_string out_file,
-     "file set output file name");
+     "file set output file name [default nodes.dot]");
     ("-size", Arg.Set size_flag,
      " limit size of output")
 

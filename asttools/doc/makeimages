@@ -1,0 +1,11 @@
+#!/bin/bash
+
+ocamlsrc=/usr/local/src/ocaml-3.09.2
+pwd=$(pwd)
+
+(cd $ocamlsrc/byterun;
+    gcc -DCAML_NAME_SPACE -O -fno-defer-pop -Wall -D_FILE_OFFSET_BITS=64 -D_REENTRANT   -E -o $pwd/minor_gc.i minor_gc.c)
+
+../../elsa/ccparse -tr c_lang -oc minor_gc.oast minor_gc.i
+../ast_graph minor_gc.oast -o minor_gc.dot
+dot -v -Tpng minor_gc.dot -o minor_gc.png

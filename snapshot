@@ -6,7 +6,7 @@
 elsarep=/home/tews/Store
 repdir=src/elsa
 create_tar_cache=0
-snapshot_name=$(date +"elsa-2005.08.22b-olmar-%Y.%b.%m")
+snapshot_name=$(date +"elsa-2005.08.22b-olmar-%Y.%m.%d")
 snapshot_tar=$snapshot_name.tar.gz
 
 dir=/tmp/tews/elsa
@@ -15,7 +15,7 @@ cvscache=elsa.tar.gz
 orig_elsa_release_tar=/home/tews/src/elsa-2005.08.22b.tar.gz
 orig_elsa_release=/tmp/tews/elsa-2005.08.22b
 
-rm -rf $(dirname $dir)/elsa-ocaml*
+rm -rf $(dirname $dir)/elsa*olmar*
 rm -rf $dir
 rm -rf $(dirname $dir)/build
 
@@ -112,13 +112,13 @@ if [ ! -d $orig_elsa_release ] ; then
 	exit 1
     fi
     
-    pushd $(dirname $dir)
+    pushd $(dirname $dir) > /dev/null
     tar -xzf $orig_elsa_release_tar
     if [ ! -d $orig_elsa_release ] ; then
 	echo "something is wrong: untared original elsa but can't find it"
 	exit 1
     fi
-    popd
+    popd > /dev/null
 fi
 
 cd $(dirname $dir)
