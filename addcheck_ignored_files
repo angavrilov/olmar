@@ -1,5 +1,5 @@
 ^elsa/ChangeLog$
-^elsa/ast/ast_util.ml$
+^elsa/ast/astgen_util.ml$
 ^elsa/ast/ocamlhelp.cc$
 ^elsa/ast/ocamlhelp.h$
 ^elsa/ast/ocsstr.cc$
@@ -27,7 +27,7 @@
 ^elsa/elsa/ml_ctype_constructors.ml$
 ^elsa/elsa/ml_ctype.ml$
 ^elsa/elsa/mldeps.mk$
-^elsa/semantic$
+^elsa/asttools$
 ^elsa/snapshot$
 ^elsa/addcheck_ignored_files$
 ^/tmp/tews/elsa-2005.08.22b/ast/agrampar.codes.h$

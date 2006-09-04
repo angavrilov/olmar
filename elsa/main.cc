@@ -394,9 +394,9 @@ void marshal_to_ocaml(char ** argv, const char * inputFname,
   //      << String_val(of) << ")\n";
   caml_callback2(*marshal_callback, ocaml_unit, of);
 
-  cout << "wrote " 
-       << get_max_annotation() 
-       << " ocaml ast nodes" << endl << flush;
+  // cout << "wrote " 
+  //      << get_max_annotation() 
+  //      << " ocaml ast nodes" << endl << flush;
   CAMLreturn0;
 }
 

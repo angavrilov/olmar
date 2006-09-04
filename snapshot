@@ -6,7 +6,7 @@
 elsarep=/home/tews/Store
 repdir=src/elsa
 create_tar_cache=0
-snapshot_name=$(date +"elsa-ocaml-%d-%b-%Y")
+snapshot_name=$(date +"elsa-2005.08.22b-olmar-%Y.%b.%m")
 snapshot_tar=$snapshot_name.tar.gz
 
 dir=/tmp/tews/elsa
@@ -46,7 +46,7 @@ fi
 
 cd $dir
 
-for d in smbase ast elkhound elkhound/c elsa semantic ; do
+for d in smbase ast elkhound elkhound/c elsa asttools ; do
     cp $d/Makefile.in $d/Makefile
 done
 
@@ -56,7 +56,6 @@ make distclean
 for d in smbase ast elkhound elsa ; do
     cp -a $elsa_cvs_dir/$d/gendoc $d
 done
-
 
 echo ===========================================================================
 echo ============================     ADDED FILES    ===========================
@@ -90,7 +89,7 @@ echo ===========================================================================
 # added elsa/elsa/ml_ctype_constructors.ml
 # added elsa/elsa/ml_ctype.ml
 # added elsa/elsa/mldeps.mk
-# added elsa/semantic
+# added elsa/asttools
 # added elsa/snapshot
 # added elsa/addcheck_ignored_files
 #
@@ -160,7 +159,7 @@ if [  ${answer:=y} = y -o $answer = Y ] ; then
 	echo -n "continue tests [Y/n]:"
 	read answer
 	if [  ${answer:=y} = y -o $answer = Y ] ; then
-	    (cd semantic; ./regtest-graph -parse)
+	    (cd asttools; ./regtest-graph -parse)
 	fi
     fi
 fi
