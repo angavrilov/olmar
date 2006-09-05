@@ -33,4 +33,19 @@ popd
 
 ../ast_graph minor_gc.oast -o minor_gc.dot
 
-#dot -v -Tpng minor_gc.dot -o minor_gc.png
+#add a page attribute to the dot file
+# page="240,70";
+#
+#run dot
+#dot -v -Tps minor_gc.dot -o minor_gc.ps
+#
+#separate the last but one page
+#
+#import into gimp
+#crop the interesting part
+#store as minor_gc-detail.png
+#shrink to 2000 pixels, store as minor_gc-detail-small.png
+#
+#add the frame with
+#convert -bordercolor blue -border 5 -bordercolor white -border 50 minor_gc-detail-small.png minor_gc-detail-small-border.png
+

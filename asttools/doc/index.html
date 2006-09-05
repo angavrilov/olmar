@@ -13,14 +13,6 @@ align="right" width="20%" border="0"
 Olmar : Process C++ Programs in Ocaml</H1>
 </div>
 
-<!-- 
- ! - <A HREF="crc.jpg" ><IMG SRC="crc-small.jpg"  alt="crc-small.jpg"
- ! - width="10%" align="right"></A>
- ! - <div style="background:#ffa500; color:#0048ff; text-align:center">
- ! - <H1>Olmar : Process C++ Programs in Ocaml</H1>
- ! - </div>
-  -->
-
 
 <span style="color:#0048ff;"><STRONG>Olmar</STRONG></span>
 connects <A HREF="http://www.cs.berkeley.edu/~smcpeak/elkhound/"
@@ -167,8 +159,80 @@ dot -Tps crc.dot -o crc.ps; gv crc.ps
 </UL>
 
 
+<H3>New features in the elsa parser ccparse</H3>
+
+In <KBD>ccparse</KBD> the option <KBD>-oc &LT;file&GT;</KBD> will
+activate <span
+style="color:#0048ff;"><STRONG>Olmar</STRONG></span> and set the
+filename to write the abstract syntax tree to. Alternatively one
+can use the tracing option <KBD>marshalToOcaml</KBD> (add
+<KBD>-tr marshalToOcaml</KBD>). Then ccparse will derive the
+filename for the abstract syntax tree itself
+(<KBD>input-file.oast</KBD>).
+
+
+
+
 <div style="background:#ffa500; color:#0048ff; text-align:center">
-<H2>Technology</H2>
+<H2>Olmar's contribution: ast_graph, visualizing C++ syntax trees</H2>
+</div>
+
+At the moment the <KBD>asttools</KBD> subdirectory in the
+distribution contains only one useful tool:
+<span style="color:#0048ff;"><STRONG>Ast graph.</STRONG></span>
+<span style="color:#0048ff;"><STRONG>Ast graph</STRONG></span>
+generates the abstract syntax tree in the <A
+HREF="http://www.graphviz.org/doc/info/lang.html" >dot
+language.</A> One can then use the tools from the <A
+HREF="http://www.graphviz.org/" >graphviz</A> package to
+visualize the syntax tree.
+<P>
+
+<H3>Usage</H3>
+<UL>
+<LI>preprocess the source code: <KBD>g++ -E -o file.ii file.cc</KBD>
+</LI>
+<LI>run elsa on it: <KBD>ccparse -oc file.oast file.ii</KBD>
+(add <KBD>-tr c_lang</KBD> for C files)
+</LI>
+<LI>generate dot: <KBD>ast_graph file.oast -o file.dot</KBD>
+</LI>
+<LI>See below for viewing options
+</LI>
+</UL>
+
+Normal C++ files tend to have abstract synctax trees
+with 10.000 to 1.000.000 nodes. Including <KBD>iostream</KBD>
+alone gives more than 150.000 nodes. Most of the graphics
+software I tried fails on the sheer size of these graphs. To
+visualize the tree I have found the following possibilities:
+<DL>
+<DT><A HREF="http://zvtm.sourceforge.net/zgrviewer.html" >zgrviewer</A> 
+<DD>zgrviewer can display dot files directly (relying on a dot
+background job). It has nice zooming and scrolling functions.
+It's a pity that java runs out of memory on graphs with 10.000
+nodes already. 
+<DT>convert to postscript (<KBD>dot -Tps</KBD>) and use gv
+<DD>Works for huge graphs. Scrolling in gv is ok, zooming 
+relatively poor. gv seems to allocate a pixmap in the X server.
+For huge graphs one has therefore to limit the bounding box using
+<KBD>ast_graph</KBD>'s <KBD>-size</KBD> option (or putting a
+suitable <KBD>size</KBD> attribute into the dot file). 
+<DT>convert to xfig (<KBD>dot -Tfig</KBD>) and use xfig
+<DD>(xfig worked great for me until last week, then some debian
+etch update broke it) xfig is the fastest of the alternatives.
+Zooming is relatively good in xfig,
+scrolling a bit poor. The display is cluttered with all sorts of
+handles (because xfig assumes you want to change the graph).
+</DL>
+<P>
+
+<div style="background:#ffa500; color:#0048ff; text-align:center">
+<H2>
+<A HREF="minor_gc.html" >
+<IMG SRC="minor_gc-detail-small-border.png"  alt="syntax tree of ocaml's
+  minor garbage collector" width="30%" border="0" align="left"></A>
+  Technology</H2>
 </div>
 
 The goal of <span
@@ -247,31 +311,130 @@ to be much more work than improving astgen...
 
 
 <div style="background:#ffa500; color:#0048ff; text-align:center">
-<H2>Olmar's contribution: ast_graph, visualizing C++ syntax trees</H2>
-</div>
-
-At the moment the <KBD>asttools</KBD> subdirectory in the
-distribution contains only one useful tool:
-<span style="color:#0048ff;"><STRONG>ast_graph.</STRONG></span>
-<span style="color:#0048ff;"><STRONG>ast_graph</STRONG></span>
-generates the abstract syntax tree in the <A
-HREF="http://www.graphviz.org/doc/info/lang.html" >dot
-language.</A> One can then use the tools from the <A
-HREF="http://www.graphviz.org/" >graphviz</A> package to
-visualize the syntax tree.
-<P>
-
-For instance
-
-
-<div style="background:#ffa500; color:#0048ff; text-align:center">
 <H2>Using Olmar</H2>
 </div>
 
+You can use <span
+style="color:#0048ff;"><STRONG>Olmar</STRONG></span> in two ways:
+<UL>
+<LI>write a standalone Ocaml program that unmarshals the abstract
+syntax tree from the disk
+</LI>
+<LI>link additional modules into the Elsa parser ccparse and
+arrange for calls from ccparse.
+</LI>
+</UL>
+
+In <A HREF="count-ast.ml" >asttools/count-ast.ml</A> you find a
+very simple <span
+style="color:#0048ff;"><STRONG>Olmar</STRONG></span> example
+application. 
+
+<H3>Abstract syntax tree type definition</H3>
+
+The type definition is in the following files
+<DL>
+<DT><A HREF="cc_ast_gen_type.ml" >elsa/cc_ast_gen_type.ml</A>
+<DD>contains the type definition of all ast nodes
+<DT><A HREF="cc_ml_types.ml" >elsa/cc_ml_types.ml</A>
+<DD>flag types used in the syntax nodes
+<DT><A HREF="ml_ctype.ml" >elsa/ml_ctype.ml</A>
+<DD>flag types used in type nodes
+<DT><A HREF="ast_annotation.mli" >elsa/ast_annotation.mli</A>
+<DD>ast annotations (see below)
+</DL>
+
+The whole abstract syntax tree that is marshaled from ccparse has type
+<BLOCKQUOTE>
+annotated translationUnit_type = annotated * (annotated topForm_type list)
+</BLOCKQUOTE>
+
+
+<H3>Ast annotations</H3>
+
+The whole abstract syntax tree is polymorphic in one type
+parameter, which is a placeholder for user defined annotations.
+Every node of the syntax tree carries a (unique) slot of this
+annotation type. Annotations are meant for client use. One can
+easily define a new annotation type and use it to store client
+data in it.
+<P>
+
+ccparse generates the abstract syntax tree with annoations of
+type <KBD>annotated</KBD> (see <A HREF="ast_annotation.mli"
+>elsa/ast_annotation.mli</A>). Every node is guaranteed to
+contain a unique annotation value. The annotation carries an
+(positive) integer (accessible via
+<KBD>id_annotation</KBD>) that uniquely identifies the syntax
+tree node of this annotation. In addition the annotation contains
+the address of the C++ object from which the ocaml value was
+generated.
+
+
+<H3>Complications</H3>
+
+The abstract syntax tree is circular. A naive iteration over the
+tree will therefore in general not terminate. Currently there are
+three fields that might make the tree circular:
+<UL>
+<LI>var_type in type variable
+</LI>
+<LI>funcDefn in type variable
+</LI>
+<LI>self_type in compound_info
+</LI>
+</UL>
+
+All these fields have a (hopefully hinting) option ref type. An
+iteration over the abstract syntax tree will terminate, if you do
+not recurse into these three fields. However, there might be some
+tree nodes only reachable via one of these fields.
+<P>
+
+The <span
+style="color:#0048ff;"><STRONG>Olmar</STRONG></span> example <A
+HREF="count-ast.ml" >count-ast.ml</A> shows how to use
+annotations and dense sets to traverse all nodes in a syntax
+tree.
 
 
 
 
+<H3>Utilities</H3>
+
+<DL>
+<DT><A HREF="dense_set.mli" >Dense sets of positive integers</A>
+<DD>The interface is a subset of the module Set.S of Ocamls
+standard library (of course with with type elt = int). Internally
+it uses an array of strings as bitmap.
+<DT><A HREF="ast_util.ml" >Syntax tree utilities</A>
+<DD>Contains functions to access fields that are present in each
+variant of a given node type. For instance for annotations and
+source locations.
+</DL>
+
+<H3>Problems/Questions/Suggestions</H3>
+
+Feel free to contact me at <A
+HREF="mailto:tews@cs.ru.nl">tews@cs.ru.nl</A> with anything that
+is <span style="color:#0048ff;"><STRONG>Olmar</STRONG></span> or
+Elsa related.
+
+<div style="background:#ffa500; color:#0048ff; text-align:center">
+<H2>Known problems</H2>
+</div>
+
+<DL>
+<DT>missing type links
+<DD>In Ocaml one can currently not access the type information of an
+identifier or an Expression, although this seems possible in C++.
+<DT>missing node types
+<DD>Some syntax node classes seem not to appear in all of Elsas regression
+test programs. They are BaseClassSubobj, DependentQType. The
+<KBD>toOcaml</KBD> method of these classes currently just
+contains an <KBD>assert(false)</KBD>. I am greatful for any
+example program that triggers these assertions.
+</DL>
 
 
 
