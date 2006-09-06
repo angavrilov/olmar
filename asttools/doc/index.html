@@ -70,8 +70,8 @@ HREF="http://www.cs.berkeley.edu/~smcpeak/elkhound/" >Elsa website.</A>
 
 
 See also <A HREF="http://www.cs.berkeley.edu/~smcpeak/elkhound/"
->Elsa's requirements (under point Download) and <A HREF="http://www.cs.berkeley.edu/~smcpeak/elkhound/matrices/matrix-2005.08.22b.html" >Elsa's
-success/failure matix</A></A>
+>Elsa's requirements (under point Download)</A> and <A HREF="http://www.cs.berkeley.edu/~smcpeak/elkhound/matrices/matrix-2005.08.22b.html" >Elsa's
+success/failure matix</A>
 <P>
 
 (It appears to run on a 64bit system. However, there are quite a
@@ -83,9 +83,9 @@ is pure luck that it passes the regression tests.)
 <H3>Download Elsa+Olmar</H3>
 choose from the following alternative:
 <UL>
-<LI>Releases: <A HREF="http://www.cs.ru/nl/olmar/elsa-2005.08.22b-olmar-2006.09.04.tar.gz" >elsa-2005.08.22b-olmar-2006.09.04.tar.gz</A>
+<LI>Releases: <A HREF="http://www.cs.ru.nl/~tews/olmar/elsa-2005.08.22b-olmar-2006.09.07.tar.gz" >elsa-2005.08.22b-olmar-2006.09.04.tar.gz</A>
 </LI>
-<LI><A HREF="http://www.cs.ru.nl/cvsanon" >Browse the cvs
+<LI><A HREF="http://www.sos.cs.ru.nl/cgi-bin/~tews/olmar/viewvc-patch.cgi/elsa/" >Browse the cvs
 repository</A>
 </LI>
 <LI>via anonymous cvs access, use
@@ -154,7 +154,7 @@ dot -Tps crc.dot -o crc.ps; gv crc.ps
 </BLOCKQUOTE>
 </LI>
 <LI>or generate a png from it (<KBD>dot -Tpng</KBD>):
-<A HREF="crc.png" ><IMG SRC="crc-small.png"  alt="crc-small.png" align="center"></A>
+<A HREF="crc.png" ><IMG SRC="crc-small.png"  alt="syntax tree example" align="center"></A>
 </LI>
 </UL>
 
@@ -325,7 +325,9 @@ arrange for calls from ccparse.
 </LI>
 </UL>
 
-In <A HREF="count-ast.ml" >asttools/count-ast.ml</A> you find a
+In <A
+HREF="http://www.sos.cs.ru.nl/cgi-bin/~tews/olmar/viewvc-patch.cgi/elsa/asttools/count-ast.ml?annotate=HEAD"
+>asttools/count-ast.ml</A> you find a
 very simple <span
 style="color:#0048ff;"><STRONG>Olmar</STRONG></span> example
 application. 
@@ -334,13 +336,13 @@ application.
 
 The type definition is in the following files
 <DL>
-<DT><A HREF="cc_ast_gen_type.ml" >elsa/cc_ast_gen_type.ml</A>
+<DT><A HREF="http://www.sos.cs.ru.nl/cgi-bin/~tews/olmar/viewvc-patch.cgi/elsa/elsa/cc_ast_gen_type.ml?annotate=HEAD" >elsa/cc_ast_gen_type.ml</A>
 <DD>contains the type definition of all ast nodes
-<DT><A HREF="cc_ml_types.ml" >elsa/cc_ml_types.ml</A>
+<DT><A HREF="http://www.sos.cs.ru.nl/cgi-bin/~tews/olmar/viewvc-patch.cgi/elsa/elsa/cc_ml_types.ml?annotate=HEAD" >elsa/cc_ml_types.ml</A>
 <DD>flag types used in the syntax nodes
-<DT><A HREF="ml_ctype.ml" >elsa/ml_ctype.ml</A>
+<DT><A HREF="http://www.sos.cs.ru.nl/cgi-bin/~tews/olmar/viewvc-patch.cgi/elsa/elsa/ml_ctype.ml?annotate=HEAD" >elsa/ml_ctype.ml</A>
 <DD>flag types used in type nodes
-<DT><A HREF="ast_annotation.mli" >elsa/ast_annotation.mli</A>
+<DT><A HREF="http://www.sos.cs.ru.nl/cgi-bin/~tews/olmar/viewvc-patch.cgi/elsa/elsa/ast_annotation.mli?annotate=HEAD" >elsa/ast_annotation.mli</A>
 <DD>ast annotations (see below)
 </DL>
 
@@ -361,7 +363,8 @@ data in it.
 <P>
 
 ccparse generates the abstract syntax tree with annoations of
-type <KBD>annotated</KBD> (see <A HREF="ast_annotation.mli"
+type <KBD>annotated</KBD> (see
+<A HREF="http://www.sos.cs.ru.nl/cgi-bin/~tews/olmar/viewvc-patch.cgi/elsa/elsa/ast_annotation.mli?annotate=HEAD"
 >elsa/ast_annotation.mli</A>). Every node is guaranteed to
 contain a unique annotation value. The annotation carries an
 (positive) integer (accessible via
@@ -393,7 +396,7 @@ tree nodes only reachable via one of these fields.
 
 The <span
 style="color:#0048ff;"><STRONG>Olmar</STRONG></span> example <A
-HREF="count-ast.ml" >count-ast.ml</A> shows how to use
+HREF="http://www.sos.cs.ru.nl/cgi-bin/~tews/olmar/viewvc-patch.cgi/elsa/asttools/count-ast.ml?annotate=HEAD" >count-ast.ml</A> shows how to use
 annotations and dense sets to traverse all nodes in a syntax
 tree.
 
@@ -403,11 +406,11 @@ tree.
 <H3>Utilities</H3>
 
 <DL>
-<DT><A HREF="dense_set.mli" >Dense sets of positive integers</A>
+<DT><A HREF="http://www.sos.cs.ru.nl/cgi-bin/~tews/olmar/viewvc-patch.cgi/elsa/asttools/dense_set.mli?annotate=HEAD" >Dense sets of positive integers</A>
 <DD>The interface is a subset of the module Set.S of Ocamls
 standard library (of course with with type elt = int). Internally
 it uses an array of strings as bitmap.
-<DT><A HREF="ast_util.ml" >Syntax tree utilities</A>
+<DT><A HREF="http://www.sos.cs.ru.nl/cgi-bin/~tews/olmar/viewvc-patch.cgi/elsa/asttools/ast_util.ml?annotate=HEAD" >Syntax tree utilities</A>
 <DD>Contains functions to access fields that are present in each
 variant of a given node type. For instance for annotations and
 source locations.
@@ -440,7 +443,7 @@ example program that triggers these assertions.
 
 <HR><FONT SIZE="-2">
 last changed on
-<!-- hhmts start --> 5 Sep 2006
+<!-- hhmts start --> 7 Sep 2006
 <!-- hhmts end -->
 by <A HREF="http://www.cs.ru.nl/~tews">Hendrik</A>
 </FONT></BODY> </HTML>

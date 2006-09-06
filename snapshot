@@ -3,7 +3,11 @@
 #set -x
 
 #elsarep=ithif59.inf.tu-dresden.de:/sun/theorie/tews/Privat/Store
-elsarep=/home/tews/Store
+if [ $(hostname) = "tandem" ] ; then
+    elsarep=/home/tews/Store
+else
+    elsarep=tandem:/home/tews/Store
+fi
 repdir=src/elsa
 create_tar_cache=0
 snapshot_name=$(date +"elsa-2005.08.22b-olmar-%Y.%m.%d")
@@ -25,7 +29,7 @@ echo ===========================================================================
 echo ============================     make doc    ==============================
 echo ===========================================================================
 
-#make doc
+make doc
 
 echo ===========================================================================
 echo ============================     export    ================================
