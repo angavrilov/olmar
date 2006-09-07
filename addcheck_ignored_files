@@ -7,6 +7,7 @@
 ^elsa/ChangeLog$
 ^elsa/elsa/all.ast$
 ^elsa/elsa/ast_annotation.ml$
+^elsa/elsa/ast_annotation.mli$
 ^elsa/elsa/ast_marshal.ml$
 ^elsa/elsa/caml_callbacks.ml$
 ^elsa/elsa/cc_ml_constructors.ml$

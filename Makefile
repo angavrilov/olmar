@@ -29,7 +29,7 @@ distclean:
 	$(MAKE) -C elkhound -f Makefile.in distclean
 	$(MAKE) -C elsa -f Makefile.in distclean
 	$(MAKE) -C asttools -f Makefile.in distclean
-	rm -rf test semantic TODO
+	rm -rf test semantic TODO cvsanon-filter
 
 doc:
 	$(MAKE) -C smbase doc

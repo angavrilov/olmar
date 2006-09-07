@@ -1,0 +1,3 @@
+exclude semantic
+exclude test
+exclude TODO*

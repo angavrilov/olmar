@@ -141,6 +141,9 @@ TOCLEAN += *.cmo *.cmi *.cmx
 %.cmo: %.ml
 	$(OCAMLC) -c -I $(AST) $<
 
+%.cmi: %.mli
+	$(OCAMLC) -c -I $(AST) $<
+
 %.cmx: %.ml
 	$(OCAMLOPT) -c -I $(AST) $<
 

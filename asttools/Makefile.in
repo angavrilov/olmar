@@ -123,6 +123,9 @@ $(ELSA)/%.cmo: $(ELSA)/%.ml
 $(ELSA)/%.cmx: $(ELSA)/%.ml
 	$(MAKE) -C $(ELSA) elsa_ml_objects
 
+$(ELSA)/%.cmi: $(ELSA)/%.mli
+	$(MAKE) -C $(ELSA) elsa_ml_objects
+
 
 .PHONY: clean
 clean:
