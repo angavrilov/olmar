@@ -18,7 +18,7 @@ open Ast_annotation
  *
  **************************************************************************)
 
-let annotation_fun (((id, c_addr) as a) : int * int) = a
+let annotation_fun (a : annotated) = a
 
 let opt_map f = function
   | None -> None

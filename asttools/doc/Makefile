@@ -29,8 +29,9 @@ cp-index-html: index.html.rel
 	rm $^
 
 olmar-tar:
-	if [ ! -f $(OLMARTAR) ] ; then echo make snapshot first; false; fi
-	scp -q $(OLMARTAR) $(WEBSSH)
+	if [ ! -f /tmp/tews/$(OLMARTAR) ] ; \
+		then echo make snapshot first; false; fi
+	scp -q /tmp/tews/$(OLMARTAR) $(WEBSSH)
 
 .PHONY: new-doc
 new-doc: rm-doc copy-doc

@@ -30,7 +30,7 @@ let visit (annot : annotated) =
  **************************************************************************)
 
 
-let annotation_fun ((id, c_addr) : int * int) = ()
+let annotation_fun (a : annotated) = ()
 
 let opt_iter f = function
   | None -> ()
