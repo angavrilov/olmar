@@ -63,7 +63,6 @@ done
 
 set -e
 make -C $elsa_cvs_dir/asttools/doc TARGETDIR=$dir/asttools/doc copydoc
-false
 set +e
 
 echo ===========================================================================

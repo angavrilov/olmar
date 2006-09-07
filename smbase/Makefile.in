@@ -159,6 +159,14 @@ $(THIS): $(OBJS)
 	-$(RANLIB) $(THIS)
 
 
+# ---------- ast graph example -----------
+crc.ii: crc.cpp
+	$(CXX) -E -o crc.ii crc.cpp 
+
+crc.oast: crc.ii
+	../elsa/ccparse -oc crc.oast crc.ii
+
+
 # ---------- module tests ----------------
 # test program targets
 TESTS := nonport voidlist tobjlist bit2d growbuf testmalloc mypopen \
