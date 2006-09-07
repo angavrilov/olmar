@@ -1,5 +1,7 @@
 2006-09-07  Hendrik Tews  <tews@tandem.cs.ru.nl>
 
+	* new ast_graph option -page
+
 	* snapshot hackery
 
 2006-09-07  Hendrik Tews  <tews@debian>

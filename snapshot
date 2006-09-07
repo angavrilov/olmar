@@ -9,7 +9,7 @@ else
     elsarep=tandem:/home/tews/Store
 fi
 repdir=src/elsa
-create_tar_cache=0
+create_tar_cache=1
 snapshot_name=$(date +"elsa-2005.08.22b-olmar-%Y.%m.%d")
 snapshot_tar=$snapshot_name.tar.gz
 
@@ -29,7 +29,7 @@ echo ===========================================================================
 echo ============================     make doc    ==============================
 echo ===========================================================================
 
-make doc
+#make doc
 
 echo ===========================================================================
 echo ============================     export    ================================
@@ -60,6 +60,11 @@ make distclean
 for d in smbase ast elkhound elsa ; do
     cp -a $elsa_cvs_dir/$d/gendoc $d
 done
+
+set -e
+make -C $elsa_cvs_dir/asttools/doc TARGETDIR=$dir/asttools/doc copydoc
+false
+set +e
 
 echo ===========================================================================
 echo ============================     ADDED FILES    ===========================

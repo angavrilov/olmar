@@ -16,9 +16,15 @@ DOCFILES=\
 	hello-world-border.png \
 	crc.png \
 	crc-small.png \
-	minor_gc-detail-small-border.png
+	minor_gc-detail-small-border.png \
+	minor_gc-detail.png.gz \
+	minor_gc.ps.gz \
+	minor_gc-pages.ps.gz \
+	minor_gc.fig.gz \
+	minor_gc.dot \
+	minor_gc.png
 
-copy-doc: olmar-tar $(DOCFILES) cp-index-html 
+copy-doc: $(DOCFILES) cp-index-html olmar-tar 
 	scp -q $(DOCFILES) $(WEBSSH)
 
 index.html.rel: index.html
@@ -32,6 +38,35 @@ olmar-tar:
 	if [ ! -f /tmp/tews/$(OLMARTAR) ] ; \
 		then echo make snapshot first; false; fi
 	scp -q /tmp/tews/$(OLMARTAR) $(WEBSSH)
+
+minor_gc.ps: minor_gc-size.dot
+	dot -v -Tps $< -o $@
+
+minor_gc-pages.ps: minor_gc-pages.dot
+	dot -v -Tps $< -o $@
+
+minor_gc-pages.dot: minor_gc.dot
+	head -1 $< > $@
+	echo '    page="240,70";' >> $@
+	tail -n +2 $< >> $@
+
+minor_gc-size.dot: minor_gc.dot
+	head -1 $< > $@
+	echo '    size="90,90";' >> $@
+	tail -n +2 $< >> $@
+
+minor_gc.fig: minor_gc.dot
+	dot -v -Tfig $< -o $@
+
+.PHONY: prepare-snapshot-doc
+prepare-snapshot-doc: $(DOCFILES)
+
+.PHONY: copy-doc
+copydoc: $(DOCFILES)
+	cp $(DOCFILES) $(TARGETDIR)
+
+%.gz: %
+	gzip -9 -c $^ > $@
 
 .PHONY: new-doc
 new-doc: rm-doc copy-doc

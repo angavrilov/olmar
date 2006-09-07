@@ -1383,13 +1383,16 @@ let out_file = ref ""
 
 let size_flag = ref false
 
+let dot_page_attribute = ref ""
+
 let arguments = Arg.align
   [
     ("-o", Arg.Set_string out_file,
      "file set output file name [default nodes.dot]");
     ("-size", Arg.Set size_flag,
-     " limit size of output")
-
+     " limit size of output");
+    ("-page", Arg.Set_string dot_page_attribute,
+     "pattr add pattr as page attribute in the output");
   ]
 
 let usage_msg = 
@@ -1422,7 +1425,9 @@ let start_file infile =
   Printf.fprintf !oc "\"%s\"" infile;
   output_string !oc " {\n";
   if !size_flag then
-    output_string !oc "size=\"90,90\";\n";
+    output_string !oc "    size=\"90,90\";\n";
+  if !dot_page_attribute <> "" then
+    Printf.fprintf !oc "    page=\"%s\";\n" !dot_page_attribute;
   output_string !oc 
     "    color=white;\n";
   output_string !oc

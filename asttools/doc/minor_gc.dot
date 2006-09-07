@@ -1,5 +1,4 @@
 digraph "minor_gc.oast" {
-page="240,70";
     color=white;
     ordering=out;
     node [ style = filled ];

@@ -9,8 +9,8 @@ OCAML_OBJ_EXT := @OCAML_OBJ_EXT@
 
 # use the first goal for development, for release put it in comment and use all
 
-first: count-ast
-#first: ast_graph
+#first: count-ast
+first: ast_graph
 #first: hashloc
 #first: test_ast
 #first: path_to_node.cmo
@@ -106,7 +106,7 @@ check-oast: $(CHECKOAST_ML:.ml=.$(OCAML_OBJ_EXT))
 
 .PHONY: doc
 doc:
-	echo "nothing to do"
+	$(MAKE) -C doc prepare-snapshot-doc
 
 # target for testing one file
 TOCLEAN += nodes.dot nodes.ps
