@@ -90,9 +90,9 @@ void Env::addGNUBuiltins()
                       var__builtin_va_list->type, "__list");
 
 
-  // void *__builtin_alloca(unsigned int __len);
-  declareFunction1arg(t_voidptr, "__builtin_alloca",
-                      t_unsigned_int, "__len");
+  // // void *__builtin_alloca(unsigned int __len);
+  // declareFunction1arg(t_voidptr, "__builtin_alloca",
+  //                     t_unsigned_int, "__len");
 
   // char *__builtin_strchr(char const *str, int ch);
   declareFunction2arg(t_charptr, "__builtin_strchr",
@@ -127,7 +127,12 @@ void Env::addGNUBuiltins()
     // group 1: "Outside strict ISO C mode ..."
 
     // this set is from the 3.1 list
-    //"alloca",              // prototyped above
+
+    // quarl 2006-09-07
+    //    The above prototype causes linking to fail.  Use this until
+    //    builtin-declarations.h is used.
+
+    "alloca",              // prototyped above
     "bcmp",
     "bzero",
     "index",
