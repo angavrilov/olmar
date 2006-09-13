@@ -1,3 +1,5 @@
+* add compound_info.syntax
+
 * update readme.txt   
 
 * update dependency graph in elsa/gendoc, include ocaml modules, check

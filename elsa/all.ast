@@ -141,7 +141,7 @@ class Function (
   FakeList<MemberInit> *inits,  // (for ctors only) member initialization list
 
   // HT: body is NULL in regtest 982 (in/big/nsAtomTable.i)
-  nullable S_compound body,              // body of function
+  nullable /*nonnull*/ S_compound body,              // body of function
 
   FakeList<Handler> *handlers   // handlers for ctor "try" block
 ) {
@@ -235,7 +235,7 @@ class PQName(SourceLoc loc) {
   // outer qualifier applied to some inner PQName, plus an optional
   // list of template arguments to the qualifier
   -> PQ_qualifier(nullable StringRef qualifier,
-                  nullable /*nonnull*//*fakelist*/TemplateArgument templArgs,
+                  nullable /*fakelist*/TemplateArgument templArgs,
                   PQName rest)
      {
        // PQNames can be ambiguous; e.g., in/t0455.cc.  However, the
@@ -265,7 +265,7 @@ class PQName(SourceLoc loc) {
 
   // template instances: a template function or class name, plus
   // some template arguments
-  -> PQ_template(StringRef name, nullable/*nonnull*//*fakelist*/TemplateArgument templArgs);
+  -> PQ_template(StringRef name, nullable /*fakelist*/TemplateArgument templArgs);
 }
 
 
@@ -505,7 +505,7 @@ class Expression {
   // by making a continuation list
   -> E_intLit(StringRef text);
   -> E_floatLit(StringRef text);
-  -> E_stringLit(StringRef text, nullable /*nonnull*/ E_stringLit continuation = NULL);
+  -> E_stringLit(StringRef text, nullable E_stringLit continuation = NULL);
   -> E_charLit(StringRef text);
 
   // reference to 'this', the address of the receiver object
@@ -644,7 +644,7 @@ class Initializer (SourceLoc loc) {
 
 // ------------------- templates -------------------
 // wrap some template parameters on a declaration or function
-class TemplateDeclaration (nullable /*nonnull*//*fakelist*/TemplateParameter params) {
+class TemplateDeclaration (nullable /*fakelist*/TemplateParameter params) {
   // define a template function
   -> TD_func(Function f);
 
@@ -693,7 +693,7 @@ verbatim {
 
 
 // one of the arguments to a template instantiation
-class TemplateArgument(/*first*/)(/*last*/ nullable /*nonnull*/ TemplateArgument next) {
+class TemplateArgument(/*first*/)(/*last*/ nullable TemplateArgument next) {
   // NOTE: At one point TemplateArguments were connected with a
   // FakeList, but it turns out that interacts badly with failing
   // parses (in/t0179.cc), and the fix is to use ASTLists instead.
@@ -867,6 +867,11 @@ class IDeclarator(SourceLoc loc) {
 // EOF
 //=========================== end  of  cc.ast
 //=========================== start of gnu_attribute_hack.ast
+//  Copyright 2006 Hendrik Tews, All rights reserved.                  *
+//  See file license.txt for terms of use                              *
+//**********************************************************************
+
+// attribute hack: extend the iDeclarator_type
 
 // HT: This file must be included right after cc.ast, 
 // if the GNU language extension is used. Here I extend
@@ -2452,11 +2457,31 @@ class IDeclarator {
   // retrieve the innermost D_func constructor
   pure_virtual D_func *getD_func();
 
+  // HT: shouldn't this be nullable??
   -> D_func(FakeList<PQ_name> *kAndR_params = NULL); // params if a K&R function
 }
 //=========================== end  of  kandr.ast
 //=========================== start of ml_ctype.ast
-// (*** set this in -*- mode: tuareg;-*-  ****)
+//  (visit this in -*- mode: tuareg;-*- )                              *
+//                                                                     *
+//  Copyright 2006 Hendrik Tews, All rights reserved.                  *
+//  See file license.txt for terms of use                              *
+//**********************************************************************
+
+//**************************************************************************
+//
+// mutually recursive part of the CType and Variable type structure
+//
+//
+// The cType and variable types are mutually recursive with the
+// other astgen generated types. Therefore, the relevant type definitions
+// must get included in the type definition that astgen generates.
+// This is achived via this astgen input file.
+//
+// Those types of the CType/Variable hierarchy which are not recursive 
+// are in ml_ctype.ml.
+//
+//**************************************************************************
 
 
 // astgen treats the first verbatim in a file special
@@ -2464,7 +2489,7 @@ class IDeclarator {
 // However, I want this material added at the end, so 
 // put a dummy class her.
 
-class DummyWithNoUse ();
+class IDeclarator{}
 
 ocaml_type_verbatim {
 
@@ -2482,8 +2507,8 @@ and 'a variable = {
    *)
   var_type : 'a cType option ref;
   flags : declFlags;
-  value : 'a expression_type option;
-  defaultParam : 'a cType option;
+  value : 'a expression_type option;	(* nullable comment *)
+  defaultParam : 'a cType option;	(* nullable comment *)
   (* funcDefn is circular at least for destructor calls (in/t0009.cc)
    * then it points back to a member in the class
    * the original pointer might be NULL, so this might be None even
@@ -2559,7 +2584,8 @@ and 'a atomicType =
       (* EnumType( user given name, ?, public/protected, constants)
        *    ignore the next valye field 
        *)
-  | EnumType of 'a * string * 'a variable * accessKeyword * (string * int) list
+  | EnumType of 'a * string * 'a variable * accessKeyword * 
+      (string * nativeint) list
 
       (* TypeVariable( user given name, ?, public/protected)  *)
   | TypeVariable of 'a * string * 'a variable * accessKeyword
@@ -2573,7 +2599,7 @@ and 'a cType =
   | ReferenceType of 'a * 'a cType
       (* FunctionType(flags, return type, parameter list, exception spec)
        * where exceptions spec is either
-       *   | None       no exception spec
+       *   | None       no exception spec    (* nullable comment *)
        *   | Some list  list of specified exceptions (which can be empty)
        *)
   | FunctionType of 'a * function_flags * 'a cType * 'a variable list * 

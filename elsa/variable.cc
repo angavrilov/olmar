@@ -691,6 +691,7 @@ value Variable::toOcaml(ToOcamlData *data){
   else
     var[6] = Val_None;
 
+  // circular
   var[7] = ref_None_constr(data);
 
   caml_register_global_root(&ocaml_val);

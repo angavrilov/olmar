@@ -140,7 +140,7 @@ class Function (
   FakeList<MemberInit> *inits,  // (for ctors only) member initialization list
 
   // HT: body is NULL in regtest 982 (in/big/nsAtomTable.i)
-  nullable S_compound body,              // body of function
+  nullable /*nonnull*/ S_compound body,              // body of function
 
   FakeList<Handler> *handlers   // handlers for ctor "try" block
 ) {
@@ -234,7 +234,7 @@ class PQName(SourceLoc loc) {
   // outer qualifier applied to some inner PQName, plus an optional
   // list of template arguments to the qualifier
   -> PQ_qualifier(nullable StringRef qualifier,
-                  nullable /*nonnull*//*fakelist*/TemplateArgument templArgs,
+                  nullable /*fakelist*/TemplateArgument templArgs,
                   PQName rest)
      {
        // PQNames can be ambiguous; e.g., in/t0455.cc.  However, the
@@ -264,7 +264,7 @@ class PQName(SourceLoc loc) {
 
   // template instances: a template function or class name, plus
   // some template arguments
-  -> PQ_template(StringRef name, nullable/*nonnull*//*fakelist*/TemplateArgument templArgs);
+  -> PQ_template(StringRef name, nullable /*fakelist*/TemplateArgument templArgs);
 }
 
 
@@ -504,7 +504,7 @@ class Expression {
   // by making a continuation list
   -> E_intLit(StringRef text);
   -> E_floatLit(StringRef text);
-  -> E_stringLit(StringRef text, nullable /*nonnull*/ E_stringLit continuation = NULL);
+  -> E_stringLit(StringRef text, nullable E_stringLit continuation = NULL);
   -> E_charLit(StringRef text);
 
   // reference to 'this', the address of the receiver object
@@ -643,7 +643,7 @@ class Initializer (SourceLoc loc) {
 
 // ------------------- templates -------------------
 // wrap some template parameters on a declaration or function
-class TemplateDeclaration (nullable /*nonnull*//*fakelist*/TemplateParameter params) {
+class TemplateDeclaration (nullable /*fakelist*/TemplateParameter params) {
   // define a template function
   -> TD_func(Function f);
 
@@ -692,7 +692,7 @@ verbatim {
 
 
 // one of the arguments to a template instantiation
-class TemplateArgument(/*first*/)(/*last*/ nullable /*nonnull*/ TemplateArgument next) {
+class TemplateArgument(/*first*/)(/*last*/ nullable TemplateArgument next) {
   // NOTE: At one point TemplateArguments were connected with a
   // FakeList, but it turns out that interacts badly with failing
   // parses (in/t0179.cc), and the fix is to use ASTLists instead.

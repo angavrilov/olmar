@@ -1,3 +1,73 @@
+2006-09-14  Hendrik Tews  <tews@debian>
+
+	* nullable analysis
+	  - fields with nullable comment (in original) for which at least
+	  one regression test gives NULL
+
+		TF_namespaceDefn.name
+		PQ_qualifier.qualifier
+		PQ_qualifier.templArgs
+		PQ_template.templArgs
+		TS_classSpec.name
+		TS_enumSpec.name
+		Enumerator.expr
+		S_return.expr
+		E_stringLit.continuation
+		E_new.ctorArgs
+		E_throw.expr
+		TemplateDeclaration.params
+		TemplateParameter.next
+		TP_type.defaultType
+		TemplateArgument.next
+		Declarator.init
+		D_name.name
+		D_func.exnSpec
+		D_array.size
+		D_bitfield.name
+		Function.dtorStatement
+		MemberInit.ctorStatement
+		Declarator.ctorStatement
+		Declarator.dtorStatement
+		Statement.ctorStatement
+		Handler.localArg
+		Handler.globalDtorStatement
+		E_funCall.retObj
+		E_constructor.retObj
+		E_new.ctorStatement
+		E_delete.dtorStatement
+		E_throw.globalCtorStatement
+		SubscriptDesignator.idx_expr2
+		Variable.name
+		Variable.value
+		Variable.defaultParamType
+		Variable.funcDefn
+		CompoundType.selfType
+
+	- fields without nullable comment, that happen to be null in at
+	elast one regression test
+
+		Function.body
+		E_delete.expr         (reported to Scott on 6.6.2006)
+		FullExpression.expr   (reported to Scott on 6.6.2006)
+		NamedAtomicType.typedefVar (only inside PseudoInstantiation)
+
+
+	- fields that are always nonnull, 
+	  that that have a nullable comment, or should be null,
+
+		TP_type.name         (Scott 3.3.06: nonnull after typecheking)
+		D_func.kAndR_params
+		NamedAtomicType.name	
+
+
+	* current circular pointers
+	
+		Variable.var_type
+		Variable.funcDefn
+		CompoundType.selfType	
+
+
+
 2006-09-07  Hendrik Tews  <tews@tandem.cs.ru.nl>
 
 	* releast olmar-2006.09.07

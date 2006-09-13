@@ -43,8 +43,8 @@ and 'a variable = {
    *)
   var_type : 'a cType option ref;
   flags : declFlags;
-  value : 'a expression_type option;
-  defaultParam : 'a cType option;
+  value : 'a expression_type option;	(* nullable comment *)
+  defaultParam : 'a cType option;	(* nullable comment *)
   (* funcDefn is circular at least for destructor calls (in/t0009.cc)
    * then it points back to a member in the class
    * the original pointer might be NULL, so this might be None even
@@ -135,7 +135,7 @@ and 'a cType =
   | ReferenceType of 'a * 'a cType
       (* FunctionType(flags, return type, parameter list, exception spec)
        * where exceptions spec is either
-       *   | None       no exception spec
+       *   | None       no exception spec    (* nullable comment *)
        *   | Some list  list of specified exceptions (which can be empty)
        *)
   | FunctionType of 'a * function_flags * 'a cType * 'a variable list * 

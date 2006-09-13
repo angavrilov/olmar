@@ -1283,7 +1283,7 @@ value CompoundType::toCompoundInfo(ToOcamlData *data){
   
   info[10] = ocaml_from_string(instName, data);
 
-  // info[11] = selfType->toOcaml(data);
+  // circular: info[11] = selfType->toOcaml(data);
   info[11] = ref_None_constr(data);
   
   caml_register_global_root(&ocaml_info);

@@ -2,6 +2,9 @@
 
 #set -x
 
+echo check whether all.ast is up-to-date
+exit 1
+
 #elsarep=ithif59.inf.tu-dresden.de:/sun/theorie/tews/Privat/Store
 if [ $(hostname) = "tandem" ] ; then
     elsarep=/home/tews/Store
