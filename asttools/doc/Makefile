@@ -19,6 +19,10 @@ DOCFILESCVS=\
 DOCFILESNOCVS=\
 	hello-world.png \
 	hello-world-border.png \
+	crc.ii \
+	crc.oast \
+	crc.dot \
+	crc.ps.gz \
 	crc.png \
 	crc-small.png \
 	minor_gc-detail.png.gz \
@@ -93,9 +97,9 @@ hello-world-border.png: hello-world.png
 	convert -bordercolor blue -border 5 -bordercolor white -border 50 $< $@
 
 TODOCCLEAN += crc.oast
-crc.oast: 
+crc.oast crc.ii: ../../smbase/crc.cpp
 	$(MAKE) -C ../../smbase crc.oast
-	cp ../../smbase/crc.oast $@
+	cp ../../smbase/crc.{oast,ii} .
 
 TODOCCLEAN += crc.dot
 crc.dot: crc.oast ../ast_graph
@@ -104,6 +108,9 @@ crc.dot: crc.oast ../ast_graph
 TODOCCLEAN += crc.svg
 crc.svg: crc.dot
 	dot -Tsvg -o crc.svg crc.dot
+
+crc.ps: crc.dot
+	dot -Tps -o crc.ps crc.dot
 
 TODOCCLEAN += crc.png
 crc.png: crc.svg

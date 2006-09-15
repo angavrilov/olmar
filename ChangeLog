@@ -1,3 +1,7 @@
+2006-09-16  Hendrik Tews  <tews@debian>
+
+	* small documentation changes
+
 2006-09-14  Hendrik Tews  <tews@tandem.cs.ru.nl>
 
 	* added astgen generated ml files into cvs, tweak the tags

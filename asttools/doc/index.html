@@ -130,20 +130,20 @@ application <KBD>asttool/count-ast</KBD>.
 <UL>
 <LI>preprocess the C++ sources (elsa does not include a preprocessor):
 <BLOCKQUOTE><PRE>
-g++ -E -o crc.ii smbase/crc.cpp 
+g++ -E -o <A HREF="crc.ii" >crc.ii</A> <A HREF="http://www.sos.cs.ru.nl/cgi-bin/~tews/olmar/viewvc-patch.cgi/elsa/smbase/crc.cpp?revision=HEAD&view=markup" >smbase/crc.cpp</A>
 </PRE>
 </BLOCKQUOTE>
 </LI>
 <LI>run elsa on it and marshal the abstract syntax tree into
 <KBD>crc.oast</KBD>:
 <BLOCKQUOTE><PRE>
-elsa/ccparse -oc crc.oast crc.ii
+elsa/ccparse -oc <A HREF="crc.oast" >crc.oast</A> <A HREF="crc.ii" >crc.ii</A>
 </PRE>
 </BLOCKQUOTE>
 </LI>
 <LI>use AST Graph to generate a dot graph description
 <BLOCKQUOTE><PRE>
-asttools/ast_graph -o crc.dot crc.oast 
+asttools/ast_graph -o <A HREF="crc.dot" >crc.dot</A> <A HREF="crc.oast" >crc.oast</A> 
 </PRE>
 </BLOCKQUOTE>
 </LI>
@@ -151,7 +151,7 @@ asttools/ast_graph -o crc.dot crc.oast
 <BLOCKQUOTE><PRE>
 zgrviewer crc.dot
 dotty crc.dot
-dot -Tps crc.dot -o crc.ps; gv crc.ps
+dot -Tps crc.dot -o crc.ps; gv <A HREF="crc.ps.gz" >crc.ps</A>
 </PRE>
 </BLOCKQUOTE>
 </LI>
@@ -335,7 +335,7 @@ arrange for calls from ccparse.
 </UL>
 
 In <A
-HREF="http://www.sos.cs.ru.nl/cgi-bin/~tews/olmar/viewvc-patch.cgi/elsa/asttools/count-ast.ml?annotate=HEAD"
+HREF="http://www.sos.cs.ru.nl/cgi-bin/~tews/olmar/viewvc-patch.cgi/elsa/asttools/count-ast.ml?revision=HEAD&view=markup"
 >asttools/count-ast.ml</A> you find a
 very simple <span
 style="color:#0048ff;"><STRONG>Olmar</STRONG></span> example
@@ -345,13 +345,13 @@ application.
 
 The type definition is in the following files
 <DL>
-<DT><A HREF="http://www.sos.cs.ru.nl/cgi-bin/~tews/olmar/viewvc-patch.cgi/elsa/elsa/cc_ast_gen_type.ml?annotate=HEAD" >elsa/cc_ast_gen_type.ml</A>
+<DT><A HREF="http://www.sos.cs.ru.nl/cgi-bin/~tews/olmar/viewvc-patch.cgi/elsa/elsa/cc_ast_gen_type.ml?revision=HEAD&view=markup" >elsa/cc_ast_gen_type.ml</A>
 <DD>contains the type definition of all ast nodes
-<DT><A HREF="http://www.sos.cs.ru.nl/cgi-bin/~tews/olmar/viewvc-patch.cgi/elsa/elsa/cc_ml_types.ml?annotate=HEAD" >elsa/cc_ml_types.ml</A>
+<DT><A HREF="http://www.sos.cs.ru.nl/cgi-bin/~tews/olmar/viewvc-patch.cgi/elsa/elsa/cc_ml_types.ml?revision=HEAD&view=markup" >elsa/cc_ml_types.ml</A>
 <DD>flag types used in the syntax nodes
-<DT><A HREF="http://www.sos.cs.ru.nl/cgi-bin/~tews/olmar/viewvc-patch.cgi/elsa/elsa/ml_ctype.ml?annotate=HEAD" >elsa/ml_ctype.ml</A>
+<DT><A HREF="http://www.sos.cs.ru.nl/cgi-bin/~tews/olmar/viewvc-patch.cgi/elsa/elsa/ml_ctype.ml?revision=HEAD&view=markup" >elsa/ml_ctype.ml</A>
 <DD>flag types used in type nodes
-<DT><A HREF="http://www.sos.cs.ru.nl/cgi-bin/~tews/olmar/viewvc-patch.cgi/elsa/elsa/ast_annotation.mli?annotate=HEAD" >elsa/ast_annotation.mli</A>
+<DT><A HREF="http://www.sos.cs.ru.nl/cgi-bin/~tews/olmar/viewvc-patch.cgi/elsa/elsa/ast_annotation.mli?revision=HEAD&view=markup" >elsa/ast_annotation.mli</A>
 <DD>ast annotations (see below)
 </DL>
 

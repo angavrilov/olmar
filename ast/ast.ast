@@ -52,7 +52,7 @@ class ASTClass (string name,
   public string classKindName() const;
 
   // the fields inside the decls list are often needed, therefore 
-  // let's have an accessor function for the fields
+  // we store them here
   public ASTList<FieldOrCtorArg> fields;
   public void init_fields(); // to be called after decls list is complete
 }
