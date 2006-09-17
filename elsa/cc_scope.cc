@@ -1193,18 +1193,60 @@ string Scope::fullyQualifiedName()
   if (!curCompound || !(curCompound->templateInfo())) return sb;
   TemplateInfo *tinfo = curCompound->templateInfo();
   if (tinfo->isPrimary()) {
-    // print the params like arguments for a primary
-    sb << tinfo->paramsLikeArgsToString();
+    if (tinfo->params.isEmpty()) {
+      // it has template info because it is contained inside a
+      // template, but this class is not itself a template, so do not
+      // print template arguments as if it were
+    }
+    else {
+      // print the params like arguments for a primary
+      sb << tinfo->paramsLikeArgsToString();
+    }
   }
   else {
-    if (tinfo->isInstantiation() &&
-        tinfo->instantiationOf->templateInfo()->isPartialSpec()) {
-      // print the partial spec args first, so then the instantiation
-      // args can be interpreted relative to the partial spec args
-      fqn_STemplateArgs(sb, tinfo->instantiationOf->templateInfo()->arguments);
-    }
+    if (tinfo->isInstantiation()) {
+      if (tinfo->instantiationOf->templateInfo()->isPartialSpec()) {
+        // print the partial spec args first, so then the instantiation
+        // args can be interpreted relative to the partial spec args
+        fqn_STemplateArgs(sb, tinfo->instantiationOf->templateInfo()->arguments);
+      }
+      else {
+        // Kind of a disaster here.  'tinfo->arguments' includes arguments
+        // applied to the templates that enclose this template.  So we
+        // need to just look at the last 'n' arguments where 'n' is the
+        // number of parameters of the template this was actually
+        // instantiated from.
+        //
+        // TODO: The arguments need to be split into two lists.
 
-    fqn_STemplateArgs(sb, tinfo->arguments);
+        // How many arguments should we be printing?
+        int n = tinfo->instantiationOf->templateInfo()->params.count();
+        if (n == 0) {
+          // This isn't even itself a template.
+        }
+        else {
+          // How many arguments do we need to skip?
+          int skip = tinfo->arguments.count() - n;
+          xassert(skip >= 0);
+
+          // set up iterator for skipping
+          SObjList<STemplateArgument> const &slist =
+            objToSObjListC(tinfo->arguments);
+          SObjListIter<STemplateArgument> iter(slist);
+
+          // skip
+          while (skip--) {
+            iter.adv();
+          }
+
+          // finally, print
+          sb << sargsToString(iter);
+        }
+      }
+    }
+    else {
+      fqn_STemplateArgs(sb, tinfo->arguments);
+    }
   }
 
   return sb;

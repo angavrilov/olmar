@@ -351,6 +351,13 @@ string Variable::toCString() const
 
 string Variable::toQualifiedString() const
 {
+  if (isType()) {
+    // I'm seeing printouts like "S1<T>::S2 S1<T>::S2", where the type
+    // is printed twice.  I think for types we should just print the
+    // type itself.
+    return type->toCString();
+  }
+
   string qname;
   if (name) {
     qname = fullyQualifiedName0();

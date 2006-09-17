@@ -34,11 +34,11 @@ void Env::addGNUBuiltins()
   Type *t_void = getSimpleType(ST_VOID);
   Type *t_ellipsis_ptr = makePtrType(getSimpleType(ST_ELLIPSIS));
 //    Type *t_voidconst = getSimpleType(SL_INIT, ST_VOID, CV_CONST);
-  Type *t_voidptr = makePtrType(t_void);
+//    Type *t_voidptr = makePtrType(t_void);
 //    Type *t_voidconstptr = makePtrType(SL_INIT, t_voidconst);
 
   Type *t_int = getSimpleType(ST_INT);
-  Type *t_unsigned_int = getSimpleType(ST_UNSIGNED_INT);
+//    Type *t_unsigned_int = getSimpleType(ST_UNSIGNED_INT);
   Type *t_char = getSimpleType(ST_CHAR);
   Type *t_charconst = getSimpleType(ST_CHAR, CV_CONST);
   Type *t_charptr = makePtrType(t_char);

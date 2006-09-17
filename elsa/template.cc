@@ -914,7 +914,7 @@ string STemplateArgument::toString() const
       CTypePrinter typePrinter0;
       stringBuilder sb;
       StringBuilderOutStream sbout0(sb);
-      typePrinter0.print(sbout0, value.t);
+      typePrinter0.print(sbout0, value.t, "" /*do not print "anon"*/);
       return sb;
     }
     case STA_INT:       return stringc << "/*int*/ " << value.i;
@@ -2177,6 +2177,35 @@ int countParamsWithDefaults(FunctionType *ft)
 // there is one.
 void syncDefaultArgsWithDefinition(Variable *instV, TemplateInfo *instTI)
 {
+  // SGM 2006-09-17: I can't figure out why I wanted to do this in
+  // the first place.  The basic default-args design is:
+  //
+  // * The template primary has the default arg expression, but it has
+  // only been tchecked for parsing and non-depenendent lookup
+  // purposes.
+  //
+  // * When the template is instantiated, the entire primary's AST is
+  // cloned, so the default arg gets cloned too.  But it is still not
+  // fully tchecked.
+  //
+  // * When the default arg is needed (possibly right after
+  // instantiating), it is tchecked in place.  This is at the
+  // declaration site.
+  //
+  // I don't see where the definition gets involved in any of this,
+  // unless it is the only declaration, in which case there is still
+  // no need to explicitly sync b/c that is where the default args are
+  // already.
+  //
+  // Disabling this fixed in/dk0127.cc, which was failing because when
+  // the argument is copied below, I do not clone 'sem->value', but
+  // rather just build an IN_expr on top of it, which breaks the
+  // tree-ness property of the AST.  I wrote a few more tests in
+  // in/t0588.cc, but still can't find a reason to copy the args to
+  // the defn.
+  //
+  #if 0      // disabled; see comments above
+
   if (!instV->funcDefn || !instTI->instantiateBody) {
     return;
   }
@@ -2208,6 +2237,12 @@ void syncDefaultArgsWithDefinition(Variable *instV, TemplateInfo *instTI)
       continue;       // already transferred
     }
 
+    // NOTE: This line is buggy, as it does not clone sem->value,
+    // which breaks the tree-ness of the AST.  Cloning it alone would
+    // not be enough, though, because the clone would need to be
+    // tchecked.  Anyway, I no longer remember why I wanted to do any
+    // of this, so the whole block of code is disabled.  See the
+    // comments above.
     d->init = new IN_expr(sem->loc /* not perfect, but it will do */,
                           sem->value);
   }
@@ -2222,6 +2257,8 @@ void syncDefaultArgsWithDefinition(Variable *instV, TemplateInfo *instTI)
     syntactic = syntactic->butFirst();
   }
   xassert(!syntactic && semantic.isDone());
+
+  #endif // 0
 }
 
 
@@ -2325,9 +2362,12 @@ void Env::instantiateDefaultArgs(Variable *instV, int neededDefaults)
   for (int i = noDefaults+m; i < noDefaults+n+m; i++) {
     Variable *param = ft->params.nth(i);
     if (param->value) {
-      Expression *value0 = param->value;
-      param->value->tcheck(*this, value0);
-      param->setValue(value0);
+      // this dance is necessary because Variable::value is const,
+      // forcing updates to go through setValue
+      Expression *tmp = param->value;
+      tmp->tcheck(*this, tmp);
+      param->setValue(tmp);
+
       instTI->uninstantiatedDefaultArgs--;
     }
     else {

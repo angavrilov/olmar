@@ -865,6 +865,8 @@ testparse t0583.cc
 testparse t0584.cc
 failparse t0585.cc "explicit invocation of dtor of template class"
 testparse t0586.cc
+failparse t0587.cc "conversion of static method of template to func ptr"
+testparse t0588.cc
 
 # another set of tests, generally isolated by Daniel
 testparse d0001.cc
@@ -984,7 +986,7 @@ testparse_special ansi d0121.cc
 testparse d0124.cc
 testparse d0125.cc # __builtin_va_copy
 testparse d0126.cc
-failparse_special treeCheck dk0127.cc "a non-tree AST results: default param arg in template class inner class"
+testparse_special treeCheck dk0127.cc #"a non-tree AST results: default param arg in template class inner class"
 
 testparse k0001.cc #"left side of .* must be a class or reference to a class"
 testparse k0002.cc #"template function declared in another class (as a friend)"
