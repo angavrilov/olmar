@@ -7,6 +7,16 @@ verbatim {
   // this signals to ast.hand.cc that ast.ast.cc is nonempty,
   // so none of the bootstrap code in ast.hand.cc should be used
   #define GENERATED_AST_PRESENT
+
+  // the following is not enough material (yet) to deserve its own header
+  // flags for FieldOrCtorArg 
+  enum FieldFlags {
+    FF_NONE     = 0x00,		// no flag
+    FF_IS_OWNER = 0x01,		// is_owner modifier present
+    FF_NULLABLE = 0x02,		// nullable modifier present
+    FF_FIELD    = 0x04,		// field modifier present
+    FF_XML      = 0x08		// some xml.* modifier present
+  };
 }
 
 // the entire specification
@@ -104,12 +114,25 @@ class Annotation {
 }
 
 // something that has to be passed to create a constructor
-// Used also for interesting pieces from "field" marked field Annotation's, 
-// that are cached in ASTClass.fields. In the latter case the defaultValue
-// is unused and empty (could split this into subclasses, but it is
+// Used also for interesting pieces from "field" or "xml.*" 
+// marked field Annotation's, that are cached in ASTClass.fields. 
+// There are two invariances, depending whether a FieldOrCtorArg 
+// appears in one of the argument lists (ASTClass.args, ASTClass.lastArgs)
+// or in the ASTClass.fields field:
+// for arguments:
+//   - flags might be zero
+//   - default value is used (might be empty nevertheless)
+// for fields
+//   - flags contains at least FF_FIELD | FF_XML
+//   - defaultValue is unused
+// (one could split the whole into subclasses, but it is
 // probably not worth the hassle).
-class FieldOrCtorArg (bool isOwner, bool nullable, 
-		      string type, string name, string defaultValue);
+class FieldOrCtorArg (FieldFlags flags, 
+		      string type, string name, string defaultValue) {
+  public bool isOwner(void) const {return(flags & FF_IS_OWNER); };
+  public bool nullable(void) const {return(flags & FF_NULLABLE); };
+  public bool isField(void) const {return(flags & FF_FIELD); };
+};
 
 // designate a class that one of the ASTClasses should inherit; for
 // AST subclasses, this inheritance is in addition to inheriting the
@@ -163,13 +186,20 @@ void ASTClass::init_fields()
   FOREACH_ASTLIST(Annotation, decls, iter) {
     if (!iter.data()->isUserDecl()) continue;
     UserDecl const *ud = iter.data()->asUserDeclC();
-    if (!ud->amod->hasMod("field")) continue;
+    FieldFlags xml_or_field = 
+      static_cast<FieldFlags>(
+        (ud->amod->hasMod("field") ? FF_FIELD : FF_NONE)
+	| (ud->amod->hasModPrefix("xml") ? FF_XML : FF_NONE));
+    if (!xml_or_field) continue;
 
-    fields.append(new FieldOrCtorArg(ud->amod->hasMod("owner"),
-				     ud->amod->hasMod("nullable"),
-				     extractFieldType(ud->code),
-				     extractFieldName(ud->code),
-				     "" /* unused defaultValue */ ));
+    fields.append(
+      new FieldOrCtorArg(
+	static_cast<FieldFlags>(xml_or_field
+		     | (ud->amod->hasMod("owner") ? FF_IS_OWNER : FF_NONE)
+		     | (ud->amod->hasMod("nullable") ? FF_NULLABLE : FF_NONE)),
+	extractFieldType(ud->code),
+	extractFieldName(ud->code),
+	"" /* unused defaultValue */ ));
   }
 }
 

@@ -38,7 +38,7 @@ string *appendStr(string *left, string *right)
 
 FieldOrCtorArg *parseCtorArg(rostring origStr)
 {
-  FieldOrCtorArg *ret = new FieldOrCtorArg(false, false, "", "", "");
+  FieldOrCtorArg *ret = new FieldOrCtorArg(FF_NONE, "", "", "");
 
   // strip leading and trailing whitespace
   string str = trimWhitespace(origStr);
@@ -48,15 +48,22 @@ FieldOrCtorArg *parseCtorArg(rostring origStr)
   bool maybe_nullable = true;
   do {
     if(maybe_owner && prefixEquals(str, "owner")) {
-      ret->isOwner = true;
+      // if somebody could tell me why I need the static cast in the 
+      // next line to get it through g++ 3.4, I would greatly appreciate 
+      // an email at tews@cs.ru.nl
+      ret->flags = static_cast<FieldFlags>(ret->flags | FF_IS_OWNER);
       maybe_owner = false;
       str = trimWhitespace(str.substring(5, str.length() - 5)); // skip "owner "
     }
     else if(maybe_nullable && prefixEquals(str, "nullable")) {
-      ret->nullable = true;
+      ret->flags = static_cast<FieldFlags>(ret->flags | FF_NULLABLE);
       maybe_nullable = false;
       str = trimWhitespace(str.substring(8, str.length() - 8)); // skip nullable
     }
+    // don't treat "xml" prefixed here, because
+    //  - it is more diffcult (need to treat all xml.*)
+    //  - nobody needs it (well, elsa doesn't) 
+    //  - xml.* is therefore not allowed for constructor arguments
     else {
       // no flags found
       maybe_owner = maybe_nullable = false;

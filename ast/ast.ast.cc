@@ -365,8 +365,7 @@ void FieldOrCtorArg::debugPrint(ostream &os, int indent, char const *subtreeName
 {
   PRINT_HEADER(subtreeName, FieldOrCtorArg);
 
-  PRINT_BOOL(isOwner);
-  PRINT_BOOL(nullable);
+  PRINT_GENERIC(flags);
   PRINT_STRING(type);
   PRINT_STRING(name);
   PRINT_STRING(defaultValue);
@@ -375,8 +374,7 @@ void FieldOrCtorArg::debugPrint(ostream &os, int indent, char const *subtreeName
 FieldOrCtorArg *FieldOrCtorArg::clone() const
 {
   FieldOrCtorArg *ret = new FieldOrCtorArg(
-    isOwner,
-    nullable,
+    flags,
     type,
     name,
     defaultValue
@@ -455,13 +453,20 @@ void ASTClass::init_fields()
   FOREACH_ASTLIST(Annotation, decls, iter) {
     if (!iter.data()->isUserDecl()) continue;
     UserDecl const *ud = iter.data()->asUserDeclC();
-    if (!ud->amod->hasMod("field")) continue;
+    FieldFlags xml_or_field = 
+      static_cast<FieldFlags>(
+        (ud->amod->hasMod("field") ? FF_FIELD : FF_NONE)
+	| (ud->amod->hasModPrefix("xml") ? FF_XML : FF_NONE));
+    if (!xml_or_field) continue;
 
-    fields.append(new FieldOrCtorArg(ud->amod->hasMod("owner"),
-				     ud->amod->hasMod("nullable"),
-				     extractFieldType(ud->code),
-				     extractFieldName(ud->code),
-				     "" /* unused defaultValue */ ));
+    fields.append(
+      new FieldOrCtorArg(
+	static_cast<FieldFlags>(xml_or_field
+		     | (ud->amod->hasMod("owner") ? FF_IS_OWNER : FF_NONE)
+		     | (ud->amod->hasMod("nullable") ? FF_NULLABLE : FF_NONE)),
+	extractFieldType(ud->code),
+	extractFieldName(ud->code),
+	"" /* unused defaultValue */ ));
   }
 }
 

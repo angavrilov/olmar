@@ -890,13 +890,13 @@ void HGen::initializeMyCtorArgs(int &ct, ASTList<FieldOrCtorArg> const &args)
 
 
 bool ctor_uses_option(const FieldOrCtorArg * arg) {
-  return arg->nullable && 
+  return arg->nullable() && 
     (isTreeNode(arg->type) || isPtrKind(arg->type) || 
      pointerTypes.contains(arg->type));
 }
 
 bool ctor_non_null_assert(const FieldOrCtorArg * arg) {
-  return (!arg->nullable) && 
+  return (!arg->nullable()) && 
     (isTreeNode(arg->type) || isPtrKind(arg->type) ||
      pointerTypes.contains(arg->type));
 }
@@ -1448,7 +1448,7 @@ void CGen::emitDestructor(ASTClass const &cls)
   // constructor arguments
   FOREACH_ASTLIST(FieldOrCtorArg, cls.args, argiter) {
     FieldOrCtorArg const &arg = *(argiter.data());
-    emitDestroyField(arg.isOwner, arg.type, arg.name);
+    emitDestroyField(arg.isOwner(), arg.type, arg.name);
   }
                           
   // owner fields
@@ -1509,7 +1509,7 @@ void CGen::emitPrintCtorArgs(ASTList<FieldOrCtorArg> const &args)
   FOREACH_ASTLIST(FieldOrCtorArg, args, argiter) {
     FieldOrCtorArg const &arg = *(argiter.data());
 
-    emitPrintField("PRINT", arg.isOwner, arg.type, arg.name);
+    emitPrintField("PRINT", arg.isOwner(), arg.type, arg.name);
   }
 }
 
@@ -1517,7 +1517,8 @@ void CGen::emitPrintFields(const ASTList<FieldOrCtorArg> & fields)
 {
   FOREACH_ASTLIST(FieldOrCtorArg, fields, iter) {
     const FieldOrCtorArg * field = iter.data();
-    emitPrintField("PRINT", field->isOwner, field->type, field->name);
+    if(field->isField())
+      emitPrintField("PRINT", field->isOwner(), field->type, field->name);
   }
 }
 
@@ -1561,7 +1562,7 @@ void CGen::emitXmlPrintCtorArgs(ASTList<FieldOrCtorArg> const &args)
   FOREACH_ASTLIST(FieldOrCtorArg, args, argiter) {
     FieldOrCtorArg const &arg = *(argiter.data());
     
-    emitPrintField("XMLPRINT", arg.isOwner, arg.type, arg.name);
+    emitPrintField("XMLPRINT", arg.isOwner(), arg.type, arg.name);
   }
 }
 
@@ -1878,8 +1879,8 @@ void CGen::emitToOcaml(ASTClass const * super, ASTClass const *sub)
   out << "value " << myClass->name << "::toOcaml(ToOcamlData *data) {\n";
   out << "  CAMLparam0();\n";
 
-  unsigned sub_args = sub ? (sub->args.count() + sub->fields.count()) : 0;
-  unsigned args_count = super->args.count() + super->fields.count() +
+  unsigned sub_args = sub ? (sub->args.count() + sub->fields.count()) : 0; 
+  unsigned args_count = super->args.count() + super->fields.count() + 
     super->lastArgs.count() + sub_args;
 
   if(polymorphicOcaml)

@@ -44,14 +44,14 @@ let create_TF_namespaceDecl_constructor a0 a1 a2 = TF_namespaceDecl(a0, a1, a2)
  * *********** callbacks for Function ******************
  * ********************************************************************* *)
 
-let create_Function_tuple a0 a1 a2 a3 a4 a5 a6 a7 a8 = (a0, a1, a2, a3, a4, a5, a6, a7, a8)
+let create_Function_tuple a0 a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11 = (a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11)
 
 
 (* *********************************************************************
  * *********** callbacks for MemberInit ******************
  * ********************************************************************* *)
 
-let create_MemberInit_tuple a0 a1 a2 a3 = (a0, a1, a2, a3)
+let create_MemberInit_tuple a0 a1 a2 a3 a4 a5 a6 a7 = (a0, a1, a2, a3, a4, a5, a6, a7)
 
 
 (* *********************************************************************
@@ -72,13 +72,13 @@ let create_ASTTypeId_tuple a0 a1 a2 = (a0, a1, a2)
  * *********** callbacks for PQName ******************
  * ********************************************************************* *)
 
-let create_PQ_qualifier_constructor a0 a1 a2 a3 a4 = PQ_qualifier(a0, a1, a2, a3, a4)
+let create_PQ_qualifier_constructor a0 a1 a2 a3 a4 a5 a6 = PQ_qualifier(a0, a1, a2, a3, a4, a5, a6)
 
 let create_PQ_name_constructor a0 a1 a2 = PQ_name(a0, a1, a2)
 
 let create_PQ_operator_constructor a0 a1 a2 a3 = PQ_operator(a0, a1, a2, a3)
 
-let create_PQ_template_constructor a0 a1 a2 a3 = PQ_template(a0, a1, a2, a3)
+let create_PQ_template_constructor a0 a1 a2 a3 a4 = PQ_template(a0, a1, a2, a3, a4)
 
 let create_PQ_variable_constructor a0 a1 a2 = PQ_variable(a0, a1, a2)
 
@@ -87,15 +87,15 @@ let create_PQ_variable_constructor a0 a1 a2 = PQ_variable(a0, a1, a2)
  * *********** callbacks for TypeSpecifier ******************
  * ********************************************************************* *)
 
-let create_TS_name_constructor a0 a1 a2 a3 a4 = TS_name(a0, a1, a2, a3, a4)
+let create_TS_name_constructor a0 a1 a2 a3 a4 a5 a6 = TS_name(a0, a1, a2, a3, a4, a5, a6)
 
 let create_TS_simple_constructor a0 a1 a2 a3 = TS_simple(a0, a1, a2, a3)
 
-let create_TS_elaborated_constructor a0 a1 a2 a3 a4 = TS_elaborated(a0, a1, a2, a3, a4)
+let create_TS_elaborated_constructor a0 a1 a2 a3 a4 a5 = TS_elaborated(a0, a1, a2, a3, a4, a5)
 
-let create_TS_classSpec_constructor a0 a1 a2 a3 a4 a5 a6 = TS_classSpec(a0, a1, a2, a3, a4, a5, a6)
+let create_TS_classSpec_constructor a0 a1 a2 a3 a4 a5 a6 a7 = TS_classSpec(a0, a1, a2, a3, a4, a5, a6, a7)
 
-let create_TS_enumSpec_constructor a0 a1 a2 a3 a4 = TS_enumSpec(a0, a1, a2, a3, a4)
+let create_TS_enumSpec_constructor a0 a1 a2 a3 a4 a5 = TS_enumSpec(a0, a1, a2, a3, a4, a5)
 
 let create_TS_type_constructor a0 a1 a2 a3 = TS_type(a0, a1, a2, a3)
 
@@ -106,14 +106,14 @@ let create_TS_typeof_constructor a0 a1 a2 a3 = TS_typeof(a0, a1, a2, a3)
  * *********** callbacks for BaseClassSpec ******************
  * ********************************************************************* *)
 
-let create_BaseClassSpec_tuple a0 a1 a2 a3 = (a0, a1, a2, a3)
+let create_BaseClassSpec_tuple a0 a1 a2 a3 a4 = (a0, a1, a2, a3, a4)
 
 
 (* *********************************************************************
  * *********** callbacks for Enumerator ******************
  * ********************************************************************* *)
 
-let create_Enumerator_tuple a0 a1 a2 a3 = (a0, a1, a2, a3)
+let create_Enumerator_tuple a0 a1 a2 a3 a4 a5 = (a0, a1, a2, a3, a4, a5)
 
 
 (* *********************************************************************
@@ -164,7 +164,7 @@ let create_S_skip_constructor a0 a1 = S_skip(a0, a1)
 
 let create_S_label_constructor a0 a1 a2 a3 = S_label(a0, a1, a2, a3)
 
-let create_S_case_constructor a0 a1 a2 a3 = S_case(a0, a1, a2, a3)
+let create_S_case_constructor a0 a1 a2 a3 a4 = S_case(a0, a1, a2, a3, a4)
 
 let create_S_default_constructor a0 a1 a2 = S_default(a0, a1, a2)
 
@@ -200,7 +200,7 @@ let create_S_namespaceDecl_constructor a0 a1 a2 = S_namespaceDecl(a0, a1, a2)
 
 let create_S_function_constructor a0 a1 a2 = S_function(a0, a1, a2)
 
-let create_S_rangeCase_constructor a0 a1 a2 a3 a4 = S_rangeCase(a0, a1, a2, a3, a4)
+let create_S_rangeCase_constructor a0 a1 a2 a3 a4 a5 a6 = S_rangeCase(a0, a1, a2, a3, a4, a5, a6)
 
 let create_S_computedGoto_constructor a0 a1 a2 = S_computedGoto(a0, a1, a2)
 
@@ -218,91 +218,91 @@ let create_CN_decl_constructor a0 a1 = CN_decl(a0, a1)
  * *********** callbacks for Handler ******************
  * ********************************************************************* *)
 
-let create_Handler_tuple a0 a1 a2 a3 a4 = (a0, a1, a2, a3, a4)
+let create_Handler_tuple a0 a1 a2 a3 a4 a5 a6 = (a0, a1, a2, a3, a4, a5, a6)
 
 
 (* *********************************************************************
  * *********** callbacks for Expression ******************
  * ********************************************************************* *)
 
-let create_E_boolLit_constructor a0 a1 = E_boolLit(a0, a1)
+let create_E_boolLit_constructor a0 a1 a2 = E_boolLit(a0, a1, a2)
 
-let create_E_intLit_constructor a0 a1 = E_intLit(a0, a1)
+let create_E_intLit_constructor a0 a1 a2 a3 = E_intLit(a0, a1, a2, a3)
 
-let create_E_floatLit_constructor a0 a1 = E_floatLit(a0, a1)
+let create_E_floatLit_constructor a0 a1 a2 a3 = E_floatLit(a0, a1, a2, a3)
 
-let create_E_stringLit_constructor a0 a1 a2 = E_stringLit(a0, a1, a2)
+let create_E_stringLit_constructor a0 a1 a2 a3 = E_stringLit(a0, a1, a2, a3)
 
-let create_E_charLit_constructor a0 a1 = E_charLit(a0, a1)
+let create_E_charLit_constructor a0 a1 a2 a3 = E_charLit(a0, a1, a2, a3)
 
-let create_E_this_constructor a0 = E_this(a0)
+let create_E_this_constructor a0 a1 a2 = E_this(a0, a1, a2)
 
-let create_E_variable_constructor a0 a1 = E_variable(a0, a1)
+let create_E_variable_constructor a0 a1 a2 a3 a4 = E_variable(a0, a1, a2, a3, a4)
 
-let create_E_funCall_constructor a0 a1 a2 a3 = E_funCall(a0, a1, a2, a3)
+let create_E_funCall_constructor a0 a1 a2 a3 a4 = E_funCall(a0, a1, a2, a3, a4)
 
-let create_E_constructor_constructor a0 a1 a2 a3 a4 = E_constructor(a0, a1, a2, a3, a4)
+let create_E_constructor_constructor a0 a1 a2 a3 a4 a5 a6 = E_constructor(a0, a1, a2, a3, a4, a5, a6)
 
-let create_E_fieldAcc_constructor a0 a1 a2 = E_fieldAcc(a0, a1, a2)
+let create_E_fieldAcc_constructor a0 a1 a2 a3 a4 = E_fieldAcc(a0, a1, a2, a3, a4)
 
-let create_E_sizeof_constructor a0 a1 = E_sizeof(a0, a1)
+let create_E_sizeof_constructor a0 a1 a2 a3 = E_sizeof(a0, a1, a2, a3)
 
-let create_E_unary_constructor a0 a1 a2 = E_unary(a0, a1, a2)
+let create_E_unary_constructor a0 a1 a2 a3 = E_unary(a0, a1, a2, a3)
 
-let create_E_effect_constructor a0 a1 a2 = E_effect(a0, a1, a2)
+let create_E_effect_constructor a0 a1 a2 a3 = E_effect(a0, a1, a2, a3)
 
-let create_E_binary_constructor a0 a1 a2 a3 = E_binary(a0, a1, a2, a3)
+let create_E_binary_constructor a0 a1 a2 a3 a4 = E_binary(a0, a1, a2, a3, a4)
 
-let create_E_addrOf_constructor a0 a1 = E_addrOf(a0, a1)
+let create_E_addrOf_constructor a0 a1 a2 = E_addrOf(a0, a1, a2)
 
-let create_E_deref_constructor a0 a1 = E_deref(a0, a1)
+let create_E_deref_constructor a0 a1 a2 = E_deref(a0, a1, a2)
 
-let create_E_cast_constructor a0 a1 a2 = E_cast(a0, a1, a2)
+let create_E_cast_constructor a0 a1 a2 a3 a4 = E_cast(a0, a1, a2, a3, a4)
 
-let create_E_cond_constructor a0 a1 a2 a3 = E_cond(a0, a1, a2, a3)
+let create_E_cond_constructor a0 a1 a2 a3 a4 = E_cond(a0, a1, a2, a3, a4)
 
-let create_E_sizeofType_constructor a0 a1 = E_sizeofType(a0, a1)
+let create_E_sizeofType_constructor a0 a1 a2 a3 a4 = E_sizeofType(a0, a1, a2, a3, a4)
 
-let create_E_assign_constructor a0 a1 a2 a3 = E_assign(a0, a1, a2, a3)
+let create_E_assign_constructor a0 a1 a2 a3 a4 = E_assign(a0, a1, a2, a3, a4)
 
-let create_E_new_constructor a0 a1 a2 a3 a4 a5 = E_new(a0, a1, a2, a3, a4, a5)
+let create_E_new_constructor a0 a1 a2 a3 a4 a5 a6 a7 a8 a9 = E_new(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9)
 
-let create_E_delete_constructor a0 a1 a2 a3 a4 = E_delete(a0, a1, a2, a3, a4)
+let create_E_delete_constructor a0 a1 a2 a3 a4 a5 = E_delete(a0, a1, a2, a3, a4, a5)
 
-let create_E_throw_constructor a0 a1 a2 = E_throw(a0, a1, a2)
+let create_E_throw_constructor a0 a1 a2 a3 a4 = E_throw(a0, a1, a2, a3, a4)
 
-let create_E_keywordCast_constructor a0 a1 a2 a3 = E_keywordCast(a0, a1, a2, a3)
+let create_E_keywordCast_constructor a0 a1 a2 a3 a4 = E_keywordCast(a0, a1, a2, a3, a4)
 
-let create_E_typeidExpr_constructor a0 a1 = E_typeidExpr(a0, a1)
+let create_E_typeidExpr_constructor a0 a1 a2 = E_typeidExpr(a0, a1, a2)
 
-let create_E_typeidType_constructor a0 a1 = E_typeidType(a0, a1)
+let create_E_typeidType_constructor a0 a1 a2 = E_typeidType(a0, a1, a2)
 
-let create_E_grouping_constructor a0 a1 = E_grouping(a0, a1)
+let create_E_grouping_constructor a0 a1 a2 = E_grouping(a0, a1, a2)
 
-let create_E_arrow_constructor a0 a1 a2 = E_arrow(a0, a1, a2)
+let create_E_arrow_constructor a0 a1 a2 a3 = E_arrow(a0, a1, a2, a3)
 
-let create_E_statement_constructor a0 a1 = E_statement(a0, a1)
+let create_E_statement_constructor a0 a1 a2 = E_statement(a0, a1, a2)
 
-let create_E_compoundLit_constructor a0 a1 a2 = E_compoundLit(a0, a1, a2)
+let create_E_compoundLit_constructor a0 a1 a2 a3 = E_compoundLit(a0, a1, a2, a3)
 
-let create_E___builtin_constant_p_constructor a0 a1 a2 = E___builtin_constant_p(a0, a1, a2)
+let create_E___builtin_constant_p_constructor a0 a1 a2 a3 = E___builtin_constant_p(a0, a1, a2, a3)
 
-let create_E___builtin_va_arg_constructor a0 a1 a2 a3 = E___builtin_va_arg(a0, a1, a2, a3)
+let create_E___builtin_va_arg_constructor a0 a1 a2 a3 a4 = E___builtin_va_arg(a0, a1, a2, a3, a4)
 
-let create_E_alignofType_constructor a0 a1 = E_alignofType(a0, a1)
+let create_E_alignofType_constructor a0 a1 a2 a3 = E_alignofType(a0, a1, a2, a3)
 
-let create_E_alignofExpr_constructor a0 a1 = E_alignofExpr(a0, a1)
+let create_E_alignofExpr_constructor a0 a1 a2 a3 = E_alignofExpr(a0, a1, a2, a3)
 
-let create_E_gnuCond_constructor a0 a1 a2 = E_gnuCond(a0, a1, a2)
+let create_E_gnuCond_constructor a0 a1 a2 a3 = E_gnuCond(a0, a1, a2, a3)
 
-let create_E_addrOfLabel_constructor a0 a1 = E_addrOfLabel(a0, a1)
+let create_E_addrOfLabel_constructor a0 a1 a2 = E_addrOfLabel(a0, a1, a2)
 
 
 (* *********************************************************************
  * *********** callbacks for FullExpression ******************
  * ********************************************************************* *)
 
-let create_FullExpression_tuple a0 a1 = (a0, a1)
+let create_FullExpression_tuple a0 a1 a2 = (a0, a1, a2)
 
 
 (* *********************************************************************
@@ -323,13 +323,13 @@ let create_ArgExpressionListOpt_tuple a0 a1 = (a0, a1)
  * *********** callbacks for Initializer ******************
  * ********************************************************************* *)
 
-let create_IN_expr_constructor a0 a1 a2 = IN_expr(a0, a1, a2)
+let create_IN_expr_constructor a0 a1 a2 a3 = IN_expr(a0, a1, a2, a3)
 
-let create_IN_compound_constructor a0 a1 a2 = IN_compound(a0, a1, a2)
+let create_IN_compound_constructor a0 a1 a2 a3 = IN_compound(a0, a1, a2, a3)
 
-let create_IN_ctor_constructor a0 a1 a2 a3 = IN_ctor(a0, a1, a2, a3)
+let create_IN_ctor_constructor a0 a1 a2 a3 a4 a5 = IN_ctor(a0, a1, a2, a3, a4, a5)
 
-let create_IN_designated_constructor a0 a1 a2 a3 = IN_designated(a0, a1, a2, a3)
+let create_IN_designated_constructor a0 a1 a2 a3 a4 = IN_designated(a0, a1, a2, a3, a4)
 
 
 (* *********************************************************************
@@ -347,9 +347,9 @@ let create_TD_tmember_constructor a0 a1 a2 = TD_tmember(a0, a1, a2)
  * *********** callbacks for TemplateParameter ******************
  * ********************************************************************* *)
 
-let create_TP_type_constructor a0 a1 a2 a3 a4 = TP_type(a0, a1, a2, a3, a4)
+let create_TP_type_constructor a0 a1 a2 a3 a4 a5 = TP_type(a0, a1, a2, a3, a4, a5)
 
-let create_TP_nontype_constructor a0 a1 a2 a3 = TP_nontype(a0, a1, a2, a3)
+let create_TP_nontype_constructor a0 a1 a2 a3 a4 = TP_nontype(a0, a1, a2, a3, a4)
 
 
 (* *********************************************************************
@@ -378,7 +378,7 @@ let create_ND_usingDir_constructor a0 a1 = ND_usingDir(a0, a1)
  * *********** callbacks for Declarator ******************
  * ********************************************************************* *)
 
-let create_Declarator_tuple a0 a1 a2 a3 a4 = (a0, a1, a2, a3, a4)
+let create_Declarator_tuple a0 a1 a2 a3 a4 a5 a6 a7 = (a0, a1, a2, a3, a4, a5, a6, a7)
 
 
 (* *********************************************************************
@@ -391,11 +391,11 @@ let create_D_pointer_constructor a0 a1 a2 a3 = D_pointer(a0, a1, a2, a3)
 
 let create_D_reference_constructor a0 a1 a2 = D_reference(a0, a1, a2)
 
-let create_D_func_constructor a0 a1 a2 a3 a4 a5 a6 = D_func(a0, a1, a2, a3, a4, a5, a6)
+let create_D_func_constructor a0 a1 a2 a3 a4 a5 a6 a7 = D_func(a0, a1, a2, a3, a4, a5, a6, a7)
 
-let create_D_array_constructor a0 a1 a2 a3 = D_array(a0, a1, a2, a3)
+let create_D_array_constructor a0 a1 a2 a3 a4 = D_array(a0, a1, a2, a3, a4)
 
-let create_D_bitfield_constructor a0 a1 a2 a3 = D_bitfield(a0, a1, a2, a3)
+let create_D_bitfield_constructor a0 a1 a2 a3 a4 = D_bitfield(a0, a1, a2, a3, a4)
 
 let create_D_ptrToMember_constructor a0 a1 a2 a3 a4 = D_ptrToMember(a0, a1, a2, a3, a4)
 
@@ -413,9 +413,9 @@ let create_FullExpressionAnnot_tuple a0 a1 = (a0, a1)
  * *********** callbacks for ASTTypeof ******************
  * ********************************************************************* *)
 
-let create_TS_typeof_expr_constructor a0 a1 = TS_typeof_expr(a0, a1)
+let create_TS_typeof_expr_constructor a0 a1 a2 = TS_typeof_expr(a0, a1, a2)
 
-let create_TS_typeof_type_constructor a0 a1 = TS_typeof_type(a0, a1)
+let create_TS_typeof_type_constructor a0 a1 a2 = TS_typeof_type(a0, a1, a2)
 
 
 (* *********************************************************************
@@ -424,7 +424,7 @@ let create_TS_typeof_type_constructor a0 a1 = TS_typeof_type(a0, a1)
 
 let create_FieldDesignator_constructor a0 a1 a2 = FieldDesignator(a0, a1, a2)
 
-let create_SubscriptDesignator_constructor a0 a1 a2 a3 = SubscriptDesignator(a0, a1, a2, a3)
+let create_SubscriptDesignator_constructor a0 a1 a2 a3 a4 a5 = SubscriptDesignator(a0, a1, a2, a3, a4, a5)
 
 
 (* *********************************************************************

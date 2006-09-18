@@ -34,6 +34,16 @@ class BaseClass;
   // so none of the bootstrap code in ast.hand.cc should be used
   #define GENERATED_AST_PRESENT
 
+  // the following is not enough material (yet) to deserve its own header
+  // flags for FieldOrCtorArg 
+  enum FieldFlags {
+    FF_NONE     = 0x00,		// no flag
+    FF_IS_OWNER = 0x01,		// is_owner modifier present
+    FF_NULLABLE = 0x02,		// nullable modifier present
+    FF_FIELD    = 0x04,		// field modifier present
+    FF_XML      = 0x08		// some xml.* modifier present
+  };
+
 // *** DO NOT EDIT ***
 class ASTSpecFile {
 public:      // data
@@ -355,14 +365,13 @@ public:      // funcs
 // *** DO NOT EDIT ***
 class FieldOrCtorArg {
 public:      // data
-  bool isOwner;
-  bool nullable;
+  FieldFlags flags;
   string type;
   string name;
   string defaultValue;
 
 public:      // funcs
-  FieldOrCtorArg(bool _isOwner, bool _nullable, string _type, string _name, string _defaultValue) : isOwner(_isOwner), nullable(_nullable), type(_type), name(_name), defaultValue(_defaultValue) {
+  FieldOrCtorArg(FieldFlags _flags, string _type, string _name, string _defaultValue) : flags(_flags), type(_type), name(_name), defaultValue(_defaultValue) {
   }
   ~FieldOrCtorArg();
 
@@ -372,6 +381,9 @@ public:      // funcs
 
   void debugPrint(ostream &os, int indent, char const *subtreeName = "tree") const;
 
+  public:  bool isOwner(void) const {return(flags & FF_IS_OWNER); };
+  public:  bool nullable(void) const {return(flags & FF_NULLABLE); };
+  public:  bool isField(void) const {return(flags & FF_FIELD); };
 };
 
 

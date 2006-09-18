@@ -1,3 +1,13 @@
+2006-09-19  Hendrik Tews  <tews@debian>
+
+	AST
+	* folded FieldOrCtorArg.{isOwner,nullable} into a flags field
+	* add xml* annotated fields in fields as well
+	* ocaml serialization takes xml* fields into account
+
+	ELSA
+	* ocaml code is currently broken
+
 2006-09-16  Hendrik Tews  <tews@debian>
 
 	* small documentation changes
