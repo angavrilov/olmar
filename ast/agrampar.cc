@@ -49,7 +49,7 @@ FieldOrCtorArg *parseCtorArg(rostring origStr)
   do {
     if(maybe_owner && prefixEquals(str, "owner")) {
       // if somebody could tell me why I need the static cast in the 
-      // next line to get it through g++ 3.4, I would greatly appreciate 
+      // next line to get it through g++ 3.4/4.1, I would greatly appreciate 
       // an email at tews@cs.ru.nl
       ret->flags = static_cast<FieldFlags>(ret->flags | FF_IS_OWNER);
       maybe_owner = false;

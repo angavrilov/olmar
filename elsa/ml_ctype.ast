@@ -127,6 +127,15 @@ and 'a atomicType =
   | TypeVariable of 'a * string * 'a variable * accessKeyword
 
 
+(* compoundType is an atomicType built with Compoundtype *)
+and 'a compoundType = 'a atomicType
+
+(* a enumType is an atomicType built with EnumType *)
+and 'a enumType = 'a atomicType
+
+(* a namedAtomictype is an atomicType built *NOT* with SimpleType *)
+and 'a namedAtomicType = 'a atomicType
+
 and 'a cType = 
   | CVAtomicType of 'a * cVFlags * 'a atomicType
       (* PointerType( volatile, pointed type) *)
@@ -146,6 +155,8 @@ and 'a cType =
   | PointerToMemberType of 'a * 'a atomicType (* = NamedAtomicType *) * 
       cVFlags * 'a cType
 
+  (* functionType is a cType build with the FunctionType constructor *)
+and 'a functionType = 'a cType
 
 (***************************** TemplateArgument ******************************)
 

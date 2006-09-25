@@ -524,6 +524,16 @@ bool equalArgumentLists(ObjList<STemplateArgument> const &list1,
 
 char const *toString(STemplateArgument::Kind k);
 
+// support astgen generated ocaml serialization code
+inline value ocaml_from_STemplateArgument(STemplateArgument &t, 
+					  ToOcamlData *d) {
+  return t.toOcaml(d);
+}
+
+inline void detach_ocaml_STemplateArgument(STemplateArgument &t) {
+  t.detachOcaml();
+}
+
 
 // holder for the CompoundType template candidates
 class TemplCandidates {

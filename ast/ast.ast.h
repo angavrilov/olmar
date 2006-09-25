@@ -41,7 +41,8 @@ class BaseClass;
     FF_IS_OWNER = 0x01,		// is_owner modifier present
     FF_NULLABLE = 0x02,		// nullable modifier present
     FF_FIELD    = 0x04,		// field modifier present
-    FF_XML      = 0x08		// some xml.* modifier present
+    FF_XML      = 0x08,		// some xml.* modifier present
+    FF_PRIVAT   = 0x10		// private, use accessor function
   };
 
 // *** DO NOT EDIT ***

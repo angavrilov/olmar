@@ -1412,23 +1412,19 @@ let main () =
   in
     close_in ic;
     Printf.printf "%s: typecheck ... %!" file;
-    (* 
-     * if SafeUnmarshal.check ast [^ annotated translationUnit_type ^]
-     * then begin
-     * 	print_string "passed\n";
-     * 	exit 0;
-     *   end
-     * else begin
-     * 	print_string "failed\n";
-     * 	if !check_inside then begin
-     *)
+    if SafeUnmarshal.check ast [^ annotated translationUnit_type ^]
+    then begin
+    	print_string "passed\n";
+    	exit 0;
+      end
+    else begin
+    	print_string "failed\n";
+    	if !check_inside then begin
             print_endline "Descend into ast:";
 	    translationUnit_fun ast;
-      (* 
-       * 	  end;
-       * 	exit 1;
-       * end
-       *)
+      	  end;
+      	exit 1;
+      end
 
     (* 
      * try

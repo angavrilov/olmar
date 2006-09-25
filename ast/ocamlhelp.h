@@ -33,6 +33,8 @@ extern "C" {
 #define IS_OCAML_INT32(x) (Is_block(x) && Tag_hd(Hd_val(x)) == Custom_tag)
 // returns true on string objects
 #define IS_OCAML_STRING(x) (Is_block(x) && Tag_hd(Hd_val(x)) == String_tag)
+// returns true on float objects
+#define IS_OCAML_FLOAT(x) (Is_block(x) && Tag_hd(Hd_val(x)) == Double_tag)
 
 // code snipped to examine block size & tags
 // cerr << hex << val_loc << dec

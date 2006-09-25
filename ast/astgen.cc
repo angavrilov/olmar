@@ -24,6 +24,7 @@ enum ListKind {
   LK_NONE,
   LK_ASTList,
   LK_FakeList,
+  LK_ObjList
 };
 
 // a product type of the information relevant to a list member of a
@@ -41,9 +42,12 @@ struct ListClass {
   char const * kindName() const;
 };
 
+const char * obj_list_kind_name = "ObjList";
+
 char const * ListClass::kindName() const {
   if (lkind == LK_ASTList) return "ASTList";
   else if (lkind == LK_FakeList) return "FakeList";
+  else if (lkind == LK_ObjList) return obj_list_kind_name;
   else xfailure("illegal ListKind");
 }
 
@@ -190,6 +194,7 @@ string getSuperTypeOf(rostring sub);
 
 bool isListType(rostring type);
 bool isFakeListType(rostring type);
+bool isObjListType(rostring type);
 bool isTreeListType(rostring type);
 string extractListType(rostring type);
 
@@ -292,20 +297,30 @@ bool isFakeListType(rostring type)
   return prefixEquals(type, "FakeList <");
 }
 
+// similarly for ObjList
+bool isObjListType(rostring type)
+{
+  // Constructor args seem to get parsed in a different way then user
+  // annotations. In constructor args, there is always a space before <,
+  // not so in the type of annotations. Currently ObjList's do appear 
+  // in annotations, so we have to check more liberally here.
+  return prefixEquals(type, "ObjList<") || prefixEquals(type, "ObjList <");
+}
+
 // is it a list type, with the elements being tree nodes?
 bool isTreeListType(rostring type)
 {
   return isListType(type) && isTreeNode(extractListType(type));
 }
 
-// given a type for which 'is[Fake]ListType' returns true, extract
+// given a type for which 'is[Fake|Obj]ListType' returns true, extract
 // the type in the template argument angle brackets; this is used
 // to get the name of the type so we can pass it to the macros
 // which print list contents
 // DOES NOT WORK FOR NESTED LISTS
 string extractListType(rostring type)
 {
-  xassert(isListType(type) || isFakeListType(type));
+  xassert(isListType(type) || isFakeListType(type) || isObjListType(type));
   char const *langle = strchr(toCStr(type), '<');
   char const *rangle = strchr(toCStr(type), '>');
   xassert(langle && rangle);
@@ -1065,6 +1080,9 @@ public:
 			 unsigned & count);
   void emitToOcaml(ASTClass const *super, ASTClass const *sub);
   void emitOcamlFromList(ListClass const *cls);      
+  void emitOcamlFromListOrComment(StringSet &, ListClass const *);
+  void emitOcamlFromListsClass(StringSet &, ASTClass const *);
+  void emitOcamlFromLists(void);
   void emitDetachOcaml(ASTClass const * super, ASTClass const *sub);
   void emitDetachOcamlChilds(const ASTList<FieldOrCtorArg> & args);
 
@@ -1170,26 +1188,8 @@ void CGen::emitFile()
   out << "\n";
 
 
-  if(wantOcaml) {
-    // output serialization function for list types first
-    topicComment("ocaml serialization for list types");
-
-    StringSet list_set; // to print only one function for any given type
-    FOREACH_ASTLIST(ListClass, listClasses, iter) {
-      ListClass const *cls = iter.data();
-      string list_type(stringc << cls->kindName() << cls->elementClassName);
-      if(list_set.contains(list_type)){
-	out << commentStart << "omit list function for "
-	    << cls->kindName() << "<" << cls->elementClassName << ">"
-	    << " for " << cls->classAndMemberName
-	    << endl << endl;
-      }
-      else {
-	list_set.add(list_type);
-	emitOcamlFromList(cls);
-      }
-    }
-  }
+  if(wantOcaml) 
+    emitOcamlFromLists();
 
   FOREACH_ASTLIST(ToplevelForm, file.forms, form) {
     ASTSWITCHC(ToplevelForm, form.data()) {
@@ -1741,7 +1741,10 @@ string inner_ocaml_from_function(string type) {
     return( inner_ocaml_from_function(extractListType(type)) & "_list");
 
   if(isFakeListType(type))
-    return( inner_ocaml_from_function(extractListType(type)) & "_fakeList");
+    return( inner_ocaml_from_function(extractListType(type)) & "_FakeList");
+
+  if(isObjListType(type))
+    return( inner_ocaml_from_function(extractListType(type)) & "_ObjList");
 
   return type;
 }
@@ -1770,15 +1773,8 @@ string detach_from_function(string type) {
 
 void CGen::emitOcamlFromList(ListClass const *cls) {
   const string & cname = cls->elementClassName;
-  bool is_ast_list;
-  
-  if(cls->lkind == LK_ASTList)
-    is_ast_list = true;
-  else if(cls->lkind == LK_FakeList)
-    is_ast_list = false;
-  else
-    xassert(false);		// lkind == LK_None !!
-  
+
+  xassert(cls->lkind != LK_NONE);
 
   // one cannot have a list of pointers, so just assert it
   // FakeList requires a next field in the element type
@@ -1798,13 +1794,24 @@ void CGen::emitOcamlFromList(ListClass const *cls) {
       << "  result = Val_emptylist;\n\n";
 
   string access;
-  if(is_ast_list) {
+  switch(cls->lkind){
+  case LK_ASTList:
     out << "  FOREACH_ASTLIST_NC(" << cname << ", l, iter) {" << endl;
     access = "iter.data()";
-  }
-  else {
+    break;
+
+  case LK_FakeList:
     out << "  FAKELIST_FOREACH_NC(" << cname << ", (&l), ptr) {" << endl;
     access = "ptr";
+    break;
+
+  case LK_ObjList:
+    out << "  FOREACH_OBJLIST_NC(" << cname << ", l, iter) {" << endl;
+    access = "iter.data()";
+    break;
+
+  default:
+    xassert(false);
   }
 
   out << "    elem = ";
@@ -1812,7 +1819,7 @@ void CGen::emitOcamlFromList(ListClass const *cls) {
     out << access << "->toOcaml(data);";
   else
     out << ocaml_from_function(cname) << "(* " << access 
-	<< ", data)";
+	<< ", data);";
   out << " // serialize element\n";
 
   out << "    tmp = caml_alloc(2, Tag_cons);     // allocate a cons cell\n"
@@ -1828,6 +1835,63 @@ void CGen::emitOcamlFromList(ListClass const *cls) {
 }
 
 
+void CGen::emitOcamlFromListOrComment(StringSet & list_set, 
+				      ListClass const * cls) {
+  string list_type(stringc << cls->kindName() << cls->elementClassName);
+  if(list_set.contains(list_type)){
+    out << commentStart << "omit list function for "
+	<< cls->kindName() << "<" << cls->elementClassName << ">"
+	<< " for " << cls->classAndMemberName
+	<< endl << endl;
+  }
+  else {
+    list_set.add(list_type);
+    emitOcamlFromList(cls);
+  }
+}
+
+
+void CGen::emitOcamlFromListsClass(StringSet & list_set, ASTClass const * c) {
+  FOREACH_ASTLIST(FieldOrCtorArg, c->fields, iter) {
+    FieldOrCtorArg const * field = iter.data();
+    ListKind lkind =
+      isListType(field->type) ? LK_ASTList :
+      (isFakeListType(field->type) ? LK_FakeList :
+       (isObjListType(field->type) ? LK_ObjList : LK_NONE));
+    if(lkind == LK_NONE) continue; 
+
+    ListClass l(lkind, 
+		stringc << c->name << "_" << field->name,
+		extractListType(field->type));
+    emitOcamlFromListOrComment(list_set, &l);
+  }
+}
+
+
+void CGen::emitOcamlFromLists() {
+  // output serialization function for list types first
+  topicComment("ocaml serialization for list types");
+
+  StringSet list_set; // to print only one function for any given type
+  FOREACH_ASTLIST(ListClass, listClasses, iter) {
+    emitOcamlFromListOrComment(list_set, iter.data());
+  }
+
+  // print now list serializations for those list types that 
+  // appear only in fields (they are not collected in listClasses)
+  SFOREACH_OBJLIST(TF_class, allClasses, iter_tfc) {
+    TF_class const *tfc = iter_tfc.data();
+    emitOcamlFromListsClass(list_set, tfc->super);
+    FOREACH_ASTLIST(ASTClass, tfc->ctors, iter_cl) {
+      emitOcamlFromListsClass(list_set, iter_cl.data());
+    }
+  }
+}
+
+string private_field_accessor(string fname) {
+  return(stringc << "get" << capitalize(fname) << "()");
+}
+
 void CGen::emitToOcamlChilds(const ASTList<FieldOrCtorArg> & args, 
 			     unsigned & count) {
   FOREACH_ASTLIST(FieldOrCtorArg, args, iter) {
@@ -1842,16 +1906,25 @@ void CGen::emitToOcamlChilds(const ASTList<FieldOrCtorArg> & args,
     }
     
     if(isTreeNode(arg->type) || isTreeNodePtr(arg->type)) {
-      out << arg->name << "->toOcaml(data)";
+      if(arg->flags & FF_PRIVAT)
+	out << private_field_accessor(arg->name);
+      else
+	out << arg->name;
+      out << "->toOcaml(data)";
     }
     else {
       out << ocaml_from_function(arg->type) << "(";
-      if(isPtrKind(arg->type)){
-	out << "*";
-	// treat only one level of pointers
-	xassert(!isPtrKind(getPtrBase(arg->type)));
+      if(arg->flags & FF_PRIVAT)
+	out << private_field_accessor(arg->name);
+      else {
+	if(isPtrKind(arg->type)){
+	  out << "*";
+	  // treat only one level of pointers
+	  xassert(!isPtrKind(getPtrBase(arg->type)));
+	}
+	out << arg->name;
       }
-      out << arg->name << ", data)";
+      out << ", data)";
     }
 
     if(use_option) {
@@ -1972,16 +2045,19 @@ void CGen::emitDetachOcamlChilds(const ASTList<FieldOrCtorArg> & args)
     // test for non-NULL here.
     // well, currently AstList can't be NULL because it is not a pointer
     // and FakeList NULL pointer is simply the empty FakeList
-    if(isListType(arg->type)) {
-      out << "  FOREACH_ASTLIST_NC(" 
-	  << extractListType(arg->type) << ", "
+    if(isListType(arg->type) || isObjListType(arg->type)) {
+      if(isListType(arg->type))
+	out << "  FOREACH_ASTLIST_NC(";
+      else // isObjListType(arg->type)
+	out << "  FOREACH_OBJLIST_NC(";
+      out << extractListType(arg->type) << ", "
 	  << arg->name << ", iter)\n";
       if(isTreeNode(extractListType(arg->type))
 	 || isTreeNodePtr(extractListType(arg->type)))
 	out << "    iter.data()->detachOcaml();\n";
       else
 	out << "    " << detach_from_function(extractListType(arg->type))
-	    << "(iter.data());\n";
+	    << "(*iter.data());\n";
     }
     else if(isFakeListType(arg->type)) {
       out << "  FAKELIST_FOREACH_NC(" 
@@ -2500,7 +2576,8 @@ void CGen::emitXmlField(rostring type, rostring name, char const *baseName,
     out << "  out << \"" << name << "\" << \"=\";\n";
     out << "  out << quoted(toXml_int(" << baseName << "->" << name << "));\n";
   }
-  else if (streq(type, "unsigned int")) {
+  // enable the unsigned_int typedef alias
+  else if ((streq(type, "unsigned int")) || (streq(type, "unsigned_int"))) {
     out << "  out << \"\\n\";\n";
     out << "  if (indent) printIndentation();\n";
     out << "  out << \"" << name << "\" << \"=\";\n";
@@ -2512,7 +2589,8 @@ void CGen::emitXmlField(rostring type, rostring name, char const *baseName,
     out << "  out << \"" << name << "\" << \"=\";\n";
     out << "  out << quoted(toXml_long(" << baseName << "->" << name << "));\n";
   }
-  else if (streq(type, "unsigned long")) {
+  // enable the unsigned_long typedef alias
+  else if ((streq(type, "unsigned long")) || (streq(type, "unsigned_long"))) {
     out << "  out << \"\\n\";\n";
     out << "  if (indent) printIndentation();\n";
     out << "  out << \"" << name << "\" << \"=\";\n";
@@ -3121,7 +3199,8 @@ void XmlParserGen::emitXmlField_AttributeParseRule
     parser1_defs << "    fromXml_int(obj->" << name << ", parseQuotedString(strValue));\n";
     parser1_defs << "    break;\n";
   }
-  else if (streq(type, "unsigned int")) {
+  // enable the unsigned_int typedef alias
+  else if ((streq(type, "unsigned int")) || (streq(type, "unsigned_int"))) {
     parser1_defs << "  case XTOK_" << name << ":\n";
     parser1_defs << "    fromXml_unsigned_int(obj->" << name
                  << ", parseQuotedString(strValue));\n";
@@ -3132,7 +3211,8 @@ void XmlParserGen::emitXmlField_AttributeParseRule
     parser1_defs << "    fromXml_long(obj->" << name << ", parseQuotedString(strValue));\n";
     parser1_defs << "    break;\n";
   }
-  else if (streq(type, "unsigned long")) {
+  // enable the unsigned_long typedef alias
+  else if ((streq(type, "unsigned long")) || (streq(type, "unsigned_long"))) {
     parser1_defs << "  case XTOK_" << name << ":\n";
     parser1_defs << "    fromXml_unsigned_long(obj->" << name
                  << ", parseQuotedString(strValue));\n";
@@ -3575,7 +3655,7 @@ void OTGen::ocaml_type(string type){
     xassert(!isPtrKind(type));	// don't treat ** types
   }
 
-  if(isListType(type) || isFakeListType(type)) {
+  if(isListType(type) || isFakeListType(type) || isObjListType(type)) {
     ocaml_type(extractListType(type));
     out << " list";
     return;
@@ -4088,7 +4168,8 @@ void mergeExtension(ASTSpecFile *base, ASTSpecFile *ext)
 // re-enable allClasses
 #undef allClasses
 
-void recordListClass(ListKind lkind, rostring className, FieldOrCtorArg const *arg) {
+void recordListClass(ListKind lkind, rostring className, 
+		     FieldOrCtorArg const *arg) {
   rostring argName = arg->name;
   ListClass *cls = new ListClass
     (lkind, stringc << className << "_" << argName, extractListType(arg->type));

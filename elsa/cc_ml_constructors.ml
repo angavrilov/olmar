@@ -99,7 +99,7 @@ let df_flag_array = [|
 
 let _ = assert(Array.length df_flag_array = 32)
 
-let declFlag_from_int32 flags =
+let declFlag_from_int32 (flags : int32) =
   let rec doit i accu =
     if i = 32 then accu
     else 
@@ -342,7 +342,7 @@ let cv_mask =
 	     lsl cv_shift_amount))
 
 
-let cVFlag_from_int32 flags =
+let cVFlag_from_int32 (flags : int32) =
   let rec doit i accu =
     if i = 4 then accu
     else 
@@ -714,6 +714,109 @@ let register_CK_callbacks () =
   ()
 
 
+(* was cc_tcheck.ast, now cc_flags.h
+*)
+
+let create_DC_UNKNOWN_constructor () = DC_UNKNOWN
+let create_DC_FUNCTION_constructor () = DC_FUNCTION
+let create_DC_TF_DECL_constructor () = DC_TF_DECL
+let create_DC_TF_EXPLICITINST_constructor () = DC_TF_EXPLICITINST
+let create_DC_MR_DECL_constructor () = DC_MR_DECL
+let create_DC_S_DECL_constructor () = DC_S_DECL
+let create_DC_TD_DECL_constructor () = DC_TD_DECL
+let create_DC_D_FUNC_constructor () = DC_D_FUNC
+let create_DC_EXCEPTIONSPEC_constructor () = DC_EXCEPTIONSPEC
+let create_DC_ON_CONVERSION_constructor () = DC_ON_CONVERSION
+let create_DC_CN_DECL_constructor () = DC_CN_DECL
+let create_DC_HANDLER_constructor () = DC_HANDLER
+let create_DC_E_CAST_constructor () = DC_E_CAST
+let create_DC_E_SIZEOFTYPE_constructor () = DC_E_SIZEOFTYPE
+let create_DC_E_NEW_constructor () = DC_E_NEW
+let create_DC_E_KEYWORDCAST_constructor () = DC_E_KEYWORDCAST
+let create_DC_E_TYPEIDTYPE_constructor () = DC_E_TYPEIDTYPE
+let create_DC_TP_TYPE_constructor () = DC_TP_TYPE
+let create_DC_TP_NONTYPE_constructor () = DC_TP_NONTYPE
+let create_DC_TA_TYPE_constructor () = DC_TA_TYPE
+let create_DC_TS_TYPEOF_TYPE_constructor () = DC_TS_TYPEOF_TYPE
+let create_DC_E_COMPOUNDLIT_constructor () = DC_E_COMPOUNDLIT
+let create_DC_E_ALIGNOFTYPE_constructor () = DC_E_ALIGNOFTYPE
+let create_DC_E_BUILTIN_VA_ARG_constructor () = DC_E_BUILTIN_VA_ARG
+
+let register_DC_callbacks () =
+  Callback.register 
+    "create_DC_UNKNOWN_constructor"
+    create_DC_UNKNOWN_constructor;
+  Callback.register 
+    "create_DC_FUNCTION_constructor"
+    create_DC_FUNCTION_constructor;
+  Callback.register 
+    "create_DC_TF_DECL_constructor"
+    create_DC_TF_DECL_constructor;
+  Callback.register 
+    "create_DC_TF_EXPLICITINST_constructor"
+    create_DC_TF_EXPLICITINST_constructor;
+  Callback.register 
+    "create_DC_MR_DECL_constructor"
+    create_DC_MR_DECL_constructor;
+  Callback.register 
+    "create_DC_S_DECL_constructor"
+    create_DC_S_DECL_constructor;
+  Callback.register 
+    "create_DC_TD_DECL_constructor"
+    create_DC_TD_DECL_constructor;
+  Callback.register 
+    "create_DC_D_FUNC_constructor"
+    create_DC_D_FUNC_constructor;
+  Callback.register 
+    "create_DC_EXCEPTIONSPEC_constructor"
+    create_DC_EXCEPTIONSPEC_constructor;
+  Callback.register 
+    "create_DC_ON_CONVERSION_constructor"
+    create_DC_ON_CONVERSION_constructor;
+  Callback.register 
+    "create_DC_CN_DECL_constructor"
+    create_DC_CN_DECL_constructor;
+  Callback.register 
+    "create_DC_HANDLER_constructor"
+    create_DC_HANDLER_constructor;
+  Callback.register 
+    "create_DC_E_CAST_constructor"
+    create_DC_E_CAST_constructor;
+  Callback.register 
+    "create_DC_E_SIZEOFTYPE_constructor"
+    create_DC_E_SIZEOFTYPE_constructor;
+  Callback.register 
+    "create_DC_E_NEW_constructor"
+    create_DC_E_NEW_constructor;
+  Callback.register 
+    "create_DC_E_KEYWORDCAST_constructor"
+    create_DC_E_KEYWORDCAST_constructor;
+  Callback.register 
+    "create_DC_E_TYPEIDTYPE_constructor"
+    create_DC_E_TYPEIDTYPE_constructor;
+  Callback.register 
+    "create_DC_TP_TYPE_constructor"
+    create_DC_TP_TYPE_constructor;
+  Callback.register 
+    "create_DC_TP_NONTYPE_constructor"
+    create_DC_TP_NONTYPE_constructor;
+  Callback.register 
+    "create_DC_TA_TYPE_constructor"
+    create_DC_TA_TYPE_constructor;
+  Callback.register 
+    "create_DC_TS_TYPEOF_TYPE_constructor"
+    create_DC_TS_TYPEOF_TYPE_constructor;
+  Callback.register 
+    "create_DC_E_COMPOUNDLIT_constructor"
+    create_DC_E_COMPOUNDLIT_constructor;
+  Callback.register 
+    "create_DC_E_ALIGNOFTYPE_constructor"
+    create_DC_E_ALIGNOFTYPE_constructor;
+  Callback.register 
+    "create_DC_E_BUILTIN_VA_ARG_constructor"
+    create_DC_E_BUILTIN_VA_ARG_constructor;
+  ()
+
 
 (* register all callbacks in this file *)
 
@@ -729,6 +832,7 @@ let register_cc_ml_constructor_callbacks () =
   register_EFF_callbacks();
   register_BIN_callbacks();
   register_CK_callbacks();
+  register_DC_callbacks();
   ()
 
 

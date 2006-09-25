@@ -93,6 +93,17 @@ value ocaml_from_BinaryOp(const BinaryOp &, ToOcamlData *);
 value ocaml_from_CastKeyword(const CastKeyword &, ToOcamlData *);
 value ocaml_from_CompoundType_Keyword(const CompoundType::Keyword &, 
 				      ToOcamlData *);
+value ocaml_from_DeclaratorContext(const DeclaratorContext &, ToOcamlData *);
+
+// for other types
+value ocaml_from_unsigned_long(const unsigned long &, ToOcamlData *);
+value ocaml_from_double(const double &, ToOcamlData *);
+
+// hand written ocaml serialization function
+inline
+value ocaml_from_unsigned_int(const unsigned int &i, ToOcamlData *d) {
+  return ocaml_from_unsigned_long(i,d);
+}
 
 
 //*********************** ocaml_val cleanup **********************************
@@ -112,6 +123,9 @@ inline void detach_ocaml_EffectOp(const EffectOp &) {}
 inline void detach_ocaml_BinaryOp(const BinaryOp &) {}
 inline void detach_ocaml_CastKeyword(const CastKeyword &) {}
 inline void detach_ocaml_CompoundType_Keyword(const CompoundType::Keyword &) {}
-
+inline void detach_ocaml_unsigned_long(const unsigned long &) {}
+inline void detach_ocaml_double(const double &) {}
+inline void detach_ocaml_unsigned_int(const unsigned int &) {}
+inline void detach_ocaml_DeclaratorContext(const DeclaratorContext &) {}
 
 #endif // CC_OCAML_H

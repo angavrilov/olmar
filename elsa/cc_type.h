@@ -292,6 +292,16 @@ public:
 };
 
 
+// support astgen generated ocaml serialization code
+inline value ocaml_from_NamedAtomicType(NamedAtomicType &t, ToOcamlData *d) {
+  return t.toOcaml(d);
+}
+
+inline void detach_ocaml_NamedAtomicType(NamedAtomicType &t) {
+  t.detachOcaml();
+}
+
+
 // represent a base class
 class BaseClass {
 public:
@@ -560,6 +570,15 @@ public:      // funcs
 
 string toString(CompoundType::Keyword k);
 
+// support astgen generated ocaml serialization code
+inline value ocaml_from_CompoundType(CompoundType &t, ToOcamlData *d) {
+  return t.toOcaml(d);
+}
+
+inline void detach_ocaml_CompoundType(CompoundType &t) {
+  t.detachOcaml();
+}
+
 
 // represent an enumerated type
 class EnumType : public NamedAtomicType {
@@ -600,6 +619,15 @@ public:     // funcs
   virtual value toOcaml(ToOcamlData *);
   virtual void detachOcaml();
 };
+
+// support astgen generated ocaml serialization code
+inline value ocaml_from_EnumType(EnumType &t, ToOcamlData *d) {
+  return t.toOcaml(d);
+}
+
+inline void detach_ocaml_EnumType(EnumType &t) {
+  t.detachOcaml();
+}
 
 
 // moved PseudoInstantiation into template.h
@@ -1097,6 +1125,17 @@ public:
   virtual value toOcaml(ToOcamlData *);
   virtual void detachOcaml();
 };
+
+
+// support astgen generated ocaml serialization code
+inline value ocaml_from_FunctionType(FunctionType &t, ToOcamlData *d) {
+  return t.toOcaml(d);
+}
+
+inline void detach_ocaml_FunctionType(FunctionType &t) {
+  t.detachOcaml();
+}
+
 
 
 // type of an array

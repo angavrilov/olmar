@@ -1,3 +1,22 @@
+2006-09-25  Hendrik Tews  <tews@tandem.cs.ru.nl>
+
+	AST
+	* added FF_PRIVAT flag for private fields that need to use an
+	accessor method; treat private fields in generated output
+	* added ObjList support into ListClass; however, ObjList's are not
+	collected into listClasses
+	* output generation for ObjList's in fields in three new CGen
+	methods: emitOcamlFromListOrComment, emitOcamlFromListsClass,
+	emitOcamlFromLists
+	* support unsigned_long and unsigned_int typdef's
+
+	ELSA
+	* enum DeclaratorContext moved from cc_tcheck.ast/gnu.ast into
+	cc_flags.h 
+	* use unsigned_long/int typedef in some xml fields
+	* added alias for cType/atomicType for fields that use a subclass;
+	this subtype information is lost in ocaml
+
 2006-09-19  Hendrik Tews  <tews@debian>
 
 	AST

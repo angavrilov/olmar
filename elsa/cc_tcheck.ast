@@ -26,7 +26,6 @@ verbatim {
   inline void fromXml(DeclaratorContext &out, string str) {
     out = static_cast<DeclaratorContext>(atoi(str));
   }
-
 }
 
 
@@ -285,35 +284,38 @@ class Enumerator {
 }
 
 
-// The "Declarator" AST node appears in many different contexts in the
-// AST, and visitor-based analyses often need to do quite different
-// things depending on which context a declarator appears in.  So,
-// this enumeration lists all the possible contexts.
-enum DeclaratorContext {
-  DC_UNKNOWN,             // dummy value; nothing should have this after tcheck
-
-  DC_FUNCTION,            // Function::nameAndParams
-                          // inside Declaration
-  DC_TF_DECL,             //   TF_decl::decl
-  DC_TF_EXPLICITINST,     //   TF_explicitInst::d
-  DC_MR_DECL,             //   MR_decl::d
-  DC_S_DECL,              //   S_decl::decl
-  DC_TD_DECL,             //   TD_decl::d
-                          // inside ASTTypeId
-  DC_D_FUNC,              //   D_func::params
-  DC_EXCEPTIONSPEC,       //   ExceptionSpec::types
-  DC_ON_CONVERSION,       //   ON_conversion::type
-  DC_CN_DECL,             //   CN_decl::typeId
-  DC_HANDLER,             //   Handler::typeId
-  DC_E_CAST,              //   E_cast::ctype
-  DC_E_SIZEOFTYPE,        //   E_sizeofType::atype
-  DC_E_NEW,               //   E_new::atype (new)
-  DC_E_KEYWORDCAST,       //   E_keywordCast::ctype
-  DC_E_TYPEIDTYPE,        //   E_typeidType::ttype
-  DC_TP_TYPE,             //   TP_type::defaultType
-  DC_TP_NONTYPE,          //   TP_nontype::param
-  DC_TA_TYPE,             //   TA_type::type
-};
+// HT: Move DeclaratorContext to cc_flags.h, because cc_ocaml.h needs it.
+// Leave it here to provoke cvs merge conflicts for any change.
+//
+// // The "Declarator" AST node appears in many different contexts in the
+// // AST, and visitor-based analyses often need to do quite different
+// // things depending on which context a declarator appears in.  So,
+// // this enumeration lists all the possible contexts.
+// enum DeclaratorContext {
+//   DC_UNKNOWN,           // dummy value; nothing should have this after tcheck
+//
+//   DC_FUNCTION,            // Function::nameAndParams
+//                           // inside Declaration
+//   DC_TF_DECL,             //   TF_decl::decl
+//   DC_TF_EXPLICITINST,     //   TF_explicitInst::d
+//   DC_MR_DECL,             //   MR_decl::d
+//   DC_S_DECL,              //   S_decl::decl
+//   DC_TD_DECL,             //   TD_decl::d
+//                           // inside ASTTypeId
+//   DC_D_FUNC,              //   D_func::params
+//   DC_EXCEPTIONSPEC,       //   ExceptionSpec::types
+//   DC_ON_CONVERSION,       //   ON_conversion::type
+//   DC_CN_DECL,             //   CN_decl::typeId
+//   DC_HANDLER,             //   Handler::typeId
+//   DC_E_CAST,              //   E_cast::ctype
+//   DC_E_SIZEOFTYPE,        //   E_sizeofType::atype
+//   DC_E_NEW,               //   E_new::atype (new)
+//   DC_E_KEYWORDCAST,       //   E_keywordCast::ctype
+//   DC_E_TYPEIDTYPE,        //   E_typeidType::ttype
+//   DC_TP_TYPE,             //   TP_type::defaultType
+//   DC_TP_NONTYPE,          //   TP_nontype::param
+//   DC_TA_TYPE,             //   TA_type::type
+// };
 
 
 class Declarator {
@@ -554,10 +556,10 @@ class Expression {
   custom debugPrint { printExtras(os, indent); }
 
   // interpretations of literals
-  -> E_intLit      { public(xml) unsigned long i = 0; }
+  -> E_intLit      { public(xml) unsigned_long i = 0; }
   -> E_floatLit    { public(xml) double d = 0; }
   -> E_stringLit   { /* TODO: put a DataBlock here */ }
-  -> E_charLit     { public(xml) unsigned int c = 0; }
+  -> E_charLit     { public(xml) unsigned_int c = 0; }
 
   -> E_this {                              
        // the receiver parameter to which this 'this' refers; NOTE
@@ -635,7 +637,7 @@ class Expression {
        //
        // 2005-08-07: Don't traverse this!  It is a non-tree pointer.
        // That is why it says "serf".
-       public(xml_AST) Expression /*nullable serf*/ *arraySize = NULL;
+       public(xml_AST /* nullable serf */) Expression *arraySize = NULL;
 
        // constructor being called to initialize the storage
        public(xml_TY) Variable *ctorVar = NULL;

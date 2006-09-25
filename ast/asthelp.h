@@ -11,6 +11,16 @@
 
 #include <iostream.h>    // ostream
 
+// HT: builtin typedefs
+// Two word typenames do not work with astgen. Declare aliases here 
+// that are hardcoded in astgen.
+
+typedef unsigned long unsigned_long;
+typedef unsigned int unsigned_int;
+
+
+
+
 // ----------------- downcasts --------------------
 // the 'if' variants return NULL if the type isn't what's expected;
 // the 'as' variants throw an exception in that case

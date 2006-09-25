@@ -13,14 +13,17 @@ verbatim {
 }
 
 
-// additional contexts in the GNU extensions
-enum DeclaratorContext {
-                          // inside ASTTypeId
-  DC_TS_TYPEOF_TYPE,      //   TS_typeof_type::atype
-  DC_E_COMPOUNDLIT,       //   E_compoundLit::stype
-  DC_E_ALIGNOFTYPE,       //   E_alignofType::atype
-  DC_E_BUILTIN_VA_ARG,    //   E___builtin_va_arg::atype
-}
+// HT: Move DeclaratorContext to cc_flags.h, because cc_ocaml.h needs it.
+// Leave it here to provoke cvs merge conflicts for any change.
+//
+// // additional contexts in the GNU extensions
+// enum DeclaratorContext {
+//                           // inside ASTTypeId
+//   DC_TS_TYPEOF_TYPE,      //   TS_typeof_type::atype
+//   DC_E_COMPOUNDLIT,       //   E_compoundLit::stype
+//   DC_E_ALIGNOFTYPE,       //   E_alignofType::atype
+//   DC_E_BUILTIN_VA_ARG,    //   E___builtin_va_arg::atype
+// }
 
 
 // The AST extensions in this file are organized in parallel with the

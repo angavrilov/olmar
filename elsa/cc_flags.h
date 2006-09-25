@@ -573,4 +573,45 @@ enum SpecialExpr {
 char const *toString(SpecialExpr se);
 
 
+// HT: Copied from cc_tcheck.ast to make it available in cc_ocaml.h
+//
+// The "Declarator" AST node appears in many different contexts in the
+// AST, and visitor-based analyses often need to do quite different
+// things depending on which context a declarator appears in.  So,
+// this enumeration lists all the possible contexts.
+enum DeclaratorContext {
+  DC_UNKNOWN,             // dummy value; nothing should have this after tcheck
+
+  DC_FUNCTION,            // Function::nameAndParams
+                          // inside Declaration
+  DC_TF_DECL,             //   TF_decl::decl
+  DC_TF_EXPLICITINST,     //   TF_explicitInst::d
+  DC_MR_DECL,             //   MR_decl::d
+  DC_S_DECL,              //   S_decl::decl
+  DC_TD_DECL,             //   TD_decl::d
+                          // inside ASTTypeId
+  DC_D_FUNC,              //   D_func::params
+  DC_EXCEPTIONSPEC,       //   ExceptionSpec::types
+  DC_ON_CONVERSION,       //   ON_conversion::type
+  DC_CN_DECL,             //   CN_decl::typeId
+  DC_HANDLER,             //   Handler::typeId
+  DC_E_CAST,              //   E_cast::ctype
+  DC_E_SIZEOFTYPE,        //   E_sizeofType::atype
+  DC_E_NEW,               //   E_new::atype (new)
+  DC_E_KEYWORDCAST,       //   E_keywordCast::ctype
+  DC_E_TYPEIDTYPE,        //   E_typeidType::ttype
+  DC_TP_TYPE,             //   TP_type::defaultType
+  DC_TP_NONTYPE,          //   TP_nontype::param
+  DC_TA_TYPE,             //   TA_type::type
+
+  // additional contexts in the GNU extensions
+                          // inside ASTTypeId
+  DC_TS_TYPEOF_TYPE,      //   TS_typeof_type::atype
+  DC_E_COMPOUNDLIT,       //   E_compoundLit::stype
+  DC_E_ALIGNOFTYPE,       //   E_alignofType::atype
+  DC_E_BUILTIN_VA_ARG,    //   E___builtin_va_arg::atype
+};
+
+
+
 #endif // CC_FLAGS_H

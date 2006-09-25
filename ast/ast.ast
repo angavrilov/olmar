@@ -15,7 +15,8 @@ verbatim {
     FF_IS_OWNER = 0x01,		// is_owner modifier present
     FF_NULLABLE = 0x02,		// nullable modifier present
     FF_FIELD    = 0x04,		// field modifier present
-    FF_XML      = 0x08		// some xml.* modifier present
+    FF_XML      = 0x08,		// some xml.* modifier present
+    FF_PRIVAT   = 0x10		// private, use accessor function
   };
 }
 
@@ -196,7 +197,8 @@ void ASTClass::init_fields()
       new FieldOrCtorArg(
 	static_cast<FieldFlags>(xml_or_field
 		     | (ud->amod->hasMod("owner") ? FF_IS_OWNER : FF_NONE)
-		     | (ud->amod->hasMod("nullable") ? FF_NULLABLE : FF_NONE)),
+		     | (ud->amod->hasMod("nullable") ? FF_NULLABLE : FF_NONE)
+		     | (ud->amod->acc == AC_PRIVATE ? FF_PRIVAT : FF_NONE)),
 	extractFieldType(ud->code),
 	extractFieldName(ud->code),
 	"" /* unused defaultValue */ ));

@@ -1911,6 +1911,280 @@ value ocaml_from_CompoundType_Keyword(const CompoundType::Keyword &id,
 }
 
 
+// hand written ocaml serialization function
+value ocaml_from_DeclaratorContext(const DeclaratorContext &id, ToOcamlData *d){
+  // don't allocate here, so don;t need the CAMLparam stuff
+
+  static value * create_DC_UNKNOWN_constructor_closure = NULL;
+  static value * create_DC_FUNCTION_constructor_closure = NULL;
+  static value * create_DC_TF_DECL_constructor_closure = NULL;
+  static value * create_DC_TF_EXPLICITINST_constructor_closure = NULL;
+  static value * create_DC_MR_DECL_constructor_closure = NULL;
+  static value * create_DC_S_DECL_constructor_closure = NULL;
+  static value * create_DC_TD_DECL_constructor_closure = NULL;
+  static value * create_DC_D_FUNC_constructor_closure = NULL;
+  static value * create_DC_EXCEPTIONSPEC_constructor_closure = NULL;
+  static value * create_DC_ON_CONVERSION_constructor_closure = NULL;
+  static value * create_DC_CN_DECL_constructor_closure = NULL;
+  static value * create_DC_HANDLER_constructor_closure = NULL;
+  static value * create_DC_E_CAST_constructor_closure = NULL;
+  static value * create_DC_E_SIZEOFTYPE_constructor_closure = NULL;
+  static value * create_DC_E_NEW_constructor_closure = NULL;
+  static value * create_DC_E_KEYWORDCAST_constructor_closure = NULL;
+  static value * create_DC_E_TYPEIDTYPE_constructor_closure = NULL;
+  static value * create_DC_TP_TYPE_constructor_closure = NULL;
+  static value * create_DC_TP_NONTYPE_constructor_closure = NULL;
+  static value * create_DC_TA_TYPE_constructor_closure = NULL;
+  static value * create_DC_TS_TYPEOF_TYPE_constructor_closure = NULL;
+  static value * create_DC_E_COMPOUNDLIT_constructor_closure = NULL;
+  static value * create_DC_E_ALIGNOFTYPE_constructor_closure = NULL;
+  static value * create_DC_E_BUILTIN_VA_ARG_constructor_closure = NULL;
+
+  value result;
+
+  switch(id){
+
+  case DC_UNKNOWN:
+    if(create_DC_UNKNOWN_constructor_closure == NULL)
+      create_DC_UNKNOWN_constructor_closure = 
+        caml_named_value("create_DC_UNKNOWN_constructor");
+    xassert(create_DC_UNKNOWN_constructor_closure);
+    result = caml_callback(*create_DC_UNKNOWN_constructor_closure, Val_unit);
+    xassert(IS_OCAML_AST_VALUE(result));
+    return result;
+
+  case DC_FUNCTION:
+    if(create_DC_FUNCTION_constructor_closure == NULL)
+      create_DC_FUNCTION_constructor_closure = 
+        caml_named_value("create_DC_FUNCTION_constructor");
+    xassert(create_DC_FUNCTION_constructor_closure);
+    result = caml_callback(*create_DC_FUNCTION_constructor_closure, Val_unit);
+    xassert(IS_OCAML_AST_VALUE(result));
+    return result;
+
+  case DC_TF_DECL:
+    if(create_DC_TF_DECL_constructor_closure == NULL)
+      create_DC_TF_DECL_constructor_closure = 
+        caml_named_value("create_DC_TF_DECL_constructor");
+    xassert(create_DC_TF_DECL_constructor_closure);
+    result = caml_callback(*create_DC_TF_DECL_constructor_closure, Val_unit);
+    xassert(IS_OCAML_AST_VALUE(result));
+    return result;
+
+  case DC_TF_EXPLICITINST:
+    if(create_DC_TF_EXPLICITINST_constructor_closure == NULL)
+      create_DC_TF_EXPLICITINST_constructor_closure = 
+        caml_named_value("create_DC_TF_EXPLICITINST_constructor");
+    xassert(create_DC_TF_EXPLICITINST_constructor_closure);
+    result = caml_callback(*create_DC_TF_EXPLICITINST_constructor_closure, Val_unit);
+    xassert(IS_OCAML_AST_VALUE(result));
+    return result;
+
+  case DC_MR_DECL:
+    if(create_DC_MR_DECL_constructor_closure == NULL)
+      create_DC_MR_DECL_constructor_closure = 
+        caml_named_value("create_DC_MR_DECL_constructor");
+    xassert(create_DC_MR_DECL_constructor_closure);
+    result = caml_callback(*create_DC_MR_DECL_constructor_closure, Val_unit);
+    xassert(IS_OCAML_AST_VALUE(result));
+    return result;
+
+  case DC_S_DECL:
+    if(create_DC_S_DECL_constructor_closure == NULL)
+      create_DC_S_DECL_constructor_closure = 
+        caml_named_value("create_DC_S_DECL_constructor");
+    xassert(create_DC_S_DECL_constructor_closure);
+    result = caml_callback(*create_DC_S_DECL_constructor_closure, Val_unit);
+    xassert(IS_OCAML_AST_VALUE(result));
+    return result;
+
+  case DC_TD_DECL:
+    if(create_DC_TD_DECL_constructor_closure == NULL)
+      create_DC_TD_DECL_constructor_closure = 
+        caml_named_value("create_DC_TD_DECL_constructor");
+    xassert(create_DC_TD_DECL_constructor_closure);
+    result = caml_callback(*create_DC_TD_DECL_constructor_closure, Val_unit);
+    xassert(IS_OCAML_AST_VALUE(result));
+    return result;
+
+  case DC_D_FUNC:
+    if(create_DC_D_FUNC_constructor_closure == NULL)
+      create_DC_D_FUNC_constructor_closure = 
+        caml_named_value("create_DC_D_FUNC_constructor");
+    xassert(create_DC_D_FUNC_constructor_closure);
+    result = caml_callback(*create_DC_D_FUNC_constructor_closure, Val_unit);
+    xassert(IS_OCAML_AST_VALUE(result));
+    return result;
+
+  case DC_EXCEPTIONSPEC:
+    if(create_DC_EXCEPTIONSPEC_constructor_closure == NULL)
+      create_DC_EXCEPTIONSPEC_constructor_closure = 
+        caml_named_value("create_DC_EXCEPTIONSPEC_constructor");
+    xassert(create_DC_EXCEPTIONSPEC_constructor_closure);
+    result = caml_callback(*create_DC_EXCEPTIONSPEC_constructor_closure, Val_unit);
+    xassert(IS_OCAML_AST_VALUE(result));
+    return result;
+
+  case DC_ON_CONVERSION:
+    if(create_DC_ON_CONVERSION_constructor_closure == NULL)
+      create_DC_ON_CONVERSION_constructor_closure = 
+        caml_named_value("create_DC_ON_CONVERSION_constructor");
+    xassert(create_DC_ON_CONVERSION_constructor_closure);
+    result = caml_callback(*create_DC_ON_CONVERSION_constructor_closure, Val_unit);
+    xassert(IS_OCAML_AST_VALUE(result));
+    return result;
+
+  case DC_CN_DECL:
+    if(create_DC_CN_DECL_constructor_closure == NULL)
+      create_DC_CN_DECL_constructor_closure = 
+        caml_named_value("create_DC_CN_DECL_constructor");
+    xassert(create_DC_CN_DECL_constructor_closure);
+    result = caml_callback(*create_DC_CN_DECL_constructor_closure, Val_unit);
+    xassert(IS_OCAML_AST_VALUE(result));
+    return result;
+
+  case DC_HANDLER:
+    if(create_DC_HANDLER_constructor_closure == NULL)
+      create_DC_HANDLER_constructor_closure = 
+        caml_named_value("create_DC_HANDLER_constructor");
+    xassert(create_DC_HANDLER_constructor_closure);
+    result = caml_callback(*create_DC_HANDLER_constructor_closure, Val_unit);
+    xassert(IS_OCAML_AST_VALUE(result));
+    return result;
+
+  case DC_E_CAST:
+    if(create_DC_E_CAST_constructor_closure == NULL)
+      create_DC_E_CAST_constructor_closure = 
+        caml_named_value("create_DC_E_CAST_constructor");
+    xassert(create_DC_E_CAST_constructor_closure);
+    result = caml_callback(*create_DC_E_CAST_constructor_closure, Val_unit);
+    xassert(IS_OCAML_AST_VALUE(result));
+    return result;
+
+  case DC_E_SIZEOFTYPE:
+    if(create_DC_E_SIZEOFTYPE_constructor_closure == NULL)
+      create_DC_E_SIZEOFTYPE_constructor_closure = 
+        caml_named_value("create_DC_E_SIZEOFTYPE_constructor");
+    xassert(create_DC_E_SIZEOFTYPE_constructor_closure);
+    result = caml_callback(*create_DC_E_SIZEOFTYPE_constructor_closure, Val_unit);
+    xassert(IS_OCAML_AST_VALUE(result));
+    return result;
+
+  case DC_E_NEW:
+    if(create_DC_E_NEW_constructor_closure == NULL)
+      create_DC_E_NEW_constructor_closure = 
+        caml_named_value("create_DC_E_NEW_constructor");
+    xassert(create_DC_E_NEW_constructor_closure);
+    result = caml_callback(*create_DC_E_NEW_constructor_closure, Val_unit);
+    xassert(IS_OCAML_AST_VALUE(result));
+    return result;
+
+  case DC_E_KEYWORDCAST:
+    if(create_DC_E_KEYWORDCAST_constructor_closure == NULL)
+      create_DC_E_KEYWORDCAST_constructor_closure = 
+        caml_named_value("create_DC_E_KEYWORDCAST_constructor");
+    xassert(create_DC_E_KEYWORDCAST_constructor_closure);
+    result = caml_callback(*create_DC_E_KEYWORDCAST_constructor_closure, Val_unit);
+    xassert(IS_OCAML_AST_VALUE(result));
+    return result;
+
+  case DC_E_TYPEIDTYPE:
+    if(create_DC_E_TYPEIDTYPE_constructor_closure == NULL)
+      create_DC_E_TYPEIDTYPE_constructor_closure = 
+        caml_named_value("create_DC_E_TYPEIDTYPE_constructor");
+    xassert(create_DC_E_TYPEIDTYPE_constructor_closure);
+    result = caml_callback(*create_DC_E_TYPEIDTYPE_constructor_closure, Val_unit);
+    xassert(IS_OCAML_AST_VALUE(result));
+    return result;
+
+  case DC_TP_TYPE:
+    if(create_DC_TP_TYPE_constructor_closure == NULL)
+      create_DC_TP_TYPE_constructor_closure = 
+        caml_named_value("create_DC_TP_TYPE_constructor");
+    xassert(create_DC_TP_TYPE_constructor_closure);
+    result = caml_callback(*create_DC_TP_TYPE_constructor_closure, Val_unit);
+    xassert(IS_OCAML_AST_VALUE(result));
+    return result;
+
+  case DC_TP_NONTYPE:
+    if(create_DC_TP_NONTYPE_constructor_closure == NULL)
+      create_DC_TP_NONTYPE_constructor_closure = 
+        caml_named_value("create_DC_TP_NONTYPE_constructor");
+    xassert(create_DC_TP_NONTYPE_constructor_closure);
+    result = caml_callback(*create_DC_TP_NONTYPE_constructor_closure, Val_unit);
+    xassert(IS_OCAML_AST_VALUE(result));
+    return result;
+
+  case DC_TA_TYPE:
+    if(create_DC_TA_TYPE_constructor_closure == NULL)
+      create_DC_TA_TYPE_constructor_closure = 
+        caml_named_value("create_DC_TA_TYPE_constructor");
+    xassert(create_DC_TA_TYPE_constructor_closure);
+    result = caml_callback(*create_DC_TA_TYPE_constructor_closure, Val_unit);
+    xassert(IS_OCAML_AST_VALUE(result));
+    return result;
+
+  case DC_TS_TYPEOF_TYPE:
+    if(create_DC_TS_TYPEOF_TYPE_constructor_closure == NULL)
+      create_DC_TS_TYPEOF_TYPE_constructor_closure = 
+        caml_named_value("create_DC_TS_TYPEOF_TYPE_constructor");
+    xassert(create_DC_TS_TYPEOF_TYPE_constructor_closure);
+    result = caml_callback(*create_DC_TS_TYPEOF_TYPE_constructor_closure, Val_unit);
+    xassert(IS_OCAML_AST_VALUE(result));
+    return result;
+
+  case DC_E_COMPOUNDLIT:
+    if(create_DC_E_COMPOUNDLIT_constructor_closure == NULL)
+      create_DC_E_COMPOUNDLIT_constructor_closure = 
+        caml_named_value("create_DC_E_COMPOUNDLIT_constructor");
+    xassert(create_DC_E_COMPOUNDLIT_constructor_closure);
+    result = caml_callback(*create_DC_E_COMPOUNDLIT_constructor_closure, Val_unit);
+    xassert(IS_OCAML_AST_VALUE(result));
+    return result;
+
+  case DC_E_ALIGNOFTYPE:
+    if(create_DC_E_ALIGNOFTYPE_constructor_closure == NULL)
+      create_DC_E_ALIGNOFTYPE_constructor_closure = 
+        caml_named_value("create_DC_E_ALIGNOFTYPE_constructor");
+    xassert(create_DC_E_ALIGNOFTYPE_constructor_closure);
+    result = caml_callback(*create_DC_E_ALIGNOFTYPE_constructor_closure, Val_unit);
+    xassert(IS_OCAML_AST_VALUE(result));
+    return result;
+
+  case DC_E_BUILTIN_VA_ARG:
+    if(create_DC_E_BUILTIN_VA_ARG_constructor_closure == NULL)
+      create_DC_E_BUILTIN_VA_ARG_constructor_closure = 
+        caml_named_value("create_DC_E_BUILTIN_VA_ARG_constructor");
+    xassert(create_DC_E_BUILTIN_VA_ARG_constructor_closure);
+    result = caml_callback(*create_DC_E_BUILTIN_VA_ARG_constructor_closure, Val_unit);
+    xassert(IS_OCAML_AST_VALUE(result));
+    return result;
+
+  default:
+    xassert(false);
+    break;
+  }
+
+  // not reached, the above assertion takes us out before
+  xassert(false);
+}
+
+
+// hand written ocaml serialization function
+value ocaml_from_unsigned_long(const unsigned long & ul, ToOcamlData *d) {
+  value r = caml_copy_int32(ul);
+  xassert(IS_OCAML_INT32(r));
+  return r;
+}
+
+// hand written ocaml serialization function
+value ocaml_from_double(const double &f, ToOcamlData *) {
+  value r = caml_copy_double(f);
+  xassert(IS_OCAML_FLOAT(r));
+  return r;
+}
+
+
 //**************************************************************************
 //******************************* debug caml roots *************************
 
