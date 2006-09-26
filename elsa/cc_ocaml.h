@@ -30,7 +30,8 @@ void check_caml_root_status();
 enum CircularAstType {
   CA_Empty,
   CA_CType,
-  CA_Function
+  CA_Function,
+  CA_Expression
 };
 
 
@@ -40,6 +41,7 @@ class CircularAstPart {
   union {
     CType * type; 		/* tagged CA_CType */
     Function * func;		/* tagged CA_Function */
+    Expression * expression;	/* tagged CA_Expression */
   } ast;
   value val;
   unsigned field;
@@ -67,6 +69,8 @@ void postpone_circular_CType(ToOcamlData * data, value val,
 			    unsigned field, CType * type);
 void postpone_circular_Function(ToOcamlData * data, value val, 
 				unsigned field, Function * func);
+void postpone_circular_Expression(ToOcamlData *, value, 
+				  unsigned, Expression *);
 void finish_circular_pointers(ToOcamlData * data);
 
 

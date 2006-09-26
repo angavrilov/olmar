@@ -277,8 +277,11 @@ public:     // funcs
 // elements common to structs and enums
 class NamedAtomicType : public AtomicType {
 public:     // data
+  // HT: name is NULL in in/t0030.cc inside EnumType
+  // also in in/t0032.cc inside CompoundType
   StringRef name;          // (nullable) user-assigned name of this struct or enum
   // HT: typedefVar is NULL in regtest 568 (t0566.cc)
+  // also in in/t0030.cc inside EnumType
   Variable *typedefVar;    // (owner) implicit typedef variable
   AccessKeyword access;    // accessibility of this type in its declaration context
 
@@ -409,6 +412,7 @@ public:      // data
   // if this class is a template instantiation, 'instName' is
   // the class name plus a rendering of the arguments; otherwise
   // it's the same as 'name'; this is for debugging
+  // HT: NULL in in/t0032.cc
   StringRef instName;
 
   // AST node that describes this class; used for implementing

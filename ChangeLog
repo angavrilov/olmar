@@ -1,3 +1,45 @@
+2006-09-27  Hendrik Tews  <tews@debian>
+
+	* regression test up to 857
+	
+	* nullable analysis for xml fields
+	  - fields with nullable assignment for which at least one
+	  regression test gives NULL
+
+	  TS_name.nondependentVar
+	  E_variable.nondependentVar
+	  Function.receiver
+	  Function.retVar
+	  E_throw.globalVar
+	  Handler.globalVar
+	  MemberInit.base
+	  MemberInit.ctorVar
+	  E_new.arraySize
+	  E_new.ctorVar
+	  E_new.heapVar
+	  MemberInit.member
+	  Variable.type	            IFF Variable.flags & DF_NAMESPACE
+	  E_constructor.ctorVar
+	  EnumType.name
+	  CompoundType.name
+	  CompoundType.instName
+	  BaseClassSpec.type
+	  E_variable.var
+	  PQ_qualifier.qualifierVar
+	  E_variable.type
+	  E_fieldAcc.field
+	  IN_ctor.ctorVar
+	  TS_name.var
+	
+	  - fields without nullable comment, that happen to be null in at
+	  elast one regression test
+
+	  EnumType.typedefVar
+
+	* new circularity via
+	  Variable.varValue
+	
+
 2006-09-25  Hendrik Tews  <tews@tandem.cs.ru.nl>
 
 	AST

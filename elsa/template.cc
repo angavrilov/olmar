@@ -338,19 +338,54 @@ void DependentQType::traverse(TypeVisitor &vis)
   vis.postvisitAtomicType(this);
 }
 
+
 // ocaml serialization method
 // hand written ocaml serialization function
-value DependentQType::toOcaml(ToOcamlData *){
-  // Hendrik
-  cerr << "DependentQType::toOcaml not implemented" << endl;
-  xassert(false);
+value DependentQType::toOcaml(ToOcamlData * data){
+  CAMLparam0();
+  CAMLlocalN(child, 6);
+  if(ocaml_val) {
+    // cerr << "shared ocaml value in Variable\n" << flush;
+    CAMLreturn(ocaml_val);
+  }
+  static value * create_atomic_DependentQType_constructor_closure = NULL;
+  if(create_atomic_DependentQType_constructor_closure == NULL)
+    create_atomic_DependentQType_constructor_closure = 
+      caml_named_value("create_atomic_DependentQType_constructor");
+  xassert(create_atomic_DependentQType_constructor_closure);
+
+  if(data->stack.contains(this)) {
+    cerr << "cyclic ast detected during ocaml serialization\n";
+    xassert(false);
+  } else {
+    data->stack.add(this);
+  }
+
+  child[0] = ocaml_ast_annotation(this, data);
+  child[1] = ocaml_from_StringRef(name, data);
+  child[2] = typedefVar->toOcaml(data);
+  child[3] = ocaml_from_AccessKeyword(access, data);
+  child[4] = first->toOcaml(data);
+  child[5] = rest->toOcaml(data);
+
+  caml_register_global_root(&ocaml_val);
+  ocaml_val = caml_callbackN(*create_atomic_DependentQType_constructor_closure,
+			    6, child);
+  xassert(IS_OCAML_AST_VALUE(ocaml_val));
+
+  data->stack.remove(this);
+  CAMLreturn(ocaml_val);
 }
 
 
+// ocaml serialization, cleanup ocaml_val
+// hand written ocaml serialization function
 void DependentQType::detachOcaml() {
-  // Hendrik
-  cerr << "DependentQType::detachOcaml not implemented" << endl;
-  xassert(false);
+  if(ocaml_val == 0) return;
+  NamedAtomicType::detachOcaml();
+
+  first->detachOcaml();
+  rest->detachOcaml();
 }
 
 

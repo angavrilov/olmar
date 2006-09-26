@@ -40,10 +40,13 @@ and 'a variable = {
 
   (* var_type is circular for compound types that have an implicit 
    * typedef variable
+   * the original pointer is NULL if flags contains DF_NAMESPACE, therefore, 
+   * var_type might stay None after resolving circularities
    *)
   var_type : 'a cType option ref;
   flags : declFlags;
-  value : 'a expression_type option;	(* nullable comment *)
+  (* value (varValue) might be circular and might be NULL *)
+  value : 'a expression_type option ref; (* nullable comment *)
   defaultParam : 'a cType option;	(* nullable comment *)
   (* funcDefn is circular at least for destructor calls (in/t0009.cc)
    * then it points back to a member in the class
@@ -67,7 +70,7 @@ and 'a baseClass = {
 and 'a compound_info = {
   compound_info_poly : 'a;
   (* fields stored in the super class NamedAtomicType *)
-  compound_name : string;			(* user assigned name ?? *)
+  compound_name : string option;	(* user assigned name ?? *)
   typedef_var : 'a variable;		(* implicit typdef variable ???? *)
   ci_access : accessKeyword;		(* accessibility in wider context *)
 
@@ -83,7 +86,7 @@ and 'a compound_info = {
 
   conversion_operators : 'a variable list;
   friends : 'a variable list;
-  inst_name : string;			(* name for debugging purposes *)
+  inst_name : string option;	        (* name for debugging purposes *)
 
   (* mutable syntax : typeSpecifier_type = TS_classSpec list;  * ast node *)
   (* scope : Scope *)
@@ -97,7 +100,8 @@ and 'a compound_info = {
 
 and 'a atomicType = 
     (* the subtype NamedAtomicType contains the following constructors:
-     * CompoundType, PseudoInstantiation, EnumType, TypeVariable
+     * CompoundType, PseudoInstantiation, EnumType, TypeVariable, 
+     * DependentQType
      * (i.e, everything apart from SimpleType)
      *)
 
@@ -120,11 +124,17 @@ and 'a atomicType =
       (* EnumType( user given name, ?, public/protected, constants)
        *    ignore the next valye field 
        *)
-  | EnumType of 'a * string * 'a variable * accessKeyword * 
+  | EnumType of 'a * string option * 'a variable option * accessKeyword * 
       (string * nativeint) list
 
       (* TypeVariable( user given name, ?, public/protected)  *)
   | TypeVariable of 'a * string * 'a variable * accessKeyword
+
+      (* DependentQType( user given name, ?, public/protected, 
+       *                 template param/pseudo inst, following name components 
+       *)
+  | DependentQType of 'a * string * 'a variable * accessKeyword * 
+      'a atomicType * 'a pQName_type
 
 
 (* compoundType is an atomicType built with Compoundtype *)

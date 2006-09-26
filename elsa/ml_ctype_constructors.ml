@@ -114,6 +114,9 @@ let create_atomic_EnumType_constructor poly nameopt variable key enum_list =
   EnumType(poly, nameopt, variable, key, enum_list)
 let create_atomic_TypeVariable_constructor poly name variable key =
   TypeVariable(poly, name, variable, key)
+let create_atomic_DependentQType_constructor 
+    poly name variable key atomic pqname = 
+  DependentQType(poly, name, variable, key, atomic, pqname)
 
 
 
@@ -191,6 +194,8 @@ let register_ml_ctype_constructor_callbacks () =
     create_atomic_EnumType_constructor;
   Callback.register "create_atomic_TypeVariable_constructor"
     create_atomic_TypeVariable_constructor;
+  Callback.register "create_atomic_DependentQType_constructor" 
+    create_atomic_DependentQType_constructor;
 
   (* from cType *)
   Callback.register "create_ctype_CVAtomicType_constructor" 

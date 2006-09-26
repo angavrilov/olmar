@@ -677,12 +677,14 @@ value Variable::toOcaml(ToOcamlData *data){
   var[3] = ref_None_constr(data);
   var[4] = ocaml_from_DeclFlags(flags, data);
 
-  if(varValue) {
-    var[5] = varValue->toOcaml(data);
-    var[5] = option_some_constr(var[5]);
-  }
-  else
-    var[5] = Val_None;
+  // circular
+  // if(varValue) {
+  //   var[5] = varValue->toOcaml(data);
+  //   var[5] = option_some_constr(var[5]);
+  // }
+  // else
+  //   var[5] = Val_None;
+  var[5] = ref_None_constr(data);
 
   if(defaultParamType) {
     var[6] = defaultParamType->toOcaml(data);
@@ -692,6 +694,7 @@ value Variable::toOcaml(ToOcamlData *data){
     var[6] = Val_None;
 
   // circular
+  // var[7] = funcDefn->toOcaml(data);
   var[7] = ref_None_constr(data);
 
   caml_register_global_root(&ocaml_val);
@@ -699,7 +702,11 @@ value Variable::toOcaml(ToOcamlData *data){
                              8, var);
   xassert(IS_OCAML_AST_VALUE(ocaml_val));
 
-  postpone_circular_CType(data, ocaml_val, 3, type);
+  xassert((type == NULL) == ((flags & DF_NAMESPACE) != 0));
+  if(!(flags & DF_NAMESPACE))
+    postpone_circular_CType(data, ocaml_val, 3, type);
+  if(varValue)
+    postpone_circular_Expression(data, ocaml_val, 5, varValue);
   if(funcDefn)
     postpone_circular_Function(data, ocaml_val, 7, funcDefn);
 
@@ -717,7 +724,8 @@ void Variable::detachOcaml() {
   detach_ocaml_SourceLoc(loc);
   if(name)
     detach_ocaml_StringRef(name);
-  type->detachOcaml();
+  if(!(flags & DF_NAMESPACE))
+    type->detachOcaml();
   detach_ocaml_DeclFlags(flags);
   if(varValue)
     varValue->detachOcaml();

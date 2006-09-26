@@ -363,7 +363,8 @@ bool NamedAtomicType::isNamedAtomicType() const
 void NamedAtomicType::detachOcaml() {
   if(ocaml_val == 0) return;
   AtomicType::detachOcaml();
-  detach_ocaml_StringRef(name);
+  if(name)
+    detach_ocaml_StringRef(name);
   if(typedefVar)
     typedefVar->detachOcaml();
   detach_ocaml_AccessKeyword(access);
@@ -1239,7 +1240,12 @@ value CompoundType::toCompoundInfo(ToOcamlData *data){
   }
 
   info[0] = ocaml_ast_annotation(this, data);
-  info[1] = ocaml_from_StringRef(name, data);
+  if(name) {
+    info[1] = option_some_constr(ocaml_from_StringRef(name, data));
+  }
+  else {
+    info[1] = Val_None;
+  }
   info[2] = typedefVar->toOcaml(data);
   info[3] = ocaml_from_AccessKeyword(access, data);
   info[4] = ocaml_from_bool(forward, data);
@@ -1281,7 +1287,12 @@ value CompoundType::toCompoundInfo(ToOcamlData *data){
     info[9] = tmp;
   }
   
-  info[10] = ocaml_from_string(instName, data);
+  if(instName) {
+    info[10] = option_some_constr(ocaml_from_string(instName, data));
+  }
+  else {
+    info[10] = Val_None;
+  }
 
   // circular: info[11] = selfType->toOcaml(data);
   info[11] = ref_None_constr(data);
@@ -1450,8 +1461,18 @@ value EnumType::toOcaml(ToOcamlData *data){
   }
 
   childs[0] = ocaml_ast_annotation(this, data);
-  childs[1] = ocaml_from_StringRef(name, data);
-  childs[2] = typedefVar->toOcaml(data);
+  if(name) {
+    childs[1] = option_some_constr(ocaml_from_StringRef(name, data));
+  }
+  else {
+    childs[1] = Val_None;
+  }
+  if(typedefVar) {
+    childs[2] = option_some_constr(typedefVar->toOcaml(data));
+  }
+  else {
+    childs[2] = Val_None;
+  }
   childs[3] = ocaml_from_AccessKeyword(access, data);
 
   childs[4] = Val_emptylist;

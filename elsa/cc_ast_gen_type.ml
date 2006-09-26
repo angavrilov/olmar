@@ -28,23 +28,23 @@ and 'a topForm_type =
   | TF_namespaceDefn of 'a * sourceLoc * stringRef option * 'a topForm_type list 
   | TF_namespaceDecl of 'a * sourceLoc * 'a namespaceDecl_type 
 
-and 'a function_type = 'a * declFlags * 'a typeSpecifier_type * 'a declarator_type * 'a memberInit_type list * 'a statement_type (* = S_compound  *) option * 'a handler_type list * 'a functionType * 'a variable * 'a variable * 'a statement_type option * bool 
+and 'a function_type = 'a * declFlags * 'a typeSpecifier_type * 'a declarator_type * 'a memberInit_type list * 'a statement_type (* = S_compound  *) option * 'a handler_type list * 'a functionType * 'a variable option * 'a variable option * 'a statement_type option * bool 
 
-and 'a memberInit_type = 'a * 'a pQName_type * 'a argExpression_type list * 'a variable * 'a compoundType * 'a variable * 'a fullExpressionAnnot_type * 'a statement_type option 
+and 'a memberInit_type = 'a * 'a pQName_type * 'a argExpression_type list * 'a variable option * 'a compoundType option * 'a variable option * 'a fullExpressionAnnot_type * 'a statement_type option 
 
 and 'a declaration_type = 'a * declFlags * 'a typeSpecifier_type * 'a declarator_type list 
 
 and 'a aSTTypeId_type = 'a * 'a typeSpecifier_type * 'a declarator_type 
 
 and 'a pQName_type = 
-  | PQ_qualifier of 'a * sourceLoc * stringRef option * 'a templateArgument_type option * 'a pQName_type * 'a variable * 'a sTemplateArgument list 
+  | PQ_qualifier of 'a * sourceLoc * stringRef option * 'a templateArgument_type option * 'a pQName_type * 'a variable option * 'a sTemplateArgument list 
   | PQ_name of 'a * sourceLoc * stringRef 
   | PQ_operator of 'a * sourceLoc * 'a operatorName_type * stringRef 
   | PQ_template of 'a * sourceLoc * stringRef * 'a templateArgument_type option * 'a sTemplateArgument list 
   | PQ_variable of 'a * sourceLoc * 'a variable 
 
 and 'a typeSpecifier_type = 
-  | TS_name of 'a * sourceLoc * cVFlags * 'a pQName_type * bool * 'a variable * 'a variable 
+  | TS_name of 'a * sourceLoc * cVFlags * 'a pQName_type * bool * 'a variable option * 'a variable option 
   | TS_simple of 'a * sourceLoc * cVFlags * simpleTypeId 
   | TS_elaborated of 'a * sourceLoc * cVFlags * typeIntr * 'a pQName_type * 'a namedAtomicType 
   | TS_classSpec of 'a * sourceLoc * cVFlags * typeIntr * 'a pQName_type option * 'a baseClassSpec_type list * 'a memberList_type * 'a compoundType 
@@ -52,7 +52,7 @@ and 'a typeSpecifier_type =
   | TS_type of 'a * sourceLoc * cVFlags * 'a cType 
   | TS_typeof of 'a * sourceLoc * cVFlags * 'a aSTTypeof_type 
 
-and 'a baseClassSpec_type = 'a * bool * accessKeyword * 'a pQName_type * 'a compoundType 
+and 'a baseClassSpec_type = 'a * bool * accessKeyword * 'a pQName_type * 'a compoundType option 
 
 and 'a enumerator_type = 'a * sourceLoc * stringRef * 'a expression_type option * 'a variable * int 
 
@@ -100,45 +100,45 @@ and 'a condition_type =
   | CN_expr of 'a * 'a fullExpression_type 
   | CN_decl of 'a * 'a aSTTypeId_type 
 
-and 'a handler_type = 'a * 'a aSTTypeId_type * 'a statement_type * 'a variable * 'a fullExpressionAnnot_type * 'a expression_type option * 'a statement_type option 
+and 'a handler_type = 'a * 'a aSTTypeId_type * 'a statement_type * 'a variable option * 'a fullExpressionAnnot_type * 'a expression_type option * 'a statement_type option 
 
 and 'a expression_type = 
-  | E_boolLit of 'a * 'a cType * bool 
-  | E_intLit of 'a * 'a cType * stringRef * unsigned_long 
-  | E_floatLit of 'a * 'a cType * stringRef * double 
-  | E_stringLit of 'a * 'a cType * stringRef * 'a expression_type (* = E_stringLit  *) option 
-  | E_charLit of 'a * 'a cType * stringRef * unsigned_int 
-  | E_this of 'a * 'a cType * 'a variable 
-  | E_variable of 'a * 'a cType * 'a pQName_type * 'a variable * 'a variable 
-  | E_funCall of 'a * 'a cType * 'a expression_type * 'a argExpression_type list * 'a expression_type option 
-  | E_constructor of 'a * 'a cType * 'a typeSpecifier_type * 'a argExpression_type list * 'a variable * bool * 'a expression_type option 
-  | E_fieldAcc of 'a * 'a cType * 'a expression_type * 'a pQName_type * 'a variable 
-  | E_sizeof of 'a * 'a cType * 'a expression_type * int 
-  | E_unary of 'a * 'a cType * unaryOp * 'a expression_type 
-  | E_effect of 'a * 'a cType * effectOp * 'a expression_type 
-  | E_binary of 'a * 'a cType * 'a expression_type * binaryOp * 'a expression_type 
-  | E_addrOf of 'a * 'a cType * 'a expression_type 
-  | E_deref of 'a * 'a cType * 'a expression_type 
-  | E_cast of 'a * 'a cType * 'a aSTTypeId_type * 'a expression_type * bool 
-  | E_cond of 'a * 'a cType * 'a expression_type * 'a expression_type * 'a expression_type 
-  | E_sizeofType of 'a * 'a cType * 'a aSTTypeId_type * int * bool 
-  | E_assign of 'a * 'a cType * 'a expression_type * binaryOp * 'a expression_type 
-  | E_new of 'a * 'a cType * bool * 'a argExpression_type list * 'a aSTTypeId_type * 'a argExpressionListOpt_type option * 'a expression_type * 'a variable * 'a statement_type option * 'a variable 
-  | E_delete of 'a * 'a cType * bool * bool * 'a expression_type option * 'a statement_type option 
-  | E_throw of 'a * 'a cType * 'a expression_type option * 'a variable * 'a statement_type option 
-  | E_keywordCast of 'a * 'a cType * castKeyword * 'a aSTTypeId_type * 'a expression_type 
-  | E_typeidExpr of 'a * 'a cType * 'a expression_type 
-  | E_typeidType of 'a * 'a cType * 'a aSTTypeId_type 
-  | E_grouping of 'a * 'a cType * 'a expression_type 
-  | E_arrow of 'a * 'a cType * 'a expression_type * 'a pQName_type 
-  | E_statement of 'a * 'a cType * 'a statement_type (* = S_compound  *) 
-  | E_compoundLit of 'a * 'a cType * 'a aSTTypeId_type * 'a initializer_type (* = IN_compound  *) 
-  | E___builtin_constant_p of 'a * 'a cType * sourceLoc * 'a expression_type 
-  | E___builtin_va_arg of 'a * 'a cType * sourceLoc * 'a expression_type * 'a aSTTypeId_type 
-  | E_alignofType of 'a * 'a cType * 'a aSTTypeId_type * int 
-  | E_alignofExpr of 'a * 'a cType * 'a expression_type * int 
-  | E_gnuCond of 'a * 'a cType * 'a expression_type * 'a expression_type 
-  | E_addrOfLabel of 'a * 'a cType * stringRef 
+  | E_boolLit of 'a * 'a cType option * bool 
+  | E_intLit of 'a * 'a cType option * stringRef * unsigned_long 
+  | E_floatLit of 'a * 'a cType option * stringRef * double 
+  | E_stringLit of 'a * 'a cType option * stringRef * 'a expression_type (* = E_stringLit  *) option 
+  | E_charLit of 'a * 'a cType option * stringRef * unsigned_int 
+  | E_this of 'a * 'a cType option * 'a variable 
+  | E_variable of 'a * 'a cType option * 'a pQName_type * 'a variable option * 'a variable option 
+  | E_funCall of 'a * 'a cType option * 'a expression_type * 'a argExpression_type list * 'a expression_type option 
+  | E_constructor of 'a * 'a cType option * 'a typeSpecifier_type * 'a argExpression_type list * 'a variable option * bool * 'a expression_type option 
+  | E_fieldAcc of 'a * 'a cType option * 'a expression_type * 'a pQName_type * 'a variable option 
+  | E_sizeof of 'a * 'a cType option * 'a expression_type * int 
+  | E_unary of 'a * 'a cType option * unaryOp * 'a expression_type 
+  | E_effect of 'a * 'a cType option * effectOp * 'a expression_type 
+  | E_binary of 'a * 'a cType option * 'a expression_type * binaryOp * 'a expression_type 
+  | E_addrOf of 'a * 'a cType option * 'a expression_type 
+  | E_deref of 'a * 'a cType option * 'a expression_type 
+  | E_cast of 'a * 'a cType option * 'a aSTTypeId_type * 'a expression_type * bool 
+  | E_cond of 'a * 'a cType option * 'a expression_type * 'a expression_type * 'a expression_type 
+  | E_sizeofType of 'a * 'a cType option * 'a aSTTypeId_type * int * bool 
+  | E_assign of 'a * 'a cType option * 'a expression_type * binaryOp * 'a expression_type 
+  | E_new of 'a * 'a cType option * bool * 'a argExpression_type list * 'a aSTTypeId_type * 'a argExpressionListOpt_type option * 'a expression_type option * 'a variable option * 'a statement_type option * 'a variable option 
+  | E_delete of 'a * 'a cType option * bool * bool * 'a expression_type option * 'a statement_type option 
+  | E_throw of 'a * 'a cType option * 'a expression_type option * 'a variable option * 'a statement_type option 
+  | E_keywordCast of 'a * 'a cType option * castKeyword * 'a aSTTypeId_type * 'a expression_type 
+  | E_typeidExpr of 'a * 'a cType option * 'a expression_type 
+  | E_typeidType of 'a * 'a cType option * 'a aSTTypeId_type 
+  | E_grouping of 'a * 'a cType option * 'a expression_type 
+  | E_arrow of 'a * 'a cType option * 'a expression_type * 'a pQName_type 
+  | E_statement of 'a * 'a cType option * 'a statement_type (* = S_compound  *) 
+  | E_compoundLit of 'a * 'a cType option * 'a aSTTypeId_type * 'a initializer_type (* = IN_compound  *) 
+  | E___builtin_constant_p of 'a * 'a cType option * sourceLoc * 'a expression_type 
+  | E___builtin_va_arg of 'a * 'a cType option * sourceLoc * 'a expression_type * 'a aSTTypeId_type 
+  | E_alignofType of 'a * 'a cType option * 'a aSTTypeId_type * int 
+  | E_alignofExpr of 'a * 'a cType option * 'a expression_type * int 
+  | E_gnuCond of 'a * 'a cType option * 'a expression_type * 'a expression_type 
+  | E_addrOfLabel of 'a * 'a cType option * stringRef 
 
 and 'a fullExpression_type = 'a * 'a expression_type option * 'a fullExpressionAnnot_type 
 
@@ -149,7 +149,7 @@ and 'a argExpressionListOpt_type = 'a * 'a argExpression_type list
 and 'a initializer_type = 
   | IN_expr of 'a * sourceLoc * 'a fullExpressionAnnot_type * 'a expression_type 
   | IN_compound of 'a * sourceLoc * 'a fullExpressionAnnot_type * 'a initializer_type list 
-  | IN_ctor of 'a * sourceLoc * 'a fullExpressionAnnot_type * 'a argExpression_type list * 'a variable * bool 
+  | IN_ctor of 'a * sourceLoc * 'a fullExpressionAnnot_type * 'a argExpression_type list * 'a variable option * bool 
   | IN_designated of 'a * sourceLoc * 'a fullExpressionAnnot_type * 'a designator_type list * 'a initializer_type 
 
 and 'a templateDeclaration_type = 
@@ -230,10 +230,13 @@ and 'a variable = {
 
   (* var_type is circular for compound types that have an implicit 
    * typedef variable
+   * the original pointer is NULL if flags contains DF_NAMESPACE, therefore, 
+   * var_type might stay None after resolving circularities
    *)
   var_type : 'a cType option ref;
   flags : declFlags;
-  value : 'a expression_type option;	(* nullable comment *)
+  (* value (varValue) might be circular and might be NULL *)
+  value : 'a expression_type option ref; (* nullable comment *)
   defaultParam : 'a cType option;	(* nullable comment *)
   (* funcDefn is circular at least for destructor calls (in/t0009.cc)
    * then it points back to a member in the class
@@ -257,7 +260,7 @@ and 'a baseClass = {
 and 'a compound_info = {
   compound_info_poly : 'a;
   (* fields stored in the super class NamedAtomicType *)
-  compound_name : string;			(* user assigned name ?? *)
+  compound_name : string option;	(* user assigned name ?? *)
   typedef_var : 'a variable;		(* implicit typdef variable ???? *)
   ci_access : accessKeyword;		(* accessibility in wider context *)
 
@@ -273,7 +276,7 @@ and 'a compound_info = {
 
   conversion_operators : 'a variable list;
   friends : 'a variable list;
-  inst_name : string;			(* name for debugging purposes *)
+  inst_name : string option;	        (* name for debugging purposes *)
 
   (* mutable syntax : typeSpecifier_type = TS_classSpec list;  * ast node *)
   (* scope : Scope *)
@@ -287,7 +290,8 @@ and 'a compound_info = {
 
 and 'a atomicType = 
     (* the subtype NamedAtomicType contains the following constructors:
-     * CompoundType, PseudoInstantiation, EnumType, TypeVariable
+     * CompoundType, PseudoInstantiation, EnumType, TypeVariable, 
+     * DependentQType
      * (i.e, everything apart from SimpleType)
      *)
 
@@ -310,11 +314,17 @@ and 'a atomicType =
       (* EnumType( user given name, ?, public/protected, constants)
        *    ignore the next valye field 
        *)
-  | EnumType of 'a * string * 'a variable * accessKeyword * 
+  | EnumType of 'a * string option * 'a variable option * accessKeyword * 
       (string * nativeint) list
 
       (* TypeVariable( user given name, ?, public/protected)  *)
   | TypeVariable of 'a * string * 'a variable * accessKeyword
+
+      (* DependentQType( user given name, ?, public/protected, 
+       *                 template param/pseudo inst, following name components 
+       *)
+  | DependentQType of 'a * string * 'a variable * accessKeyword * 
+      'a atomicType * 'a pQName_type
 
 
 (* compoundType is an atomicType built with Compoundtype *)

@@ -968,7 +968,7 @@ class Function {
   // analyses can find it
   //
   // 7/29/04: combined this with the old 'ctorReceiver'
-  public(xml_TY) Variable *receiver = NULL;
+  public(xml_TY,nullable) Variable *receiver = NULL;
 
   public void printExtras(ostream &os, int indent) const;
   custom debugPrint { printExtras(os, indent); }
@@ -1014,14 +1014,14 @@ class Function {
 
 class MemberInit {
   // if this is initializing a data member, tcheck will set this
-  public(xml_TY) Variable *member = NULL;
+  public(xml_TY,nullable) Variable *member = NULL;
 
   // if it's a base class ctor call, tcheck will set this instead
-  public(xml_TY) CompoundType *base = NULL;
+  public(xml_TY,nullable) CompoundType *base = NULL;
 
   // the constructor used to initialize the member or subobject
   // (can't call it "ctor".. that's an astgen keyword.. doh)
-  public(xml_TY) Variable *ctorVar = NULL;
+  public(xml_TY,nullable) Variable *ctorVar = NULL;
 
   public void printExtras(ostream &os, int indent) const;
   custom debugPrint { printExtras(os, indent); }
@@ -1089,7 +1089,7 @@ class PQName {
        // (without considering template arguments); this is only set
        // for the *first* PQ_qualifier in a PQName; it is needed for
        // applyArgumentMap, since it should not be doing lookup
-       public(xml_TY) Variable *qualifierVar = NULL;
+       public(xml_TY,nullable) Variable *qualifierVar = NULL;
        custom debugPrint {
          ind(os, indent) << "qualifierVar: " << refersTo(qualifierVar) << "\n";
        }
@@ -1117,12 +1117,12 @@ class TypeSpecifier {
 
   -> TS_name {
        // typedef Variable this name refers to
-       public(xml_TY) Variable *var = NULL;
+       public(xml_TY,nullable) Variable *var = NULL;
        
        // if the lookup is *not* dependent (and some other conditions
        // hold...), this will point to 'var' and be preserved when
        // the AST is cloned
-       public(xml_TY) Variable *nondependentVar = NULL;
+       public(xml_TY, nullable) Variable *nondependentVar = NULL;
        custom clone { ret->nondependentVar = nondependentVar; }
      }
 
@@ -1151,7 +1151,7 @@ class BaseClassSpec {
   custom debugPrint { printExtras(os, indent); }
 
   // the type named by the 'name'
-  public(xml_TY) CompoundType *type = NULL;
+  public(xml_TY,nullable) CompoundType *type = NULL;
 }
 
 
@@ -1405,7 +1405,7 @@ class Expression {
   // type computed for this expression; might be a SimpleType for
   // ST_ERROR, in which case a subsequent attempt to typecheck the
   // same expression should stop and look for an ambiguous alt.
-  public(xml_TY) CType *type = NULL;
+  public(xml_TY,nullable) CType *type = NULL;
 
   // this is a violation of the cloning invariant, but it gets fixed
   // with CloneExprTypesVisitor after the AST has been fully cloned
@@ -1466,7 +1466,7 @@ class Expression {
      }
 
   -> E_variable {
-       public(xml_TY) Variable *var = NULL; // (serf) binding introduction of this name
+       public(xml_TY,nullable) Variable *var = NULL; // (serf) binding introduction of this name
        public CType *itcheck_var(Env &env, Expression *&replacement, LookupFlags flags);
        custom clone { ret->var = var; }
 
@@ -1475,7 +1475,7 @@ class Expression {
                                     LookupFlags flags, LookupSet &set);
 
        // similar to TS_name::nondependentVar
-       public(xml_TY) Variable *nondependentVar = NULL;
+       public(xml_TY,nullable) Variable *nondependentVar = NULL;
        custom clone { ret->nondependentVar = nondependentVar; }
      }
 
@@ -1491,12 +1491,12 @@ class Expression {
        public CType *inner2_itcheck(Env &env, Expression *&replacement);
 
        // the constructor function being called
-       public(xml_TY) Variable *ctorVar = NULL;
+       public(xml_TY,nullable) Variable *ctorVar = NULL;
        custom clone { ret->ctorVar = ctorVar; }
      }
 
   -> E_fieldAcc {
-       public(xml_TY) Variable *field = NULL;
+       public(xml_TY,nullable) Variable *field = NULL;
        public CType *itcheck_fieldAcc(Env &env, LookupFlags flags);
        public CType *itcheck_fieldAcc_set(Env &env, LookupFlags flags,
                                          LookupSet &candidates);
@@ -1533,10 +1533,10 @@ class Expression {
        //
        // 2005-08-07: Don't traverse this!  It is a non-tree pointer.
        // That is why it says "serf".
-       public(xml_AST /* nullable serf */) Expression *arraySize = NULL;
+       public(xml_AST,nullable /* serf */) Expression *arraySize = NULL;
 
        // constructor being called to initialize the storage
-       public(xml_TY) Variable *ctorVar = NULL;
+       public(xml_TY,nullable) Variable *ctorVar = NULL;
        custom debugPrint { ind(os,indent) << "ctorVar: " << refersTo(ctorVar) << "\n"; }
        custom clone { ret->ctorVar = ctorVar; }
      }
@@ -1602,7 +1602,7 @@ class Initializer {
 
   -> IN_ctor() {                             
        // constructor function being called
-       public(xml_TY) Variable *ctorVar = NULL;
+       public(xml_TY,nullable) Variable *ctorVar = NULL;
        
        // true if this was originally an IN_expr that the type
        // checker rewrote as IN_ctor; needed to implement 8.5p14
@@ -1893,7 +1893,7 @@ class Function {
   // NOTE!: If this function is a ctor, then the semantics is as if we
   // have this line in the code before the MemberInit-s:
   //   this = &retVar;
-  public(xml_TY) Variable *retVar = NULL;
+  public(xml_TY,nullable) Variable *retVar = NULL;
   custom debugPrint { ind(os,indent) << "retVar: " << refersTo(retVar) << "\n"; }
 
   // to be called when the function exits; should only be non-NULL for
@@ -1973,7 +1973,7 @@ class Handler {
     // the global that the throw argument is copy-ctored into, if
     // thrown by value; this should be linked to the globalVar in
     // E_throw by a backend
-    public(xml_TY) Variable *globalVar = NULL;
+    public(xml_TY,nullable) Variable *globalVar = NULL;
     custom debugPrint { ind(os,indent) << "globalVar: " << refersTo(globalVar) << "\n"; }
     // we need this so that the temporary that is made when an
     // exception is caught by value has some place to go; that is, a
@@ -2029,7 +2029,7 @@ class Expression {
     // I need a place to put the variable being ctored because
     // E_constructor needs to point at a variable.  Note that this var
     // is really on the heap.
-    public(xml_TY) Variable *heapVar = NULL;
+    public(xml_TY,nullable) Variable *heapVar = NULL;
     custom debugPrint { ind(os,indent) << "heapVar: " << refersTo(heapVar) << "\n"; }
 
     public bool elaborate(ElabVisitor &env);
@@ -2048,7 +2048,7 @@ class Expression {
   -> E_throw {
     // the global that the throw argument is copy-ctored into, if
     // thrown by value
-    public(xml_TY) Variable *globalVar = NULL;
+    public(xml_TY,nullable) Variable *globalVar = NULL;
     custom debugPrint { ind(os,indent) << "globalVar: " << refersTo(globalVar) << "\n"; }
 
     public(field,nullable,xml_AST,owner) Statement *globalCtorStatement=NULL;
@@ -2510,10 +2510,13 @@ and 'a variable = {
 
   (* var_type is circular for compound types that have an implicit 
    * typedef variable
+   * the original pointer is NULL if flags contains DF_NAMESPACE, therefore, 
+   * var_type might stay None after resolving circularities
    *)
   var_type : 'a cType option ref;
   flags : declFlags;
-  value : 'a expression_type option;	(* nullable comment *)
+  (* value (varValue) might be circular and might be NULL *)
+  value : 'a expression_type option ref; (* nullable comment *)
   defaultParam : 'a cType option;	(* nullable comment *)
   (* funcDefn is circular at least for destructor calls (in/t0009.cc)
    * then it points back to a member in the class
@@ -2537,7 +2540,7 @@ and 'a baseClass = {
 and 'a compound_info = {
   compound_info_poly : 'a;
   (* fields stored in the super class NamedAtomicType *)
-  compound_name : string;			(* user assigned name ?? *)
+  compound_name : string option;	(* user assigned name ?? *)
   typedef_var : 'a variable;		(* implicit typdef variable ???? *)
   ci_access : accessKeyword;		(* accessibility in wider context *)
 
@@ -2553,7 +2556,7 @@ and 'a compound_info = {
 
   conversion_operators : 'a variable list;
   friends : 'a variable list;
-  inst_name : string;			(* name for debugging purposes *)
+  inst_name : string option;	        (* name for debugging purposes *)
 
   (* mutable syntax : typeSpecifier_type = TS_classSpec list;  * ast node *)
   (* scope : Scope *)
@@ -2567,7 +2570,8 @@ and 'a compound_info = {
 
 and 'a atomicType = 
     (* the subtype NamedAtomicType contains the following constructors:
-     * CompoundType, PseudoInstantiation, EnumType, TypeVariable
+     * CompoundType, PseudoInstantiation, EnumType, TypeVariable, 
+     * DependentQType
      * (i.e, everything apart from SimpleType)
      *)
 
@@ -2590,11 +2594,17 @@ and 'a atomicType =
       (* EnumType( user given name, ?, public/protected, constants)
        *    ignore the next valye field 
        *)
-  | EnumType of 'a * string * 'a variable * accessKeyword * 
+  | EnumType of 'a * string option * 'a variable option * accessKeyword * 
       (string * nativeint) list
 
       (* TypeVariable( user given name, ?, public/protected)  *)
   | TypeVariable of 'a * string * 'a variable * accessKeyword
+
+      (* DependentQType( user given name, ?, public/protected, 
+       *                 template param/pseudo inst, following name components 
+       *)
+  | DependentQType of 'a * string * 'a variable * accessKeyword * 
+      'a atomicType * 'a pQName_type
 
 
 (* compoundType is an atomicType built with Compoundtype *)

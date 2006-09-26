@@ -127,6 +127,23 @@ void postpone_circular_Function(ToOcamlData * data, value val,
 
 // hand written ocaml serialization function
 // not relly a serialization function, but handwritten ;-)
+void postpone_circular_Expression(ToOcamlData * data, value val, 
+				unsigned field, Expression * ex) {
+
+  // no need to register val as long as we don't allocate here
+  xassert(ex != NULL);
+  CircularAstPart * part = init_ca_part(data, val, field, CA_Expression);
+  part->ast.expression = ex;
+# ifdef DEBUG_CIRCULARITIES
+  cerr << "postpone (" << data->postponed_count
+       << ") Expression " << ex << " in field " << field
+       << " of " << hex << "0x" << val << dec << "\n";
+# endif // DEBUG_CIRCULARITIES
+}
+
+
+// hand written ocaml serialization function
+// not relly a serialization function, but handwritten ;-)
 void finish_circular_pointers(ToOcamlData * data) {
   CAMLparam0();
   CAMLlocal3(val, some_val, cell);
@@ -157,6 +174,13 @@ void finish_circular_pointers(ToOcamlData * data) {
       cerr << " (Function)\n";
 #     endif // DEBUG_CIRCULARITIES
       val = part->ast.func->toOcaml(data);
+      break;
+
+    case CA_Expression:
+#     ifdef DEBUG_CIRCULARITIES
+      cerr << " (Expression)\n";
+#     endif // DEBUG_CIRCULARITIES
+      val = part->ast.expression->toOcaml(data);
       break;
 
     case CA_Empty:
