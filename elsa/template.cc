@@ -1719,7 +1719,7 @@ bool Env::insertTemplateArgBindings_oneParamList
         // I'll wait for a testcase to remove this assertion... before
         // this assertion *is* removed, someone should read over the
         // applicable parts of cppstd
-        xfailure("unimplemented: default non-type argument");
+        xunimp("default non-type argument");
       }
       switch (sarg->kind) {
         // The following cases get progressively more difficult for
@@ -3721,8 +3721,8 @@ bool Env::mergeParameterLists(Variable *prior,
       // leave it as a to-do for now; a proper implementation should
       // remember the name substitutions done so far, and apply them
       // inside the expression for 'dest->value'
-      xfailure("unimplemented: alpha conversion inside default values"
-               " (workaround: use consistent names in template parameter lists)");
+      xunimp("alpha conversion inside default values"
+             " (workaround: use consistent names in template parameter lists)");
     }
 
     // merge their default values

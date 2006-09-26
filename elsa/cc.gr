@@ -654,9 +654,9 @@ nonterm(PQName*) NAD2 {
   -> on:OperatorFunctionId
        { return new PQ_operator(loc, on, str(on->getOperatorName())); }
   -> on:OperatorFunctionId "<" list:TemplateArgumentListOpt ">"
-       { xfailure("unimplemented: templatized operator (fc042c37-50e2-4596-8460-c095e7ac892b)"); }
+       { xunimp(stringc << loc << " templatized operator (fc042c37-50e2-4596-8460-c095e7ac892b)"); }
   -> "template" on:OperatorFunctionId "<" list:TemplateArgumentListOpt ">"
-       { xfailure("unimplemented: templatized operator (fc042c37-50e2-4596-8460-c095e7ac892b)"); }
+       { xunimp(stringc << loc << " templatized operator (fc042c37-50e2-4596-8460-c095e7ac892b)"); }
 
   // qualifier names
   -> n:Identifier "<" list:TemplateArgumentListOpt ">" "::" rest:NAD1
@@ -2404,7 +2404,10 @@ nonterm ClassOrTypename {
   //    place to put it, but I just wanted to see a descriptive error message,
   //    in order to categorize parse errors.
   -> "template" "<" plist:TemplateParameterList ">" "class"
-     { xfailure("unimplemented: templatized template parameter list (25eb7000-851c-4028-b762-4e365a5b10bf)"); }
+     {
+       xunimp(stringc << loc << " templatized template parameter list"
+              " (25eb7000-851c-4028-b762-4e365a5b10bf)");
+     }
 }
 
 nonterm(ASTTypeId*) DefaultTypeOpt {
@@ -2497,7 +2500,8 @@ nonterm(TopForm*) ExplicitInstantiation {
   -> "template" d:BlockDeclaration
        { return new TF_explicitInst(loc, DF_NONE, d); }
   -> "inline" "template" d:BlockDeclaration
-       { xfailure("unimplemented: inline explicit instantiations (c24a5f9c-edbd-4945-a56a-ed73a1d6a0fa)"); }
+       { xunimp(stringc << loc << " inline explicit instantiations"
+                " (c24a5f9c-edbd-4945-a56a-ed73a1d6a0fa)"); }
 }
 
 // ------ A.13 Exception handling ------

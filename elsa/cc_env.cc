@@ -5372,7 +5372,7 @@ PQName *Env::makeQualifiedName(Scope *s, PQName *name)
           // into a PQName, so I can re-use/abstract that mechanism.. but
           // I can't even find a place where the present code is even
           // called!  So for now....
-          xfailure("unimplemented");
+          xunimp("can't handle this kind of template argument");
 
         case STemplateArgument::STA_INT:
           // synthesize an AST node for the integer
