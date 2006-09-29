@@ -42,6 +42,10 @@ let int_fun (i : int) = ()
 
 let nativeint_fun (i : nativeint) = ()
 
+let int32_fun (i : int32) = ()
+
+let float_fun (x : float) = ()
+
 let string_fun (s : string) = ()
 
 let sourceLoc_fun((file : string), (line : int), (char : int)) = ()
@@ -67,6 +71,8 @@ let binaryOp_fun(op : binaryOp) = ()
 let castKeyword_fun(keyword : castKeyword) = ()
 
 let function_flags_fun(flags : function_flags) = ()
+
+let declaratorContext_fun(context : declaratorContext) = ()
 
 
 let array_size_fun = function
@@ -96,7 +102,8 @@ let rec variable_fun(v : annotated variable) =
       (* POSSIBLY CIRCULAR *)
       opt_iter cType_fun !(v.var_type);
       declFlags_fun v.flags;
-      opt_iter expression_fun v.value;
+      (* POSSIBLY CIRCULAR *)
+      opt_iter expression_fun !(v.value);
       opt_iter cType_fun v.defaultParam;
 
       (* POSSIBLY CIRCULAR *)
@@ -125,7 +132,7 @@ and compound_info_fun info =
     else begin
 	visit annot;
       annotation_fun info.compound_info_poly;
-      string_fun info.compound_name;
+      opt_iter string_fun info.compound_name;
       variable_fun info.typedef_var;
       accessKeyword_fun info.ci_access;
       bool_fun info.is_forward_decl;
@@ -134,7 +141,7 @@ and compound_info_fun info =
       List.iter baseClass_fun info.bases;
       List.iter variable_fun info.conversion_operators;
       List.iter variable_fun info.friends;
-      string_fun info.inst_name;
+      opt_iter string_fun info.inst_name;
 
       (* POSSIBLY CIRCULAR *)
       opt_iter cType_fun !(info.self_type)
@@ -172,8 +179,8 @@ and atomicType_fun x =
 		 string_nativeint_list) ->
 	  visit annot;
 	  annotation_fun annot;
-	  string_fun string;
-	  variable_fun variable;
+	  opt_iter string_fun string;
+	  opt_iter variable_fun variable;
 	  accessKeyword_fun accessKeyword;
 	  List.iter (fun (string, nativeint) -> 
 		       (string_fun string; nativeint_fun nativeint))
@@ -185,6 +192,17 @@ and atomicType_fun x =
 	  string_fun string;
 	  variable_fun variable;
 	  accessKeyword_fun accessKeyword
+
+      | DependentQType(annot, string, variable, 
+		      accessKeyword, atomic, pq_name) ->
+	  visit annot;
+	  annotation_fun annot;
+	  string_fun string;
+	  variable_fun variable;
+	  accessKeyword_fun accessKeyword;
+	  atomicType_fun atomic;
+	  pQName_fun pq_name
+	    
 
 
 and cType_fun x = 
@@ -228,7 +246,8 @@ and cType_fun x =
 		   | CompoundType _
 		   | PseudoInstantiation _
 		   | EnumType _
-		   | TypeVariable _ -> true);
+		   | TypeVariable _ 
+		   | DependentQType _ -> true);
 	  annotation_fun annot;
 	  atomicType_fun atomicType;
 	  cVFlags_fun cVFlags;
@@ -354,7 +373,9 @@ and topForm_fun x =
 
 
 and func_fun((annot, declFlags, typeSpecifier, declarator, memberInit_list, 
-	     s_compound_opt, handler_list, statement_opt, bool) as x) =
+	     s_compound_opt, handler_list, func, variable_opt_1, 
+	     variable_opt_2, statement_opt, bool) as x) =
+
   if visited annot then ()
   else begin
     assert(match s_compound_opt with
@@ -363,6 +384,10 @@ and func_fun((annot, declFlags, typeSpecifier, declarator, memberInit_list,
 		 match s_compound with 
 		   | S_compound _ -> true 
 		   | _ -> false);
+    assert(match func with 
+      | FunctionType _ -> true
+      | _ -> false);
+    cType_fun func;
     visit annot;
     annotation_fun annot;
     declFlags_fun declFlags;
@@ -371,18 +396,32 @@ and func_fun((annot, declFlags, typeSpecifier, declarator, memberInit_list,
     List.iter memberInit_fun memberInit_list;
     opt_iter statement_fun s_compound_opt;
     List.iter handler_fun handler_list;
+    cType_fun func;
+    opt_iter variable_fun variable_opt_1;
+    opt_iter variable_fun variable_opt_2;
     opt_iter statement_fun statement_opt;
     bool_fun bool
   end
 
 
-and memberInit_fun((annot, pQName, argExpression_list, statement_opt) as x) =
+and memberInit_fun((annot, pQName, argExpression_list, 
+		   variable_opt_1, compound_opt, variable_opt_2, 
+		   full_expr_annot, statement_opt) as x) =
+
   if visited annot then ()
   else begin
+      assert(match compound_opt with
+	| None
+	| Some(CompoundType _) -> true
+	| _ -> false);
     visit annot;
     annotation_fun annot;
     pQName_fun pQName;
     List.iter argExpression_fun argExpression_list;
+    opt_iter variable_fun variable_opt_1;
+    opt_iter atomicType_fun compound_opt;
+    opt_iter variable_fun variable_opt_2;
+    fullExpressionAnnot_fun full_expr_annot;
     opt_iter statement_fun statement_opt
   end
 
@@ -416,12 +455,15 @@ and pQName_fun x =
       let _ = visit annot 
       in match x with
 	| PQ_qualifier(annot, sourceLoc, stringRef_opt, 
-		       templateArgument_opt, pQName) -> 
+		       templateArgument_opt, pQName, 
+		      variable_opt, s_template_arg_list) -> 
 	    annotation_fun annot;
 	    sourceLoc_fun sourceLoc;
 	    opt_iter string_fun stringRef_opt;
 	    opt_iter templateArgument_fun templateArgument_opt;
-	    pQName_fun pQName
+	    pQName_fun pQName;
+	    opt_iter variable_fun variable_opt;
+	    List.iter sTemplateArgument_fun s_template_arg_list
 
 	| PQ_name(annot, sourceLoc, stringRef) -> 
 	    annotation_fun annot;
@@ -434,11 +476,13 @@ and pQName_fun x =
 	    operatorName_fun operatorName;
 	    string_fun stringRef
 
-	| PQ_template(annot, sourceLoc, stringRef, templateArgument_opt) -> 
+	| PQ_template(annot, sourceLoc, stringRef, templateArgument_opt, 
+		     s_template_arg_list) -> 
 	    annotation_fun annot;
 	    sourceLoc_fun sourceLoc;
 	    string_fun stringRef;
-	    opt_iter templateArgument_fun templateArgument_opt
+	    opt_iter templateArgument_fun templateArgument_opt;
+	    List.iter sTemplateArgument_fun s_template_arg_list
 
 	| PQ_variable(annot, sourceLoc, variable) -> 
 	    annotation_fun annot;
@@ -454,12 +498,15 @@ and typeSpecifier_fun x =
     else
       let _ = visit annot 
       in match x with
-	| TS_name(annot, sourceLoc, cVFlags, pQName, bool) -> 
+	| TS_name(annot, sourceLoc, cVFlags, pQName, bool, 
+		 var_opt_1, var_opt_2) -> 
 	    annotation_fun annot;
 	    sourceLoc_fun sourceLoc;
 	    cVFlags_fun cVFlags;
 	    pQName_fun pQName;
-	    bool_fun bool
+	    bool_fun bool;
+	    opt_iter variable_fun var_opt_1;
+	    opt_iter variable_fun var_opt_2
 
 	| TS_simple(annot, sourceLoc, cVFlags, simpleTypeId) -> 
 	    annotation_fun annot;
@@ -467,30 +514,43 @@ and typeSpecifier_fun x =
 	    cVFlags_fun cVFlags;
 	    simpleTypeId_fun simpleTypeId
 
-	| TS_elaborated(annot, sourceLoc, cVFlags, typeIntr, pQName) -> 
+	| TS_elaborated(annot, sourceLoc, cVFlags, typeIntr, 
+		       pQName, namedAtomicType_opt) -> 
+	    assert(match namedAtomicType_opt with
+	      | Some(SimpleType _) -> false
+	      | _ -> true);
 	    annotation_fun annot;
 	    sourceLoc_fun sourceLoc;
 	    cVFlags_fun cVFlags;
 	    typeIntr_fun typeIntr;
-	    pQName_fun pQName
+	    pQName_fun pQName;
+	    opt_iter atomicType_fun namedAtomicType_opt
 
 	| TS_classSpec(annot, sourceLoc, cVFlags, typeIntr, pQName_opt, 
-		       baseClassSpec_list, memberList) -> 
+		       baseClassSpec_list, memberList, compoundType) -> 
+	    assert(match compoundType with
+	      | CompoundType _ -> true
+	      | _ -> false);
 	    annotation_fun annot;
 	    sourceLoc_fun sourceLoc;
 	    cVFlags_fun cVFlags;
 	    typeIntr_fun typeIntr;
 	    opt_iter pQName_fun pQName_opt;
 	    List.iter baseClassSpec_fun baseClassSpec_list;
-	    memberList_fun memberList      
+	    memberList_fun memberList;
+	    atomicType_fun compoundType
 
 	| TS_enumSpec(annot, sourceLoc, cVFlags, 
-		      stringRef_opt, enumerator_list) -> 
+		      stringRef_opt, enumerator_list, enumType) -> 
+	    assert(match enumType with 
+	      | EnumType _ -> true
+	      | _ -> false);
 	    annotation_fun annot;
 	    sourceLoc_fun sourceLoc;
 	    cVFlags_fun cVFlags;
 	    opt_iter string_fun stringRef_opt;
-	    List.iter enumerator_fun enumerator_list
+	    List.iter enumerator_fun enumerator_list;
+	    atomicType_fun enumType
 
 	| TS_type(annot, sourceLoc, cVFlags, cType) -> 
 	    annotation_fun annot;
@@ -505,25 +565,33 @@ and typeSpecifier_fun x =
 	    aSTTypeof_fun aSTTypeof
 
 
-and baseClassSpec_fun((annot, bool, accessKeyword, pQName) as x) =
+and baseClassSpec_fun
+    ((annot, bool, accessKeyword, pQName, compoundType_opt) as x) =
   if visited annot then ()
   else begin
+      assert(match compoundType_opt with
+	| Some(CompoundType _ ) -> true
+	| _ -> false);
     visit annot;
     annotation_fun annot;
     bool_fun bool;
     accessKeyword_fun accessKeyword;
-    pQName_fun pQName
+    pQName_fun pQName;
+    opt_iter atomicType_fun compoundType_opt
   end
 
 
-and enumerator_fun((annot, sourceLoc, stringRef, expression_opt) as x) =
+and enumerator_fun((annot, sourceLoc, stringRef, 
+		   expression_opt, variable, int32) as x) =
   if visited annot then ()
   else begin
     visit annot;
     annotation_fun annot;
     sourceLoc_fun sourceLoc;
     string_fun stringRef;
-    opt_iter expression_fun expression_opt
+    opt_iter expression_fun expression_opt;
+    variable_fun variable;
+    int32_fun int32
   end
 
 
@@ -571,6 +639,7 @@ and member_fun x =
 
 
 and declarator_fun((annot, iDeclarator, init_opt, 
+		   variable_opt, ctype_opt, declaratorContext,
 		   statement_opt_ctor, statement_opt_dtor) as x) =
   if visited annot then ()
   else begin
@@ -578,6 +647,9 @@ and declarator_fun((annot, iDeclarator, init_opt,
     annotation_fun annot;
     iDeclarator_fun iDeclarator;
     opt_iter init_fun init_opt;
+    opt_iter variable_fun variable_opt;
+    opt_iter cType_fun ctype_opt;
+    declaratorContext_fun declaratorContext;
     opt_iter statement_fun statement_opt_ctor;
     opt_iter statement_fun statement_opt_dtor
   end
@@ -607,7 +679,7 @@ and iDeclarator_fun x =
 	    iDeclarator_fun iDeclarator
 
 	| D_func(annot, sourceLoc, iDeclarator, aSTTypeId_list, cVFlags, 
-		 exceptionSpec_opt, pq_name_list) -> 
+		 exceptionSpec_opt, pq_name_list, bool) -> 
 	    assert(List.for_all (function | PQ_name _ -> true | _ -> false) 
 		     pq_name_list);
 	    annotation_fun annot;
@@ -616,19 +688,22 @@ and iDeclarator_fun x =
 	    List.iter aSTTypeId_fun aSTTypeId_list;
 	    cVFlags_fun cVFlags;
 	    opt_iter exceptionSpec_fun exceptionSpec_opt;
-	    List.iter pQName_fun pq_name_list
+	    List.iter pQName_fun pq_name_list;
+	    bool_fun bool
 
-	| D_array(annot, sourceLoc, iDeclarator, expression_opt) -> 
+	| D_array(annot, sourceLoc, iDeclarator, expression_opt, bool) -> 
 	    annotation_fun annot;
 	    sourceLoc_fun sourceLoc;
 	    iDeclarator_fun iDeclarator;
-	    opt_iter expression_fun expression_opt
+	    opt_iter expression_fun expression_opt;
+	    bool_fun bool
 
-	| D_bitfield(annot, sourceLoc, pQName_opt, expression) -> 
+	| D_bitfield(annot, sourceLoc, pQName_opt, expression, int) -> 
 	    annotation_fun annot;
 	    sourceLoc_fun sourceLoc;
 	    opt_iter pQName_fun pQName_opt;
-	    expression_fun expression
+	    expression_fun expression;
+	    int_fun int
 
 	| D_ptrToMember(annot, sourceLoc, pQName, cVFlags, iDeclarator) -> 
 	    annotation_fun annot;
@@ -697,11 +772,12 @@ and statement_fun x =
 	    string_fun stringRef;
 	    statement_fun statement
 
-	| S_case(annot, sourceLoc, expression, statement) -> 
+	| S_case(annot, sourceLoc, expression, statement, int) -> 
 	    annotation_fun annot;
 	    sourceLoc_fun sourceLoc;
 	    expression_fun expression;
-	    statement_fun statement
+	    statement_fun statement;
+	    int_fun int
 
 	| S_default(annot, sourceLoc, statement) -> 
 	    annotation_fun annot;
@@ -799,12 +875,15 @@ and statement_fun x =
 	    func_fun func
 
 	| S_rangeCase(annot, sourceLoc, 
-		      expression_lo, expression_hi, statement) -> 
+		      expression_lo, expression_hi, statement, 
+		     label_lo, label_hi) -> 
 	    annotation_fun annot;
 	    sourceLoc_fun sourceLoc;
 	    expression_fun expression_lo;
 	    expression_fun expression_hi;
-	    statement_fun statement
+	    statement_fun statement;
+	    int_fun label_lo;
+	    int_fun label_hi
 
 	| S_computedGoto(annot, sourceLoc, expression) -> 
 	    annotation_fun annot;
@@ -828,14 +907,16 @@ and condition_fun x =
 	    aSTTypeId_fun aSTTypeId
 
 
-and handler_fun((annot, aSTTypeId, statement_body, 
-		expression_opt, statement_gdtor) as x) =
+and handler_fun((annot, aSTTypeId, statement_body, variable_opt, 
+		fullExpressionAnnot, expression_opt, statement_gdtor) as x) =
   if visited annot then ()
   else begin
     visit annot;
     annotation_fun annot;
     aSTTypeId_fun aSTTypeId;
     statement_fun statement_body;
+    opt_iter variable_fun variable_opt;
+    fullExpressionAnnot_fun fullExpressionAnnot;
     opt_iter expression_fun expression_opt;
     opt_iter statement_fun statement_gdtor
   end
@@ -848,198 +929,254 @@ and expression_fun x =
     else
       let _ = visit annot 
       in match x with
-	| E_boolLit(annot, bool) -> 
+	| E_boolLit(annot, type_opt, bool) -> 
 	    annotation_fun annot;
+	    opt_iter cType_fun type_opt;
 	    bool_fun bool
 
-	| E_intLit(annot, stringRef) -> 
+	| E_intLit(annot, type_opt, stringRef, ulong) -> 
 	    annotation_fun annot;
-	    string_fun stringRef
+	    opt_iter cType_fun type_opt;
+	    string_fun stringRef;
+	    int32_fun ulong
 
-	| E_floatLit(annot, stringRef) -> 
+	| E_floatLit(annot, type_opt, stringRef, double) -> 
 	    annotation_fun annot;
-	    string_fun stringRef
+	    opt_iter cType_fun type_opt;
+	    string_fun stringRef;
+	    float_fun double
 
-	| E_stringLit(annot, stringRef, e_stringLit_opt) -> 
+	| E_stringLit(annot, type_opt, stringRef, e_stringLit_opt) -> 
 	    assert(match e_stringLit_opt with 
 		     | Some(E_stringLit _) -> true 
 		     | None -> true
 		     | _ -> false);
 	    annotation_fun annot;
+	    opt_iter cType_fun type_opt;
 	    string_fun stringRef;
 	    opt_iter expression_fun e_stringLit_opt
 
-	| E_charLit(annot, stringRef) -> 
+	| E_charLit(annot, type_opt, stringRef, int32) -> 
 	    annotation_fun annot;
-	    string_fun stringRef
+	    opt_iter cType_fun type_opt;
+	    string_fun stringRef;
+	    int32_fun int32
 
-	| E_this annot -> 
-	    annotation_fun annot
-
-	| E_variable(annot, pQName) -> 
+	| E_this(annot, type_opt, variable) -> 
 	    annotation_fun annot;
-	    pQName_fun pQName
+	    opt_iter cType_fun type_opt;
+	    variable_fun variable
 
-	| E_funCall(annot, expression_func, 
+	| E_variable(annot, type_opt, pQName, var_opt, nondep_var_opt) -> 
+	    annotation_fun annot;
+	    opt_iter cType_fun type_opt;
+	    pQName_fun pQName;
+	    opt_iter variable_fun var_opt;
+	    opt_iter variable_fun nondep_var_opt
+
+	| E_funCall(annot, type_opt, expression_func, 
 		    argExpression_list, expression_retobj_opt) -> 
 	    annotation_fun annot;
+	    opt_iter cType_fun type_opt;
 	    expression_fun expression_func;
 	    List.iter argExpression_fun argExpression_list;
 	    opt_iter expression_fun expression_retobj_opt
 
-	| E_constructor(annot, typeSpecifier, argExpression_list, 
-			bool, expression_opt) -> 
+	| E_constructor(annot, type_opt, typeSpecifier, argExpression_list, 
+			var_opt, bool, expression_opt) -> 
 	    annotation_fun annot;
+	    opt_iter cType_fun type_opt;
 	    typeSpecifier_fun typeSpecifier;
 	    List.iter argExpression_fun argExpression_list;
+	    opt_iter variable_fun var_opt;
 	    bool_fun bool;
 	    opt_iter expression_fun expression_opt
 
-	| E_fieldAcc(annot, expression, pQName) -> 
+	| E_fieldAcc(annot, type_opt, expression, pQName, var_opt) -> 
 	    annotation_fun annot;
+	    opt_iter cType_fun type_opt;
 	    expression_fun expression;
-	    pQName_fun pQName
+	    pQName_fun pQName;
+	    opt_iter variable_fun var_opt
 
-	| E_sizeof(annot, expression) -> 
+	| E_sizeof(annot, type_opt, expression, int) -> 
 	    annotation_fun annot;
-	    expression_fun expression
+	    opt_iter cType_fun type_opt;
+	    expression_fun expression;
+	    int_fun int
 
-	| E_unary(annot, unaryOp, expression) -> 
+	| E_unary(annot, type_opt, unaryOp, expression) -> 
 	    annotation_fun annot;
+	    opt_iter cType_fun type_opt;
 	    unaryOp_fun unaryOp;
 	    expression_fun expression
 
-	| E_effect(annot, effectOp, expression) -> 
+	| E_effect(annot, type_opt, effectOp, expression) -> 
 	    annotation_fun annot;
+	    opt_iter cType_fun type_opt;
 	    effectOp_fun effectOp;
 	    expression_fun expression
 
-	| E_binary(annot, expression_left, binaryOp, expression_right) -> 
+	| E_binary(annot, type_opt, expression_left, binaryOp, expression_right) -> 
 	    annotation_fun annot;
+	    opt_iter cType_fun type_opt;
 	    expression_fun expression_left;
 	    binaryOp_fun binaryOp;
 	    expression_fun expression_right
 
-	| E_addrOf(annot, expression) -> 
+	| E_addrOf(annot, type_opt, expression) -> 
 	    annotation_fun annot;
+	    opt_iter cType_fun type_opt;
 	    expression_fun expression
 
-	| E_deref(annot, expression) -> 
+	| E_deref(annot, type_opt, expression) -> 
 	    annotation_fun annot;
+	    opt_iter cType_fun type_opt;
 	    expression_fun expression
 
-	| E_cast(annot, aSTTypeId, expression) -> 
+	| E_cast(annot, type_opt, aSTTypeId, expression, bool) -> 
 	    annotation_fun annot;
+	    opt_iter cType_fun type_opt;
 	    aSTTypeId_fun aSTTypeId;
-	    expression_fun expression
+	    expression_fun expression;
+	    bool_fun bool
 
-	| E_cond(annot, expression_cond, expression_true, expression_false) -> 
+	| E_cond(annot, type_opt, expression_cond, expression_true, expression_false) -> 
 	    annotation_fun annot;
+	    opt_iter cType_fun type_opt;
 	    expression_fun expression_cond;
 	    expression_fun expression_true;
 	    expression_fun expression_false
 
-	| E_sizeofType(annot, aSTTypeId) -> 
+	| E_sizeofType(annot, type_opt, aSTTypeId, int, bool) -> 
 	    annotation_fun annot;
-	    aSTTypeId_fun aSTTypeId
+	    opt_iter cType_fun type_opt;
+	    aSTTypeId_fun aSTTypeId;
+	    int_fun int;
+	    bool_fun bool
 
-	| E_assign(annot, expression_target, binaryOp, expression_src) -> 
+	| E_assign(annot, type_opt, expression_target, binaryOp, expression_src) -> 
 	    annotation_fun annot;
+	    opt_iter cType_fun type_opt;
 	    expression_fun expression_target;
 	    binaryOp_fun binaryOp;
 	    expression_fun expression_src
 
-	| E_new(annot, bool, argExpression_list, aSTTypeId, 
-		argExpressionListOpt_opt, statement_opt) -> 
+	| E_new(annot, type_opt, bool, argExpression_list, aSTTypeId, 
+		argExpressionListOpt_opt, array_size_opt, ctor_opt,
+	        statement_opt, heep_var) -> 
 	    annotation_fun annot;
+	    opt_iter cType_fun type_opt;
 	    bool_fun bool;
 	    List.iter argExpression_fun argExpression_list;
 	    aSTTypeId_fun aSTTypeId;
 	    opt_iter argExpressionListOpt_fun argExpressionListOpt_opt;
-	    opt_iter statement_fun statement_opt
+	    opt_iter expression_fun array_size_opt;
+	    opt_iter variable_fun ctor_opt;
+	    opt_iter statement_fun statement_opt;
+	    opt_iter variable_fun heep_var
 
-	| E_delete(annot, bool_colon, bool_array, 
+	| E_delete(annot, type_opt, bool_colon, bool_array, 
 		   expression_opt, statement_opt) -> 
 	    annotation_fun annot;
+	    opt_iter cType_fun type_opt;
 	    bool_fun bool_colon;
 	    bool_fun bool_array;
 	    opt_iter expression_fun expression_opt;
 	    opt_iter statement_fun statement_opt
 
-	| E_throw(annot, expression_opt, statement_opt) -> 
+	| E_throw(annot, type_opt, expression_opt, var_opt, statement_opt) -> 
 	    annotation_fun annot;
+	    opt_iter cType_fun type_opt;
 	    opt_iter expression_fun expression_opt;
+	    opt_iter variable_fun var_opt;
 	    opt_iter statement_fun statement_opt
 
-	| E_keywordCast(annot, castKeyword, aSTTypeId, expression) -> 
+	| E_keywordCast(annot, type_opt, castKeyword, aSTTypeId, expression) -> 
 	    annotation_fun annot;
+	    opt_iter cType_fun type_opt;
 	    castKeyword_fun castKeyword;
 	    aSTTypeId_fun aSTTypeId;
 	    expression_fun expression
 
-	| E_typeidExpr(annot, expression) -> 
+	| E_typeidExpr(annot, type_opt, expression) -> 
 	    annotation_fun annot;
+	    opt_iter cType_fun type_opt;
 	    expression_fun expression
 
-	| E_typeidType(annot, aSTTypeId) -> 
+	| E_typeidType(annot, type_opt, aSTTypeId) -> 
 	    annotation_fun annot;
+	    opt_iter cType_fun type_opt;
 	    aSTTypeId_fun aSTTypeId
 
-	| E_grouping(annot, expression) -> 
+	| E_grouping(annot, type_opt, expression) -> 
 	    annotation_fun annot;
+	    opt_iter cType_fun type_opt;
 	    expression_fun expression
 
-	| E_arrow(annot, expression, pQName) -> 
+	| E_arrow(annot, type_opt, expression, pQName) -> 
 	    annotation_fun annot;
+	    opt_iter cType_fun type_opt;
 	    expression_fun expression;
 	    pQName_fun pQName
 
-	| E_statement(annot, s_compound) -> 
+	| E_statement(annot, type_opt, s_compound) -> 
 	    assert(match s_compound with | S_compound _ -> true | _ -> false);
 	    annotation_fun annot;
+	    opt_iter cType_fun type_opt;
 	    statement_fun s_compound
 
-	| E_compoundLit(annot, aSTTypeId, in_compound) -> 
+	| E_compoundLit(annot, type_opt, aSTTypeId, in_compound) -> 
 	    assert(match in_compound with | IN_compound _ -> true | _ -> false);
 	    annotation_fun annot;
+	    opt_iter cType_fun type_opt;
 	    aSTTypeId_fun aSTTypeId;
 	    init_fun in_compound
 
-	| E___builtin_constant_p(annot, sourceLoc, expression) -> 
+	| E___builtin_constant_p(annot, type_opt, sourceLoc, expression) -> 
 	    annotation_fun annot;
+	    opt_iter cType_fun type_opt;
 	    sourceLoc_fun sourceLoc;
 	    expression_fun expression
 
-	| E___builtin_va_arg(annot, sourceLoc, expression, aSTTypeId) -> 
+	| E___builtin_va_arg(annot, type_opt, sourceLoc, expression, aSTTypeId) -> 
 	    annotation_fun annot;
+	    opt_iter cType_fun type_opt;
 	    sourceLoc_fun sourceLoc;
 	    expression_fun expression;
 	    aSTTypeId_fun aSTTypeId
 
-	| E_alignofType(annot, aSTTypeId) -> 
+	| E_alignofType(annot, type_opt, aSTTypeId, int) -> 
 	    annotation_fun annot;
-	    aSTTypeId_fun aSTTypeId
+	    opt_iter cType_fun type_opt;
+	    aSTTypeId_fun aSTTypeId;
+	    int_fun int
 
-	| E_alignofExpr(annot, expression) -> 
+	| E_alignofExpr(annot, type_opt, expression, int) -> 
 	    annotation_fun annot;
-	    expression_fun expression
+	    opt_iter cType_fun type_opt;
+	    expression_fun expression;
+	    int_fun int
 
-	| E_gnuCond(annot, expression_cond, expression_false) -> 
+	| E_gnuCond(annot, type_opt, expression_cond, expression_false) -> 
 	    annotation_fun annot;
+	    opt_iter cType_fun type_opt;
 	    expression_fun expression_cond;
 	    expression_fun expression_false
 
-	| E_addrOfLabel(annot, stringRef) -> 
+	| E_addrOfLabel(annot, type_opt, stringRef) -> 
 	    annotation_fun annot;
+	    opt_iter cType_fun type_opt;
 	    string_fun stringRef
 
 
-and fullExpression_fun((annot, expression_opt) as x) =
+and fullExpression_fun((annot, expression_opt, fullExpressionAnnot) as x) =
   if visited annot then ()
   else begin
     visit annot;
     annotation_fun annot;
-    opt_iter expression_fun expression_opt
+    opt_iter expression_fun expression_opt;
+    fullExpressionAnnot_fun fullExpressionAnnot
   end
 
 
@@ -1068,25 +1205,32 @@ and init_fun x =
     else
       let _ = visit annot 
       in match x with
-	| IN_expr(annot, sourceLoc, expression) -> 
+	| IN_expr(annot, sourceLoc, fullExpressionAnnot, expression) -> 
 	    annotation_fun annot;
 	    sourceLoc_fun sourceLoc;
+	    fullExpressionAnnot_fun fullExpressionAnnot;
 	    expression_fun expression
 
-	| IN_compound(annot, sourceLoc, init_list) -> 
+	| IN_compound(annot, sourceLoc, fullExpressionAnnot, init_list) -> 
 	    annotation_fun annot;
 	    sourceLoc_fun sourceLoc;
+	    fullExpressionAnnot_fun fullExpressionAnnot;
 	    List.iter init_fun init_list
 
-	| IN_ctor(annot, sourceLoc, argExpression_list, bool) -> 
+	| IN_ctor(annot, sourceLoc, fullExpressionAnnot, 
+		 argExpression_list, var_opt, bool) -> 
 	    annotation_fun annot;
 	    sourceLoc_fun sourceLoc;
+	    fullExpressionAnnot_fun fullExpressionAnnot;
 	    List.iter argExpression_fun argExpression_list;
+	    opt_iter variable_fun var_opt;
 	    bool_fun bool
 
-	| IN_designated(annot, sourceLoc, designator_list, init) -> 
+	| IN_designated(annot, sourceLoc, fullExpressionAnnot, 
+		       designator_list, init) -> 
 	    annotation_fun annot;
 	    sourceLoc_fun sourceLoc;
+	    fullExpressionAnnot_fun fullExpressionAnnot;
 	    List.iter designator_fun designator_list;
 	    init_fun init
 
@@ -1121,17 +1265,20 @@ and templateParameter_fun x =
     else
       let _ = visit annot 
       in match x with
-	| TP_type(annot, sourceLoc, stringRef, 
+	| TP_type(annot, sourceLoc, variable, stringRef, 
 		  aSTTypeId_opt, templateParameter_opt) -> 
 	    annotation_fun annot;
 	    sourceLoc_fun sourceLoc;
+	    variable_fun variable;
 	    string_fun stringRef;
 	    opt_iter aSTTypeId_fun aSTTypeId_opt;
 	    opt_iter templateParameter_fun templateParameter_opt
 
-	| TP_nontype(annot, sourceLoc, aSTTypeId, templateParameter_opt) -> 
+	| TP_nontype(annot, sourceLoc, variable,
+		    aSTTypeId, templateParameter_opt) -> 
 	    annotation_fun annot;
 	    sourceLoc_fun sourceLoc;
+	    variable_fun variable;
 	    aSTTypeId_fun aSTTypeId;
 	    opt_iter templateParameter_fun templateParameter_opt
 
@@ -1194,12 +1341,14 @@ and aSTTypeof_fun x =
     else
       let _ = visit annot 
       in match x with
-	| TS_typeof_expr(annot, fullExpression) -> 
+	| TS_typeof_expr(annot, ctype, fullExpression) -> 
 	    annotation_fun annot;
+	    cType_fun ctype;
 	    fullExpression_fun fullExpression
 
-	| TS_typeof_type(annot, aSTTypeId) -> 
+	| TS_typeof_type(annot, ctype, aSTTypeId) -> 
 	    annotation_fun annot;
+	    cType_fun ctype;
 	    aSTTypeId_fun aSTTypeId
 
 
@@ -1215,11 +1364,14 @@ and designator_fun x =
 	    sourceLoc_fun sourceLoc;
 	    string_fun stringRef
 
-	| SubscriptDesignator(annot, sourceLoc, expression, expression_opt) -> 
+	| SubscriptDesignator(annot, sourceLoc, expression, expression_opt, 
+			     idx_start, idx_end) -> 
 	    annotation_fun annot;
 	    sourceLoc_fun sourceLoc;
 	    expression_fun expression;
-	    opt_iter expression_fun expression_opt
+	    opt_iter expression_fun expression_opt;
+	    int_fun idx_start;
+	    int_fun idx_end
 
 
 and attribute_fun x = 

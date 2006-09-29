@@ -1,5 +1,8 @@
 2006-09-29  Hendrik Tews  <tews@tandem.cs.ru.nl>
 
+	* adopted astiter, astiternodes, count-ast, ast_util, ast_graph
+	* ast_graph has some problem
+
 	* regressiontests pass !!!
 	* changed Enumerator.enumValue to int32
 	* added int32 support to astgen

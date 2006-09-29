@@ -9,6 +9,8 @@ OCAML_OBJ_EXT := @OCAML_OBJ_EXT@
 
 # use the first goal for development, for release put it in comment and use all
 
+#first: astiter.cmo
+#first: astiternodes.cmo
 #first: count-ast
 first: ast_graph
 #first: hashloc
