@@ -46,7 +46,7 @@ and 'a pQName_type =
 and 'a typeSpecifier_type = 
   | TS_name of 'a * sourceLoc * cVFlags * 'a pQName_type * bool * 'a variable option * 'a variable option 
   | TS_simple of 'a * sourceLoc * cVFlags * simpleTypeId 
-  | TS_elaborated of 'a * sourceLoc * cVFlags * typeIntr * 'a pQName_type * 'a namedAtomicType 
+  | TS_elaborated of 'a * sourceLoc * cVFlags * typeIntr * 'a pQName_type * 'a namedAtomicType option 
   | TS_classSpec of 'a * sourceLoc * cVFlags * typeIntr * 'a pQName_type option * 'a baseClassSpec_type list * 'a memberList_type * 'a compoundType 
   | TS_enumSpec of 'a * sourceLoc * cVFlags * stringRef option * 'a enumerator_type list * 'a enumType 
   | TS_type of 'a * sourceLoc * cVFlags * 'a cType 
@@ -171,7 +171,7 @@ and 'a namespaceDecl_type =
   | ND_usingDecl of 'a * 'a pQName_type 
   | ND_usingDir of 'a * 'a pQName_type 
 
-and 'a declarator_type = 'a * 'a iDeclarator_type * 'a initializer_type option * 'a variable * 'a cType * declaratorContext * 'a statement_type option * 'a statement_type option 
+and 'a declarator_type = 'a * 'a iDeclarator_type * 'a initializer_type option * 'a variable option * 'a cType option * declaratorContext * 'a statement_type option * 'a statement_type option 
 
 and 'a iDeclarator_type = 
   | D_name of 'a * sourceLoc * 'a pQName_type option 

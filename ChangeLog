@@ -1,3 +1,10 @@
+2006-09-29  Hendrik Tews  <tews@tandem.cs.ru.nl>
+
+	* changed default array designator value to -1; 
+	  add check for positive designators in check_designator_list
+	* more nullness stuff (results are added to the previous log entry)
+	
+
 2006-09-27  Hendrik Tews  <tews@debian>
 
 	* regression test up to 857
@@ -30,6 +37,9 @@
 	  E_fieldAcc.field
 	  IN_ctor.ctorVar
 	  TS_name.var
+	  TS_elaborated.atype
+	  Declarator.var
+	  Declarator.type
 	
 	  - fields without nullable comment, that happen to be null in at
 	  elast one regression test

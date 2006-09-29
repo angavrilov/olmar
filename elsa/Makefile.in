@@ -460,11 +460,11 @@ TAGS:
 	otags `find . -name \*.ml -o -name \*.mli |\
 		egrep -v $(DISCARDPATTERN)`
 	etags --append --members -l c++ \
-		`find . $(AST) $(ELKHOUND) ../smbase -name \*.h | \
+		`find . $(AST) $(ELKHOUND) $(SMBASE) -name \*.h | \
 			egrep -v $(DISCARDPATTERN)` \
-		`find . $(AST) $(ELKHOUND) ../smbase -name \*.cc | \
+		`find . $(AST) $(ELKHOUND) $(SMBASE) -name \*.cc | \
 			egrep -v $(DISCARDPATTERN)` \
-		`find . $(AST) $(ELKHOUND) ../smbase -name \*.cpp | \
+		`find . $(AST) $(ELKHOUND) $(SMBASE) -name \*.cpp | \
 			egrep -v $(DISCARDPATTERN)`
 
 

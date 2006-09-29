@@ -1127,7 +1127,7 @@ class TypeSpecifier {
      }
 
   -> TS_elaborated {
-       public(xml_TY) NamedAtomicType *atype = NULL;
+       public(xml_TY,nullable) NamedAtomicType *atype = NULL;
      }
 
   -> TS_classSpec {
@@ -1216,7 +1216,7 @@ class Enumerator {
 
 class Declarator {
   // entity declared by this declarator
-  public(xml_TY) Variable *var = NULL;// (serf) computed information: name, type, etc.
+  public(xml_TY,nullable) Variable *var = NULL;// (serf) computed information: name, type, etc.
   custom clone { ret->var = var; }
 
   // This field need not be identical to 'var->type'; the 'type' here
@@ -1225,7 +1225,7 @@ class Declarator {
   // function), and hence 'var->type' might differ in details like
   // parameter names.  Otherwise, nominally, 'var->type' and 'type'
   // denote equivalent types.
-  public(xml_TY) CType *type = NULL;
+  public(xml_TY,nullable) CType *type = NULL;
 
   // syntactic context; sometimes useful to visitors
   public(xml) DeclaratorContext context = DC_UNKNOWN;
@@ -2299,8 +2299,13 @@ class Designator (SourceLoc loc) {
   -> SubscriptDesignator(Expression idx_expr, // taken from D_array
                          nullable Expression idx_expr2)
   {
-    public(xml) int idx_computed  = INT_MIN; // index computed at compile time
-    public(xml) int idx_computed2 = INT_MIN; // index range end computed at compile time
+    // HT: It is my understanding that the array index designators must 
+    // be positive. This is checked in check_designator_list. We can therefore
+    // use -1 as invalid value and stick with 31 bit ocaml integers in the 
+    // ocaml serialization.
+    public const int invalid_idx = -1; 
+    public(xml) int idx_computed  = invalid_idx; // index computed at compile time
+    public(xml) int idx_computed2 = invalid_idx; // index range end computed at compile time
   }
 }
 

@@ -231,7 +231,7 @@ class TypeSpecifier {
      }
 
   -> TS_elaborated {
-       public(xml_TY) NamedAtomicType *atype = NULL;
+       public(xml_TY,nullable) NamedAtomicType *atype = NULL;
      }
 
   -> TS_classSpec {
@@ -320,7 +320,7 @@ class Enumerator {
 
 class Declarator {
   // entity declared by this declarator
-  public(xml_TY) Variable *var = NULL;// (serf) computed information: name, type, etc.
+  public(xml_TY,nullable) Variable *var = NULL;// (serf) computed information: name, type, etc.
   custom clone { ret->var = var; }
 
   // This field need not be identical to 'var->type'; the 'type' here
@@ -329,7 +329,7 @@ class Declarator {
   // function), and hence 'var->type' might differ in details like
   // parameter names.  Otherwise, nominally, 'var->type' and 'type'
   // denote equivalent types.
-  public(xml_TY) CType *type = NULL;
+  public(xml_TY,nullable) CType *type = NULL;
 
   // syntactic context; sometimes useful to visitors
   public(xml) DeclaratorContext context = DC_UNKNOWN;

@@ -190,8 +190,13 @@ class Designator (SourceLoc loc) {
   -> SubscriptDesignator(Expression idx_expr, // taken from D_array
                          nullable Expression idx_expr2)
   {
-    public(xml) int idx_computed  = INT_MIN; // index computed at compile time
-    public(xml) int idx_computed2 = INT_MIN; // index range end computed at compile time
+    // HT: It is my understanding that the array index designators must 
+    // be positive. This is checked in check_designator_list. We can therefore
+    // use -1 as invalid value and stick with 31 bit ocaml integers in the 
+    // ocaml serialization.
+    public const int invalid_idx = -1; 
+    public(xml) int idx_computed  = invalid_idx; // index computed at compile time
+    public(xml) int idx_computed2 = invalid_idx; // index range end computed at compile time
   }
 }
 

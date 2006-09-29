@@ -79,10 +79,8 @@ value ocaml_from_bool(const bool &b, ToOcamlData *d){
 inline
 value ocaml_from_int(const int &i, ToOcamlData *d){
   // don't allocate
-  /* 
-   * if(!(i <= Max_long && Min_long <= i))
-   *   xassert(false);
-   */
+  if(!(i <= Max_long && Min_long <= i))
+    xassert(false);
   xassert(i <= Max_long && Min_long <= i);
   return(Val_int(i));
 }

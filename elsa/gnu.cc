@@ -964,9 +964,21 @@ static void check_designator_list(Env &env, FakeList<Designator> *dl)
     if (SubscriptDesignator *sd = dynamic_cast<SubscriptDesignator*>(d)) {
       compile_time_compute_int_expr(env, sd->idx_expr, sd->idx_computed,
                                     "compile-time computation of range start designator array index fails");
+      // HT: it's my understanding that the array index designators should be 
+      // positive. So check this here and below for idx_computed2.
+      // Then we can safely use -1 as a 
+      // default value in the designator slots and ocaml serialization becomes
+      // simpler.
+      if (sd->idx_computed < 0) {
+	env.error("array index designator out of bounds");
+      }
+
       if (sd->idx_expr2) {
         compile_time_compute_int_expr(env, sd->idx_expr2, sd->idx_computed2,
                                       "compile-time computation of range end designator array index fails");
+	if (sd->idx_computed2 < 0) {
+	  env.error("array index designator out of bounds");
+	}
       }
     }
     // nothing to do for FieldDesignator-s
