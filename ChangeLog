@@ -1,3 +1,7 @@
+2006-09-29  Hendrik Tews  <tews@debian>
+
+	* revert stupid ast_graph change
+
 2006-09-29  Hendrik Tews  <tews@tandem.cs.ru.nl>
 
 	* adopted astiter, astiternodes, count-ast, ast_util, ast_graph
