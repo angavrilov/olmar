@@ -1,5 +1,9 @@
 2006-09-29  Hendrik Tews  <tews@tandem.cs.ru.nl>
 
+	* regressiontests pass !!!
+	* changed Enumerator.enumValue to int32
+	* added int32 support to astgen
+
 	* changed default array designator value to -1; 
 	  add check for positive designators in check_designator_list
 	* more nullness stuff (results are added to the previous log entry)

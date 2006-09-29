@@ -2570,7 +2570,8 @@ void CGen::emitXmlField(rostring type, rostring name, char const *baseName,
     out << "  out << \"" << name << "\" << \"=\";\n";
     out << "  out << quoted(toXml_bool(" << baseName << "->" << name << "));\n";
   }
-  else if (streq(type, "int")) {
+  // enable the int32 alias
+  else if (streq(type, "int") || streq(type, "int32")) {
     out << "  out << \"\\n\";\n";
     out << "  if (indent) printIndentation();\n";
     out << "  out << \"" << name << "\" << \"=\";\n";
@@ -3194,7 +3195,8 @@ void XmlParserGen::emitXmlField_AttributeParseRule
     parser1_defs << "    fromXml_bool(obj->" << name << ", parseQuotedString(strValue));\n";
     parser1_defs << "    break;\n";
   }
-  else if (streq(type, "int")) {
+  // enable the int32 alias
+  else if (streq(type, "int") || streq(type, "int32")) {
     parser1_defs << "  case XTOK_" << name << ":\n";
     parser1_defs << "    fromXml_int(obj->" << name << ", parseQuotedString(strValue));\n";
     parser1_defs << "    break;\n";

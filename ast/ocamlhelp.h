@@ -88,6 +88,19 @@ value ocaml_from_int(const int &i, ToOcamlData *d){
 
 // hand written ocaml serialization function
 inline
+value ocaml_from_int32(const int32 &i, ToOcamlData *d){
+  // don't allocate myself
+  value ret = caml_copy_int32(i);
+  xassert(IS_OCAML_INT32(ret));
+  return ret;
+}
+
+// hand written ocaml serialization function
+
+
+
+// hand written ocaml serialization function
+inline
 value ocaml_from_StringRef(const StringRef &s, ToOcamlData *d){
   // StringRef is const char *
   return(ocaml_from_cstring(s, d));
@@ -107,6 +120,7 @@ value ocaml_from_string(const string &s, ToOcamlData *d){
 inline void detach_ocaml_cstring(const char &) {}
 inline void detach_ocaml_bool(const bool &) {}
 inline void detach_ocaml_int(const int &) {}
+inline void detach_ocaml_int32(const int &) {}
 inline void detach_ocaml_StringRef(const StringRef &) {}
 inline void detach_ocaml_string(const string &) {}
 

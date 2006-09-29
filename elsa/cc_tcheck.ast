@@ -272,7 +272,7 @@ class Enumerator {
   // so I can see them in the AST printout; I only print this
   // value if 'var' is non-NULL (i.e. the enumerator has been
   // tcheck'd so the value has been determined)
-  public(xml) int enumValue;
+  public(xml) int32 enumValue;
 
   public void printExtras(ostream &os, int indent) const;
   custom debugPrint { printExtras(os, indent); }

@@ -54,7 +54,7 @@ and 'a typeSpecifier_type =
 
 and 'a baseClassSpec_type = 'a * bool * accessKeyword * 'a pQName_type * 'a compoundType option 
 
-and 'a enumerator_type = 'a * sourceLoc * stringRef * 'a expression_type option * 'a variable * int 
+and 'a enumerator_type = 'a * sourceLoc * stringRef * 'a expression_type option * 'a variable * int32 
 
 and 'a memberList_type = 'a * 'a member_type list 
 

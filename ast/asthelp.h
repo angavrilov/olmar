@@ -19,6 +19,12 @@ typedef unsigned long unsigned_long;
 typedef unsigned int unsigned_int;
 
 
+// HT: architecture dependent types
+// the following eventually has to go into some config.h
+// however, as long as elsa is not 64 bit clean I just don't care
+
+// typedef int32 to a 32 bit signed integer type
+typedef int int32;
 
 
 // ----------------- downcasts --------------------
