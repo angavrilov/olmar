@@ -658,3 +658,31 @@ type declaratorContext =
   | DC_E_COMPOUNDLIT       (*   E_compoundLit::stype *)
   | DC_E_ALIGNOFTYPE       (*   E_alignofType::atype *)
   | DC_E_BUILTIN_VA_ARG    (*   E___builtin_va_arg::atype *)
+
+
+
+let string_of_declaratorContext = function
+  | DC_UNKNOWN          -> "DC_UNKNOWN"
+  | DC_FUNCTION         -> "DC_FUNCTION"
+  | DC_TF_DECL          -> "DC_TF_DECL"
+  | DC_TF_EXPLICITINST  -> "DC_TF_EXPLICITINST"
+  | DC_MR_DECL          -> "DC_MR_DECL"
+  | DC_S_DECL           -> "DC_S_DECL"
+  | DC_TD_DECL          -> "DC_TD_DECL"
+  | DC_D_FUNC           -> "DC_D_FUNC"
+  | DC_EXCEPTIONSPEC    -> "DC_EXCEPTIONSPEC"
+  | DC_ON_CONVERSION    -> "DC_ON_CONVERSION"
+  | DC_CN_DECL          -> "DC_CN_DECL"
+  | DC_HANDLER          -> "DC_HANDLER"
+  | DC_E_CAST           -> "DC_E_CAST"
+  | DC_E_SIZEOFTYPE     -> "DC_E_SIZEOFTYPE"
+  | DC_E_NEW            -> "DC_E_NEW"
+  | DC_E_KEYWORDCAST    -> "DC_E_KEYWORDCAST"
+  | DC_E_TYPEIDTYPE     -> "DC_E_TYPEIDTYPE"
+  | DC_TP_TYPE          -> "DC_TP_TYPE"
+  | DC_TP_NONTYPE       -> "DC_TP_NONTYPE"
+  | DC_TA_TYPE          -> "DC_TA_TYPE"
+  | DC_TS_TYPEOF_TYPE   -> "DC_TS_TYPEOF_TYPE"
+  | DC_E_COMPOUNDLIT    -> "DC_E_COMPOUNDLIT"
+  | DC_E_ALIGNOFTYPE    -> "DC_E_ALIGNOFTYPE"
+  | DC_E_BUILTIN_VA_ARG -> "DC_E_BUILTIN_VA_ARG"

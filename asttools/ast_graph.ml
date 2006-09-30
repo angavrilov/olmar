@@ -82,7 +82,7 @@ let start_label name color id =
   Printf.fprintf !oc "    \"%d\" [color=\"%s\", label=\"%s %d" 
     id color name id
 
-let finish_label caddr =
+let finish_label _caddr =
   output_string !oc "\"];\n"
 
 
@@ -151,6 +151,7 @@ let color_FullExpression = "coral"
 let color_Expression = "orange"
 let color_ArgExpression = "DarkOrange"
 let color_ArgExpressionListOpt = "tomato"
+let color_FullExpressionAnnot = "tan1"
 let color_Condition = "OrangeRed"
 let color_OperatorName = "chocolate1"
 let color_Initializer = "gold"
@@ -182,7 +183,7 @@ let rec variable_fun (v : annotated variable) =
        ("flags", string_of_declFlags v.flags)
       ]
       (let l1 = opt_child cType_fun "type" !(v.var_type) in
-       let l2 = opt_child expression_fun "varValue" v.value in
+       let l2 = opt_child expression_fun "varValue" !(v.value) in
        let l3 = opt_child cType_fun "defaultParamType" v.defaultParam in
        let l4 = opt_child func_fun "funcDefn" !(v.funcDefn)
        in
@@ -207,11 +208,11 @@ and compound_info_fun info =
   else begin
     visit info.compound_info_poly;
     ast_node color_Compound_info info.compound_info_poly "CompoundType" 
-      [("name", info.compound_name);
+      [("name", string_opt info.compound_name);
        ("access", string_of_accessKeyword info.ci_access);
        ("forward", string_of_bool info.is_forward_decl);
        ("keyword", string_of_compoundType_Keyword info.keyword);
-       ("instName", info.inst_name)
+       ("instName", string_opt info.inst_name)
       ]
       (let x1 = variable_fun info.typedef_var, "typedefVar" in
        let l2 = 
@@ -276,14 +277,14 @@ and atomicType_fun at =
 		   string_nativeint_list) ->
 	    visit annot;
 	    atnode "EnumType" 
-	      [("name", string);
+	      [("name", string_opt string);
 	       ("access", string_of_accessKeyword accessKeyword)]
-	      (let x1 = variable_fun variable, "typedefVar" in
+	      (let l1 = opt_child variable_fun "typedefVar" variable in
 	       let l2 = 
 		 count_rev "values"
 		   (List.rev_map enum_value_fun string_nativeint_list)
 	       in 
-		 x1 :: l2)
+		 l1 @ l2)
 
 	| TypeVariable(annot, string, variable, accessKeyword) ->
 	    visit annot;
@@ -291,6 +292,19 @@ and atomicType_fun at =
 	      [("name", string);
 	       ("access", string_of_accessKeyword accessKeyword)]
 	      [(variable_fun variable, "typedefVar")]
+
+	| DependentQType(annot, string, variable, 
+			 accessKeyword, atomic, pq_name) ->
+	    visit annot;
+	    atnode "DependentQType"
+	      [("name", string);
+	       ("access", string_of_accessKeyword accessKeyword)]
+	      (let x1 = variable_fun variable, "typedefVar" in
+	       let x2 = atomicType_fun atomic, "first" in
+	       let x3 = pQName_fun pq_name, "rest"
+	       in
+		 [x1; x2; x3])
+
 
 
 
@@ -304,19 +318,19 @@ and cType_fun t =
       let tnode = ast_node color_CType annot in
       let tnode_1d name field value childs = tnode name [(field, value)] childs
       in match t with
-	| CVAtomicType(annot, cVFlags, atomicType) ->
+	| CVAtomicType(_annot, cVFlags, atomicType) ->
 	    tnode_1d "CVAtomicType" "cv" (string_of_cVFlags cVFlags)
 	      [(atomicType_fun atomicType, "atomic")]
 
-	| PointerType(annot, cVFlags, cType) ->
+	| PointerType(_annot, cVFlags, cType) ->
 	    tnode_1d "PointerType" "cv" (string_of_cVFlags cVFlags)
 	      [(cType_fun cType, "atType")]
       
 
-	| ReferenceType(annot, cType) ->
+	| ReferenceType(_annot, cType) ->
 	    tnode "ReferenceType" [] [(cType_fun cType, "atType")]
 
-	| FunctionType(annot, function_flags, cType, 
+	| FunctionType(_annot, function_flags, cType, 
 		       variable_list, cType_list_opt) ->
 	    tnode "FunctionType" 
 	      [("flags", (string_of_function_flags function_flags));
@@ -335,18 +349,19 @@ and cType_fun t =
 	       in
 		 x1 :: l2 @ l3)
 
-	| ArrayType(annot, cType, array_size) ->
+	| ArrayType(_annot, cType, array_size) ->
 	    tnode_1d "ArrayType" "size" (string_of_array_size array_size)
 	      [(cType_fun cType, "eltType")]
 
-	| PointerToMemberType(annot, atomicType (* = NamedAtomicType *), 
+	| PointerToMemberType(_annot, atomicType (* = NamedAtomicType *), 
 			      cVFlags, cType) ->
 	    assert(match atomicType with 
 		     | SimpleType _ -> false
 		     | CompoundType _
 		     | PseudoInstantiation _
 		     | EnumType _
-		     | TypeVariable _ -> true);
+		     | TypeVariable _ 
+		     | DependentQType _ -> true);
 	    tnode_1d "PointerToMemberType" "cv" (string_of_cVFlags cVFlags)
 	      (let x1 = (atomicType_fun atomicType, "inClassNat") in
 	       let x2 = (cType_fun cType, "atType")
@@ -363,34 +378,34 @@ and sTemplateArgument_fun ta =
       let tanode = ast_node color_STemplateArgument annot in
       let tanode_1c name field child = tanode name [] [(child, field)]
       in match ta with
-	| STA_NONE annot -> 
+	| STA_NONE _annot -> 
 	    tanode "STA_NONE" [] []
 
-	| STA_TYPE(annot, cType) -> 
+	| STA_TYPE(_annot, cType) -> 
 	    tanode "STA_TYPE" [] [(cType_fun cType, "sta_value.t")]
 
-	| STA_INT(annot, int) -> 
+	| STA_INT(_annot, int) -> 
 	    tanode "STA_INT" [("sta_value.i", string_of_int int)] []
 
-	| STA_ENUMERATOR(annot, variable) -> 
+	| STA_ENUMERATOR(_annot, variable) -> 
 	    tanode_1c "STA_ENUMERATOR" "sta_value.v" (variable_fun variable)
 
-	| STA_REFERENCE(annot, variable) -> 
+	| STA_REFERENCE(_annot, variable) -> 
 	    tanode_1c "STA_REFERENCE" "sta_value.v" (variable_fun variable)
 
-	| STA_POINTER(annot, variable) -> 
+	| STA_POINTER(_annot, variable) -> 
 	    tanode_1c "STA_POINTER" "sta_value.v" (variable_fun variable)
 
-	| STA_MEMBER(annot, variable) ->
+	| STA_MEMBER(_annot, variable) ->
 	    tanode_1c "STA_MEMBER" "sta_value.v" (variable_fun variable)
 
-	| STA_DEPEXPR(annot, expression) -> 
+	| STA_DEPEXPR(_annot, expression) -> 
 	    tanode_1c "STA_DEPEXPR" "sta_value.e" (expression_fun expression)
 
-	| STA_TEMPLATE annot -> 
+	| STA_TEMPLATE _annot -> 
 	    tanode "STA_TEMPLATE" [] []
 
-	| STA_ATOMIC(annot, atomicType) -> 
+	| STA_ATOMIC(_annot, atomicType) -> 
 	    tanode_1c "STA_ATOMIC" "sta_value.at" (atomicType_fun atomicType)
 
 
@@ -416,48 +431,49 @@ and topForm_fun tf =
       let tf_node = ast_loc_node color_TF annot (topForm_loc tf) in
       let tf_node_11 name label child = tf_node name [label] [child] 
       in match tf with
-	| TF_decl(annot, loc, declaration) -> 
+	| TF_decl(_annot, _loc, declaration) -> 
 	    tf_node "TF_decl" [] [(declaration_fun declaration, "decl")]
 
-	| TF_func(annot, loc, func) -> 
+	| TF_func(_annot, _loc, func) -> 
 	    tf_node "TF_func" [] [(func_fun func, "f")]
 
-	| TF_template(annot, loc, templateDeclaration) -> 
+	| TF_template(_annot, _loc, templateDeclaration) -> 
 	    tf_node "TF_template" []
 	      [(templateDeclaration_fun templateDeclaration, "td")]
 
-	| TF_explicitInst(annot, loc, declFlags, declaration) -> 
+	| TF_explicitInst(_annot, _loc, declFlags, declaration) -> 
 	    tf_node_11 "TF_explicitInst" 
 	      ("instFlags", string_of_declFlags declFlags)
 	      (declaration_fun declaration, "d")
 
-	| TF_linkage(annot, loc, linkage, translationUnit) -> 
+	| TF_linkage(_annot, _loc, linkage, translationUnit) -> 
 	    tf_node_11 "TF_linkage" 
 	      ("linkage", linkage)
 	      (translationUnit_fun translationUnit, "forms")
 
-	| TF_one_linkage(annot, loc, linkage, topForm) -> 
+	| TF_one_linkage(_annot, _loc, linkage, topForm) -> 
 	    tf_node_11 "TF_one_linkage"
 	      ("linkage", linkage)
 	      (topForm_fun topForm, "form")
 
-	| TF_asm(annot, loc, e_stringLit) -> 
+	| TF_asm(_annot, _loc, e_stringLit) -> 
 	    assert(match e_stringLit with | E_stringLit _ -> true | _ -> false);
 	    tf_node "TF_asm" [] [(expression_fun e_stringLit, "text")]
 
-	| TF_namespaceDefn(annot, loc, name_opt, topForm_list) -> 
+	| TF_namespaceDefn(_annot, _loc, name_opt, topForm_list) -> 
 	    tf_node "TF_namespaceDefn" 
 	      [("name", string_opt name_opt)]
 	      (count_rev "forms" (List.rev_map topForm_fun topForm_list))
 
-	| TF_namespaceDecl(annot, loc, namespaceDecl) -> 
+	| TF_namespaceDecl(_annot, _loc, namespaceDecl) -> 
 	    tf_node "TF_namespaceDecl" [] 
 	      [(namespaceDecl_fun namespaceDecl, "decl")]
 
 
 
 and func_fun(annot, declFlags, typeSpecifier, declarator, memberInit_list, 
-	 s_compound_opt, handler_list, statement_opt, bool) =
+	     s_compound_opt, handler_list, func, variable_opt_1, 
+	     variable_opt_2, statement_opt, bool) =
   if visited annot then retval annot
   else begin
     visit annot;
@@ -467,6 +483,9 @@ and func_fun(annot, declFlags, typeSpecifier, declarator, memberInit_list,
 		 match s_compound with 
 		   | S_compound _ -> true 
 		   | _ -> false);
+    assert(match func with 
+      | FunctionType _ -> true
+      | _ -> false);
     ast_node color_Function annot "Function"
       [("dflags", string_of_declFlags declFlags);
        ("implicit def", string_of_bool bool)]
@@ -476,23 +495,36 @@ and func_fun(annot, declFlags, typeSpecifier, declarator, memberInit_list,
        in
        let l5 = opt_child statement_fun "body" s_compound_opt in
        let l6 = count_rev "handlers" (List.rev_map handler_fun handler_list) in
-       let l7 = opt_child statement_fun "dtor" statement_opt 
+       let x7 =  cType_fun func, "funcType" in
+       let l8 = opt_child variable_fun "receiver" variable_opt_1 in
+       let l9 = opt_child variable_fun "retVar" variable_opt_2 in
+       let l10= opt_child statement_fun "dtor" statement_opt 
        in
-	 x1 :: x2 :: l4 @ l5 @ l6 @ l7)
+	 x1 :: x2 :: l4 @ l5 @ l6 @ x7 :: l8 @ l9 @ l9 @ l10)
   end
 
 
-and memberInit_fun(annot, pQName, argExpression_list, statement_opt) =
+and memberInit_fun(annot, pQName, argExpression_list, 
+		   variable_opt_1, compound_opt, variable_opt_2, 
+		   full_expr_annot, statement_opt) =
   if visited annot then retval annot
   else begin
+    assert(match compound_opt with
+      | None
+      | Some(CompoundType _) -> true
+      | _ -> false);
     visit annot;
     ast_node color_MemberInit annot "MemberInit" []
       (let x1 = (pQName_fun pQName, "name") in
        let l2 = 
 	 count_rev "args" (List.rev_map argExpression_fun argExpression_list) in
-       let l3 = opt_child statement_fun "ctorStatement" statement_opt
+       let l3 = opt_child variable_fun "member" variable_opt_1 in
+       let l4 = opt_child atomicType_fun "base" compound_opt in
+       let l5 = opt_child variable_fun "ctorVar" variable_opt_2 in
+       let x6 = fullExpressionAnnot_fun full_expr_annot, "annot" in
+       let l7 = opt_child statement_fun "ctorStatement" statement_opt
        in
-	 x1 :: l2 @ l3)
+	 x1 :: l2 @ l3 @ l4 @ l5 @ x6 :: l7)
   end
 
 and declaration_fun(annot, declFlags, typeSpecifier, declarator_list) =
@@ -529,31 +561,43 @@ and pQName_fun pq =
       let _ = visit annot in
       let pq_node = ast_loc_node color_PQName annot (pQName_loc pq)
       in match pq with
-	| PQ_qualifier(annot, loc, stringRef_opt, 
-		       templateArgument_opt, pQName) -> 
+	| PQ_qualifier(_annot, _loc, stringRef_opt, 
+		       templateArgument_opt, pQName, 
+		      variable_opt, s_template_arg_list) -> 
 	    pq_node "PQ_qualifier" 
 	      [("qualifier", string_opt stringRef_opt)]
 	      (let l1 = 
 		 opt_child templateArgument_fun "templArgs" templateArgument_opt
 	       in
-	       let l2 = [(pQName_fun pQName, "rest")]
+	       let x2 = pQName_fun pQName, "rest" in
+	       let l3 = opt_child variable_fun "qualifierVar" variable_opt in
+	       let l4 = 
+		 count_rev "sargs"
+		   (List.rev_map sTemplateArgument_fun s_template_arg_list) 
 	       in
-		 l1 @ l2)
+		 l1 @ x2 :: l3 @ l4)
 
-	| PQ_name(annot, loc, stringRef) -> 
+	| PQ_name(_annot, _loc, stringRef) -> 
 	    pq_node "PQ_name" [("name", stringRef)] []
 
-	| PQ_operator(annot, loc, operatorName, stringRef) -> 
+	| PQ_operator(_annot, _loc, operatorName, stringRef) -> 
 	    pq_node "PQ_operator" 
 	      [("fakeName", stringRef)]
 	      [(operatorName_fun operatorName, "o")]
 
-	| PQ_template(annot, loc, stringRef, templateArgument_opt) -> 
+	| PQ_template(_annot, _loc, stringRef, templateArgument_opt, 
+		     s_template_arg_list) -> 
 	    pq_node "PQ_template" 
 	      [("name", stringRef)]
-	      (opt_child templateArgument_fun "templArgs" templateArgument_opt)
+	      (let l1 = opt_child
+		 templateArgument_fun "templArgs" templateArgument_opt in
+	       let l2 =
+		 count_rev "sargs"
+		   (List.rev_map sTemplateArgument_fun s_template_arg_list)
+	       in
+		 l1 @ l2)
 
-	| PQ_variable(annot, loc, variable) -> 
+	| PQ_variable(_annot, _loc, variable) -> 
 	    pq_node "PQ_variable" [] [(variable_fun variable, "var")]
 
 
@@ -573,43 +617,71 @@ and typeSpecifier_fun ts =
       let tsnode_1d name field value childs = 
 	tsnode name [(field, value)] childs
       in match ts with
-	| TS_name(annot, loc, cVFlags, pQName, bool) -> 
+	| TS_name(_annot, _loc, _cVFlags, pQName, bool, 
+		 var_opt_1, var_opt_2) -> 
 	    tsnode_1d "TS_name" "typenameUsed" (string_of_bool bool)
-	      [(pQName_fun pQName, "name")]
+	      (let x1 = pQName_fun pQName, "name" in
+	       let l2 = opt_child variable_fun "var" var_opt_1 in
+	       let l3 = opt_child variable_fun "nondependentVar" var_opt_2
+	       in
+		 x1 :: l2 @ l3)
 
-	| TS_simple(annot, loc, cVFlags, simpleTypeId) -> 
+	| TS_simple(_annot, _loc, _cVFlags, simpleTypeId) -> 
 	    tsnode_1d "TS_simple" "id" (string_of_simpleTypeId simpleTypeId) []
 
-	| TS_elaborated(annot, loc, cVFlags, typeIntr, pQName) -> 
+	| TS_elaborated(_annot, _loc, _cVFlags, typeIntr, 
+		       pQName, namedAtomicType_opt) -> 
+	    assert(match namedAtomicType_opt with
+	      | Some(SimpleType _) -> false
+	      | _ -> true);
 	    tsnode_1d "TS_elaborated" "keyword" (string_of_typeIntr typeIntr)
-	      [(pQName_fun pQName, "name")]
+	      (let x1 = pQName_fun pQName, "name" in
+	       let l2 = opt_child atomicType_fun "atype" namedAtomicType_opt
+	       in
+		 x1 :: l2)
 
-	| TS_classSpec(annot, loc, cVFlags, typeIntr, pQName_opt, 
-		       baseClassSpec_list, memberList) -> 
+	| TS_classSpec(_annot, _loc, _cVFlags, typeIntr, pQName_opt, 
+		       baseClassSpec_list, memberList, compoundType) -> 
+	    assert(match compoundType with
+	      | CompoundType _ -> true
+	      | _ -> false);
 	    tsnode_1d "TS_classSpec" "keyword" (string_of_typeIntr typeIntr)
 	      (let l1 = opt_child pQName_fun "name" pQName_opt in
 	       let l2 = 
 		 count_rev "bases" 
 		   (List.rev_map baseClassSpec_fun baseClassSpec_list) in
-	       let l3 = [memberList_fun memberList, "members"]
-	       in 
-		 l1 @ l2 @ l3)
+	       let l3 = [memberList_fun memberList, "members"] in
+	       let x4 = atomicType_fun compoundType, "ctype"
+	       in
+		 l1 @ l2 @ l3 @ x4 :: [])
 
-	| TS_enumSpec(annot, loc, cVFlags, stringRef_opt, enumerator_list) -> 
+	| TS_enumSpec(_annot, _loc, _cVFlags, 
+		      stringRef_opt, enumerator_list, enumType) -> 
+	    assert(match enumType with 
+	      | EnumType _ -> true
+	      | _ -> false);
 	    tsnode_1d "TS_enumSpec" "name" (string_opt stringRef_opt)
-	      (count_rev "elts" (List.rev_map enumerator_fun enumerator_list))
+	      (let l1 = count_rev "elts"
+		 (List.rev_map enumerator_fun enumerator_list) in
+	       let x2 = atomicType_fun enumType, "etype"
+	       in
+		 l1 @ [x2])
 
-	| TS_type(annot, loc, cVFlags, cType) -> 
+	| TS_type(_annot, _loc, _cVFlags, cType) -> 
 	    tsnode "TS_type" [] [(cType_fun cType, "type")]
 
-	| TS_typeof(annot, loc, cVFlags, aSTTypeof) -> 
+	| TS_typeof(_annot, _loc, _cVFlags, aSTTypeof) -> 
 	    tsnode "TS_typeof" [] [(aSTTypeof_fun aSTTypeof, "atype")]
 
 
 
-and baseClassSpec_fun(annot, bool, accessKeyword, pQName) =
+(* and baseClassSpec_fun(_annot, bool, accessKeyword, pQName) = *)
+and baseClassSpec_fun(annot, bool, accessKeyword, pQName, compoundType_opt) =
   if visited annot then retval annot
   else begin
+    assert(match compoundType_opt with
+	     | Some(CompoundType _ ) -> true
+	     | _ -> false);
     visit annot;
     ast_node color_BaseClassSpec annot "BaseClassSpec"
       [("isVirtual", string_of_bool bool);
@@ -618,13 +690,18 @@ and baseClassSpec_fun(annot, bool, accessKeyword, pQName) =
   end
 
 
-and enumerator_fun(annot, loc, stringRef, expression_opt) =
+and enumerator_fun(annot, loc, stringRef, 
+		   expression_opt, variable, int32) =
   if visited annot then retval annot
   else begin
     visit annot;
     ast_loc_node color_Enumerator annot loc "Enumerator" 
-      [("name", stringRef)]
-      (opt_child expression_fun "expr" expression_opt)
+      [("name", stringRef);
+       ("enumValue", Int32.to_string int32)]
+      (let l1 = opt_child expression_fun "expr" expression_opt in
+       let x2 = variable_fun variable, "var"
+       in
+	 l1 @ x2 :: [])
   end
 
 
@@ -645,36 +722,40 @@ and member_fun m =
       let mnode = ast_loc_node color_Member annot (member_loc m) in
       let mnode_1c name child field = mnode name [] [(child, field)] 
       in match m with
-	| MR_decl(annot, loc, declaration) -> 
+	| MR_decl(_annot, _loc, declaration) -> 
 	    mnode_1c "MR_decl" (declaration_fun declaration) "d"
 
-	| MR_func(annot, loc, func) -> 
+	| MR_func(_annot, _loc, func) -> 
 	    mnode_1c "MR_func" (func_fun func) "f"
 
-	| MR_access(annot, loc, accessKeyword) -> 
+	| MR_access(_annot, _loc, accessKeyword) -> 
 	    mnode "MR_access" [("k", string_of_accessKeyword accessKeyword)] []
 
-	| MR_usingDecl(annot, loc, nd_usingDecl) -> 
+	| MR_usingDecl(_annot, _loc, nd_usingDecl) -> 
 	    assert(match nd_usingDecl with ND_usingDecl _ -> true | _ -> false);
 	    mnode_1c "MR_usingDecl" (namespaceDecl_fun nd_usingDecl) "decl"
 
-	| MR_template(annot, loc, templateDeclaration) -> 
+	| MR_template(_annot, _loc, templateDeclaration) -> 
 	    mnode_1c "MR_template" 
 	      (templateDeclaration_fun templateDeclaration) "d"
 
 
 and declarator_fun(annot, iDeclarator, init_opt, 
+		   variable_opt, ctype_opt, declaratorContext,
 		   statement_opt_ctor, statement_opt_dtor) =
   if visited annot then retval annot
   else begin
     visit annot;
-    ast_node color_Declarator annot "Declarator" []
+    ast_node color_Declarator annot "Declarator" 
+      [("context", string_of_declaratorContext declaratorContext)]
       (let x1 = (iDeclarator_fun iDeclarator, "decl") in
        let l2 = opt_child init_fun "init" init_opt in
-       let l3 = opt_child statement_fun "ctor" statement_opt_ctor in
-       let l4 = opt_child statement_fun "dtor" statement_opt_dtor
+       let l3 = opt_child variable_fun "var" variable_opt in
+       let l4 = opt_child cType_fun "type" ctype_opt in
+       let l5 = opt_child statement_fun "ctor" statement_opt_ctor in
+       let l6 = opt_child statement_fun "dtor" statement_opt_dtor
        in
-	 x1 :: l2 @ l3 @ l4)
+	 x1 :: l2 @ l3 @ l4 @ l5 @ l6)
   end
     
 
@@ -686,23 +767,25 @@ and iDeclarator_fun idecl =
       let _ = visit annot in
       let inode = ast_loc_node color_IDeclarator annot (iDeclarator_loc idecl) 
       in
-      let inode_1d name field value childs = inode name [(name,field)] childs
+      let inode_1d name field value childs = inode name [(field, value)] childs
       in match idecl with
-	| D_name(annot, loc, pQName_opt) -> 
+	| D_name(_annot, _loc, pQName_opt) -> 
 	    inode "D_name" [] (opt_child pQName_fun "name" pQName_opt)
 
-	| D_pointer(annot, loc, cVFlags, iDeclarator) -> 
+	| D_pointer(_annot, _loc, cVFlags, iDeclarator) -> 
 	    inode_1d "D_pointer" "cv" (string_of_cVFlags cVFlags)
 	      [(iDeclarator_fun iDeclarator, "base")]
 
-	| D_reference(annot, loc, iDeclarator) -> 
+	| D_reference(_annot, _loc, iDeclarator) -> 
 	    inode "D_reference" [] [(iDeclarator_fun iDeclarator, "base")]
 
-	| D_func(annot, loc, iDeclarator, aSTTypeId_list, cVFlags, 
-		 exceptionSpec_opt, pq_name_list) -> 
+	| D_func(_annot, _loc, iDeclarator, aSTTypeId_list, cVFlags, 
+		 exceptionSpec_opt, pq_name_list, bool) -> 
 	    assert(List.for_all (function | PQ_name _ -> true | _ -> false) 
-		     pq_name_list);
-	    inode_1d "D_func" "cv" (string_of_cVFlags cVFlags)
+	    	     pq_name_list);
+	    inode "D_func" 
+	      [("cv", string_of_cVFlags cVFlags);
+	       ("isMember", string_of_bool bool)]
 	      (let x1 = (iDeclarator_fun iDeclarator, "base") in
 	       let l2 = 
 		 count_rev "params" 
@@ -715,31 +798,31 @@ and iDeclarator_fun idecl =
 	       in
 		 x1 :: l2 @ l3 @ l4)
 
-	| D_array(annot, loc, iDeclarator, expression_opt) -> 
-	    inode "D_array" [] 
+	| D_array(_annot, _loc, iDeclarator, expression_opt, bool) -> 
+	    inode_1d "D_array" "isNewSize" (string_of_bool bool)
 	      (let x1 = (iDeclarator_fun iDeclarator, "base") in
 	       let l2 = opt_child expression_fun "size" expression_opt
 	       in
 		 x1 :: l2)
 
-	| D_bitfield(annot, loc, pQName_opt, expression) -> 
-	    inode "D_bitfield" []
+	| D_bitfield(_annot, _loc, pQName_opt, expression, int) -> 
+	    inode_1d "D_bitfield" "numBits" (string_of_int int)
 	      (let l1 = opt_child pQName_fun "name" pQName_opt in
 	       let l2 = [(expression_fun expression, "bits")]
 	       in
 		 l1 @ l2)
 
-	| D_ptrToMember(annot, loc, pQName, cVFlags, iDeclarator) -> 
+	| D_ptrToMember(_annot, _loc, pQName, cVFlags, iDeclarator) -> 
 	    inode_1d "D_ptrToMember" "cv" (string_of_cVFlags cVFlags)
 	      (let x1 = (pQName_fun pQName, "nestedName") in
 	       let x2 = (iDeclarator_fun iDeclarator, "base")
 	       in
 		 [x1; x2])
 
-	| D_grouping(annot, loc, iDeclarator) -> 
+	| D_grouping(_annot, _loc, iDeclarator) -> 
 	    inode "D_grouping" [] [(iDeclarator_fun iDeclarator, "base")]
 
-	| D_attribute(annot, sourceLoc, iDeclarator, attribute_list_list) ->
+	| D_attribute(_annot, _loc, iDeclarator, attribute_list_list) ->
 	    inode "D_attribute" [] 
 	      ((iDeclarator_fun iDeclarator, "base") ::
 		 (List.flatten
@@ -767,18 +850,18 @@ and operatorName_fun on =
       let _ = visit annot in
       let onode = ast_node color_OperatorName annot
       in match on with
-	| ON_newDel(annot, bool_is_new, bool_is_array) -> 
+	| ON_newDel(_annot, bool_is_new, bool_is_array) -> 
 	    onode "ON_newDel" 
 	      [("is_new", string_of_bool bool_is_new);
 	       ("is_array", string_of_bool bool_is_array)]
 	      []
 
-	| ON_operator(annot, overloadableOp) -> 
+	| ON_operator(_annot, overloadableOp) -> 
 	    onode "ON_operator"
 	      [("op", string_of_overloadableOp overloadableOp)]
 	      []
 
-	| ON_conversion(annot, aSTTypeId) -> 
+	| ON_conversion(_annot, aSTTypeId) -> 
 	    onode "ON_conversion" []
 	      [(aSTTypeId_fun aSTTypeId, "type")]
 
@@ -792,30 +875,30 @@ and statement_fun s =
       let snode = ast_loc_node color_Statement annot (statement_loc s) in
       let snode_1d name field value childs = snode name [(field, value)] childs
       in match s with
-	| S_skip(annot, loc) -> 
+	| S_skip(_annot, _loc) -> 
 	    snode "S_skip" [] []
 
-	| S_label(annot, loc, stringRef, statement) -> 
+	| S_label(_annot, _loc, stringRef, statement) -> 
 	    snode_1d "S_label" "name" stringRef [(statement_fun statement, "s")]
 
-	| S_case(annot, loc, expression, statement) -> 
-	    snode "S_case" []
+	| S_case(_annot, _loc, expression, statement, int) -> 
+	    snode_1d "S_case" "labelVal" (string_of_int int)
 	      (let x1 = (expression_fun expression, "expr") in
 	       let x2 = (statement_fun statement, "s")
 	       in
 		 [x1; x2])
 
-	| S_default(annot, loc, statement) -> 
+	| S_default(_annot, _loc, statement) -> 
 	    snode "S_default" [] [(statement_fun statement, "s")]
 
-	| S_expr(annot, loc, fullExpression) -> 
+	| S_expr(_annot, _loc, fullExpression) -> 
 	    snode "S_expr" [] [(fullExpression_fun fullExpression, "s")]
 
-	| S_compound(annot, loc, statement_list) -> 
+	| S_compound(_annot, _loc, statement_list) -> 
 	    snode "S_compound" []
 	      (count_rev "stmts" (List.rev_map statement_fun statement_list))
 
-	| S_if(annot, loc, condition, statement_then, statement_else) -> 
+	| S_if(_annot, _loc, condition, statement_then, statement_else) -> 
 	    snode "S_if" []
 	      (let x1 = (condition_fun condition, "cond") in
 	       let x2 = (statement_fun statement_then, "then") in
@@ -823,28 +906,28 @@ and statement_fun s =
 	       in
 		 [x1; x2; x3])
 
-	| S_switch(annot, loc, condition, statement) -> 
+	| S_switch(_annot, _loc, condition, statement) -> 
 	    snode "S_switch" []
 	      (let x1 = (condition_fun condition, "cond") in
 	       let x2 = (statement_fun statement, "branches")
 	       in
 		 [x1; x2])
 
-	| S_while(annot, loc, condition, statement) -> 
+	| S_while(_annot, _loc, condition, statement) -> 
 	    snode "S_while" []
 	      (let x1 = (condition_fun condition, "cond") in
 	       let x2 = (statement_fun statement, "body")
 	       in
 		 [x1; x2])
 
-	| S_doWhile(annot, loc, statement, fullExpression) -> 
+	| S_doWhile(_annot, _loc, statement, fullExpression) -> 
 	    snode "S_doWhile" []
 	      (let x1 = (statement_fun statement, "body") in
 	       let x2 = (fullExpression_fun fullExpression, "expr")
 	       in
 		 [x1; x2])
 
-	| S_for(annot, loc, statement_init, condition, 
+	| S_for(_annot, _loc, statement_init, condition, 
 		fullExpression, statement_body) -> 
 	    snode "S_for" []
 	      (let x1 = (statement_fun statement_init, "init") in
@@ -854,13 +937,13 @@ and statement_fun s =
 	       in
 		 [x1; x2; x3; x4])
 
-	| S_break(annot, loc) -> 
+	| S_break(_annot, _loc) -> 
 	    snode "S_break" [] []
 
-	| S_continue(annot, loc) ->
+	| S_continue(_annot, _loc) ->
 	    snode "S_continue" [] []
 
-	| S_return(annot, loc, fullExpression_opt, statement_opt) -> 
+	| S_return(_annot, _loc, fullExpression_opt, statement_opt) -> 
 	    snode "S_return" []
 	      (let l1 = 
 		 opt_child fullExpression_fun "expr" fullExpression_opt in
@@ -868,13 +951,13 @@ and statement_fun s =
 	       in 
 		 l1 @ l2)
 
-	| S_goto(annot, loc, stringRef) -> 
+	| S_goto(_annot, _loc, stringRef) -> 
 	    snode_1d "S_goto" "target" stringRef []
 
-	| S_decl(annot, loc, declaration) -> 
+	| S_decl(_annot, _loc, declaration) -> 
 	    snode "S_decl" [] [(declaration_fun declaration, "decl")]
 
-	| S_try(annot, loc, statement, handler_list) -> 
+	| S_try(_annot, _loc, statement, handler_list) -> 
 	    snode "S_try" []
 	      (let x1 = (statement_fun statement, "body") in
 	       let l2 = 
@@ -882,27 +965,31 @@ and statement_fun s =
 	       in
 		 x1 :: l2)
 
-	| S_asm(annot, loc, e_stringLit) -> 
+	| S_asm(_annot, _loc, e_stringLit) -> 
 	    assert(match e_stringLit with | E_stringLit _ -> true | _ -> false);
 	    snode "S_asm" [] [(expression_fun e_stringLit, "text")]
 
-	| S_namespaceDecl(annot, loc, namespaceDecl) -> 
+	| S_namespaceDecl(_annot, _loc, namespaceDecl) -> 
 	    snode "S_namespaceDecl" [] 
 	      [(namespaceDecl_fun namespaceDecl, "decl")]
 
-	| S_function(annot, loc, func) -> 
+	| S_function(_annot, _loc, func) -> 
 	    snode "S_function" []
 	      [(func_fun func, "f")]
 
-	| S_rangeCase(annot, loc, expression_lo, expression_hi, statement) -> 
-	    snode "S_rangeCase" []
+	| S_rangeCase(_annot, _loc, 
+		      expression_lo, expression_hi, statement, 
+		     label_lo, label_hi) -> 
+	    snode "S_rangeCase" 
+	      [("labelValLo", string_of_int label_lo);
+	       ("labelValHi", string_of_int label_hi)]
 	      (let x1 = (expression_fun expression_lo, "exprLo") in
 	       let x2 = (expression_fun expression_hi, "exprHi") in
 	       let x3 = (statement_fun statement, "s")
 	       in
 		 [x1; x2; x3])
 
-	| S_computedGoto(annot, loc, expression) -> 
+	| S_computedGoto(_annot, _loc, expression) -> 
 	    snode "S_computedGoto" [] [(expression_fun expression, "target")]
 
 
@@ -914,25 +1001,27 @@ and condition_fun co =
       let _ = visit annot in
       let conode = ast_node color_Condition annot
       in match co with
-	| CN_expr(annot, fullExpression) -> 
+	| CN_expr(_annot, fullExpression) -> 
 	    conode "CN_expr" [] [(fullExpression_fun fullExpression, "expr")]
 
-	| CN_decl(annot, aSTTypeId) -> 
+	| CN_decl(_annot, aSTTypeId) -> 
 	    conode "CN_decl" [] [(aSTTypeId_fun aSTTypeId, "typeId")]
 
 
-and handler_fun(annot, aSTTypeId, statement_body,
-		expression_opt, statement_gdtor) =
+and handler_fun(annot, aSTTypeId, statement_body, variable_opt, 
+		fullExpressionAnnot, expression_opt, statement_gdtor) =
   if visited annot then retval annot
   else begin
     visit annot;
     ast_node color_handler annot "Handler" []
       (let x1 = (aSTTypeId_fun aSTTypeId, "typeId") in
        let x2 = (statement_fun statement_body, "body") in
-       let l3 = (opt_child expression_fun "localArg" expression_opt) in
-       let l4 = (opt_child statement_fun "globalDtor" statement_gdtor)
+       let l3 = opt_child variable_fun "globalVar" variable_opt in
+       let x4 = fullExpressionAnnot_fun fullExpressionAnnot, "annot" in
+       let l5 = (opt_child expression_fun "localArg" expression_opt) in
+       let l6 = (opt_child statement_fun "globalDtor" statement_gdtor)
        in
-	 x1 :: x2 :: l3 @ l4)
+	 x1 :: x2 :: l3 @ x4 :: l5 @ l6)
   end
 
 
@@ -942,20 +1031,28 @@ and expression_fun ex =
     if visited annot then retval annot
     else
       let _ = visit annot in
-      let exnode = ast_node color_Expression annot in
+      let type_child = opt_child cType_fun "type" (expression_type ex) in
+      let exnode name attribs childs = 
+	ast_node color_Expression annot name attribs (type_child @ childs) in
       let exnode_1d name field value childs = 
 	                        exnode name [(field, value)] childs
       in match ex with
-	| E_boolLit(annot, bool) -> 
+	| E_boolLit(_annot, _type_opt, bool) -> 
 	    exnode_1d "E_boolLit" "b" (string_of_bool bool) []
 
-	| E_intLit(annot, stringRef) -> 
-	    exnode_1d "E_intLit" "text" stringRef []
+	| E_intLit(_annot, _type_opt, stringRef, ulong) -> 
+	    exnode "E_intLit" 
+	      [("text", stringRef);
+	       ("i", Int32.to_string ulong)]
+	      []
 
-	| E_floatLit(annot, stringRef) -> 
-	    exnode_1d "E_floatLit" "text" stringRef []
+	| E_floatLit(_annot, _type_opt, stringRef, double) -> 
+	    exnode "E_floatLit" 
+	      [("text", stringRef);
+	       ("d", string_of_float double)]
+	      []
 
-	| E_stringLit(annot, stringRef, e_stringLit_opt) -> 
+	| E_stringLit(_annot, _type_opt, stringRef, e_stringLit_opt) -> 
 	    assert(match e_stringLit_opt with 
 		     | Some(E_stringLit _) -> true 
 		     | None -> true
@@ -963,16 +1060,25 @@ and expression_fun ex =
 	    exnode_1d "E_stringLit" "text" stringRef
 	      (opt_child expression_fun "continuation" e_stringLit_opt)
 
-	| E_charLit(annot, stringRef) -> 
-	    exnode_1d "E_charLit" "text" stringRef []
+	| E_charLit(_annot, _type_opt, stringRef, int32) -> 
+	    exnode "E_charLit"
+	      [("text", stringRef);
+	       ("c", Int32.to_string int32)]
+	      []
 
-	| E_this annot -> 
-	    exnode "E_this" [] []
+	| E_this(_annot, _type_opt, variable) -> 
+	    exnode "E_this" [] 
+	      [(variable_fun variable, "receiver")]
 
-	| E_variable(annot, pQName) -> 
-	    exnode "E_variable" [] [(pQName_fun pQName, "name")]
+	| E_variable(_annot, _type_opt, pQName, var_opt, nondep_var_opt) -> 
+	    exnode "E_variable" [] 
+	      (let x1 = pQName_fun pQName, "name" in
+	       let l2 = opt_child variable_fun "var" var_opt in
+	       let l3 = opt_child variable_fun "nondependentVar" nondep_var_opt
+	       in
+		 x1 :: l2 @ l3)
 
-	| E_funCall(annot, expression_func, argExpression_list, 
+	| E_funCall(_annot, _type_opt, expression_func, argExpression_list, 
 		    expression_retobj_opt) -> 
 	    exnode "E_funCall" []
 	      (let x1 = (expression_fun expression_func, "func") in
@@ -983,57 +1089,61 @@ and expression_fun ex =
 	       in
 		 x1 :: l2 @ l3)
 
-	| E_constructor(annot, typeSpecifier, argExpression_list, 
-			bool, expression_opt) -> 
+	| E_constructor(_annot, _type_opt, typeSpecifier, argExpression_list, 
+			var_opt, bool, expression_opt) -> 
 	    exnode_1d "E_constructor" "artificial" (string_of_bool bool)
 	      (let x1 = (typeSpecifier_fun typeSpecifier, "spec") in
 	       let l2 = 
 		 count_rev "args" 
 		   (List.rev_map argExpression_fun argExpression_list) in
-	       let l3 = opt_child expression_fun "retObj" expression_opt
+	       let l3 = opt_child variable_fun "ctorVar" var_opt in
+	       let l4 = opt_child expression_fun "retObj" expression_opt
 	       in
-		 x1 :: l2 @ l3)
+		 x1 :: l2 @ l3 @ l4)
 
-	| E_fieldAcc(annot, expression, pQName) -> 
+	| E_fieldAcc(_annot, _type_opt, expression, pQName, var_opt) -> 
 	    exnode "E_fieldAcc" []
 	      (let x1 = (expression_fun expression, "obj") in
-	       let x2 = (pQName_fun pQName, "fieldName")
+	       let x2 = (pQName_fun pQName, "fieldName") in
+	       let l3 = opt_child variable_fun "field" var_opt
 	       in
-		 [x1; x2])
+		 x1 :: x2 :: l3)
 
-	| E_sizeof(annot, expression) -> 
-	    exnode "E_sizeof" []
+	| E_sizeof(_annot, _type_opt, expression, int) -> 
+	    exnode_1d "E_sizeof" "size" (string_of_int int)
 	      [(expression_fun expression, "expr")]
 
-	| E_unary(annot, unaryOp, expression) -> 
+	| E_unary(_annot, _type_opt, unaryOp, expression) -> 
 	    exnode_1d "E_unary" "op" (string_of_unaryOp unaryOp)
 	      [(expression_fun expression, "expr")]
 
-	| E_effect(annot, effectOp, expression) -> 
+	| E_effect(_annot, _type_opt, effectOp, expression) -> 
 	    exnode_1d "E_effect" "op" (string_of_effectOp effectOp)
 	      [(expression_fun expression, "expr")]
 
-	| E_binary(annot, expression_left, binaryOp, expression_right) -> 
+	| E_binary(_annot, _type_opt, 
+		   expression_left, binaryOp, expression_right) -> 
 	    exnode_1d "E_binary" "op" (string_of_binaryOp binaryOp) 
 	      (let x1 = (expression_fun expression_left, "e1") in
 	       let x2 = (expression_fun expression_right, "e2")
 	       in
 		 [x1; x2])
 
-	| E_addrOf(annot, expression) -> 
+	| E_addrOf(_annot, _type_opt, expression) -> 
 	    exnode "E_addrOf" [] [(expression_fun expression, "expr")]
 
-	| E_deref(annot, expression) -> 
+	| E_deref(_annot, _type_opt, expression) -> 
 	    exnode "E_deref" [] [(expression_fun expression, "prt")]
 
-	| E_cast(annot, aSTTypeId, expression) -> 
-	    exnode "E_cast" []
+	| E_cast(_annot, _type_opt, aSTTypeId, expression, bool) -> 
+	    exnode_1d "E_cast" "tcheckedType" (string_of_bool bool)
 	      (let x1 = (expression_fun expression, "expr") in
 	       let x2 = (aSTTypeId_fun aSTTypeId, "ctype")
 	       in
 		 [x1; x2])
 
-	| E_cond(annot, expression_cond, expression_true, expression_false) -> 
+	| E_cond(_annot, _type_opt, 
+		 expression_cond, expression_true, expression_false) -> 
 	    exnode "E_cond" []
 	      (let x1 = (expression_fun expression_cond, "cond") in
 	       let x2 = (expression_fun expression_true, "th") in
@@ -1041,19 +1151,26 @@ and expression_fun ex =
 	       in
 		 [x1; x2; x3])
 
-	| E_sizeofType(annot, aSTTypeId) -> 
-	    exnode "E_sizeofType" []
+	| E_sizeofType(_annot, _type_opt, aSTTypeId, int, bool) -> 
+	    exnode "E_sizeofType" 
+	      [("size", string_of_int int);
+	       ("tchecked", string_of_bool bool)]
 	      [(aSTTypeId_fun aSTTypeId, "atype")]
 
-	| E_assign(annot, expression_target, binaryOp, expression_src) -> 
+	| E_assign(_annot, _type_opt, expression_target, binaryOp, expression_src) -> 
 	    exnode_1d "E_assign" "op" (string_of_binaryOp binaryOp)
 	      (let x1 = (expression_fun expression_target, "target") in
 	       let x2 = (expression_fun expression_src, "src")
 	       in
 		 [x1; x2])
 
-	| E_new(annot, bool, argExpression_list, aSTTypeId, 
-		argExpressionListOpt_opt, statement_opt) -> 
+	(* 
+         * | E_new(_annot, type_opt, bool, argExpression_list, aSTTypeId, 
+	 * 	argExpressionListOpt_opt, statement_opt) -> 
+         *)
+	| E_new(_annot, _type_opt, bool, argExpression_list, aSTTypeId, 
+		argExpressionListOpt_opt, array_size_opt, ctor_opt,
+	        statement_opt, heap_var_opt) -> 
 	    exnode_1d "E_new" "colonColon" (string_of_bool bool)
 	      (let l1 = 
 		 count_rev "placementArgs"
@@ -1062,11 +1179,14 @@ and expression_fun ex =
 	       let l3 = 
 		 opt_child argExpressionListOpt_fun 
 		   "ctorArgs" argExpressionListOpt_opt in
-	       let l4 = opt_child statement_fun "ctorStatement" statement_opt
+	       let l4 = opt_child expression_fun "arraySize" array_size_opt in
+	       let l5 = opt_child variable_fun "ctorVar" ctor_opt in
+	       let l6 = opt_child statement_fun "ctorStatement" statement_opt in
+	       let l7 = opt_child variable_fun "heapVar" heap_var_opt
 	       in
-		 l1 @ x2 :: l3 @ l4)
+		 l1 @ x2 :: l3 @ l4 @ l5 @ l6 @ l7)
 
-	| E_delete(annot, bool_colon, bool_array, 
+	| E_delete(_annot, _type_opt, bool_colon, bool_array, 
 		   expression_opt, statement_opt) ->
 	    exnode "E_delete"
 	      [("colonColon", string_of_bool bool_colon);
@@ -1076,40 +1196,45 @@ and expression_fun ex =
 	       in
 		 l1 @ l2)
 
-	| E_throw(annot, expression_opt, statement_opt) -> 
+	| E_throw(_annot, _type_opt, expression_opt, var_opt, statement_opt) -> 
 	    exnode "E_throw" []
-	      ((opt_child expression_fun "expr" expression_opt)
-	       @ (opt_child statement_fun "globalCtorStatement" statement_opt))
+	      (let l1 = opt_child expression_fun "expr" expression_opt in
+	       let l2 = opt_child variable_fun "globalVar" var_opt in
+	       let l3 = opt_child 
+		 statement_fun "globalCtorStatement" statement_opt 
+	       in
+		 l1 @ l2 @ l3)
 
-	| E_keywordCast(annot, castKeyword, aSTTypeId, expression) -> 
+	| E_keywordCast(_annot, _type_opt, 
+			castKeyword, aSTTypeId, expression) -> 
 	    exnode_1d "E_keywordCast" "key" (string_of_castKeyword castKeyword)
 	      (let x1 = (aSTTypeId_fun aSTTypeId, "ctype") in
 	       let x2 = (expression_fun expression, "expr")
 	       in
 		 [x1; x2])
 
-	| E_typeidExpr(annot, expression) -> 
+	| E_typeidExpr(_annot, _type_opt, expression) -> 
 	    exnode "E_typeidExpr" [] [(expression_fun expression, "expr")]
 
-	| E_typeidType(annot, aSTTypeId) -> 
+	| E_typeidType(_annot, _type_opt, aSTTypeId) -> 
 	    exnode "E_typeidType" [] [(aSTTypeId_fun aSTTypeId, "ttype")]
 
-	| E_grouping(annot, expression) -> 
+	| E_grouping(_annot, _type_opt, expression) -> 
 	    exnode "E_grouping" [] [(expression_fun expression, "expr")]
 
-	| E_arrow(annot, expression, pQName) -> 
+	| E_arrow(_annot, _type_opt, expression, pQName) -> 
 	    exnode "E_arrow" []
 	      (let x1 = (expression_fun expression, "obj") in
 	       let x2 = (pQName_fun pQName, "fieldName")
 	       in
 		 [x1; x2])
 
-	| E_statement(annot, s_compound) -> 
+	| E_statement(_annot, _type_opt, s_compound) -> 
 	    assert(match s_compound with | S_compound _ -> true | _ -> false);
 	    exnode "E_statement" [] 
 	      [(statement_fun s_compound, "s")]
 
-	| E_compoundLit(annot, aSTTypeId, in_compound) -> 
+	| E_compoundLit(_annot, _type_opt, aSTTypeId, in_compound) -> 
 	    assert(match in_compound with | IN_compound _ -> true | _ -> false);
 	    exnode "E_compoundLit" []
 	      (let x1 = (aSTTypeId_fun aSTTypeId, "stype") in
@@ -1117,42 +1242,46 @@ and expression_fun ex =
 	       in
 		 [x1; x2])
 
-	| E___builtin_constant_p(annot, loc, expression) -> 
+	| E___builtin_constant_p(_annot, _type_opt, loc, expression) -> 
 	    ast_loc_node color_Expression annot loc "E___builtin_constant_p" []
 	      [(expression_fun expression, "expr")]
 
-	| E___builtin_va_arg(annot, loc, expression, aSTTypeId) -> 
+	| E___builtin_va_arg(_annot, _type_opt, loc, expression, aSTTypeId) -> 
 	    ast_loc_node color_Expression annot loc "E___builtin_va_arg" []
 	      (let x1 = (expression_fun expression, "expr") in
 	       let x2 = (aSTTypeId_fun aSTTypeId, "atype")
 	       in
 		 [x1; x2])
 
-	| E_alignofType(annot, aSTTypeId) -> 
-	    exnode "E_alignofType" []
+	| E_alignofType(_annot, _type_opt, aSTTypeId, int) -> 
+	    exnode_1d "E_alignofType" "alignment" (string_of_int int)
 	      [(aSTTypeId_fun aSTTypeId, "atype")]
 
-	| E_alignofExpr(annot, expression) -> 
-	    exnode "E_alignofExpr" []
+	| E_alignofExpr(_annot, _type_opt, expression, int) -> 
+	    exnode_1d "E_alignofExpr" "alignment" (string_of_int int)
 	      [(expression_fun expression, "expr")]
 
-	| E_gnuCond(annot, expression_cond, expression_false) -> 
+	| E_gnuCond(_annot, _type_opt, expression_cond, expression_false) -> 
 	    exnode "E_gnuCond" []
 	      (let x1 = (expression_fun expression_cond, "cond") in
 	       let x2 = (expression_fun expression_false, "el")
 	       in
 		 [x1; x2])
 
-	| E_addrOfLabel(annot, stringRef) -> 
+	| E_addrOfLabel(_annot, _type_opt, stringRef) -> 
 	    exnode_1d "E_addrOfLabel" "labelName" stringRef []
 
 
-and fullExpression_fun(annot, expression_opt) =
+(* and fullExpression_fun(_annot, expression_opt) = *)
+and fullExpression_fun(annot, expression_opt, fullExpressionAnnot) =
   if visited annot then retval annot
   else begin
     visit annot;
     ast_node color_FullExpression annot "FullExpression" []
-      (opt_child expression_fun "expr" expression_opt)
+      (let l1 = opt_child expression_fun "expr" expression_opt in
+       let x2 = fullExpressionAnnot_fun fullExpressionAnnot, "annot"
+       in
+	 l1 @ x2 :: [])
   end
 
 
@@ -1182,27 +1311,42 @@ and init_fun i =
       let _ = visit annot in
       let inode = ast_loc_node color_Initializer annot (init_loc i) 
       in match i with
-	| IN_expr(annot, loc, expression) -> 
-	    inode "IN_expr" [] [(expression_fun expression, "e")]
+(* everything in here *)
+	| IN_expr(_annot, _loc, fullExpressionAnnot, expression) -> 
+	    inode "IN_expr" [] 
+	      (let x1 = expression_fun expression, "e" in
+	       let x2 = fullExpressionAnnot_fun fullExpressionAnnot, "annot"
+	       in
+		 [x1; x2])
 
-	| IN_compound(annot, loc, init_list) -> 
+	| IN_compound(_annot, _loc, fullExpressionAnnot, init_list) -> 
 	    inode "IN_compound" []
-	      (count_rev "inits" (List.rev_map init_fun init_list))
+	      (let x1 = fullExpressionAnnot_fun fullExpressionAnnot, "annot" in
+	       let l2 = count_rev "inits" (List.rev_map init_fun init_list)
+	       in
+		 x1 :: l2)
 
-	| IN_ctor(annot, loc, argExpression_list, bool) -> 
+	| IN_ctor(_annot, _loc, fullExpressionAnnot, 
+		 argExpression_list, var_opt, bool) -> 
 	    inode "IN_ctor" 
-	      [("was_IN_expr", string_of_bool bool)]
-	      (count_rev "args" 
-		 (List.rev_map argExpression_fun argExpression_list))
+	      [("was_IN_expr", string_of_bool bool);
+	       ("was_IN_expr", string_of_bool bool)]
+	      (let x1 = fullExpressionAnnot_fun fullExpressionAnnot, "annot" in
+	       let l2 = count_rev "args" 
+		 (List.rev_map argExpression_fun argExpression_list) in
+	       let l3 = opt_child variable_fun "ctorVar" var_opt
+	       in
+		 x1 :: l2 @ l3)
 
-	| IN_designated(annot, loc, designator_list, init) -> 
+	| IN_designated(_annot, _loc, fullExpressionAnnot, designator_list, init) -> 
 	    inode "IN_designated" []
-	      (let l1 = 
+	      (let x1 = fullExpressionAnnot_fun fullExpressionAnnot, "annot" in
+	       let l2 = 
 		 count_rev "designator"
 		   (List.rev_map designator_fun designator_list) in
-	       let l2 = [(init_fun init, "init")]
+	       let x3 = init_fun init, "init"
 	       in
-		 l1 @ l2)
+		 x1 :: l2 @ x3 :: [])
 
 
 and templateDeclaration_fun td = 
@@ -1214,7 +1358,7 @@ and templateDeclaration_fun td =
       let tdnode name childs = 
 	ast_node color_TemplateDeclaration annot name [] childs
       in match td with
-	| TD_func(annot, templateParameter_opt, func) -> 
+	| TD_func(_annot, templateParameter_opt, func) -> 
 	    tdnode "TD_func" 
 	      (let l1 = opt_child
 		 templateParameter_fun "params" templateParameter_opt in
@@ -1222,7 +1366,7 @@ and templateDeclaration_fun td =
 	       in
 		 l1 @ l2)
 
-	| TD_decl(annot, templateParameter_opt, declaration) -> 
+	| TD_decl(_annot, templateParameter_opt, declaration) -> 
 	    tdnode "TD_decl" 
 	      (let l1 = opt_child
 		 templateParameter_fun "params" templateParameter_opt in
@@ -1230,7 +1374,7 @@ and templateDeclaration_fun td =
 	       in
 		 l1 @ l2)
 
-	| TD_tmember(annot, templateParameter_opt, templateDeclaration) -> 
+	| TD_tmember(_annot, templateParameter_opt, templateDeclaration) -> 
 	    tdnode "TD_tmember"
 	      (let l1 = 
 		 opt_child 
@@ -1251,15 +1395,22 @@ and templateParameter_fun tp =
 	  name labels
 	  (childs @ (opt_child templateParameter_fun "next" next))
       in match tp with
-	| TP_type(annot, loc, stringRef, 
+	| TP_type(_annot, _loc, variable, stringRef, 
 		  aSTTypeId_opt, templateParameter_opt) -> 
 	    tpnode "TP_type" templateParameter_opt 
 	      [("name", stringRef)]
-	      (opt_child aSTTypeId_fun "defaultType" aSTTypeId_opt)
+	      (let x1 = variable_fun variable, "var" in
+	       let l2 = opt_child aSTTypeId_fun "defaultType" aSTTypeId_opt
+	       in
+		 x1 :: l2)
 
-	| TP_nontype(annot, loc, aSTTypeId, templateParameter_opt) -> 
+	| TP_nontype(_annot, _loc, variable,
+		    aSTTypeId, templateParameter_opt) -> 
 	    tpnode "TP_nontype" templateParameter_opt []
-	      [(aSTTypeId_fun aSTTypeId, "param")]
+	      (let x1 = variable_fun variable, "var" in
+	       let x2 = aSTTypeId_fun aSTTypeId, "param"
+	       in
+		 [x1; x2])
 
 
 
@@ -1273,15 +1424,15 @@ and templateArgument_fun ta =
 	ast_node color_TemplateArgument annot name []
 	  (childs @ (opt_child templateArgument_fun "next" next))
       in match ta with
-	| TA_type(annot, aSTTypeId, templateArgument_opt) -> 
+	| TA_type(_annot, aSTTypeId, templateArgument_opt) -> 
 	    tanode "TA_type" templateArgument_opt 
 	      [(aSTTypeId_fun aSTTypeId, "type")]
 
-	| TA_nontype(annot, expression, templateArgument_opt) -> 
+	| TA_nontype(_annot, expression, templateArgument_opt) -> 
 	    tanode "TA_nontype" templateArgument_opt
 	      [(expression_fun expression, "expr")]
 
-	| TA_templateUsed(annot, templateArgument_opt) -> 
+	| TA_templateUsed(_annot, templateArgument_opt) -> 
 	    tanode "TA_templateUsed" templateArgument_opt []
 
 
@@ -1293,16 +1444,16 @@ and namespaceDecl_fun nd =
       let _ = visit annot in
       let ndnode = ast_node color_NamespaceDecl annot
       in match nd with
-	| ND_alias(annot, stringRef, pQName) -> 
+	| ND_alias(_annot, stringRef, pQName) -> 
 	    ndnode "ND_alias" 
 	      [("alias", stringRef)]
 	      [(pQName_fun pQName, "original")]
 
-	| ND_usingDecl(annot, pQName) -> 
+	| ND_usingDecl(_annot, pQName) -> 
 	    ndnode "ND_usingDecl" []
 	      [(pQName_fun pQName, "name")]
 
-	| ND_usingDir(annot, pQName) -> 
+	| ND_usingDir(_annot, pQName) -> 
 	    ndnode "ND_usingDir" []
 	      [(pQName_fun pQName, "name")]
 
@@ -1310,6 +1461,15 @@ and namespaceDecl_fun nd =
  * 31 and fullExpressionAnnot_fun(declaration_list) =
  *     List.iter declaration_fun declaration_list
  *)
+and fullExpressionAnnot_fun(annot, declaration_list) =
+  if visited annot then retval annot
+  else begin
+    visit annot;
+    ast_node color_FullExpressionAnnot annot "FullExpressionAnnot" []
+      (count_rev "declarations"
+	 (List.rev_map declaration_fun declaration_list))
+  end
+
 
 
 and aSTTypeof_fun a = 
@@ -1320,13 +1480,19 @@ and aSTTypeof_fun a =
       let _ = visited annot in
       let anode = ast_node color_ASTTypeof annot
       in match a with
-	| TS_typeof_expr(annot, fullExpression) -> 
+	| TS_typeof_expr(_annot, ctype, fullExpression) -> 
 	    anode "TS_typeof_expr" [] 
-	      [(fullExpression_fun fullExpression, "expr")]
+	      (let x1 = cType_fun ctype, "type" in
+	       let x2 = fullExpression_fun fullExpression, "expr" 
+	       in
+		 [x1; x2])
 
-	| TS_typeof_type(annot, aSTTypeId) -> 
+	| TS_typeof_type(_annot, ctype, aSTTypeId) -> 
 	    anode "TS_typeof_type" []
-	      [(aSTTypeId_fun aSTTypeId, "atype")]
+	      (let x1 = cType_fun ctype, "type" in
+	       let x2 = aSTTypeId_fun aSTTypeId, "atype"
+	       in
+		 [x1; x2])
 
 
 
@@ -1338,11 +1504,15 @@ and designator_fun d =
       let _ = visit annot in
       let dnode = ast_loc_node color_Designator annot (designator_loc d)
       in match d with
-	| FieldDesignator(annot, loc, stringRef) -> 
+	| FieldDesignator(_annot, _loc, stringRef) -> 
 	    dnode "FieldDesignator" [("id", stringRef)] []
 
-	| SubscriptDesignator(annot, loc, expression, expression_opt) -> 
-	    dnode "SubscriptDesignator" []
+	(* | SubscriptDesignator(_annot, loc, expression, expression_opt) ->  *)
+	| SubscriptDesignator(_annot, _loc, expression, expression_opt, 
+			     idx_start, idx_end) -> 
+	    dnode "SubscriptDesignator" 
+	      [("idx_computed", string_of_int idx_start);
+	       ("idx_computed2", string_of_int idx_end)]
 	      (let x1 = (expression_fun expression, "idx_expr") in
 	       let l2 = opt_child expression_fun "idx_expr2" expression_opt
 	       in
@@ -1357,13 +1527,13 @@ and attribute_fun a =
       let _ = visit annot in
       let anode = ast_loc_node color_Attribute annot (attribute_loc a)
       in match a with
-	| AT_empty(annot, loc) -> 
+	| AT_empty(_annot, _loc) -> 
 	    anode "AT_empty" [] []
 
-	| AT_word(annot, loc, stringRef) -> 
+	| AT_word(_annot, _loc, stringRef) -> 
 	    anode "AT_word" [("w", stringRef)] []
 
-	| AT_func(annot, loc, stringRef, argExpression_list) -> 
+	| AT_func(_annot, _loc, stringRef, argExpression_list) -> 
 	    anode "AT_func" 
 	      [("f", stringRef)]
 	      (count_rev "args" 

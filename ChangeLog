@@ -1,3 +1,7 @@
+2006-09-30  Hendrik Tews  <tews@debian>
+
+	* ast_graph adopted
+
 2006-09-29  Hendrik Tews  <tews@debian>
 
 	* revert stupid ast_graph change

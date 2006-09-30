@@ -1064,7 +1064,7 @@ and expression_fun x =
 
 	| E_new(annot, type_opt, bool, argExpression_list, aSTTypeId, 
 		argExpressionListOpt_opt, array_size_opt, ctor_opt,
-	        statement_opt, heep_var) -> 
+	        statement_opt, heep_var_opt) -> 
 	    annotation_fun annot;
 	    opt_iter cType_fun type_opt;
 	    bool_fun bool;
@@ -1074,7 +1074,7 @@ and expression_fun x =
 	    opt_iter expression_fun array_size_opt;
 	    opt_iter variable_fun ctor_opt;
 	    opt_iter statement_fun statement_opt;
-	    opt_iter variable_fun heep_var
+	    opt_iter variable_fun heep_var_opt
 
 	| E_delete(annot, type_opt, bool_colon, bool_array, 
 		   expression_opt, statement_opt) -> 

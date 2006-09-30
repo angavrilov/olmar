@@ -35,7 +35,7 @@ OCAMLCC  := @OCAMLCC@
 
 OCAML_OBJ_EXT := @OCAML_OBJ_EXT@
 OCAML_LIB_EXT := @OCAML_LIB_EXT@
-
+OCAML_FLAGS := -w Ae
 
 # list of files to clean in 'clean' (etc.) targets
 # (these get added to below)
@@ -58,7 +58,7 @@ COUNTAST_ML=\
 	count-ast.ml
 
 count-ast: $(COUNTAST_ML:.ml=.$(OCAML_OBJ_EXT))
-	$(OCAMLCC) -o $@ $^
+	$(OCAMLCC) $(OCAML_FLAGS) -o $@ $^
 
 
 ASTGRAPH_ML=\
@@ -72,12 +72,12 @@ ASTGRAPH_ML=\
 
 TOCLEAN += ast_graph
 ast_graph: $(ASTGRAPH_ML:.ml=.$(OCAML_OBJ_EXT))
-	$(OCAMLCC) -o $@ $^
+	$(OCAMLCC) $(OCAML_FLAGS) -o $@ $^
 
 
 TOCLEAN += dumpast
 dumpast: dumpast.ml
-	$(OCAMLCC) -o $@ -I $(ELSA) unix.$(OCAML_LIB_EXT) $^
+	$(OCAMLCC) $(OCAML_FLAGS) -o $@ -I $(ELSA) unix.$(OCAML_LIB_EXT) $^
 
 # hashloc is not working currently
 HASHLOC_ML=\
@@ -88,7 +88,7 @@ HASHLOC_ML=\
 
 TOCLEAN += hashloc
 hashloc: $(HASHLOC_ML:.ml=.$(OCAML_OBJ_EXT))
-	$(OCAMLCC) -o $@ $^
+	$(OCAMLCC) $(OCAML_FLAGS) -o $@ $^
 
 # check-oast depends the safeUnmarshal library, 
 # see http://www.pps.jussieu.fr/~henry/marshal/
@@ -104,7 +104,7 @@ CHECKOAST_ML=\
 
 TOCLEAN += check-oast
 check-oast: $(CHECKOAST_ML:.ml=.$(OCAML_OBJ_EXT))
-	$(OCAMLCC) -o $@ -I $(ELSA) safeUnmarshal.$(OCAML_LIB_EXT) $^
+	$(OCAMLCC) $(OCAML_FLAGS) -o $@ -I $(ELSA) safeUnmarshal.$(OCAML_LIB_EXT) $^
 
 .PHONY: doc
 doc:
@@ -148,34 +148,34 @@ distclean: clean
 TOCLEAN += *.cmo
 
 astiter.cmo: astiter.ml
-	$(OCAMLC) -w y -I $(ELSA) -c $<
+	$(OCAMLC) $(OCAML_FLAGS) -w y -I $(ELSA) -c $<
 
 astmap.cmo: astmap.ml
-	$(OCAMLC) -w y -I $(ELSA) -c $<
+	$(OCAMLC) $(OCAML_FLAGS) -w y -I $(ELSA) -c $<
 
 astiternodes.cmo: astiternodes.ml
-	$(OCAMLC) -w y -I $(ELSA) -c $<
+	$(OCAMLC) $(OCAML_FLAGS) -w y -I $(ELSA) -c $<
 
 astiter.cmx: astiter.ml
-	$(OCAMLOPT) -w y -I $(ELSA) -c $<
+	$(OCAMLOPT) $(OCAML_FLAGS) -w y -I $(ELSA) -c $<
 
 astmap.cmx: astmap.ml
-	$(OCAMLOPT) -w y -I $(ELSA) -c $<
+	$(OCAMLOPT) $(OCAML_FLAGS) -w y -I $(ELSA) -c $<
 
 astiternodes.cmx: astiternodes.ml
-	$(OCAMLOPT) -w y -I $(ELSA) -c $<
+	$(OCAMLOPT) $(OCAML_FLAGS) -w y -I $(ELSA) -c $<
 
 
 %.cmo: %.ml
-	$(OCAMLC) -I $(ELSA) -c $<
+	$(OCAMLC) $(OCAML_FLAGS) -I $(ELSA) -c $<
 
 TOCLEAN += *.cmx *.o
 %.cmx: %.ml
-	$(OCAMLOPT) -I $(ELSA) -c $<
+	$(OCAMLOPT) $(OCAML_FLAGS) -I $(ELSA) -c $<
 
 TOCLEAN += *.cmi
 %.cmi: %.mli
-	$(OCAMLC) -I $(ELSA) -c $<
+	$(OCAMLC) $(OCAML_FLAGS) -I $(ELSA) -c $<
 
 
 -include mldeps.mk
