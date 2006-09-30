@@ -1,3 +1,7 @@
+2006-09-30  Hendrik Tews  <tews@tandem.cs.ru.nl>
+
+	* check-oast adopted; barfs on t0030.cc.oast
+
 2006-09-30  Hendrik Tews  <tews@debian>
 
 	* ast_graph adopted
