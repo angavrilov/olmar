@@ -3825,23 +3825,26 @@ void Declarator::mid_tcheck(Env &env, Tcheck &dt)
     //    Check the initializer for compatibility with the declared type.
     //    This also does some elaborations like function address-of.
     if (IN_expr *initexpr = init->ifIN_expr()) {
-      if (!env.elaborateImplicitConversionArgToParam(type, initexpr->e)) {
-        // quarl 2006-07-26
-        //    This should be an error, but since too many test cases currently
-        //    fail this, it's just a warning for now.  getImplicitConversion
-        //    is incomplete.
-        #if 0
-        // SGM 2006-08-05: I am turning this off.  There is nothing
-        // wrong (in the cases I've seen anyway) with the source code
-        // being analyzed, rather there is a bug in Elsa.  We should
-        // either deal with the Elsa bugs, or just be silent about the
-        // problems by default (which is what I am doing now).  There
-        // could be a command line flag to turn this back on, if
-        // desired.
-        env.warning(/*type,*/ stringc
-                    << "cannot convert initializer type `" << initexpr->e->getType()->toString()
-                    << "' to type `" << type->toString() << "'");
-        #endif // 0
+      if (!type->containsGeneralizedDependent()) {
+        if (!env.elaborateImplicitConversionArgToParam(type, initexpr->e)) {
+          // quarl 2006-07-26
+          //    This should be an error, but since too many test cases currently
+          //    fail this, it's just a warning for now.  getImplicitConversion
+          //    is incomplete.
+          //
+          // SGM 2006-08-05: I am turning this off.  There is nothing
+          // wrong (in the cases I've seen anyway) with the source code
+          // being analyzed, rather there is a bug in Elsa.  We should
+          // either deal with the Elsa bugs, or just be silent about the
+          // problems by default (which is what I am doing now).  There
+          // could be a command line flag to turn this back on, if
+          // desired.
+          #if 0
+          env.warning(/*type,*/ stringc
+                      << "cannot convert initializer type `" << initexpr->e->getType()->toString()
+                      << "' to type `" << type->toString() << "'");
+          #endif // 0
+        }
       }
     }
     // TODO: check compatibility with dflags; e.g. we can't allow
@@ -6043,7 +6046,11 @@ int compareArgsToParams(Env &env, FunctionType *ft, FakeList<ArgExpression> *arg
     env.possiblySetOverloadedFunctionVar(arg->expr, param->type,
                                          argInfo[paramIndex].overloadSet);
 
-    if (!param->type->isGeneralizedDependent()) {
+    // dsw: I changed this from isGeneralizedDependent() to
+    // containsGeneralizedDependent() because that is what I am doing
+    // at the other call site to
+    // elaborateImplicitConversionArgToParam()
+    if (!param->type->containsGeneralizedDependent()) {
       if (env.elaborateImplicitConversionArgToParam(param->type, arg->expr)) {
         xassert(arg->ambiguity == NULL);
       } else {
