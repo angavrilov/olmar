@@ -173,7 +173,8 @@ public:
   // have lvalue type
   bool lvalueFlowsThroughCast;
 
-  // when true, 'restrict' is a keyword
+  // when true, 'restrict' is a keyword (note that __restrict and
+  // __restrict__ are always keywords)
   bool restrictIsAKeyword;
 
   // ---- bug compatibility flags ----

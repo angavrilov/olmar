@@ -9,7 +9,10 @@ FLOATREF const fr = q;
 
 // this is simply *syntactically* illegal, though in
 // fact ICC accepts it
-//ERROR(1): float & const fr2 = q;
+
+// dsw: turned this off as I now accept it since 'restrict' is ok
+// here.
+// ERR-off-OR(1): float & const fr2 = q;
 
 
 template <class T>
