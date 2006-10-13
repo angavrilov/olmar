@@ -1137,6 +1137,8 @@ testparse k0118.cc "typedef struct { } *foo"
 
 ### </quarl-testcases-c++>
 
+failparse u0001.cc "template array size"
+
 # Simon sfg@cs
 testparse sg0001.cc # invoke dtor on const object
 
