@@ -208,7 +208,7 @@ void PseudoInstantiation::traverse(TypeVisitor &vis)
 // hand written ocaml serialization function
 value PseudoInstantiation::toOcaml(ToOcamlData * data){
   CAMLparam0();
-  CAMLlocal2(elem, tmp);
+  CAMLlocal3(elem, tmp, args_result);
   CAMLlocalN(childs, 6);
   if(ocaml_val) {
     // cerr << "shared ocaml value in PseudoInstantiation\n" << flush;
@@ -240,15 +240,16 @@ value PseudoInstantiation::toOcaml(ToOcamlData * data){
   childs[3] = ocaml_from_AccessKeyword(access, data);
   childs[4] = primary->toCompoundInfo(data);
 
-  childs[5] = Val_emptylist;
 
-  for(int i = args.count() -1; i >= 0; i--) {
-    elem = args.nth(i)->toOcaml(data);
+  args_result = Val_emptylist;
+  FOREACH_OBJLIST_NC(STemplateArgument, args, iter) {
+    elem = iter.data()->toOcaml(data);
     tmp = caml_alloc(2, Tag_cons); // allocate a cons cell
     Store_field(tmp, 0, elem);	// store car
-    Store_field(tmp, 1, childs[5]); // store cdr
-    childs[5] = tmp;
+    Store_field(tmp, 1, args_result); // store cdr
+    args_result = tmp;
   }
+  childs[5] = ocaml_list_rev(args_result);
 
   caml_register_global_root(&ocaml_val);
   ocaml_val = 

@@ -1220,7 +1220,8 @@ bool CompoundType::isAggregate() const
 value CompoundType::toCompoundInfo(ToOcamlData *data){
   CAMLparam0();
   CAMLlocalN(info, 12);
-  CAMLlocal2(elem, tmp);
+  CAMLlocal5(elem, tmp, dataMembers_result, bases_result, conv_result);
+  CAMLlocal1(friends_result);
 
   if(ocaml_info) {
     // cerr << "shared ocaml value in CompoundType info\n" << flush;
@@ -1251,41 +1252,45 @@ value CompoundType::toCompoundInfo(ToOcamlData *data){
   info[4] = ocaml_from_bool(forward, data);
   info[5] = ocaml_from_CompoundType_Keyword(keyword, data);
   
-  info[6] = Val_emptylist;
-  for(int i = dataMembers.count() -1; i >= 0; i--) {
-    elem = dataMembers.nth(i)->toOcaml(data);
+  dataMembers_result = Val_emptylist;
+  SFOREACH_OBJLIST_NC(Variable, dataMembers, iter) {
+    elem = iter.data()->toOcaml(data);
     tmp = caml_alloc(2, Tag_cons);  // allocate a cons cell
     Store_field(tmp, 0, elem);      // store car
-    Store_field(tmp, 1, info[6]);    // store cdr
-    info[6] = tmp;
+    Store_field(tmp, 1, dataMembers_result);    // store cdr
+    dataMembers_result = tmp;
   }
+  info[6] = ocaml_list_rev(dataMembers_result);
 
-  info[7] = Val_emptylist;
-  for(int i = bases.count() -1; i >= 0; i--) {
-    elem = bases.nth(i)->toOcaml(data);
+  bases_result = Val_emptylist;
+  FOREACH_OBJLIST_NC(BaseClass, bases, iter) {
+    elem = iter.data()->toOcaml(data);
     tmp = caml_alloc(2, Tag_cons);  // allocate a cons cell
     Store_field(tmp, 0, elem);      // store car
-    Store_field(tmp, 1, info[7]);    // store cdr
-    info[7] = tmp;
+    Store_field(tmp, 1, bases_result);    // store cdr
+    bases_result = tmp;
   }
+  info[7] = ocaml_list_rev(bases_result);
   
-  info[8] = Val_emptylist;
-  for(int i = conversionOperators.count() -1; i >= 0; i--) {
-    elem = conversionOperators.nth(i)->toOcaml(data);
+  conv_result = Val_emptylist;
+  SFOREACH_OBJLIST_NC(Variable, conversionOperators, iter) {
+    elem = iter.data()->toOcaml(data);
     tmp = caml_alloc(2, Tag_cons);  // allocate a cons cell
     Store_field(tmp, 0, elem);      // store car
-    Store_field(tmp, 1, info[8]);    // store cdr
-    info[8] = tmp;
+    Store_field(tmp, 1, conv_result);    // store cdr
+    conv_result = tmp;
   }
+  info[8] = ocaml_list_rev(conv_result);
   
-  info[9] = Val_emptylist;
-  for(int i = friends.count() -1; i >= 0; i--) {
-    elem = friends.nth(i)->toOcaml(data);
+  friends_result = Val_emptylist;
+  SFOREACH_OBJLIST_NC(Variable, friends, iter) {
+    elem = iter.data()->toOcaml(data);
     tmp = caml_alloc(2, Tag_cons);  // allocate a cons cell
     Store_field(tmp, 0, elem);      // store car
-    Store_field(tmp, 1, info[9]);    // store cdr
-    info[9] = tmp;
+    Store_field(tmp, 1, friends_result);    // store cdr
+    friends_result = tmp;
   }
+  info[9] = ocaml_list_rev(friends_result);
   
   if(instName) {
     info[10] = option_some_constr(ocaml_from_string(instName, data));
@@ -2773,7 +2778,7 @@ void FunctionType::traverse(TypeVisitor &vis)
 // hand written ocaml serialization function
 value FunctionType::toOcaml(ToOcamlData * data){
   CAMLparam0();
-  CAMLlocal2(tmp, elem);
+  CAMLlocal4(tmp, elem, params_result, types_result);
   CAMLlocalN(child, 5);
   if(ocaml_val) {
     // cerr << "shared ocaml value in FunctionType\n" << flush;
@@ -2795,25 +2800,27 @@ value FunctionType::toOcaml(ToOcamlData * data){
   child[1] = ocaml_from_function_flags(flags, data);
   child[2] = retType->toOcaml(data);
 
-  child[3] = Val_emptylist;
-  for(int i = params.count() -1; i >= 0; i--) {
-    elem = params.nth(i)->toOcaml(data); 
+  params_result = Val_emptylist;
+  SFOREACH_OBJLIST_NC(Variable, params, iter) {
+    elem = iter.data()->toOcaml(data); 
     tmp = caml_alloc(2, Tag_cons);  // allocate a cons cell
     Store_field(tmp, 0, elem);      // store car
-    Store_field(tmp, 1, child[3]);    // store cdr
-    child[3] = tmp;
+    Store_field(tmp, 1, params_result);    // store cdr
+    params_result = tmp;
   }
+  child[3] = ocaml_list_rev(params_result);
 
   if(exnSpec){
-    child[4] = Val_emptylist;
-    for(int i = exnSpec->types.count() -1; i >= 0; i--) {
-      elem = exnSpec->types.nth(i)->toOcaml(data); 
+    types_result = Val_emptylist;
+    SFOREACH_OBJLIST_NC(CType, exnSpec->types, iter ) {
+      elem = iter.data()->toOcaml(data); 
       tmp = caml_alloc(2, Tag_cons);  // allocate a cons cell
       Store_field(tmp, 0, elem);      // store car
-      Store_field(tmp, 1, child[4]);    // store cdr
-      child[4] = tmp;
+      Store_field(tmp, 1, types_result);    // store cdr
+      types_result = tmp;
     }
-    child[4] = option_some_constr(child[4]);
+    types_result = ocaml_list_rev(types_result);
+    child[4] = option_some_constr(types_result);
   }
   else {
     child[4] = Val_None;
