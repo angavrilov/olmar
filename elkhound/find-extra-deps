@@ -65,6 +65,13 @@ for my $fname (@ARGV) {
         next;
       }
 
+      # Is the dependee some system file? We assume the *.d have been
+      # made with -MM, however, -MM seems to include files in the /usr/local
+      # hierarchy.
+      if ($dependee =~ m|^/usr/|) {
+	  next;
+      }
+
       print("$target: $dependee\n");
     }
   }

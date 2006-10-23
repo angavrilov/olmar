@@ -44,6 +44,7 @@ endif
 TOCLEAN =
 TOTOOLCLEAN =
 TODISTCLEAN =
+TODEPCLEAN =
 
 # re-create the Makefile if Makefile.in has changed
 TODISTCLEAN += Makefile
@@ -132,17 +133,18 @@ LDFLAGS := @LDFLAGS@ $(libraries)
 
 
 # compile .cc in this directory to a .o
-TOCLEAN += *.o *.d
+TOCLEAN += *.o
+TODEPCLEAN += *.d
 %.o: %.cc
 	$(CXX) -c -o $@ $< $(if $(findstring $*,$(GCOV_MODS)),$(GCOV_OPTS) )$(CCFLAGS)
-	@$(PERL) $(SMBASE)/depend.pl -o $@ $< $(CCFLAGS) >$*.d
+	$(PERL) $(SMBASE)/depend.pl -o $@ $< $(CCFLAGS) >$*.d
 
 TOCLEAN += *.cmo *.cmi *.cmx
 %.cmo: %.ml
-	$(OCAMLC) -c -I $(AST) $<
+	$(OCAMLC) -g -c -I $(AST) $<
 
 %.cmi: %.mli
-	$(OCAMLC) -c -I $(AST) $<
+	$(OCAMLC) -g -c -I $(AST) $<
 
 %.cmx: %.ml
 	$(OCAMLOPT) -c -I $(AST) $<
@@ -151,7 +153,7 @@ TOCLEAN += *.cmo *.cmi *.cmx
 # compile a special module; -O0 will override any earlier setting
 notopt.o: notopt.cc
 	$(CXX) -c -o $@ $< $(CCFLAGS) -O0
-	@$(PERL) $(SMBASE)/depend.pl -o $@ $< $(CCFLAGS) -O0 >$*.d
+	$(PERL) $(SMBASE)/depend.pl -o $@ $< $(CCFLAGS) -O0 >$*.d
 
 
 # ------------------------ tlexer -------------------
@@ -240,7 +242,7 @@ astxml_lexer.yy.cc: astxml_lexer.lex astxml_lexer.h
 # implementations
 astxml_lexer.yy.o: astxml_lexer.yy.cc
 	$(CXX) -c -o $@ $< -DNO_YYFLEXLEXER_METHODS $(CCFLAGS)
-	@$(PERL) $(SMBASE)/depend.pl -o $@ $< -DNO_YYFLEXLEXER_METHODS $(CCFLAGS) >$*.d
+	$(PERL) $(SMBASE)/depend.pl -o $@ $< -DNO_YYFLEXLEXER_METHODS $(CCFLAGS) >$*.d
 
 # generate token lists
 TOK_FILES := cc_tokens.h cc_tokens.cc cc_tokens.ids
@@ -376,13 +378,13 @@ ccparse: $(CCPARSE_OBJS) main.o $(libraries)
 TOCLEAN += quicktest
 quicktest: ccparse
 	./ccparse in/t0001.cc
-	@touch quicktest
+	touch quicktest
 	@echo BUILD FINISHED
 
 TOCLEAN += quickocamltest
 quickocamltest: ccparse
 	./ccparse -tr marshalToOcaml in/t0001.cc
-	@touch quickocamltest
+	touch quickocamltest
 	@echo BUILD FINISHED
 
 
@@ -568,8 +570,8 @@ count-loc:
 
 
 # -------------------- clean, etc. -------------------
-.PHONY: clean-ml-obj
-clean-ml-obj:
+.PHONY: clean-cmo
+clean-cmo:
 	rm -rf *cmi *cmo *cmx
 	(cd $(AST); rm -rf *cmi *cmo *cmx)
 
@@ -579,6 +581,9 @@ clean:
 	find . -name \*.oast -exec rm {} \;
 	find . -name \*.oast.dot -exec rm {} \;
 	find . -name \*.oast.ps -exec rm {} \;
+
+depclean:
+	rm -f $(TODEPCLEAN)
 
 distclean: clean
 	rm -f $(TODISTCLEAN)

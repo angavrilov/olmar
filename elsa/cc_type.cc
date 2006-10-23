@@ -2810,10 +2810,10 @@ value FunctionType::toOcaml(ToOcamlData * data){
       elem = exnSpec->types.nth(i)->toOcaml(data); 
       tmp = caml_alloc(2, Tag_cons);  // allocate a cons cell
       Store_field(tmp, 0, elem);      // store car
-      Store_field(tmp, 1, child[3]);    // store cdr
+      Store_field(tmp, 1, child[4]);    // store cdr
       child[4] = tmp;
     }
-    child[4] = option_some_constr(child[3]);
+    child[4] = option_some_constr(child[4]);
   }
   else {
     child[4] = Val_None;

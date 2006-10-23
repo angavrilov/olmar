@@ -495,7 +495,7 @@ and func_fun(annot, declFlags, typeSpecifier, declarator, memberInit_list,
        in
        let l5 = opt_child statement_fun "body" s_compound_opt in
        let l6 = count_rev "handlers" (List.rev_map handler_fun handler_list) in
-       let x7 =  cType_fun func, "funcType" in
+       let x7 = cType_fun func, "funcType" in
        let l8 = opt_child variable_fun "receiver" variable_opt_1 in
        let l9 = opt_child variable_fun "retVar" variable_opt_2 in
        let l10= opt_child statement_fun "dtor" statement_opt 
@@ -680,13 +680,18 @@ and baseClassSpec_fun(annot, bool, accessKeyword, pQName, compoundType_opt) =
   if visited annot then retval annot
   else begin
     assert(match compoundType_opt with
-	     | Some(CompoundType _ ) -> true
-	     | _ -> false);
+	     | None 
+    	     | Some(CompoundType _ ) -> true
+    	     | _ -> false
+    	  );
     visit annot;
     ast_node color_BaseClassSpec annot "BaseClassSpec"
       [("isVirtual", string_of_bool bool);
        ("access", string_of_accessKeyword accessKeyword)]
-      [(pQName_fun pQName, "name")]
+      (let x1 = (pQName_fun pQName, "name") in
+       let l2 = opt_child atomicType_fun "type" compoundType_opt
+       in
+	 x1 :: l2)
   end
 
 

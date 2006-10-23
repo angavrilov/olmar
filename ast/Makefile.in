@@ -59,7 +59,7 @@ ocamlhelp.o: ocamlhelp.cc
 
 TOCLEAN += *.cmo *.cmi *.cmx
 %.cmo: %.ml
-	$(OCAMLC) -c $<
+	$(OCAMLC) -g -c $<
 
 %.cmx: %.ml
 	$(OCAMLOPT) -c $<

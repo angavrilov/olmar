@@ -387,7 +387,6 @@ and func_fun((annot, declFlags, typeSpecifier, declarator, memberInit_list,
     assert(match func with 
       | FunctionType _ -> true
       | _ -> false);
-    cType_fun func;
     visit annot;
     annotation_fun annot;
     declFlags_fun declFlags;
@@ -569,9 +568,10 @@ and baseClassSpec_fun
     ((annot, bool, accessKeyword, pQName, compoundType_opt) as x) =
   if visited annot then ()
   else begin
-      assert(match compoundType_opt with
-	| Some(CompoundType _ ) -> true
-	| _ -> false);
+    assert(match compoundType_opt with
+	     | None
+	     | Some(CompoundType _ ) -> true
+	     | _ -> false);
     visit annot;
     annotation_fun annot;
     bool_fun bool;

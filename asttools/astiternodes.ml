@@ -417,9 +417,10 @@ and baseClassSpec_fun
     ((annot, bool, accessKeyword, pQName, compoundType_opt) as x) =
   if visited annot then ()
   else begin
-      assert(match compoundType_opt with
-	| Some(CompoundType _ ) -> true
-	| _ -> false);
+    assert(match compoundType_opt with
+	     | None
+	     | Some(CompoundType _ ) -> true
+	     | _ -> false);
     visit annot;
     pQName_fun pQName;
     opt_iter atomicType_fun compoundType_opt

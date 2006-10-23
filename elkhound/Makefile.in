@@ -250,7 +250,7 @@ mlsstr: mlsstr.cc mlsstr.h
 
 # test grammar for 'forbid' (there is no executable for this, I just look
 # at the Elkhound output)
-forbid.gr.gen.out: forbid.gr
+forbid.gr.gen.out: forbid.gr elkhound
 	./elkhound -tr requireExactStats -o forbid.gr.gen forbid.gr
 
 

@@ -12,15 +12,17 @@ OCAML_OBJ_EXT := @OCAML_OBJ_EXT@
 #first: astiter.cmo
 #first: astiternodes.cmo
 #first: count-ast
-first: ast_graph
+#first: ast_graph
 #first: hashloc
 #first: test_ast
 #first: path_to_node.cmo
 
+# eventually add astmap.$(OCAML_OBJ_EXT)  to all again
+# eventually add hashloc to all
 
 all: ast_graph astiter.$(OCAML_OBJ_EXT) \
-	astiternodes.$(OCAML_OBJ_EXT) astmap.$(OCAML_OBJ_EXT) \
-	dumpast hashloc
+	astiternodes.$(OCAML_OBJ_EXT) \
+	dumpast 
 
 
 # directories of other software; 
@@ -106,6 +108,19 @@ TOCLEAN += check-oast
 check-oast: $(CHECKOAST_ML:.ml=.$(OCAML_OBJ_EXT))
 	$(OCAMLCC) $(OCAML_FLAGS) -o $@ -I $(ELSA) safeUnmarshal.$(OCAML_LIB_EXT) $^
 
+
+UNMARSHAL_ML =\
+	$(ELSA)/ast_annotation.ml \
+	$(ELSA)/elsa_util.ml \
+	$(ELSA)/cc_ml_types.ml \
+	$(ELSA)/ml_ctype.ml \
+	$(ELSA)/cc_ast_gen_type.ml \
+	unmarshal.ml
+
+TOCLEAN += unmarshal
+unmarshal: $(UNMARSHAL_ML:.ml=.$(OCAML_OBJ_EXT))
+	$(OCAMLCC) $(OCAML_FLAGS) -o $@ -I $(ELSA) safeUnmarshal.$(OCAML_LIB_EXT) $^
+
 .PHONY: doc
 doc:
 	$(MAKE) -C doc prepare-snapshot-doc
@@ -148,26 +163,26 @@ distclean: clean
 TOCLEAN += *.cmo
 
 astiter.cmo: astiter.ml
-	$(OCAMLC) $(OCAML_FLAGS) -w y -I $(ELSA) -c $<
+	$(OCAMLC) $(OCAML_FLAGS) -g -w zy -I $(ELSA) -c $<
 
 astmap.cmo: astmap.ml
-	$(OCAMLC) $(OCAML_FLAGS) -w y -I $(ELSA) -c $<
+	$(OCAMLC) $(OCAML_FLAGS) -g -w zy -I $(ELSA) -c $<
 
 astiternodes.cmo: astiternodes.ml
-	$(OCAMLC) $(OCAML_FLAGS) -w y -I $(ELSA) -c $<
+	$(OCAMLC) $(OCAML_FLAGS) -g -w zy -I $(ELSA) -c $<
 
 astiter.cmx: astiter.ml
-	$(OCAMLOPT) $(OCAML_FLAGS) -w y -I $(ELSA) -c $<
+	$(OCAMLOPT) $(OCAML_FLAGS) -w zy -I $(ELSA) -c $<
 
 astmap.cmx: astmap.ml
-	$(OCAMLOPT) $(OCAML_FLAGS) -w y -I $(ELSA) -c $<
+	$(OCAMLOPT) $(OCAML_FLAGS) -w zy -I $(ELSA) -c $<
 
 astiternodes.cmx: astiternodes.ml
-	$(OCAMLOPT) $(OCAML_FLAGS) -w y -I $(ELSA) -c $<
+	$(OCAMLOPT) $(OCAML_FLAGS) -w zy -I $(ELSA) -c $<
 
 
 %.cmo: %.ml
-	$(OCAMLC) $(OCAML_FLAGS) -I $(ELSA) -c $<
+	$(OCAMLC) $(OCAML_FLAGS) -g -I $(ELSA) -c $<
 
 TOCLEAN += *.cmx *.o
 %.cmx: %.ml
@@ -175,7 +190,7 @@ TOCLEAN += *.cmx *.o
 
 TOCLEAN += *.cmi
 %.cmi: %.mli
-	$(OCAMLC) $(OCAML_FLAGS) -I $(ELSA) -c $<
+	$(OCAMLC) $(OCAML_FLAGS) -g -I $(ELSA) -c $<
 
 
 -include mldeps.mk

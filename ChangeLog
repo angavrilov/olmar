@@ -1,3 +1,9 @@
+2006-10-23  Hendrik Tews  <tews@tandem.cs.ru.nl>
+
+	* fixed bug in ocaml serialization (FunctionType)
+	* added indentation in check-oast
+	
+
 2006-09-30  Hendrik Tews  <tews@tandem.cs.ru.nl>
 
 	* check-oast adopted; barfs on t0030.cc.oast
