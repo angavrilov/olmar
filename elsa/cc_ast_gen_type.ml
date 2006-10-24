@@ -147,7 +147,7 @@ and 'a argExpression_type = 'a * 'a expression_type
 and 'a argExpressionListOpt_type = 'a * 'a argExpression_type list 
 
 and 'a initializer_type = 
-  | IN_expr of 'a * sourceLoc * 'a fullExpressionAnnot_type * 'a expression_type 
+  | IN_expr of 'a * sourceLoc * 'a fullExpressionAnnot_type * 'a expression_type option 
   | IN_compound of 'a * sourceLoc * 'a fullExpressionAnnot_type * 'a initializer_type list 
   | IN_ctor of 'a * sourceLoc * 'a fullExpressionAnnot_type * 'a argExpression_type list * 'a variable option * bool 
   | IN_designated of 'a * sourceLoc * 'a fullExpressionAnnot_type * 'a designator_type list * 'a initializer_type 

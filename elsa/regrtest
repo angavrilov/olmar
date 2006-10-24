@@ -1459,6 +1459,7 @@ if [ "$DISABLE_BIG_TESTS" = "" ]; then
   testnsparse in/big/nsCLiveconnectFactory.i
   testnsparse in/big/nsHTMLEditRules.i
   testnsparse in/big/nsMsgServiceProvider.i
+  testnsparse in/big/iostream-4.1.2.i
 fi
 
 else

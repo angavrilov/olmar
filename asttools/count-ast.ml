@@ -53,19 +53,19 @@ let opt_iter f = function
   | Some x -> f x
 
 let count_bool = ref 0
-let bool_fun (b : bool) = incr count_bool
+let bool_fun (_b : bool) = incr count_bool
 
 let count_int = ref 0
-let int_fun (i : int) = incr count_int
+let int_fun (_i : int) = incr count_int
 
 let count_nativeint = ref 0
-let nativeint_fun (i : nativeint) = incr count_nativeint
+let nativeint_fun (_i : nativeint) = incr count_nativeint
 
 let count_string = ref 0
-let string_fun (s : string) = incr count_nativeint
+let string_fun (_s : string) = incr count_nativeint
 
 let count_sourceLoc = ref 0
-let sourceLoc_fun((file : string), (line : int), (char : int)) = 
+let sourceLoc_fun((_file : string), (_line : int), (_char : int)) = 
   incr count_sourceLoc;
   incr count_string;
   incr count_int;
@@ -171,13 +171,13 @@ and atomicType_fun x =
 	 * put calls to visit here before in each case, except for CompoundType
 	 *)
 
-      | SimpleType(annot, simpleTypeId) ->
+      | SimpleType(annot, _simpleTypeId) ->
 	  visit annot;
 
       | CompoundType(compound_info) ->
 	  compound_info_fun compound_info
 
-      | PseudoInstantiation(annot, str, variable_opt, accessKeyword, 
+      | PseudoInstantiation(annot, str, variable_opt, _accessKeyword, 
 			    compound_info, sTemplateArgument_list) ->
 	  visit annot;
 	  string_fun str;
@@ -185,7 +185,7 @@ and atomicType_fun x =
 	  compound_info_fun compound_info;
 	  List.iter sTemplateArgument_fun sTemplateArgument_list
 
-      | EnumType(annot, string, variable, accessKeyword, 
+      | EnumType(annot, string, variable, _accessKeyword, 
 		 string_nativeint_list) ->
 	  visit annot;
 	  opt_iter string_fun string;
@@ -194,13 +194,13 @@ and atomicType_fun x =
 		       (string_fun string; nativeint_fun nativeint))
 	    string_nativeint_list
 
-      | TypeVariable(annot, string, variable, accessKeyword) ->
+      | TypeVariable(annot, string, variable, _accessKeyword) ->
 	  visit annot;
 	  string_fun string;
 	  variable_fun variable;
 
       | DependentQType(annot, string, variable, 
-		      accessKeyword, atomic, pq_name) ->
+		      _accessKeyword, atomic, pq_name) ->
 	  visit annot;
 	  string_fun string;
 	  variable_fun variable;
@@ -216,26 +216,26 @@ and cType_fun x =
     else
       let _ = visit annot 
       in match x with
-      | CVAtomicType(annot, cVFlags, atomicType) ->
+      | CVAtomicType(_annot, _cVFlags, atomicType) ->
 	  atomicType_fun atomicType
 
-      | PointerType(annot, cVFlags, cType) ->
+      | PointerType(_annot, _cVFlags, cType) ->
 	  cType_fun cType
 
-      | ReferenceType(annot, cType) ->
+      | ReferenceType(_annot, cType) ->
 	  cType_fun cType
 
-      | FunctionType(annot, function_flags, cType, 
+      | FunctionType(_annot, _function_flags, cType, 
 		     variable_list, cType_list_opt) ->
 	  cType_fun cType;
 	  List.iter variable_fun variable_list;
 	  opt_iter (List.iter cType_fun) cType_list_opt
 
-      | ArrayType(annot, cType, array_size) ->
+      | ArrayType(_annot, cType, _array_size) ->
 	  cType_fun cType;
 
-      | PointerToMemberType(annot, atomicType (* = NamedAtomicType *), 
-			    cVFlags, cType) ->
+      | PointerToMemberType(_annot, atomicType (* = NamedAtomicType *), 
+			    _cVFlags, cType) ->
 	  assert(match atomicType with 
 		   | SimpleType _ -> false
 		   | CompoundType _
@@ -254,34 +254,34 @@ and sTemplateArgument_fun ta =
     else 
       let _ = visit annot 
       in match ta with
-	| STA_NONE annot -> 
+	| STA_NONE _annot -> 
 	    ()
 
-	| STA_TYPE(annot, cType) -> 
+	| STA_TYPE(_annot, cType) -> 
 	    cType_fun cType
 
-	| STA_INT(annot, int) -> 
+	| STA_INT(_annot, int) -> 
 	    int_fun int
 
-	| STA_ENUMERATOR(annot, variable) -> 
+	| STA_ENUMERATOR(_annot, variable) -> 
 	    variable_fun variable
 
-	| STA_REFERENCE(annot, variable) -> 
+	| STA_REFERENCE(_annot, variable) -> 
 	    variable_fun variable
 
-	| STA_POINTER(annot, variable) -> 
+	| STA_POINTER(_annot, variable) -> 
 	    variable_fun variable
 
-	| STA_MEMBER(annot, variable) -> 
+	| STA_MEMBER(_annot, variable) -> 
 	    variable_fun variable
 
-	| STA_DEPEXPR(annot, expression) -> 
+	| STA_DEPEXPR(_annot, expression) -> 
 	    expression_fun expression
 
-	| STA_TEMPLATE annot -> 
+	| STA_TEMPLATE _annot -> 
 	    ()
 
-	| STA_ATOMIC(annot, atomicType) -> 
+	| STA_ATOMIC(_annot, atomicType) -> 
 	    atomicType_fun atomicType
 
 
@@ -304,49 +304,49 @@ and topForm_fun x =
     else
       let _ = visit annot 
       in match x with
-	| TF_decl(annot, sourceLoc, declaration) -> 
+	| TF_decl(_annot, sourceLoc, declaration) -> 
 	    sourceLoc_fun sourceLoc;
 	    declaration_fun declaration
 
-	| TF_func(annot, sourceLoc, func) -> 
+	| TF_func(_annot, sourceLoc, func) -> 
 	    sourceLoc_fun sourceLoc;
 	    func_fun func
 
-	| TF_template(annot, sourceLoc, templateDeclaration) -> 
+	| TF_template(_annot, sourceLoc, templateDeclaration) -> 
 	    sourceLoc_fun sourceLoc;
 	    templateDeclaration_fun templateDeclaration
 
-	| TF_explicitInst(annot, sourceLoc, declFlags, declaration) -> 
+	| TF_explicitInst(_annot, sourceLoc, _declFlags, declaration) -> 
 	    sourceLoc_fun sourceLoc;
 	    declaration_fun declaration
 
-	| TF_linkage(annot, sourceLoc, stringRef, translationUnit) -> 
+	| TF_linkage(_annot, sourceLoc, stringRef, translationUnit) -> 
 	    sourceLoc_fun sourceLoc;
 	    string_fun stringRef;
 	    translationUnit_fun translationUnit
 
-	| TF_one_linkage(annot, sourceLoc, stringRef, topForm) -> 
+	| TF_one_linkage(_annot, sourceLoc, stringRef, topForm) -> 
 	    sourceLoc_fun sourceLoc;
 	    string_fun stringRef;
 	    topForm_fun topForm
 
-	| TF_asm(annot, sourceLoc, e_stringLit) -> 
+	| TF_asm(_annot, sourceLoc, e_stringLit) -> 
 	    assert(match e_stringLit with | E_stringLit _ -> true | _ -> false);
 	    sourceLoc_fun sourceLoc;
 	    expression_fun e_stringLit
 
-	| TF_namespaceDefn(annot, sourceLoc, stringRef_opt, topForm_list) -> 
+	| TF_namespaceDefn(_annot, sourceLoc, stringRef_opt, topForm_list) -> 
 	    sourceLoc_fun sourceLoc;
 	    opt_iter string_fun stringRef_opt;
 	    List.iter topForm_fun topForm_list
 
-	| TF_namespaceDecl(annot, sourceLoc, namespaceDecl) -> 
+	| TF_namespaceDecl(_annot, sourceLoc, namespaceDecl) -> 
 	    sourceLoc_fun sourceLoc;
 	    namespaceDecl_fun namespaceDecl
 
 
 
-and func_fun((annot, declFlags, typeSpecifier, declarator, memberInit_list, 
+and func_fun((annot, _declFlags, typeSpecifier, declarator, memberInit_list, 
 	     s_compound_opt, handler_list, func, variable_opt_1, 
 	     variable_opt_2, statement_opt, bool) ) =
 
@@ -397,7 +397,7 @@ and memberInit_fun((annot, pQName, argExpression_list,
   end
 
 
-and declaration_fun((annot, declFlags, typeSpecifier, declarator_list) ) =
+and declaration_fun((annot, _declFlags, typeSpecifier, declarator_list) ) =
   if visited annot then ()
   else begin
     visit annot;
@@ -422,7 +422,7 @@ and pQName_fun x =
     else
       let _ = visit annot 
       in match x with
-	| PQ_qualifier(annot, sourceLoc, stringRef_opt, 
+	| PQ_qualifier(_annot, sourceLoc, stringRef_opt, 
 		       templateArgument_opt, pQName, 
 		      variable_opt, s_template_arg_list) -> 
 	    sourceLoc_fun sourceLoc;
@@ -432,23 +432,23 @@ and pQName_fun x =
 	    opt_iter variable_fun variable_opt;
 	    List.iter sTemplateArgument_fun s_template_arg_list
 
-	| PQ_name(annot, sourceLoc, stringRef) -> 
+	| PQ_name(_annot, sourceLoc, stringRef) -> 
 	    sourceLoc_fun sourceLoc;
 	    string_fun stringRef
 
-	| PQ_operator(annot, sourceLoc, operatorName, stringRef) -> 
+	| PQ_operator(_annot, sourceLoc, operatorName, stringRef) -> 
 	    sourceLoc_fun sourceLoc;
 	    operatorName_fun operatorName;
 	    string_fun stringRef
 
-	| PQ_template(annot, sourceLoc, stringRef, templateArgument_opt, 
+	| PQ_template(_annot, sourceLoc, stringRef, templateArgument_opt, 
 		     s_template_arg_list) -> 
 	    sourceLoc_fun sourceLoc;
 	    string_fun stringRef;
 	    opt_iter templateArgument_fun templateArgument_opt;
 	    List.iter sTemplateArgument_fun s_template_arg_list
 
-	| PQ_variable(annot, sourceLoc, variable) -> 
+	| PQ_variable(_annot, sourceLoc, variable) -> 
 	    sourceLoc_fun sourceLoc;
 	    variable_fun variable
 
@@ -461,7 +461,7 @@ and typeSpecifier_fun x =
     else
       let _ = visit annot 
       in match x with
-	| TS_name(annot, sourceLoc, cVFlags, pQName, bool, 
+	| TS_name(_annot, sourceLoc, _cVFlags, pQName, bool, 
 		 var_opt_1, var_opt_2) -> 
 	    sourceLoc_fun sourceLoc;
 	    pQName_fun pQName;
@@ -469,10 +469,10 @@ and typeSpecifier_fun x =
 	    opt_iter variable_fun var_opt_1;
 	    opt_iter variable_fun var_opt_2
 
-	| TS_simple(annot, sourceLoc, cVFlags, simpleTypeId) -> 
+	| TS_simple(_annot, sourceLoc, _cVFlags, _simpleTypeId) -> 
 	    sourceLoc_fun sourceLoc;
 
-	| TS_elaborated(annot, sourceLoc, cVFlags, typeIntr, 
+	| TS_elaborated(_annot, sourceLoc, _cVFlags, _typeIntr, 
 		       pQName, namedAtomicType_opt) -> 
 	    assert(match namedAtomicType_opt with
 	      | Some(SimpleType _) -> false
@@ -481,7 +481,7 @@ and typeSpecifier_fun x =
 	    pQName_fun pQName;
 	    opt_iter atomicType_fun namedAtomicType_opt
 
-	| TS_classSpec(annot, sourceLoc, cVFlags, typeIntr, pQName_opt, 
+	| TS_classSpec(_annot, sourceLoc, _cVFlags, _typeIntr, pQName_opt, 
 		       baseClassSpec_list, memberList, compoundType) -> 
 	    assert(match compoundType with
 	      | CompoundType _ -> true
@@ -492,7 +492,7 @@ and typeSpecifier_fun x =
 	    memberList_fun memberList;
 	    atomicType_fun compoundType
 
-	| TS_enumSpec(annot, sourceLoc, cVFlags, 
+	| TS_enumSpec(_annot, sourceLoc, _cVFlags, 
 		      stringRef_opt, enumerator_list, enumType) -> 
 	    assert(match enumType with 
 	      | EnumType _ -> true
@@ -502,22 +502,23 @@ and typeSpecifier_fun x =
 	    List.iter enumerator_fun enumerator_list;
 	    atomicType_fun enumType
 
-	| TS_type(annot, sourceLoc, cVFlags, cType) -> 
+	| TS_type(_annot, sourceLoc, _cVFlags, cType) -> 
 	    sourceLoc_fun sourceLoc;
 	    cType_fun cType
 
-	| TS_typeof(annot, sourceLoc, cVFlags, aSTTypeof) -> 
+	| TS_typeof(_annot, sourceLoc, _cVFlags, aSTTypeof) -> 
 	    sourceLoc_fun sourceLoc;
 	    aSTTypeof_fun aSTTypeof
 
 
 and baseClassSpec_fun
-    ((annot, bool, accessKeyword, pQName, compoundType_opt) ) =
+    ((annot, bool, _accessKeyword, pQName, compoundType_opt) ) =
   if visited annot then ()
   else begin
-      assert(match compoundType_opt with
-	| Some(CompoundType _ ) -> true
-	| _ -> false);
+    assert(match compoundType_opt with
+	     | None
+	     | Some(CompoundType _ ) -> true
+	     | _ -> false);
     visit annot;
     bool_fun bool;
     pQName_fun pQName;
@@ -526,7 +527,7 @@ and baseClassSpec_fun
 
 
 and enumerator_fun((annot, sourceLoc, stringRef, 
-		   expression_opt, variable, int32) ) =
+		   expression_opt, variable, _int32) ) =
   if visited annot then ()
   else begin
     visit annot;
@@ -552,29 +553,29 @@ and member_fun x =
     else
       let _ = visit annot 
       in match x with
-	| MR_decl(annot, sourceLoc, declaration) -> 
+	| MR_decl(_annot, sourceLoc, declaration) -> 
 	    sourceLoc_fun sourceLoc;
 	    declaration_fun declaration
 
-	| MR_func(annot, sourceLoc, func) -> 
+	| MR_func(_annot, sourceLoc, func) -> 
 	    sourceLoc_fun sourceLoc;
 	    func_fun func
 
-	| MR_access(annot, sourceLoc, accessKeyword) -> 
+	| MR_access(_annot, sourceLoc, _accessKeyword) -> 
 	    sourceLoc_fun sourceLoc;
 
-	| MR_usingDecl(annot, sourceLoc, nd_usingDecl) -> 
+	| MR_usingDecl(_annot, sourceLoc, nd_usingDecl) -> 
 	    assert(match nd_usingDecl with ND_usingDecl _ -> true | _ -> false);
 	    sourceLoc_fun sourceLoc;
 	    namespaceDecl_fun nd_usingDecl
 
-	| MR_template(annot, sourceLoc, templateDeclaration) -> 
+	| MR_template(_annot, sourceLoc, templateDeclaration) -> 
 	    sourceLoc_fun sourceLoc;
 	    templateDeclaration_fun templateDeclaration
 
 
 and declarator_fun((annot, iDeclarator, init_opt, 
-		   variable_opt, ctype_opt, declaratorContext,
+		   variable_opt, ctype_opt, _declaratorContext,
 		   statement_opt_ctor, statement_opt_dtor) ) =
   if visited annot then ()
   else begin
@@ -595,19 +596,19 @@ and iDeclarator_fun x =
     else
       let _ = visit annot 
       in match x with
-	| D_name(annot, sourceLoc, pQName_opt) -> 
+	| D_name(_annot, sourceLoc, pQName_opt) -> 
 	    sourceLoc_fun sourceLoc;
 	    opt_iter pQName_fun pQName_opt
 
-	| D_pointer(annot, sourceLoc, cVFlags, iDeclarator) -> 
+	| D_pointer(_annot, sourceLoc, _cVFlags, iDeclarator) -> 
 	    sourceLoc_fun sourceLoc;
 	    iDeclarator_fun iDeclarator
 
-	| D_reference(annot, sourceLoc, iDeclarator) -> 
+	| D_reference(_annot, sourceLoc, iDeclarator) -> 
 	    sourceLoc_fun sourceLoc;
 	    iDeclarator_fun iDeclarator
 
-	| D_func(annot, sourceLoc, iDeclarator, aSTTypeId_list, cVFlags, 
+	| D_func(_annot, sourceLoc, iDeclarator, aSTTypeId_list, _cVFlags, 
 		 exceptionSpec_opt, pq_name_list, bool) -> 
 	    assert(List.for_all (function | PQ_name _ -> true | _ -> false) 
 		     pq_name_list);
@@ -618,28 +619,28 @@ and iDeclarator_fun x =
 	    List.iter pQName_fun pq_name_list;
 	    bool_fun bool
 
-	| D_array(annot, sourceLoc, iDeclarator, expression_opt, bool) -> 
+	| D_array(_annot, sourceLoc, iDeclarator, expression_opt, bool) -> 
 	    sourceLoc_fun sourceLoc;
 	    iDeclarator_fun iDeclarator;
 	    opt_iter expression_fun expression_opt;
 	    bool_fun bool
 
-	| D_bitfield(annot, sourceLoc, pQName_opt, expression, int) -> 
+	| D_bitfield(_annot, sourceLoc, pQName_opt, expression, int) -> 
 	    sourceLoc_fun sourceLoc;
 	    opt_iter pQName_fun pQName_opt;
 	    expression_fun expression;
 	    int_fun int
 
-	| D_ptrToMember(annot, sourceLoc, pQName, cVFlags, iDeclarator) -> 
+	| D_ptrToMember(_annot, sourceLoc, pQName, _cVFlags, iDeclarator) -> 
 	    sourceLoc_fun sourceLoc;
 	    pQName_fun pQName;
 	    iDeclarator_fun iDeclarator
 
-	| D_grouping(annot, sourceLoc, iDeclarator) -> 
+	| D_grouping(_annot, sourceLoc, iDeclarator) -> 
 	    sourceLoc_fun sourceLoc;
 	    iDeclarator_fun iDeclarator
 
-	| D_attribute(annot, sourceLoc, iDeclarator, attribute_list_list) ->
+	| D_attribute(_annot, sourceLoc, iDeclarator, attribute_list_list) ->
 	    sourceLoc_fun sourceLoc;
 	    iDeclarator_fun iDeclarator;
 	    List.iter (List.iter attribute_fun) attribute_list_list
@@ -661,14 +662,14 @@ and operatorName_fun x =
     else
       let _ = visit annot 
       in match x with
-	| ON_newDel(annot, bool_is_new, bool_is_array) -> 
+	| ON_newDel(_annot, bool_is_new, bool_is_array) -> 
 	    bool_fun bool_is_new;
 	    bool_fun bool_is_array
 
-	| ON_operator(annot, overloadableOp) -> 
+	| ON_operator(_annot, _overloadableOp) -> 
 	    ()
 
-	| ON_conversion(annot, aSTTypeId) -> 
+	| ON_conversion(_annot, aSTTypeId) -> 
 	    aSTTypeId_fun aSTTypeId
 
 
@@ -679,54 +680,54 @@ and statement_fun x =
     else
       let _ = visit annot 
       in match x with
-	| S_skip(annot, sourceLoc) -> 
+	| S_skip(_annot, sourceLoc) -> 
 	    sourceLoc_fun sourceLoc
 
-	| S_label(annot, sourceLoc, stringRef, statement) -> 
+	| S_label(_annot, sourceLoc, stringRef, statement) -> 
 	    sourceLoc_fun sourceLoc;
 	    string_fun stringRef;
 	    statement_fun statement
 
-	| S_case(annot, sourceLoc, expression, statement, int) -> 
+	| S_case(_annot, sourceLoc, expression, statement, int) -> 
 	    sourceLoc_fun sourceLoc;
 	    expression_fun expression;
 	    statement_fun statement;
 	    int_fun int
 
-	| S_default(annot, sourceLoc, statement) -> 
+	| S_default(_annot, sourceLoc, statement) -> 
 	    sourceLoc_fun sourceLoc;
 	    statement_fun statement
 
-	| S_expr(annot, sourceLoc, fullExpression) -> 
+	| S_expr(_annot, sourceLoc, fullExpression) -> 
 	    sourceLoc_fun sourceLoc;
 	    fullExpression_fun fullExpression
 
-	| S_compound(annot, sourceLoc, statement_list) -> 
+	| S_compound(_annot, sourceLoc, statement_list) -> 
 	    sourceLoc_fun sourceLoc;
 	    List.iter statement_fun statement_list
 
-	| S_if(annot, sourceLoc, condition, statement_then, statement_else) -> 
+	| S_if(_annot, sourceLoc, condition, statement_then, statement_else) -> 
 	    sourceLoc_fun sourceLoc;
 	    condition_fun condition;
 	    statement_fun statement_then;
 	    statement_fun statement_else
 
-	| S_switch(annot, sourceLoc, condition, statement) -> 
+	| S_switch(_annot, sourceLoc, condition, statement) -> 
 	    sourceLoc_fun sourceLoc;
 	    condition_fun condition;
 	    statement_fun statement
 
-	| S_while(annot, sourceLoc, condition, statement) -> 
+	| S_while(_annot, sourceLoc, condition, statement) -> 
 	    sourceLoc_fun sourceLoc;
 	    condition_fun condition;
 	    statement_fun statement
 
-	| S_doWhile(annot, sourceLoc, statement, fullExpression) -> 
+	| S_doWhile(_annot, sourceLoc, statement, fullExpression) -> 
 	    sourceLoc_fun sourceLoc;
 	    statement_fun statement;
 	    fullExpression_fun fullExpression
 
-	| S_for(annot, sourceLoc, statement_init, condition, fullExpression, 
+	| S_for(_annot, sourceLoc, statement_init, condition, fullExpression, 
 		statement_body) -> 
 	    sourceLoc_fun sourceLoc;
 	    statement_fun statement_init;
@@ -734,44 +735,44 @@ and statement_fun x =
 	    fullExpression_fun fullExpression;
 	    statement_fun statement_body
 
-	| S_break(annot, sourceLoc) -> 
+	| S_break(_annot, sourceLoc) -> 
 	    sourceLoc_fun sourceLoc
 
-	| S_continue(annot, sourceLoc) -> 
+	| S_continue(_annot, sourceLoc) -> 
 	    sourceLoc_fun sourceLoc
 
-	| S_return(annot, sourceLoc, fullExpression_opt, statement_opt) -> 
+	| S_return(_annot, sourceLoc, fullExpression_opt, statement_opt) -> 
 	    sourceLoc_fun sourceLoc;
 	    opt_iter fullExpression_fun fullExpression_opt;
 	    opt_iter statement_fun statement_opt
 
-	| S_goto(annot, sourceLoc, stringRef) -> 
+	| S_goto(_annot, sourceLoc, stringRef) -> 
 	    sourceLoc_fun sourceLoc;
 	    string_fun stringRef
 
-	| S_decl(annot, sourceLoc, declaration) -> 
+	| S_decl(_annot, sourceLoc, declaration) -> 
 	    sourceLoc_fun sourceLoc;
 	    declaration_fun declaration
 
-	| S_try(annot, sourceLoc, statement, handler_list) -> 
+	| S_try(_annot, sourceLoc, statement, handler_list) -> 
 	    sourceLoc_fun sourceLoc;
 	    statement_fun statement;
 	    List.iter handler_fun handler_list
 
-	| S_asm(annot, sourceLoc, e_stringLit) -> 
+	| S_asm(_annot, sourceLoc, e_stringLit) -> 
 	    assert(match e_stringLit with | E_stringLit _ -> true | _ -> false);
 	    sourceLoc_fun sourceLoc;
 	    expression_fun e_stringLit
 
-	| S_namespaceDecl(annot, sourceLoc, namespaceDecl) -> 
+	| S_namespaceDecl(_annot, sourceLoc, namespaceDecl) -> 
 	    sourceLoc_fun sourceLoc;
 	    namespaceDecl_fun namespaceDecl
 
-	| S_function(annot, sourceLoc, func) -> 
+	| S_function(_annot, sourceLoc, func) -> 
 	    sourceLoc_fun sourceLoc;
 	    func_fun func
 
-	| S_rangeCase(annot, sourceLoc, 
+	| S_rangeCase(_annot, sourceLoc, 
 		      expression_lo, expression_hi, statement, 
 		     label_lo, label_hi) -> 
 	    sourceLoc_fun sourceLoc;
@@ -781,7 +782,7 @@ and statement_fun x =
 	    int_fun label_lo;
 	    int_fun label_hi
 
-	| S_computedGoto(annot, sourceLoc, expression) -> 
+	| S_computedGoto(_annot, sourceLoc, expression) -> 
 	    sourceLoc_fun sourceLoc;
 	    expression_fun expression
 
@@ -793,10 +794,10 @@ and condition_fun x =
     else
       let _ = visit annot 
       in match x with
-	| CN_expr(annot, fullExpression) -> 
+	| CN_expr(_annot, fullExpression) -> 
 	    fullExpression_fun fullExpression
 
-	| CN_decl(annot, aSTTypeId) -> 
+	| CN_decl(_annot, aSTTypeId) -> 
 	    aSTTypeId_fun aSTTypeId
 
 
@@ -821,19 +822,19 @@ and expression_fun x =
     else
       let _ = visit annot 
       in match x with
-	| E_boolLit(annot, type_opt, bool) -> 
+	| E_boolLit(_annot, type_opt, bool) -> 
 	    opt_iter cType_fun type_opt;
 	    bool_fun bool
 
-	| E_intLit(annot, type_opt, stringRef, ulong) -> 
+	| E_intLit(_annot, type_opt, stringRef, _ulong) -> 
 	    opt_iter cType_fun type_opt;
 	    string_fun stringRef;
 
-	| E_floatLit(annot, type_opt, stringRef, double) -> 
+	| E_floatLit(_annot, type_opt, stringRef, _double) -> 
 	    opt_iter cType_fun type_opt;
 	    string_fun stringRef;
 
-	| E_stringLit(annot, type_opt, stringRef, e_stringLit_opt) -> 
+	| E_stringLit(_annot, type_opt, stringRef, e_stringLit_opt) -> 
 	    assert(match e_stringLit_opt with 
 		     | Some(E_stringLit _) -> true 
 		     | None -> true
@@ -842,28 +843,28 @@ and expression_fun x =
 	    string_fun stringRef;
 	    opt_iter expression_fun e_stringLit_opt
 
-	| E_charLit(annot, type_opt, stringRef, int32) -> 
+	| E_charLit(_annot, type_opt, stringRef, _int32) -> 
 	    opt_iter cType_fun type_opt;
 	    string_fun stringRef;
 
-	| E_this(annot, type_opt, variable) -> 
+	| E_this(_annot, type_opt, variable) -> 
 	    opt_iter cType_fun type_opt;
 	    variable_fun variable
 
-	| E_variable(annot, type_opt, pQName, var_opt, nondep_var_opt) -> 
+	| E_variable(_annot, type_opt, pQName, var_opt, nondep_var_opt) -> 
 	    opt_iter cType_fun type_opt;
 	    pQName_fun pQName;
 	    opt_iter variable_fun var_opt;
 	    opt_iter variable_fun nondep_var_opt
 
-	| E_funCall(annot, type_opt, expression_func, 
+	| E_funCall(_annot, type_opt, expression_func, 
 		    argExpression_list, expression_retobj_opt) -> 
 	    opt_iter cType_fun type_opt;
 	    expression_fun expression_func;
 	    List.iter argExpression_fun argExpression_list;
 	    opt_iter expression_fun expression_retobj_opt
 
-	| E_constructor(annot, type_opt, typeSpecifier, argExpression_list, 
+	| E_constructor(_annot, type_opt, typeSpecifier, argExpression_list, 
 			var_opt, bool, expression_opt) -> 
 	    opt_iter cType_fun type_opt;
 	    typeSpecifier_fun typeSpecifier;
@@ -872,62 +873,62 @@ and expression_fun x =
 	    bool_fun bool;
 	    opt_iter expression_fun expression_opt
 
-	| E_fieldAcc(annot, type_opt, expression, pQName, var_opt) -> 
+	| E_fieldAcc(_annot, type_opt, expression, pQName, var_opt) -> 
 	    opt_iter cType_fun type_opt;
 	    expression_fun expression;
 	    pQName_fun pQName;
 	    opt_iter variable_fun var_opt
 
-	| E_sizeof(annot, type_opt, expression, int) -> 
+	| E_sizeof(_annot, type_opt, expression, int) -> 
 	    opt_iter cType_fun type_opt;
 	    expression_fun expression;
 	    int_fun int
 
-	| E_unary(annot, type_opt, unaryOp, expression) -> 
+	| E_unary(_annot, type_opt, _unaryOp, expression) -> 
 	    opt_iter cType_fun type_opt;
 	    expression_fun expression
 
-	| E_effect(annot, type_opt, effectOp, expression) -> 
+	| E_effect(_annot, type_opt, _effectOp, expression) -> 
 	    opt_iter cType_fun type_opt;
 	    expression_fun expression
 
-	| E_binary(annot, type_opt, expression_left, binaryOp, expression_right) -> 
+	| E_binary(_annot, type_opt, expression_left, _binaryOp, expression_right) -> 
 	    opt_iter cType_fun type_opt;
 	    expression_fun expression_left;
 	    expression_fun expression_right
 
-	| E_addrOf(annot, type_opt, expression) -> 
+	| E_addrOf(_annot, type_opt, expression) -> 
 	    opt_iter cType_fun type_opt;
 	    expression_fun expression
 
-	| E_deref(annot, type_opt, expression) -> 
+	| E_deref(_annot, type_opt, expression) -> 
 	    opt_iter cType_fun type_opt;
 	    expression_fun expression
 
-	| E_cast(annot, type_opt, aSTTypeId, expression, bool) -> 
+	| E_cast(_annot, type_opt, aSTTypeId, expression, bool) -> 
 	    opt_iter cType_fun type_opt;
 	    aSTTypeId_fun aSTTypeId;
 	    expression_fun expression;
 	    bool_fun bool
 
-	| E_cond(annot, type_opt, expression_cond, expression_true, expression_false) -> 
+	| E_cond(_annot, type_opt, expression_cond, expression_true, expression_false) -> 
 	    opt_iter cType_fun type_opt;
 	    expression_fun expression_cond;
 	    expression_fun expression_true;
 	    expression_fun expression_false
 
-	| E_sizeofType(annot, type_opt, aSTTypeId, int, bool) -> 
+	| E_sizeofType(_annot, type_opt, aSTTypeId, int, bool) -> 
 	    opt_iter cType_fun type_opt;
 	    aSTTypeId_fun aSTTypeId;
 	    int_fun int;
 	    bool_fun bool
 
-	| E_assign(annot, type_opt, expression_target, binaryOp, expression_src) -> 
+	| E_assign(_annot, type_opt, expression_target, _binaryOp, expression_src) -> 
 	    opt_iter cType_fun type_opt;
 	    expression_fun expression_target;
 	    expression_fun expression_src
 
-	| E_new(annot, type_opt, bool, argExpression_list, aSTTypeId, 
+	| E_new(_annot, type_opt, bool, argExpression_list, aSTTypeId, 
 		argExpressionListOpt_opt, array_size_opt, ctor_opt,
 	        statement_opt, heep_var) -> 
 	    opt_iter cType_fun type_opt;
@@ -940,7 +941,7 @@ and expression_fun x =
 	    opt_iter statement_fun statement_opt;
 	    opt_iter variable_fun heep_var
 
-	| E_delete(annot, type_opt, bool_colon, bool_array, 
+	| E_delete(_annot, type_opt, bool_colon, bool_array, 
 		   expression_opt, statement_opt) -> 
 	    opt_iter cType_fun type_opt;
 	    bool_fun bool_colon;
@@ -948,72 +949,72 @@ and expression_fun x =
 	    opt_iter expression_fun expression_opt;
 	    opt_iter statement_fun statement_opt
 
-	| E_throw(annot, type_opt, expression_opt, var_opt, statement_opt) -> 
+	| E_throw(_annot, type_opt, expression_opt, var_opt, statement_opt) -> 
 	    opt_iter cType_fun type_opt;
 	    opt_iter expression_fun expression_opt;
 	    opt_iter variable_fun var_opt;
 	    opt_iter statement_fun statement_opt
 
-	| E_keywordCast(annot, type_opt, castKeyword, aSTTypeId, expression) -> 
+	| E_keywordCast(_annot, type_opt, _castKeyword, aSTTypeId, expression) -> 
 	    opt_iter cType_fun type_opt;
 	    aSTTypeId_fun aSTTypeId;
 	    expression_fun expression
 
-	| E_typeidExpr(annot, type_opt, expression) -> 
+	| E_typeidExpr(_annot, type_opt, expression) -> 
 	    opt_iter cType_fun type_opt;
 	    expression_fun expression
 
-	| E_typeidType(annot, type_opt, aSTTypeId) -> 
+	| E_typeidType(_annot, type_opt, aSTTypeId) -> 
 	    opt_iter cType_fun type_opt;
 	    aSTTypeId_fun aSTTypeId
 
-	| E_grouping(annot, type_opt, expression) -> 
+	| E_grouping(_annot, type_opt, expression) -> 
 	    opt_iter cType_fun type_opt;
 	    expression_fun expression
 
-	| E_arrow(annot, type_opt, expression, pQName) -> 
+	| E_arrow(_annot, type_opt, expression, pQName) -> 
 	    opt_iter cType_fun type_opt;
 	    expression_fun expression;
 	    pQName_fun pQName
 
-	| E_statement(annot, type_opt, s_compound) -> 
+	| E_statement(_annot, type_opt, s_compound) -> 
 	    assert(match s_compound with | S_compound _ -> true | _ -> false);
 	    opt_iter cType_fun type_opt;
 	    statement_fun s_compound
 
-	| E_compoundLit(annot, type_opt, aSTTypeId, in_compound) -> 
+	| E_compoundLit(_annot, type_opt, aSTTypeId, in_compound) -> 
 	    assert(match in_compound with | IN_compound _ -> true | _ -> false);
 	    opt_iter cType_fun type_opt;
 	    aSTTypeId_fun aSTTypeId;
 	    init_fun in_compound
 
-	| E___builtin_constant_p(annot, type_opt, sourceLoc, expression) -> 
+	| E___builtin_constant_p(_annot, type_opt, sourceLoc, expression) -> 
 	    opt_iter cType_fun type_opt;
 	    sourceLoc_fun sourceLoc;
 	    expression_fun expression
 
-	| E___builtin_va_arg(annot, type_opt, sourceLoc, expression, aSTTypeId) -> 
+	| E___builtin_va_arg(_annot, type_opt, sourceLoc, expression, aSTTypeId) -> 
 	    opt_iter cType_fun type_opt;
 	    sourceLoc_fun sourceLoc;
 	    expression_fun expression;
 	    aSTTypeId_fun aSTTypeId
 
-	| E_alignofType(annot, type_opt, aSTTypeId, int) -> 
+	| E_alignofType(_annot, type_opt, aSTTypeId, int) -> 
 	    opt_iter cType_fun type_opt;
 	    aSTTypeId_fun aSTTypeId;
 	    int_fun int
 
-	| E_alignofExpr(annot, type_opt, expression, int) -> 
+	| E_alignofExpr(_annot, type_opt, expression, int) -> 
 	    opt_iter cType_fun type_opt;
 	    expression_fun expression;
 	    int_fun int
 
-	| E_gnuCond(annot, type_opt, expression_cond, expression_false) -> 
+	| E_gnuCond(_annot, type_opt, expression_cond, expression_false) -> 
 	    opt_iter cType_fun type_opt;
 	    expression_fun expression_cond;
 	    expression_fun expression_false
 
-	| E_addrOfLabel(annot, type_opt, stringRef) -> 
+	| E_addrOfLabel(_annot, type_opt, stringRef) -> 
 	    opt_iter cType_fun type_opt;
 	    string_fun stringRef
 
@@ -1050,17 +1051,17 @@ and init_fun x =
     else
       let _ = visit annot 
       in match x with
-	| IN_expr(annot, sourceLoc, fullExpressionAnnot, expression) -> 
+	| IN_expr(_annot, sourceLoc, fullExpressionAnnot, expression_opt) -> 
 	    sourceLoc_fun sourceLoc;
 	    fullExpressionAnnot_fun fullExpressionAnnot;
-	    expression_fun expression
+	    opt_iter expression_fun expression_opt
 
-	| IN_compound(annot, sourceLoc, fullExpressionAnnot, init_list) -> 
+	| IN_compound(_annot, sourceLoc, fullExpressionAnnot, init_list) -> 
 	    sourceLoc_fun sourceLoc;
 	    fullExpressionAnnot_fun fullExpressionAnnot;
 	    List.iter init_fun init_list
 
-	| IN_ctor(annot, sourceLoc, fullExpressionAnnot, 
+	| IN_ctor(_annot, sourceLoc, fullExpressionAnnot, 
 		 argExpression_list, var_opt, bool) -> 
 	    sourceLoc_fun sourceLoc;
 	    fullExpressionAnnot_fun fullExpressionAnnot;
@@ -1068,7 +1069,7 @@ and init_fun x =
 	    opt_iter variable_fun var_opt;
 	    bool_fun bool
 
-	| IN_designated(annot, sourceLoc, fullExpressionAnnot, 
+	| IN_designated(_annot, sourceLoc, fullExpressionAnnot, 
 		       designator_list, init) -> 
 	    sourceLoc_fun sourceLoc;
 	    fullExpressionAnnot_fun fullExpressionAnnot;
@@ -1083,15 +1084,15 @@ and templateDeclaration_fun x =
     else
       let _ = visit annot 
       in match x with
-	| TD_func(annot, templateParameter_opt, func) -> 
+	| TD_func(_annot, templateParameter_opt, func) -> 
 	    opt_iter templateParameter_fun templateParameter_opt;
 	    func_fun func
 
-	| TD_decl(annot, templateParameter_opt, declaration) -> 
+	| TD_decl(_annot, templateParameter_opt, declaration) -> 
 	    opt_iter templateParameter_fun templateParameter_opt;
 	    declaration_fun declaration
 
-	| TD_tmember(annot, templateParameter_opt, templateDeclaration) -> 
+	| TD_tmember(_annot, templateParameter_opt, templateDeclaration) -> 
 	    opt_iter templateParameter_fun templateParameter_opt;
 	    templateDeclaration_fun templateDeclaration
 
@@ -1103,7 +1104,7 @@ and templateParameter_fun x =
     else
       let _ = visit annot 
       in match x with
-	| TP_type(annot, sourceLoc, variable, stringRef, 
+	| TP_type(_annot, sourceLoc, variable, stringRef, 
 		  aSTTypeId_opt, templateParameter_opt) -> 
 	    sourceLoc_fun sourceLoc;
 	    variable_fun variable;
@@ -1111,7 +1112,7 @@ and templateParameter_fun x =
 	    opt_iter aSTTypeId_fun aSTTypeId_opt;
 	    opt_iter templateParameter_fun templateParameter_opt
 
-	| TP_nontype(annot, sourceLoc, variable,
+	| TP_nontype(_annot, sourceLoc, variable,
 		    aSTTypeId, templateParameter_opt) -> 
 	    sourceLoc_fun sourceLoc;
 	    variable_fun variable;
@@ -1126,15 +1127,15 @@ and templateArgument_fun x =
     else
       let _ = visit annot 
       in match x with
-	| TA_type(annot, aSTTypeId, templateArgument_opt) -> 
+	| TA_type(_annot, aSTTypeId, templateArgument_opt) -> 
 	    aSTTypeId_fun aSTTypeId;
 	    opt_iter templateArgument_fun templateArgument_opt
 
-	| TA_nontype(annot, expression, templateArgument_opt) -> 
+	| TA_nontype(_annot, expression, templateArgument_opt) -> 
 	    expression_fun expression;
 	    opt_iter templateArgument_fun templateArgument_opt
 
-	| TA_templateUsed(annot, templateArgument_opt) -> 
+	| TA_templateUsed(_annot, templateArgument_opt) -> 
 	    opt_iter templateArgument_fun templateArgument_opt
 
 
@@ -1145,14 +1146,14 @@ and namespaceDecl_fun x =
     else
       let _ = visit annot 
       in match x with
-	| ND_alias(annot, stringRef, pQName) -> 
+	| ND_alias(_annot, stringRef, pQName) -> 
 	    string_fun stringRef;
 	    pQName_fun pQName
 
-	| ND_usingDecl(annot, pQName) -> 
+	| ND_usingDecl(_annot, pQName) -> 
 	    pQName_fun pQName
 
-	| ND_usingDir(annot, pQName) -> 
+	| ND_usingDir(_annot, pQName) -> 
 	    pQName_fun pQName
 
 
@@ -1171,11 +1172,11 @@ and aSTTypeof_fun x =
     else
       let _ = visit annot 
       in match x with
-	| TS_typeof_expr(annot, ctype, fullExpression) -> 
+	| TS_typeof_expr(_annot, ctype, fullExpression) -> 
 	    cType_fun ctype;
 	    fullExpression_fun fullExpression
 
-	| TS_typeof_type(annot, ctype, aSTTypeId) -> 
+	| TS_typeof_type(_annot, ctype, aSTTypeId) -> 
 	    cType_fun ctype;
 	    aSTTypeId_fun aSTTypeId
 
@@ -1187,11 +1188,11 @@ and designator_fun x =
     else
       let _ = visit annot 
       in match x with
-	| FieldDesignator(annot, sourceLoc, stringRef) -> 
+	| FieldDesignator(_annot, sourceLoc, stringRef) -> 
 	    sourceLoc_fun sourceLoc;
 	    string_fun stringRef
 
-	| SubscriptDesignator(annot, sourceLoc, expression, expression_opt, 
+	| SubscriptDesignator(_annot, sourceLoc, expression, expression_opt, 
 			     idx_start, idx_end) -> 
 	    sourceLoc_fun sourceLoc;
 	    expression_fun expression;
@@ -1207,14 +1208,14 @@ and attribute_fun x =
     else
       let _ = visit annot 
       in match x with
-	| AT_empty(annot, sourceLoc) -> 
+	| AT_empty(_annot, sourceLoc) -> 
 	    sourceLoc_fun sourceLoc
 
-	| AT_word(annot, sourceLoc, stringRef) -> 
+	| AT_word(_annot, sourceLoc, stringRef) -> 
 	    sourceLoc_fun sourceLoc;
 	    string_fun stringRef
 
-	| AT_func(annot, sourceLoc, stringRef, argExpression_list) -> 
+	| AT_func(_annot, sourceLoc, stringRef, argExpression_list) -> 
 	    sourceLoc_fun sourceLoc;
 	    string_fun stringRef;
 	    List.iter argExpression_fun argExpression_list

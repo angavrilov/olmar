@@ -1,3 +1,8 @@
+2006-10-24  Hendrik Tews  <tews@tandem.cs.ru.nl>
+
+	* Taras Glek's bug fixed: iostream header yields a IN_expr with a
+	null expression (nullable IN_expr.e); seems to be a real elsa bug
+
 2006-10-23  Hendrik Tews  <tews@tandem.cs.ru.nl>
 
 	* use iterators for list serialization in hand written
@@ -72,7 +77,8 @@
 	  elast one regression test
 
 	  EnumType.typedefVar
-
+	  IN_expr.e
+	
 	* new circularity via
 	  Variable.varValue
 	

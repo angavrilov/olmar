@@ -1526,11 +1526,12 @@ and init_fun x =
       let _ = visit annot; indent()
       in 
 	(match x with
-	   | IN_expr(annot, sourceLoc, fullExpressionAnnot, expression) -> 
+	   | IN_expr(annot, sourceLoc, fullExpressionAnnot, expression_opt) -> 
 	       annotation_fun annot;
 	       sourceLoc_fun sourceLoc;
 	       fullExpressionAnnot_fun fullExpressionAnnot;
-	       expression_fun expression
+	       opt_iter expression_fun expression_opt 
+		 [^ annotated expression_type option ^] "expression_type"
 
 	   | IN_compound(annot, sourceLoc, fullExpressionAnnot, init_list) -> 
 	       annotation_fun annot;

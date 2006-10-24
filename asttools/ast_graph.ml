@@ -1317,12 +1317,12 @@ and init_fun i =
       let inode = ast_loc_node color_Initializer annot (init_loc i) 
       in match i with
 (* everything in here *)
-	| IN_expr(_annot, _loc, fullExpressionAnnot, expression) -> 
+	| IN_expr(_annot, _loc, fullExpressionAnnot, expression_opt) -> 
 	    inode "IN_expr" [] 
-	      (let x1 = expression_fun expression, "e" in
+	      (let l1 = opt_child expression_fun "e" expression_opt in
 	       let x2 = fullExpressionAnnot_fun fullExpressionAnnot, "annot"
 	       in
-		 [x1; x2])
+		 l1 @ [x2])
 
 	| IN_compound(_annot, _loc, fullExpressionAnnot, init_list) -> 
 	    inode "IN_compound" []

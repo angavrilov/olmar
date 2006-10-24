@@ -630,7 +630,8 @@ class Initializer (SourceLoc loc) {
   public Initializer *next = NULL;       // FakeList link
 
   // simple initializer, like "int x = 3"
-  -> IN_expr(Expression e);
+  // e is NULL in in/big/iostream-4.2.1.i
+  -> IN_expr(nullable Expression e);
 
   // compound initializer, like "int x[4] = { 1,2,3,4 };
   // using ASTList for performance; some files have initializers

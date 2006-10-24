@@ -892,9 +892,9 @@ and init_fun x =
     else
       let _ = visit annot 
       in match x with
-	| IN_expr(annot, sourceLoc, fullExpressionAnnot, expression) -> 
+	| IN_expr(annot, sourceLoc, fullExpressionAnnot, expression_opt) -> 
 	    fullExpressionAnnot_fun fullExpressionAnnot;
-	    expression_fun expression
+	    opt_iter expression_fun expression_opt
 
 	| IN_compound(annot, sourceLoc, fullExpressionAnnot, init_list) -> 
 	    fullExpressionAnnot_fun fullExpressionAnnot;
