@@ -37,3 +37,10 @@ doc:
 	$(MAKE) -C elkhound doc
 	$(MAKE) -C elsa doc
 	$(MAKE) -C asttools doc
+
+docclean:
+	$(MAKE) -C smbase docclean
+	$(MAKE) -C ast docclean
+	$(MAKE) -C elkhound docclean
+	$(MAKE) -C elsa docclean
+	$(MAKE) -C asttools docclean

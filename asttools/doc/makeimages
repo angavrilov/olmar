@@ -2,25 +2,8 @@
 
 set -x
 
-ocamlsrc=/usr/local/src/ocaml-3.09.2
+ocamlsrc=/usr/local/src/ocaml-3.09.3
 pwd=$(pwd)
-
-
-../../elsa/ccparse -tr c_lang -oc hello-world.oast hello-world.c
-../ast_graph hello-world.oast -o hello-world.dot
-dot -Tpng -o hello-world.png hello-world.dot 
-convert -bordercolor blue -border 5 -bordercolor white -border 50 hello-world.png hello-world-border.png
-
-
-pushd ../../smbase
-g++ -E -o crc.ii crc.cpp 
-$pwd/../../elsa/ccparse -oc $pwd/crc.oast crc.ii
-popd
-../ast_graph -o crc.dot crc.oast 
-dot -Tsvg -o crc.svg crc.dot
-convert -resize 5000x crc.svg crc.png
-convert -resize 300x crc.svg crc-small.png
-
 
 
 pushd $ocamlsrc/byterun
@@ -33,11 +16,17 @@ popd
 
 ../ast_graph minor_gc.oast -o minor_gc.dot
 
-#add a page attribute to the dot file
+# make a layout and get the coordinates
+# 
+# dot -v minor_gc.dot -o minor_gc_layout.dot
+#
+#add a page attribute to minor_gc_layout.dot
+#
 # page="240,70";
 #
-#run dot
-#dot -v -Tps minor_gc.dot -o minor_gc.ps
+# generate ps
+#
+# neato -v -Tps minor_gc_layout.dot -o minor_gc.ps
 #
 #separate the last but one page
 #

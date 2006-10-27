@@ -163,7 +163,7 @@ $(THIS): $(OBJS)
 crc.ii: crc.cpp
 	$(CXX) -E -o crc.ii crc.cpp 
 
-crc.oast: crc.ii
+crc.oast: crc.ii ../elsa/ccparse
 	../elsa/ccparse -oc crc.oast crc.ii
 
 
@@ -393,6 +393,9 @@ gendoc/configure.txt: configure
 doc: gendoc gendoc/dependencies.png gendoc/dependencies.ps gendoc/configure.txt
 	@echo "built documentation"
 
+.PHONY: docclean
+docclean:
+	rm -rf gendoc
 
 # --------------------- clean --------------------
 # delete compiling/editing byproducts

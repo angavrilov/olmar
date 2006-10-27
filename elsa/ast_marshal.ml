@@ -13,6 +13,15 @@ let marshal_translation_unit (u : annotated translationUnit_type) fname =
   in
     Marshal.to_channel oc u [];
     close_out oc
+    (* 
+     * ;
+     * Gc.print_stat stdout;
+     * let c = Gc.get() 
+     * in
+     *   Printf.printf "minor heap size : %d\nmajor heap increment %d\n%!"
+     * 	c.Gc.minor_heap_size c.Gc.major_heap_increment
+     *)
+
 
 let marshal_translation_unit_callback u fname =
   try

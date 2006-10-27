@@ -59,7 +59,7 @@ ocamlhelp.o: ocamlhelp.cc
 
 TOCLEAN += *.cmo *.cmi *.cmx
 %.cmo: %.ml
-	$(OCAMLC) -g -c $<
+	$(OCAMLC) -c $<
 
 %.cmx: %.ml
 	$(OCAMLOPT) -c $<
@@ -199,6 +199,9 @@ gendoc/demo.h gendoc/demo.cc: demo.ast astgen
 doc: gendoc gendoc/configure.txt gendoc/demo.h
 	@echo "built documentation"
 
+.PHONY: docclean
+docclean:
+	rm -rf gendoc
 
 # ------------------------ misc ---------------------
 check: ccsstr ocsstr

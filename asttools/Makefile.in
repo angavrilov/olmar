@@ -121,9 +121,11 @@ TOCLEAN += unmarshal
 unmarshal: $(UNMARSHAL_ML:.ml=.$(OCAML_OBJ_EXT))
 	$(OCAMLCC) $(OCAML_FLAGS) -o $@ -I $(ELSA) safeUnmarshal.$(OCAML_LIB_EXT) $^
 
-.PHONY: doc
+.PHONY: doc docclean
 doc:
 	$(MAKE) -C doc prepare-snapshot-doc
+docclean:
+	$(MAKE) -C doc docclean
 
 # target for testing one file
 TOCLEAN += nodes.dot nodes.ps
@@ -163,13 +165,13 @@ distclean: clean
 TOCLEAN += *.cmo
 
 astiter.cmo: astiter.ml
-	$(OCAMLC) $(OCAML_FLAGS) -g -w zy -I $(ELSA) -c $<
+	$(OCAMLC) $(OCAML_FLAGS) -w zy -I $(ELSA) -c $<
 
 astmap.cmo: astmap.ml
-	$(OCAMLC) $(OCAML_FLAGS) -g -w zy -I $(ELSA) -c $<
+	$(OCAMLC) $(OCAML_FLAGS) -w zy -I $(ELSA) -c $<
 
 astiternodes.cmo: astiternodes.ml
-	$(OCAMLC) $(OCAML_FLAGS) -g -w zy -I $(ELSA) -c $<
+	$(OCAMLC) $(OCAML_FLAGS) -w zy -I $(ELSA) -c $<
 
 astiter.cmx: astiter.ml
 	$(OCAMLOPT) $(OCAML_FLAGS) -w zy -I $(ELSA) -c $<
@@ -182,7 +184,7 @@ astiternodes.cmx: astiternodes.ml
 
 
 %.cmo: %.ml
-	$(OCAMLC) $(OCAML_FLAGS) -g -I $(ELSA) -c $<
+	$(OCAMLC) $(OCAML_FLAGS) -I $(ELSA) -c $<
 
 TOCLEAN += *.cmx *.o
 %.cmx: %.ml
@@ -190,7 +192,7 @@ TOCLEAN += *.cmx *.o
 
 TOCLEAN += *.cmi
 %.cmi: %.mli
-	$(OCAMLC) $(OCAML_FLAGS) -g -I $(ELSA) -c $<
+	$(OCAMLC) $(OCAML_FLAGS) -I $(ELSA) -c $<
 
 
 -include mldeps.mk

@@ -537,6 +537,10 @@ doc: gendoc gendoc/elkhound_dep.png gendoc/elkhound_dep.ps \
 	gendoc/glr.png gendoc/configure.txt
 	@echo "built documentation"
 
+.PHONY: docclean
+docclean:
+	rm -rf gendoc
+
 # some other random phony targets (I hate this clutter..)
 .PHONY: clean distclean check
 
