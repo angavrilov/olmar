@@ -8305,11 +8305,12 @@ Type *E_cast::itcheck_x(Env &env, Expression *&replacement)
 // 't1' is converted (it is not always exactly 't2') and set 'ic'
 // accordingly
 Type *attemptCondConversion(Env &env, ImplicitConversion &ic /*OUT*/,
-                            Type *t1, Type *t2)
-{
+                            Type *t1, Type *t2,
+                            SpecialExpr special1 // dsw: the special for t1
+                            ) {
   // bullet 1: attempt direct conversion to lvalue
   if (t2->isLval()) {
-    ic = getImplicitConversion(env, SE_NONE, t1, t2);
+    ic = getImplicitConversion(env, special1, t1, t2);
     if (ic) {
       return t2;
     }
@@ -8334,7 +8335,7 @@ Type *attemptCondConversion(Env &env, ImplicitConversion &ic /*OUT*/,
   else {
     // bullet 2.2
     t2 = t2->asRval();
-    ic = getImplicitConversion(env, SE_NONE, t1, t2);
+    ic = getImplicitConversion(env, special1, t1, t2);
     if (ic) {
       return t2;
     }
@@ -8490,9 +8491,9 @@ Type *E_cond::itcheck_x(Env &env, Expression *&replacement)
        elRval->isCompoundType())) {
     // try to convert each to the other
     ImplicitConversion ic_thToEl;
-    Type *thConv = attemptCondConversion(env, ic_thToEl, thType, elType);
+    Type *thConv = attemptCondConversion(env, ic_thToEl, thType, elType, th->getSpecial(env.lang));
     ImplicitConversion ic_elToTh;
-    Type *elConv = attemptCondConversion(env, ic_elToTh, elType, thType);
+    Type *elConv = attemptCondConversion(env, ic_elToTh, elType, thType, el->getSpecial(env.lang));
 
     if (thConv && elConv) {
       return env.error("class-valued argument(s) to ?: are ambiguously inter-convertible");
