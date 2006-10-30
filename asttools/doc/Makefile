@@ -57,7 +57,7 @@ cp-index-html: webdir index.html.rel
 olmar-tar: webdir
 	if [ ! -f /tmp/tews/$(OLMARTAR) ] ; \
 		then echo make snapshot first; false; fi
-	scp -q /tmp/tews/$(OLMARTAR) $(WEBSSH); true
+	scp -q /tmp/tews/$(OLMARTAR) $(WEBSSH)/releases; true
 
 .PHONY: copydoc-tar copydoc-www
 copydoc-tar: $(DOCFILES)
@@ -70,7 +70,7 @@ copydoc-www: $(DOCFILES) webdir cp-index-html olmar-tar
 new-doc: rm-doc copydoc-www
 
 rm-doc:
-	ssh $(WEBHOST) rm -f $(WEBDIR)/*
+	ssh $(WEBHOST) rm -f $(WEBDIR)/*; true
 
 TODOCCLEAN += minor_gc.png
 minor_gc.png: minor_gc.ps
