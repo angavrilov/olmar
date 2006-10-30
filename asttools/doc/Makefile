@@ -64,31 +64,44 @@ minor_gc.png: minor_gc.ps
 
 TODOCCLEAN += minor_gc.ps
 minor_gc.ps: minor_gc-size.dot
-	neato -n -s2 -v -Tps $< -o $@
+	dot -v -Tps $< -o $@
 
 TODOCCLEAN += minor_gc-pages.ps
 minor_gc-pages.ps: minor_gc-pages.dot
-	neato -n -s2 -v -Tps $< -o $@
+	dot -v -Tps $< -o $@
 
 TODOCCLEAN += minor_gc-pages.dot
-minor_gc-pages.dot: minor_gc-layout.dot
+minor_gc-pages.dot: minor_gc.dot
 	head -1 $< > $@
-	echo '    page="240,70";' >> $@
+	echo '    page="220,90";' >> $@
 	tail -n +2 $< >> $@
 
+ifeq ($(TOUCH_GC_DETAIL),1)
+minor_gc-detail.png: minor_gc-pages.ps
+	touch $@
+else
+minor_gc-detail.png: minor_gc-pages.ps
+	echo cut some interesting part and save it as minor_gc-detail.png
+	false
+endif
+
+TODOCCLEAN += minor_gc-detail-small.png
+minor_gc-detail-small.png: minor_gc-detail.png
+	convert -resize 2000x $< $@
+
+TODOCCLEAN += minor_gc-detail-small-border.png
+minor_gc-detail-small-border.png: minor_gc-detail-small.png
+	convert -bordercolor blue -border 5 -bordercolor white -border 50 $< $@
+
 TODOCCLEAN += minor_gc-size.dot
-minor_gc-size.dot: minor_gc-layout.dot
+minor_gc-size.dot: minor_gc.dot
 	head -1 $< > $@
-	echo '    size="10,90";' >> $@
+	echo '    size="90,90";' >> $@
 	tail -n +2 $< >> $@
 
 TODOCCLEAN += minor_gc.fig
-minor_gc.fig: minor_gc-layout.dot
-	neato -n -s2 -v -Tfig $< -o $@
-
-TODOCCLEAN += minor_gc-layout.dot
-minor_gc-layout.dot: minor_gc.dot 
-	dot -v minor_gc.dot -o minor_gc-layout.dot
+minor_gc.fig: minor_gc.dot
+	dot -v -Tfig $< -o $@
 
 TODOCCLEAN += minor_gc.dot
 minor_gc.dot: minor_gc.oast ../ast_graph
@@ -139,11 +152,11 @@ crc.ps: crc.dot
 
 TODOCCLEAN += crc.png
 crc.png: crc.svg
-	convert -resize 10000x crc.svg crc.png
+	convert -resize 10000x $< $@
 
 TODOCCLEAN += crc-small.png
 crc-small.png: crc.svg
-	convert -resize 700x crc.svg crc-small.png
+	convert -resize 700x $< $@
 
 
 .PHONY: copy-doc

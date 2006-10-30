@@ -4,7 +4,7 @@
 # need to adopt the its location in OCAML_TY_DIR below
 
 #set -x
-debug=yes
+#debug=yes
 #native=no
 
 if [ ${debug:=no} = "yes" ] ; then

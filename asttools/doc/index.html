@@ -8,7 +8,7 @@
 <H1>
 <A HREF="hello-world.png" >
 <IMG SRC="hello-world-border.png"  alt="ast of hello-world-border.c"
-align="right" width="20%" border="0"
+align="right" width="25%" border="0"
 ></A>
 Olmar : Process C++ Programs in Ocaml</H1>
 </div>
@@ -30,6 +30,22 @@ executable.
 
 
 <div style="background:#ffa500; color:#0048ff; text-align:center">
+<H2>News</H2>
+</div>
+
+<DL>
+<DT><STRONG>30 Oct 2006:</STRONG> Version 0.2 released, changes:
+<DD> 
+<UL>
+<LI>Serialize all xml annotated fields to Ocaml. Trees are much
+bigger now, for instance every expression contains a field with
+its (elsa derived) type.
+</LI>
+</UL>
+</DL>
+
+
+<div style="background:#ffa500; color:#0048ff; text-align:center">
 <H2>Distribution</H2>
 </div>
 
@@ -42,7 +58,9 @@ style="color:#0048ff;"><STRONG>Olmar</STRONG></span> will
 hopefully get integrated into the Elsa/Elkhound distribution. At
 the moment <span
 style="color:#0048ff;"><STRONG>Olmar</STRONG></span> is based on
-the latest Elsa distribution 2005.08.22b.
+the latest Elsa distribution 2005.08.22b. After this release work
+will start to adopt olmar to the latest Elsa versions available
+from <A HREF="http://www.cubewano.org/oink/" >Oink.</A>
 <P>
 
 For
@@ -50,7 +68,10 @@ simplicity I only distribute a complete
 smbase/Ast/Elkhound/Elsa/<span
 style="color:#0048ff;"><STRONG>Olmar</STRONG></span> system now. If
 you want to have pure Elsa, please download it from <A
-HREF="http://www.cs.berkeley.edu/~smcpeak/elkhound/" >Elsa website.</A>
+HREF="http://www.cs.berkeley.edu/~smcpeak/elkhound/" >the Elsa
+website</A> or (for something newer) from the <A
+HREF="http://www.cubewano.org/oink/#oink-stack" >Oink-Stack
+repository.</A> 
 
 
 <div style="background:#ffa500; color:#0048ff; text-align:center">
@@ -205,7 +226,7 @@ visualise the syntax tree.
 
 Normal C++ files tend to have abstract syntax trees
 with 10.000 to 1.000.000 nodes. Including <KBD>iostream</KBD>
-alone gives more than 150.000 nodes. Most of the graphics
+alone gives almost 250.000 nodes. Most of the graphics
 software I tried fails on the sheer size of these graphs. To
 visualise the tree I have found the following possibilities:
 <DL>
@@ -378,9 +399,12 @@ type <KBD>annotated</KBD> (see
 contain a unique annotation value. The annotation carries an
 (positive) integer (accessible via
 <KBD>id_annotation</KBD>) that uniquely identifies the syntax
-tree node of this annotation. In addition the annotation contains
+tree node of this annotation. These integers are dense, that is
+all integers between 1 and the maximal one are used in the
+abstract syntax tree.
+In addition to this unique integer the annotation contains
 the address of the C++ object from which the Ocaml value was
-generated.
+generated (shifted to the right to fit into an Ocaml int).
 
 
 <H3>Complications</H3>
@@ -390,6 +414,8 @@ tree will therefore in general not terminate. Currently there are
 three fields that might make the tree circular:
 <UL>
 <LI>var_type in type variable
+</LI>
+<LI>value in type variable
 </LI>
 <LI>funcDefn in type variable
 </LI>
@@ -437,22 +463,38 @@ Elsa related.
 </div>
 
 <DL>
-<DT>missing type links
-<DD>In Ocaml one can currently not access the type information of an
-identifier or an Expression, although this seems possible in C++.
+<DT>does not compile on 64-bit platforms
+<DD>The elsa code contains some pointer &LT;--&GT; <KBD>unsigned
+int</KBD> casts and is thus not 64-bit clean. If you really want
+64 bit try <A HREF="64-bit.patch" >this patch</A> (ignore
+the error on ChangeLog, insert the line from chunk #2
+sm_config.pm manually, fix smbase/Makefile to pass
+-DARCH_64_BIT to smbase/mysig.cc and configure with -64bit).
+<P>
+<DT>inefficiency on large graphs
+<DD>When generating the Ocaml tree every node in the C++ tree
+contains a pointer to the corresponding Ocaml node. These
+pointers are scanned for every minor collection, which results in
+a big performance hit for the default minor heap size of Ocaml
+(as distributed <span
+style="color:#0048ff;"><STRONG>Olmar</STRONG></span> increases it
+from 32K to 8MB). See also <A
+HREF="http://caml.inria.fr/pub/ml-archives/caml-list/2006/10/93f3eece137374dc6f2b3b5149f8ecab.en.html"
+>the related discussion on the Ocaml list.</A>
+<P>
 <DT>missing node types
-<DD>Some syntax node classes seem not to appear in all of Elsa's regression
-test programs. They are BaseClassSubobj, DependentQType. The
-<KBD>toOcaml</KBD> method of these classes currently just
-contains an <KBD>assert(false)</KBD>. I am grateful for any
-example program that triggers these assertions.
+<DD>The syntax node class BaseClassSubobj seems not to appear in
+all of Elsa's regression test programs. The <KBD>toOcaml</KBD>
+method of this classes currently just contains an
+<KBD>assert(false)</KBD>. I am grateful for any example program
+that triggers these assertions.
 </DL>
 
 
 
 <HR><FONT SIZE="-2">
 last changed on
-<!-- hhmts start -->16 Sep 2006
+<!-- hhmts start -->30 Oct 2006
 <!-- hhmts end -->
 by <A HREF="http://www.cs.ru.nl/~tews">Hendrik</A>
 </FONT></BODY> </HTML>

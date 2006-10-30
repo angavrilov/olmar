@@ -673,6 +673,7 @@ value Variable::toOcaml(ToOcamlData *data){
   else
     var[2] = Val_None;
 
+  // circular
   // var[3] = type->toOcaml(data);
   var[3] = ref_None_constr(data);
   var[4] = ocaml_from_DeclFlags(flags, data);
