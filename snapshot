@@ -38,7 +38,7 @@ echo ===========================================================================
 echo ============================     make doc    ==============================
 echo ===========================================================================
 
-#make doc
+make doc
 
 echo ===========================================================================
 echo ============================     export    ================================
@@ -71,7 +71,7 @@ for d in smbase ast elkhound elsa ; do
 done
 
 set -e
-make -C $elsa_cvs_dir/asttools/doc TARGETDIR=$dir/asttools/doc copydoc
+make -C $elsa_cvs_dir/asttools/doc TARGETDIR=$dir/asttools/doc copydoc-tar
 set +e
 
 echo ===========================================================================

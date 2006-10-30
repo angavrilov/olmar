@@ -31,6 +31,7 @@
 ^elsa/asttools$
 ^elsa/snapshot$
 ^elsa/addcheck_ignored_files$
+^elsa/elsa/in/big/gz/iostream-4.1.2.i.gz
 ^/tmp/tews/elsa-2005.08.22b/ast/agrampar.codes.h$
 ^/tmp/tews/elsa-2005.08.22b/ast/agrampar.tab.cc$
 ^/tmp/tews/elsa-2005.08.22b/ast/agrampar.tab.h$

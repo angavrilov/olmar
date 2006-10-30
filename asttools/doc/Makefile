@@ -1,5 +1,5 @@
 
-WEBHOST=solo
+WEBHOST=lilo
 WEBDIR=web-docs/olmar
 WEBSSH=$(WEBHOST):$(WEBDIR)
 DATE=$(shell date +%Y.%m.%d)
@@ -40,23 +40,36 @@ prepare-snapshot-doc: $(DOCFILES)
 
 
 TODOCCLEAN += $(DOCFILESNOCVS)
-copy-doc: $(DOCFILES) cp-index-html olmar-tar 
-	scp -q $(DOCFILES) $(WEBSSH); true
-
 
 TODOCCLEAN += index.html.rel
 index.html.rel: index.html
 	sed  "s/@RELEASEDATE@/$$(date +%Y.%m.%d)/" < $^ > $@
 
+.PHONY: webdir
+webdir:
+	ssh $(WEBHOST) mkdir -p $(WEBDIR)
 
-cp-index-html: index.html.rel
-	scp -q $^ $(WEBSSH)/index.html; true
-	rm $^
+cp-index-html: webdir index.html.rel
+	scp -q index.html.rel $(WEBSSH)/index.html; true
+	rm index.html.rel
 
-olmar-tar:
+olmar-tar: webdir
 	if [ ! -f /tmp/tews/$(OLMARTAR) ] ; \
 		then echo make snapshot first; false; fi
 	scp -q /tmp/tews/$(OLMARTAR) $(WEBSSH); true
+
+.PHONY: copydoc-tar
+copydoc-tar: $(DOCFILES)
+	cp $(DOCFILES) $(TARGETDIR)
+
+copydoc-www: $(DOCFILES) webdir cp-index-html olmar-tar 
+	scp -q $(DOCFILES) $(WEBSSH); true
+
+.PHONY: new-doc
+new-doc: rm-doc copydoc-www
+
+rm-doc:
+	ssh $(WEBHOST) rm -rf $(WEBDIR)
 
 TODOCCLEAN += minor_gc.png
 minor_gc.png: minor_gc.ps
@@ -131,7 +144,7 @@ hello-world.png: hello-world.dot
 
 TODOCCLEAN += hello-world-border.png
 hello-world-border.png: hello-world.png
-	convert -bordercolor blue -border 5 -bordercolor white -border 50 $< $@
+	convert -bordercolor blue -border 20 -bordercolor white -border 50 $< $@
 
 TODOCCLEAN += crc.oast
 crc.oast crc.ii: ../../smbase/crc.cpp
@@ -159,21 +172,16 @@ crc-small.png: crc.svg
 	convert -resize 700x $< $@
 
 
-.PHONY: copy-doc
-copydoc: $(DOCFILES)
-	cp $(DOCFILES) $(TARGETDIR)
+.PHONY: touchdoc
+touchdoc: 
+	touch crc.dot crc.ps crc.svg crc.png crc-small.png minor_gc.oast \
+		minor_gc.dot minor_gc-size.dot minor_gc-pages.dot \
+		minor_gc-pages.ps minor_gc.ps minor_gc.fig \
+		minor_gc-detail.png minor_gc-detail-small.png $(DOCFILES)
 
 TODOCCLEAN += *.gz
 %.gz: %
 	gzip -9 -c $^ > $@
-
-.PHONY: new-doc
-new-doc: rm-doc copy-doc
-
-
-rm-doc:
-	ssh $(WEBHOST) rm -rf $(WEBDIR)
-	ssh $(WEBHOST) mkdir $(WEBDIR)
 
 
 .PHONY: docclean
