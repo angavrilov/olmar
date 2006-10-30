@@ -180,3 +180,13 @@ if [  ${answer:=y} = y -o $answer = Y ] ; then
 	fi
     fi
 fi
+
+
+cd $elsa_cvs_dir
+echo -n "copy olmar docs [Y/n]:"
+read answer
+
+if [  ${answer:=y} = y -o $answer = Y ] ; then
+    make -C asttools/doc new-doc
+fi
+

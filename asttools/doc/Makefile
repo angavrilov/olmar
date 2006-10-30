@@ -11,7 +11,7 @@ all: prepare-snapshot-doc
 TODOCCLEAN =
 
 
-.PHONY: copy-doc cp-index-html olmar-tar
+.PHONY: cp-index-html olmar-tar
 
 DOCFILESCVS=\
 	minor_gc.html
@@ -51,6 +51,7 @@ webdir:
 
 cp-index-html: webdir index.html.rel
 	scp -q index.html.rel $(WEBSSH)/index.html; true
+	scp -q old-releases.html $(WEBSSH)/releases/index.html; true
 	rm index.html.rel
 
 olmar-tar: webdir
@@ -58,7 +59,7 @@ olmar-tar: webdir
 		then echo make snapshot first; false; fi
 	scp -q /tmp/tews/$(OLMARTAR) $(WEBSSH); true
 
-.PHONY: copydoc-tar
+.PHONY: copydoc-tar copydoc-www
 copydoc-tar: $(DOCFILES)
 	cp $(DOCFILES) $(TARGETDIR)
 
@@ -69,7 +70,7 @@ copydoc-www: $(DOCFILES) webdir cp-index-html olmar-tar
 new-doc: rm-doc copydoc-www
 
 rm-doc:
-	ssh $(WEBHOST) rm -rf $(WEBDIR)
+	ssh $(WEBHOST) rm -f $(WEBDIR)/*
 
 TODOCCLEAN += minor_gc.png
 minor_gc.png: minor_gc.ps
