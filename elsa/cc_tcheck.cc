@@ -4906,8 +4906,8 @@ void Handler::tcheck(Env &env)
   Scope *scope = env.enterScope(SK_FUNCTION, "exception handler");
 
   // originally, I only did this for the non-isEllpsis() case, to
-  // avoid creating a type with ST_ELLIPSIS in it.. but qualcc finds
-  // it convenient, so now we tcheck 'typeId' always
+  // avoid creating a type with ST_ELLIPSIS in it.. but oink/qual
+  // finds it convenient, so now we tcheck 'typeId' always
   //
   // dsw: DF_PARAMETER: we think of the handler as an anonymous inline
   // function that is simultaneously defined and called in the same

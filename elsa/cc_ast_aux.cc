@@ -379,7 +379,7 @@ bool LoweredASTVisitor::visitedAST(void *ast)
 //
 // 1/15/04: Modified to tolerate NULL 'v' values, and to print types,
 // since Daniel and I wanted to see addtional information while
-// debugging a tricky qualcc issue.  The result is more verbose but
+// debugging a tricky oink/qual issue.  The result is more verbose but
 // the extra information is probably worth it.
 string refersTo(Variable *v)
 {

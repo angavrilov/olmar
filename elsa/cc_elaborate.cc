@@ -405,7 +405,7 @@ void ElabVisitor::elaborateCDtorsDeclaration(Declaration *decl)
   }
 
   // the caller isn't going to automatically traverse into the type
-  // specifier, so we must do it manually (e.g. qualcc's
+  // specifier, so we must do it manually (e.g. oink/qual's
   // test/memberInit_cdtor1.cc.filter-good.cc fails otherwise)
   decl->spec->traverse(this->loweredVisitor);
 }
