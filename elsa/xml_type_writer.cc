@@ -413,18 +413,30 @@ void XmlTypeWriter::toXml_Variable_properties(Variable *var) {
   printPtr(var, overload);
   printPtr(var, scope);
 
-  // these fields are abstractions; however here we pretend they are
-  // real
+  // **** these fields are abstractions; however here we pretend they
+  // are real
   AccessKeyword access = var->getAccess();
   printXml(access, access);
   bool real = var->getReal();
   printXml_bool(real, real);
   bool maybeUsedAsAlias = var->getMaybeUsedAsAlias();
   printXml_bool(maybeUsedAsAlias, maybeUsedAsAlias);
+
+  // dsw: perhaps these should instead be serialized by the client
+  // code as they would have more meaningful names
+  bool user1 = var->getUser1();
+  printXml_bool(user1, user1);
+  bool user2 = var->getUser2();
+  printXml_bool(user2, user2);
+
   ScopeKind scopeKind = var->getScopeKind();
   printXml(scopeKind, scopeKind);
+  bool hasValue = var->getHasValue();
+  printXml_bool(hasValue, hasValue);
   int parameterOrdinal = var->getParameterOrdinal();
   printXml_int(parameterOrdinal, parameterOrdinal);
+  // **** end abstract fields
+
   // dsw: FIX: usingAlias_or_parameterizedEntity is actually an
   // implicit union of two fields and should be serialized that way
   printPtr(var, usingAlias_or_parameterizedEntity);
@@ -816,9 +828,8 @@ XmlTypeWriter_AstVisitor::XmlTypeWriter_AstVisitor
   (XmlTypeWriter &ttx0,
    ostream &out0,
    int &depth0,
-   bool indent0,
-   bool ensureOneVisit0)
-    : XmlAstWriter_AstVisitor(out0, ttx0.idmgr, depth0, indent0, ensureOneVisit0)
+   bool indent0)
+    : XmlAstWriter_AstVisitor(out0, ttx0.idmgr, depth0, indent0)
     , ttx(ttx0)
 {}
 
@@ -838,6 +849,12 @@ XmlTypeWriter_AstVisitor::XmlTypeWriter_AstVisitor
 //      xmlPrintPointer(out, "TY", uniqueId(annotation));
 //      out << "\"/>\n";
 //    }
+
+bool XmlTypeWriter_AstVisitor::visitTranslationUnit(TranslationUnit *unit) {
+  if (!XmlAstWriter_AstVisitor::visitTranslationUnit(unit)) return false;
+  PRINT_ANNOT_MAYBE(unit->globalScope);
+  return true;
+}
 
 bool XmlTypeWriter_AstVisitor::visitTypeSpecifier(TypeSpecifier *ts) {
   if (!XmlAstWriter_AstVisitor::visitTypeSpecifier(ts)) return false;

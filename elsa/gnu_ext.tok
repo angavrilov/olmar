@@ -12,6 +12,8 @@
 // GNU extensions
 TOK_BUILTIN_CONSTANT_P,  "__builtin_constant_p",      :    n
 TOK___ALIGNOF__,         "__alignof__",               :    n
+TOK___OFFSETOF__,        "__offsetof__",              :    n
+TOK___BUILTIN_OFFSETOF,  "__builtin_offsetof",        :    n
 TOK___ATTRIBUTE__,       "__attribute__",             :    n
 TOK___FUNCTION__,        "__FUNCTION__",              :    n
 TOK___LABEL__,           "__label__",                 :    n

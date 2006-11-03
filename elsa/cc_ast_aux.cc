@@ -379,7 +379,7 @@ bool LoweredASTVisitor::visitedAST(void *ast)
 //
 // 1/15/04: Modified to tolerate NULL 'v' values, and to print types,
 // since Daniel and I wanted to see addtional information while
-// debugging a tricky qualcc issue.  The result is more verbose but
+// debugging a tricky oink/qual issue.  The result is more verbose but
 // the extra information is probably worth it.
 string refersTo(Variable *v)
 {
@@ -1329,11 +1329,17 @@ void RealVarAndTypeASTVisitor::visitType(Type *type) {
   if (typeVisitor) typeVisitor->visitType(type);
 }
 
+
 // **** visit methods
 
 // class BaseClassSpec {
 //   public(xml_TY) CompoundType *type = NULL;
 // }
+
+bool RealVarAndTypeASTVisitor::visitTranslationUnit(TranslationUnit *obj) {
+  typeVisitor->visitScope(obj->globalScope);
+  return true;
+}
 
 bool RealVarAndTypeASTVisitor::visitFunction(Function *obj) {
   visitVariable(obj->retVar);
@@ -1452,27 +1458,9 @@ bool ReachableVarsTypePred::operator() (Type const *t0) {
     SFOREACH_OBJLIST_NC(Variable, t->asFunctionType()->params, iter) {
       variableVisitor.visitVariable(iter.data());
     }
+  } else if (t->isCompoundType()) {
+    typeVisitor.visitCompoundType(t->asCompoundType());
   }
-//   else if (t->isCompoundType()) {
-//     // visit all the variables in the CompoundType superclass
-//     CompoundType *ct = t->asCompoundType();
-//     SObjList<BaseClassSubobj const> subobjs;
-//     ct->getSubobjects(subobjs);
-//     bool sawMyself = false;
-//     SFOREACH_OBJLIST(BaseClassSubobj const, subobjs, iter) {
-//       CompoundType *ct1 = iter.data()->ct;
-//       if (ct1 == ct) sawMyself = true;
-//       if (seenCpdTypes.contains(ct1)) continue;
-//       seenCpdTypes.add(ct1);
-//       for(StringRefMap<Variable>::Iter iter2(ct1->getVariableIter());
-//           !iter2.isDone(); iter2.adv()) {
-// //       SFOREACH_OBJLIST(Variable, ct1->variables, iter) {
-//         // FIX: this can be a template member
-//         variableVisitor.visitVariable(iter2.value());
-//       }
-//     }
-//     xassert(sawMyself);         // make sure we visited ourself
-//   }
   return false;                 // dummy value; just means keep searching
 }
 
@@ -1481,9 +1469,51 @@ void ReachableVarsTypeVisitor::visitType(Type *type) {
   if (seenTypes.contains(type)) return;
   seenTypes.add(type);
   visitTypeIdem(type);
-  ReachableVarsTypePred tPred(*variableVisitor, seenCpdTypes);
+  ReachableVarsTypePred tPred(*variableVisitor
+                              , *this
+//                               , seenCpdTypes
+                              );
   bool sat = type->anyCtorSatisfies(tPred);
   xassert(!sat);                // the point was just to visit anyway
+}
+
+void ReachableVarsTypeVisitor::visitCompoundType(CompoundType *ct) {
+  variableVisitor->visitVariable(ct->typedefVar);
+  visitScope(ct);
+  for(StringRefMap<Variable>::Iter iter(ct->getVariableIter()); !iter.isDone(); iter.adv()) {
+    Variable *v = iter.value();
+    if (v->templateInfo() && !v->templateInfo()->isInstantiation()) continue;
+    variableVisitor->visitVariable(v);
+  }
+  for(StringRefMap<Variable>::Iter iter(ct->getTypeTagIter()); !iter.isDone(); iter.adv()) {
+    Variable *v = iter.value();
+    if (v->templateInfo() && !v->templateInfo()->isInstantiation()) continue;
+    variableVisitor->visitVariable(v);
+  }
+  FOREACH_OBJLIST(BaseClass, ct->bases, iter) {
+    visitCompoundType(iter.data()->ct);
+  }
+  SFOREACH_OBJLIST_NC(Variable, ct->conversionOperators, iter) {
+    Variable *v = iter.data();
+    if (v->templateInfo() && !v->templateInfo()->isInstantiation()) continue;
+    variableVisitor->visitVariable(v);
+  }
+  visitType(ct->selfType);
+}
+
+void ReachableVarsTypeVisitor::visitScope(Scope *scope) {
+  if (!scope) return;
+  // See comment at the declaration of seenScopes.
+  if (seenScopes.contains(scope)) return;
+  seenScopes.add(scope);
+  variableVisitor->visitVariable(scope->namespaceVar);
+  // FIX: If this type is a CompoundType, I think it will get visited
+  // as a Type by the type visitor at some point
+  visitScope(scope->parentScope);
+}
+
+bool ReachableVarsVariableVisitor::shouldVisitVariable(Variable *var) {
+  return true;
 }
 
 void ReachableVarsVariableVisitor::visitVariable(Variable *var) {
@@ -1492,8 +1522,14 @@ void ReachableVarsVariableVisitor::visitVariable(Variable *var) {
   seenVariables.add(var);
   xassert(!var->isTemplate() && "ee42ebc5-7154-4ace-be35-c2090a2821c5");
   xassert(!var->isUninstTemplateMember());
-  visitVariableIdem(var);
+  if (shouldVisitVariable(var)) visitVariableIdem(var);
   typeVisitor->visitType(var->type);
+  typeVisitor->visitScope(var->scope);
+}
+
+void VisitRealVars::visitVariableIdem(Variable *var) {
+  xassert(var->getReal());     // if this visit is idempotent, this should always be false
+  if (visitVarFunc) visitVarFunc(var);
 }
 
 void MarkRealVars::visitVariableIdem(Variable *var) {
@@ -1501,11 +1537,23 @@ void MarkRealVars::visitVariableIdem(Variable *var) {
   var->setReal(true);
 }
 
-void markRealVariables(TranslationUnit *tunit) {
-  ReachableVarsTypeVisitor doNothing_tv(NULL); // a placeholder
-  MarkRealVars markReal_vv(&doNothing_tv); // actually mark variables
-  doNothing_tv.variableVisitor = &markReal_vv;
-  RealVarAndTypeASTVisitor vis(&markReal_vv, &doNothing_tv);
+void visitVarsF(ArrayStack<Variable*> &builtinVars, VisitRealVars &visitReal) {
+  FOREACH_ARRAYSTACK_NC(Variable*, builtinVars, iter) {
+    Variable *var = *iter.data();
+    visitReal.visitVariable(var);
+  }
+}
+
+void visitVarsMarkedRealF(ArrayStack<Variable*> &builtinVars, VisitRealVars &visitReal) {
+  FOREACH_ARRAYSTACK_NC(Variable*, builtinVars, iter) {
+    Variable *var = *iter.data();
+    if (!var->getReal()) continue;
+    visitReal.visitVariable(var);
+  }
+}
+
+void visitRealVarsF(TranslationUnit *tunit, VisitRealVars &visitReal) {
+  RealVarAndTypeASTVisitor vis(&visitReal, &visitReal.doNothing_tv);
   tunit->traverse(vis.loweredVisitor);
 }
 

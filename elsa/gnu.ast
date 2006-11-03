@@ -19,6 +19,7 @@ enum DeclaratorContext {
   DC_TS_TYPEOF_TYPE,      //   TS_typeof_type::atype
   DC_E_COMPOUNDLIT,       //   E_compoundLit::stype
   DC_E_ALIGNOFTYPE,       //   E_alignofType::atype
+  // DC_E_OFFSETOF,          //   E_offsetof::atype
   DC_E_BUILTIN_VA_ARG,    //   E___builtin_va_arg::atype
 }
 
@@ -83,7 +84,7 @@ class Expression {
        public virtual CValue extConstEval(ConstEval &env) const;
        public(xml) int alignment = 0; // set by tcheck
      }
-     
+
   -> E_alignofExpr(Expression expr) {
        public virtual CValue extConstEval(ConstEval &env) const;
        public(xml) int alignment = 0;
@@ -95,6 +96,12 @@ class Expression {
        public virtual CValue extConstEval(ConstEval &env) const;
        public virtual bool extHasUnparenthesizedGT();
      }
+
+  // // quarl 2006-07-12
+  // //    Handle __offsetof__ (gcc-3.4), __builtin_offsetof (gcc-4.x)
+  // -> E_offsetof(ASTTypeId atype, PQName fieldName) {
+  //      public virtual CValue extConstEval(ConstEval &env) const;
+  //    }
 }
 
 
@@ -209,9 +216,9 @@ class Designator (SourceLoc loc) {
 
 
 // ------------ gcc computed goto ----------
-class Expression {                      
+class Expression {
   // address of a label, e.g., "&&labelName"
-  -> E_addrOfLabel(StringRef labelName);      
+  -> E_addrOfLabel(StringRef labelName);
 }
 
 class Statement {
@@ -227,7 +234,7 @@ class Expression {
        public Type *itcheck_complex_selector(Env &env, LookupFlags flags,
                                              LookupSet &candidates);
      }
-     
+
   -> E_binary {
        // tcheck arith involving complex or imaginary types
        public Type *itcheck_complex_arith(Env &env);
@@ -261,7 +268,7 @@ class AttributeSpecifier(
 // attributes are separated by commas in the parens
 class Attribute(SourceLoc loc) {
   // e.g., __attribute__(( ))
-  //                      ^                      
+  //                      ^
   // I decided to keep these even though the GNU documentation states
   // that they are always ignored, because it would be a bit awkward
   // to drop them in the parser, and they shouldn't occur frequently
@@ -280,7 +287,7 @@ class Attribute(SourceLoc loc) {
   -> AT_func(StringRef f, FakeList<ArgExpression> *args);
 }
 
-  
+
 // Here's a clever idea: rather than making a completely new node to
 // carry the attributes, I will inherit from D_grouping!  Then
 // everyone will treat D_attribute like D_grouping, basically ignoring
@@ -304,15 +311,23 @@ verbatim {
     D_attribute(SourceLoc loc, IDeclarator *base,
                 AttributeSpecifierList *alist);
     virtual ~D_attribute();
-    
+
     virtual void debugPrint(ostream &os, int indent, char const *subtreeName = "tree") const;
     virtual void traverse(ASTVisitor &vis);
 
     virtual D_attribute *clone() const;
 
     virtual void tcheck(Env &env, Declarator::Tcheck &dt);
+
+    // Return the attribute(alias("name")) name, or NULL if none.  There
+    // mustn't be more than one.
+    virtual StringRef getAlias() const;
+
+  private:
+    // Return the attribute alias, and check for errors
+    StringRef tcheck_getAlias(Env *penv) const;
   };
 }
-
+// TODO: IDeclarator::isD_attribute(), asD_attribute(), ifD_attribute()
 
 // EOF

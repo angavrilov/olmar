@@ -39,6 +39,7 @@
 #include "sobjlist.h"          // SObjList
 #include "sobjset.h"           // SObjSet
 #include "serialno.h"          // INHERIT_SERIAL_BASE
+#include "packedword.h"        // PackedWord
 
 class Type;                    // cc_type.h
 class TypeVisitor;             // cc_type.h
@@ -75,7 +76,9 @@ public:    // data
   // if this Variable is a parameter of a template function, then this
   // 'value' might not have been tchecked; you have to look at the
   // associated TemplateInfo::uninstantiatedDefaultArgs to find out
-  Expression *value;      // (nullable serf)
+  //
+  // this is const to encourage use of use setValue()
+  Expression * const value;     // (nullable serf)
 
   // default value for template parameters; see TODO at end
   // of this file
@@ -111,6 +114,9 @@ public:    // data
   // getDenotedScope()
   Scope *scope;           // (nullable serf)
 
+  // total number of Variables created
+  static size_t numVariables;
+
 private:      // data
 
   // so serialization/deserialization is possible
@@ -124,16 +130,10 @@ private:      // data
   // there are subclasses for various roles, as that would minimize
   // wasted storage, but that is a fairly big change, and for the
   // moment these localized hacks will suffice.
-
-  // bits 0-3: result of 'getAccess()'
-  //   dsw: AccessKeyword only needs 2 bits, leaving 4-2 = 2 extra bits
-  // bit 4: result of 'getReal()'
-  // bit 5: result of 'getMaybeUsedAsAlias()'
-  // bit 6-7: 2 bits reserved
-  // bits 8-15: result of 'getScopeKind()'
-  //   dsw: scopeKind only needs 3 bits, leaving 8-3 = 5 extra bits
-  // bits 16-31: result of 'getParameterOrdinal()' or 'getBitfieldSize()'
-  unsigned intData;
+  //
+  // dsw: see the use of the PACKEDWORD_DEF_GS macro below for the
+  // partition into bits
+  PackedWord intData;
 
   // for most kinds of Variables, this is 'getUsingAlias()'; for
   // template parameters (isTemplateParam()), this is
@@ -172,7 +172,25 @@ public:
   // some convenient interpretations of 'flags'
   bool hasAddrTaken() const { return hasFlag(DF_ADDRTAKEN); }
   bool isGlobal() const { return hasFlag(DF_GLOBAL); }
-  bool isStatic() const { return hasFlag(DF_STATIC); }
+  bool inGlobalOrNamespaceScope() const;
+  bool isStaticLinkage() const {
+    // quarl 2006-07-11
+    //    See Declarator::mid_tcheck() for why this checks for DF_INLINE|DF_MEMBER.
+    //    Note that these are not exclusive; a variable can have both static
+    //    linkage (by being inline) and be a static member.
+    return ((hasFlag(DF_STATIC) &&
+             (hasFlag(DF_GLOBAL) || inGlobalOrNamespaceScope()) ||
+             hasAllFlags(DF_INLINE | DF_MEMBER)) /*&&
+                                                   !hasFlag(DF_GNU_EXTERN_INLINE)*/);
+  }
+  bool isStaticLocal() const {
+    return (hasFlag(DF_STATIC) &&
+            !(hasFlag(DF_GLOBAL) || inGlobalOrNamespaceScope()) &&
+            !hasFlag(DF_MEMBER));
+  }
+  bool isStaticMember() const { return hasAllFlags(DF_STATIC | DF_MEMBER); }
+  bool isNonStaticMember() const { return hasFlag(DF_MEMBER) && !hasFlag(DF_STATIC); }
+  // bool isStatic() const { return hasFlag(DF_STATIC); }
   bool isMember() const { return hasFlag(DF_MEMBER); }
   bool isNamespace() const { return hasFlag(DF_NAMESPACE); }
   bool isImplicitTypedef() const { return hasAllFlags(DF_IMPLICIT | DF_TYPEDEF); }
@@ -181,7 +199,7 @@ public:
   bool isType() const { return hasFlag(DF_TYPEDEF); }
 
   bool linkerVisibleName() const;
-  bool linkerVisibleName(bool evenIfStatic) const;
+  bool linkerVisibleName(bool evenIfStaticLinkage) const;
 
   // true if this name refers to a class or struct or union
   bool isClass() const;
@@ -190,43 +208,21 @@ public:
   bool isExplicitTypedef() const
     { return hasFlag(DF_TYPEDEF) && !hasFlag(DF_IMPLICIT); }
 
-  // access control applied to this variable in the context
-  // in which it appears (defaults to AK_PUBLIC)
-  AccessKeyword getAccess() const;
-  void setAccess(AccessKeyword k);
+  // break intData apart into various typed sub-fields
+  PACKEDWORD_DEF_GS(intData, Access,           AccessKeyword,  0,  4)
+  PACKEDWORD_DEF_GS(intData, Real,             bool,           4,  5)
+  PACKEDWORD_DEF_GS(intData, MaybeUsedAsAlias, bool,           5,  6)
+  PACKEDWORD_DEF_GS(intData, User1,            bool,           6,  7)
+  PACKEDWORD_DEF_GS(intData, User2,            bool,           7,  8)
+  PACKEDWORD_DEF_GS(intData, ScopeKind,        ScopeKind,      8, 11)
+  PACKEDWORD_DEF_GS(intData, HasValue,         bool,          11, 12)
+  PACKEDWORD_DEF_GS(intData, ParameterOrdinal, int,           16, 32)
+  // ParameterOrdinal and BitfieldSize overlap, but
+  // set/getBitfieldSize check an assertion before delegating to
+  // ParameterOrdinal
+  // PACKEDWORD_DEF_GS(intData, BitfieldSize, int, 16, 32)
 
-  // dsw: true iff this variable is "real" code: not part of an
-  // uninstantiated template; this flag is set by the
-  // markRealVariables() function
-  bool getReal() const;
-  void setReal(bool r);
-
-  // dsw: true iff this variable may be used as an alias of another;
-  // that is, if there is another variable that getUsingAlias()
-  // returns this variable; this flag is set by setUsingAlias() when
-  // called on the other variable, however it is never unset if
-  // setUsingAlias(NULL) is called later as we don't know how many
-  // variables may be using us as an alias
-  bool getMaybeUsedAsAlias() const;
-  void setMaybeUsedAsAlias(bool r);
-
-  // kind of scope in which the name is declared; initially this
-  // is SK_UNKNOWN
-  //
-  // 2005-03-02: It appears that this quantity is never actually used;
-  // furthermore, I think it is computable (mainly from 'scope').  So,
-  // it is a candidate for removal at some point.
-  //
-  // dsw: there would be no way to get the scope kind for a Variable
-  // in a non-isPermanentScope(), since such scopes do not persist and
-  // the variables in them do not get a pointer to them
-  ScopeKind getScopeKind() const;
-  void setScopeKind(ScopeKind k);
-
-  // for template parameters, this says which parameter this is in
-  // the parameter list, e.g., 0 for first, 1 for second, etc.
-  int getParameterOrdinal() const;
-  void setParameterOrdinal(int ord);
+  void setValue(Expression *e) { const_cast<Expression *&>(value)=e; setHasValue(e!=NULL); }
 
   // true if this name refers to a template function, or is
   // the typedef-name of a template class (or partial specialization)
@@ -252,6 +248,11 @@ public:
   // are we an uninstantiated template or a member of one?
   bool isUninstTemplateMember() const;
 
+  // dsw: need a way to tell if a Variable is a method on a
+  // templatized class that was never instantiated because it was
+  // never used
+  bool isUninstClassTemplMethod() const;
+
   // variable's type.. same as the public 'type' field..
   Type *getType() { return type; }
   Type const *getTypeC() const { return type; }
@@ -272,6 +273,9 @@ public:
   // number of elements in the overload set, or 1 if there is no
   // overload set
   int overloadSetSize() const;
+
+  // true if this a pure virtual non-static member function (method)
+  bool isPureVirtualMethod() const;
 
   // true if this is a member of a template (uninstantiated template)
   bool isMemberOfTemplate() const;
@@ -304,8 +308,8 @@ public:
 
   // fully qualified but not mangled name
   string fullyQualifiedName0() const;
-  string mangledName0(); 	// no scope
   void appendMangledness(stringBuilder &mgldName);
+  string mangledName0(); 	// no scope
   string fullyQualifiedMangledName0(); // scope+mangling
 
   // like toString but with the fully qualified name

@@ -12,6 +12,13 @@
 #include "implconv.h"      // ImplicitConversion
 
 
+// forwards in this file
+
+// helper functions for elaboration not during elaboration stage, but during
+// type checking.
+E_addrOf *makeAddr(TypeFactory &tfac, SourceLoc loc, Expression *e);
+
+
 void gdbScopeSeq(ScopeSeq &ss)
 {
   cout << "scope sequence" << endl;
@@ -293,10 +300,14 @@ int throwClauseSerialNumber = 0; // don't make this a member of Env
 
 int Env::anonCounter = 1;
 
-Env::Env(StringTable &s, CCLang &L, TypeFactory &tf, TranslationUnit *tunit0)
+Env::Env(StringTable &s, CCLang &L, TypeFactory &tf,
+         ArrayStack<Variable*> &madeUpVariables0,
+         ArrayStack<Variable*> &builtinVars0,
+         TranslationUnit *unit0)
   : ErrorList(),
 
     env(*this),
+    unit(unit0),
     scopes(),
     disambiguateOnly(false),
     ctorFinished(false),
@@ -311,7 +322,8 @@ Env::Env(StringTable &s, CCLang &L, TypeFactory &tf, TranslationUnit *tunit0)
     str(s),
     lang(L),
     tfac(tf),
-    madeUpVariables(),
+    madeUpVariables(madeUpVariables0),
+    builtinVars(builtinVars0),
 
     // some special names; pre-computed (instead of just asking the
     // string table for it each time) because in certain situations
@@ -361,8 +373,6 @@ Env::Env(StringTable &s, CCLang &L, TypeFactory &tf, TranslationUnit *tunit0)
     // builtin{Un,Bin}aryOperator[] start as arrays of empty
     // arrays, and then have things added to them below
 
-    tunit(tunit0),
-
     // (in/t0568.cc) apparently GCC and ICC always delay, so Elsa will
     // too, even though I think that the only programs for which eager
     // instantiation fails are invalid C++
@@ -386,6 +396,13 @@ Env::Env(StringTable &s, CCLang &L, TypeFactory &tf, TranslationUnit *tunit0)
     // among other things, SK_GLOBAL causes Variables inserted into
     // this scope to acquire DF_GLOBAL
     Scope *s = new Scope(SK_GLOBAL, 0 /*changeCount*/, emptyLoc);
+
+    // dsw: it is very helpful to be able to get to the global scope
+    // of a translation unit, so if you don't do this here please do
+    // it somewhere; There is a traversal in Elsa that I need this
+    // for, so it doesn't help to have it in Oink
+    unit->globalScope = s;
+
     scopes.prepend(s);
     s->openedScope(*this);
 
@@ -437,10 +454,11 @@ Env::Env(StringTable &s, CCLang &L, TypeFactory &tf, TranslationUnit *tunit0)
     CompoundType *bad_alloc_ct;
     Type *t_bad_alloc =
       makeNewCompound(bad_alloc_ct, std_scope, str("bad_alloc"), SL_INIT,
-                      TI_CLASS, true /*forward*/);
+                      TI_CLASS, true /*forward*/, true /*builtin*/);
     if (lang.gcc2StdEqualsGlobalHacks) {
       // using std::bad_alloc;
-      makeUsingAliasFor(SL_INIT, bad_alloc_ct->typedefVar);
+      Variable *using_bad_alloc_ct = makeUsingAliasFor(SL_INIT, bad_alloc_ct->typedefVar);
+      env.builtinVars.push(using_bad_alloc_ct);
       addTypeTag(bad_alloc_ct->typedefVar);
     }
 
@@ -451,7 +469,7 @@ Env::Env(StringTable &s, CCLang &L, TypeFactory &tf, TranslationUnit *tunit0)
     {
       CompoundType *dummy;
       makeNewCompound(dummy, std_scope, str("type_info"), SL_INIT,
-                      TI_CLASS, true /*forward*/);
+                      TI_CLASS, true /*forward*/, true /*builtin*/);
     }
 
     // void* operator new(std::size_t sz) throw(std::bad_alloc);
@@ -985,9 +1003,7 @@ void Env::tcheckTranslationUnit(TranslationUnit *tunit)
 Variable *Env::makeVariable(SourceLoc L, StringRef n, Type *t, DeclFlags f)
 {
   if (!ctorFinished) {
-    // the 'tunit' is NULL for the Variables introduced before analyzing
-    // the user's input
-    Variable *v = tfac.makeVariable(L, n, t, f, NULL);
+    Variable *v = tfac.makeVariable(L, n, t, f);
 
     // such variables are entered into a special list, as long as
     // they're not function parameters (since parameters are reachable
@@ -1001,7 +1017,7 @@ Variable *Env::makeVariable(SourceLoc L, StringRef n, Type *t, DeclFlags f)
 
   else {
     // usual case
-    return tfac.makeVariable(L, n, t, f, tunit);
+    return tfac.makeVariable(L, n, t, f);
   }
 }
 
@@ -1038,6 +1054,8 @@ Variable *Env::declareFunctionNargs(
   else {
     addVariable(var);
   }
+
+  env.builtinVars.push(var);
 
   return var;
 }
@@ -1827,19 +1845,35 @@ Scope *Env::lookupOneQualifier_useArgs(
       anyTemplates = true;
     }
 
+    // TODO: distinguish better between empty template argument list "<>" and
+    // template argument list not existing.
+
     if (qualVar->hasFlag(DF_SELFNAME) && sargs.isEmpty()) {
       // it's a reference to the class I'm in (testcase: t0168.cc)
-    }
+    } else {
+      // check template argument compatibility
+      if (ct->isTemplate()) {
+        if (sargs.isEmpty()) {
+          // quarl 2006-06-14
+          //    It's permissible for the template argument list to be empty
+          //    (as "<>"), because all template parameters may have default
+          //    values.  It will be checked in
+          //    Env::insertTemplateArgBindings_oneParamList.
 
-    // check template argument compatibility
-    else if (sargs.isNotEmpty()) {
-      if (!ct->isTemplate()) {
-        error(stringc
-          << "class `" << qual << "' isn't a template");
-        // recovery: use the scope anyway
+          // error(stringc
+          //   << "class `" << qual
+          //   << "' is a template, you have to supply template arguments");
+          // // recovery: use the scope anyway
+        }
+      } else if (!ct->isTemplate()) {
+        if (sargs.isNotEmpty()) {
+          error(stringc
+                << "class `" << qual << "' isn't a template");
+          // recovery: use the scope anyway
+        }
       }
 
-      else {
+      if (ct->isTemplate()) {
         if ((lflags & LF_DECLARATOR) &&
             containsVariables(sargs)) {    // fix t0185.cc?  seems to...
           // Since we're in a declarator, the template arguments are
@@ -1909,13 +1943,6 @@ Scope *Env::lookupOneQualifier_useArgs(
 
         ct = inst->type->asCompoundType();
       }
-    }
-
-    else if (ct->isTemplate()) {
-      error(stringc
-        << "class `" << qual
-        << "' is a template, you have to supply template arguments");
-      // recovery: use the scope anyway
     }
 
     // TODO: actually check that there are the right number
@@ -2248,20 +2275,30 @@ EnumType *Env::lookupEnum(StringRef name, LookupFlags flags)
 }
 
 
-StringRef Env::getAnonName(TypeIntr keyword)
+StringRef Env::getAnonName(TypeIntr keyword, char const *relName)
 {
-  return getAnonName(toString(keyword));
+  return getAnonName(toString(keyword), relName);
 }
 
 
-StringRef Env::getAnonName(char const *why)
+StringRef Env::getAnonName(char const *why, char const *relName)
 {
   // construct a name
-  string name = stringc << "__anon_" << why
-                        << "_" << anonCounter++;
+  stringBuilder sb;
+  sb << "__anon_" << why << "_";
+
+  if (relName) {
+    // quarl 2006-07-14
+    //    allow semi-anonymous structs so that we can mangle them consistently
+    //    across translation units
+    sb << relName;
+  } else {
+    sb << anonCounter;
+  }
+  anonCounter++;
 
   // map to a stringref
-  return str(name);
+  return str(sb);
 }
 
 
@@ -2361,7 +2398,7 @@ TemplateInfo * /*owner*/ Env::takeCTemplateInfo(bool allowInherited)
 
 Type *Env::makeNewCompound(CompoundType *&ct, Scope * /*nullable*/ scope,
                            StringRef name, SourceLoc loc,
-                           TypeIntr keyword, bool forward)
+                           TypeIntr keyword, bool forward, bool builtin)
 {
   // make the type itself
   ct = tfac.makeCompoundType((CompoundType::Keyword)keyword, name);
@@ -2372,6 +2409,7 @@ Type *Env::makeNewCompound(CompoundType *&ct, Scope * /*nullable*/ scope,
   // make the implicit typedef
   Type *ret = makeType(ct);
   Variable *tv = makeVariable(loc, name, ret, DF_TYPEDEF | DF_IMPLICIT);
+  if (builtin) env.builtinVars.push(tv);
   ct->typedefVar = tv;
 
   // add the tag to the scope
@@ -2455,6 +2493,7 @@ Type *Env::makeNewCompound(CompoundType *&ct, Scope * /*nullable*/ scope,
                                      DF_TYPEDEF | DF_SELFNAME);
     ct->addUniqueVariable(selfVar);
     addedNewVariable(ct, selfVar);
+    if (builtin) env.builtinVars.push(selfVar);
   }
 
   return ret;
@@ -2719,8 +2758,8 @@ bool sameScopes(Scope *s1, Scope *s2)
   return s1 == s2;
 }
 
-
-void Env::makeUsingAliasFor(SourceLoc loc, Variable *origVar)
+// If a new variable was created, return it, else NULL.
+Variable *Env::makeUsingAliasFor(SourceLoc loc, Variable *origVar)
 {
   Type *type = origVar->type;
   StringRef name = origVar->name;
@@ -2736,7 +2775,7 @@ void Env::makeUsingAliasFor(SourceLoc loc, Variable *origVar)
       (origVar->scope? origVar->scope->isClassScope() : false)) {
     error(stringc << "bad alias `" << name
                   << "': alias and original must both be class members or both not members");
-    return;
+    return NULL;
   }
 
   if (scope->isClassScope()) {
@@ -2771,7 +2810,7 @@ void Env::makeUsingAliasFor(SourceLoc loc, Variable *origVar)
     if (!enclosingClass->hasBaseClass(origVar->scope->curCompound)) {
       error(stringc << "bad alias `" << name
                     << "': original must be in a base class of alias' scope");
-      return;
+      return NULL;
     }
   }
 
@@ -2789,7 +2828,7 @@ void Env::makeUsingAliasFor(SourceLoc loc, Variable *origVar)
       (prior->getUsingAlias() == origVar ||                     // in/t0289.cc
        prior->getUsingAlias() == origVar->getUsingAlias()) &&   // in/t0547.cc
       (scope->isGlobalScope() || scope->isNamespace())) {
-    return;
+    return NULL;
   }
 
   // check for overloading
@@ -2816,7 +2855,7 @@ void Env::makeUsingAliasFor(SourceLoc loc, Variable *origVar)
     else if (enclosingClass) {
       // this error message could be more informative...
       error(stringc << "alias `" << name << "' conflicts with another alias");
-      return;
+      return NULL;
     }
   }
 
@@ -2831,7 +2870,7 @@ void Env::makeUsingAliasFor(SourceLoc loc, Variable *origVar)
 
   if (newVar == prior) {
     // found that the name/type named an equivalent entity
-    return;
+    return NULL;
   }
 
   // hook 'newVar' up as an alias for 'origVar'
@@ -2839,6 +2878,8 @@ void Env::makeUsingAliasFor(SourceLoc loc, Variable *origVar)
 
   TRACE("env", "made alias `" << name <<
                "' for origVar at " << toString(origVar->loc));
+
+  return newVar;
 }
 
 
@@ -3072,7 +3113,7 @@ static SimpleTypeId normalizeEnumToInteger(Type *t)
       }
     }
   }
-  
+
   // not an enum or integral type
   return ST_ERROR;
 }
@@ -3108,6 +3149,31 @@ Variable *Env::createDeclaration(
   // if this gets set, we'll replace a conflicting variable
   // when we go to do the insertion
   bool forceReplace = false;
+
+  bool staticBecauseInline = false;
+  // quarl 2006-07-11
+  //    "inline" implies static linkage under certain conditions.  We can't
+  //    set DF_STATIC in all of those conditions because the flag is
+  //    overloaded; but we must set it under some of those conditions
+  //    because env won't be available in Variable::linkerVisibleName().
+  if ((dflags & DF_INLINE) && !(dflags & DF_GNU_EXTERN_INLINE) /*&& !(dflags & DF_EXTERN)*/) {
+    if (dflags & DF_MEMBER) {
+      // quarl 2006-07-11
+      //    Can't set DF_STATIC since DF_MEMBER|DF_STATIC implies static
+      //    member.  However, when DF_INLINE|DF_MEMBER can only occur in C++
+      //    where inlineImpliesStaticLinkage, so we check for that combination
+      //    in isStaticLinkage().  It would be nice to factor DF_STATIC into
+      //    DF_STATIC_LINKAGE and DF_STATIC_MEMBER.
+      xassert(env.lang.inlineImpliesStaticLinkage);
+    } else {
+      if (env.lang.inlineImpliesStaticLinkage) {
+        if (!(dflags & DF_STATIC)) {
+          dflags |= DF_STATIC;
+          staticBecauseInline = true;
+        }
+      }
+    }
+  }
 
   // is there a prior declaration?
   if (prior) {
@@ -3331,6 +3397,16 @@ Variable *Env::createDeclaration(
           type->isFunctionType() &&
           compatibleParamCounts(prior->type->asFunctionType(),
                                 type->asFunctionType())) {
+        // dsw: not sure where to do this so I'm doing it here; if the
+        // two types are function types and one has FF_VARARGS and the
+        // other does not it causes me problems in Oink
+        if (prior->type->asFunctionType()->flags | FF_VARARGS) {
+          type->asFunctionType()->flags |= FF_VARARGS;
+        }
+        if (type->asFunctionType()->flags | FF_VARARGS) {
+          prior->type->asFunctionType()->flags |= FF_VARARGS;
+        }
+
         // 10/08/04: In C, the rules for function type declaration
         // compatibility are more complicated, relying on "default
         // argument promotions", a determination of whether the
@@ -3419,10 +3495,17 @@ Variable *Env::createDeclaration(
         // kc: Illegal to declare or define a function or data variable
         // previously declared as static (?)  gcc-3.4 warns; gcc-4.0 errors.
         if ((dflags & DF_STATIC) && !prior->hasFlag(DF_STATIC)) {
-          env.diagnose3(lang.allowStaticAfterNonStatic, loc, stringc
-                        << "prior declaration of `" << name
-                        << "' at " << prior->loc
-                        << " declared non-static, cannot re-declare as static");
+          if (staticBecauseInline) {
+            // quarl 2006-07-11
+            //    It's apparently okay to propagate staticness if it's
+            //    implicit from an inline definition.
+            prior->setFlag(DF_STATIC);
+          } else {
+            env.diagnose3(lang.allowStaticAfterNonStatic, loc, stringc
+                          << "prior declaration of `" << name
+                          << "' at " << prior->loc
+                          << " declared non-static, cannot re-declare as static");
+          }
         }
       }
     }
@@ -3439,7 +3522,14 @@ Variable *Env::createDeclaration(
     // was found to be equivalent to the previous declaration
 
     // 10/03/04: merge default arguments
-    if (lang.isCplusplus && type->isFunctionType()) {
+    // UPDATE: dsw: currently the way the builtins are declared, they
+    // can have the FF_NO_PARAM_INFO flag even if we are in C++;
+    // therefore we have to check for that and avoid it or we can get
+    // a mismatch on the number of parameters
+    if (lang.isCplusplus && type->isFunctionType()
+        && !(prior->type->asFunctionType()->flags & FF_NO_PARAM_INFO)
+        && !(type->asFunctionType()->flags & FF_NO_PARAM_INFO)
+        ) {
       mergeDefaultArguments(loc, prior, type->asFunctionType());
     }
 
@@ -3531,7 +3621,7 @@ void Env::mergeDefaultArguments(SourceLoc loc, Variable *prior, FunctionType *ty
         //
         // TODO: what are the scoping issues w.r.t. evaluating
         // default arguments?
-        p->value = n->value;
+        p->setValue(n->value);
       }
     }
     else if (!p->value && seenSomeDefaults) {
@@ -3544,7 +3634,8 @@ void Env::mergeDefaultArguments(SourceLoc loc, Variable *prior, FunctionType *ty
 
   // both parameter lists should end simultaneously, otherwise why
   // did I conclude they are declaring the same entity?
-  xassert(priorParam.isDone() && newParam.isDone());
+  xassert(priorParam.isDone() && newParam.isDone() &&
+          "2068fccd-bce0-4634-888c-06063852a47c");
 }
 
 
@@ -4082,6 +4173,8 @@ SourceLoc getExprNameLoc(Expression const *e)
 
 // 'expr/info' is being passed to 'paramType'; if 'expr' is the
 // name of an overloaded function, resolve it
+//
+// part of the implementation of cppstd 13.4
 void Env::possiblySetOverloadedFunctionVar(Expression *expr, Type *paramType,
                                            LookupSet &set)
 {
@@ -5279,7 +5372,7 @@ PQName *Env::makeQualifiedName(Scope *s, PQName *name)
           // into a PQName, so I can re-use/abstract that mechanism.. but
           // I can't even find a place where the present code is even
           // called!  So for now....
-          xfailure("unimplemented");
+          xunimp("can't handle this kind of template argument");
 
         case STemplateArgument::STA_INT:
           // synthesize an AST node for the integer
@@ -5307,6 +5400,108 @@ ASTTypeId *Env::buildASTTypeId(Type *type)
   return new ASTTypeId(new TS_type(loc(), type),
                        new Declarator(new D_name(loc(), NULL /*name*/),
                                       NULL /*init*/));
+}
+
+// This function is called *after* the arguments have been type
+// checked and overload resolution performed (if necessary).  It must
+// compare the actual arguments to the parameters.  It also must
+// finish the job started above of resolving address-of overloaded
+// function names, by comparing to the parameter.
+//
+// One bad aspect of the current design is the need to pass both 'args'
+// and 'argInfo'.  Only by having both pieces of information can I do
+// resolution of overloaded address-of.  I'd like to consolidate that
+// at some point...
+//
+// Note that 'args' *never* includes the receiver object, whereas
+// 'argInfo' *always* includes the type of the receiver object (or
+// NULL) as its first element.
+//
+// It returns the # of default args used.
+
+// Elaboration: if 'ic' involves a user-defined conversion, then modify the
+// AST to make that explicit.
+Expression *Env::makeConvertedArg(Expression * const arg,
+                                  ImplicitConversion const &ic)
+{
+  Expression *newarg = arg;
+
+  switch (ic.kind) {
+  case ImplicitConversion::IC_NONE:
+    // an error message is already printed above.
+    break;
+  case ImplicitConversion::IC_STANDARD:
+    if (ic.scs & SC_GROUP_1_MASK) {
+      switch (ic.scs & SC_GROUP_1_MASK) {
+      case SC_LVAL_TO_RVAL:
+        // TODO
+        break;
+      case SC_ARRAY_TO_PTR:
+        // TODO
+        break;
+      case SC_FUNC_TO_PTR:
+        newarg = makeAddr(env.tfac, env.loc(), arg);
+        break;
+      default:
+        // only 3 kinds in SC_GROUP_1_MASK
+        xfailure("shouldn't reach here");
+        break;
+      }
+    } else {
+      // TODO
+    }
+    break;
+  case ImplicitConversion::IC_USER_DEFINED:
+    // TODO
+    break;
+  case ImplicitConversion::IC_ELLIPSIS:
+    // TODO
+    break;
+  case ImplicitConversion::IC_AMBIGUOUS:
+    xfailure("IC_AMBIGUOUS -- what does this mean here? (25f0c1af-5aea-4528-b994-ccaac0b3a8f1)");
+    break;
+  default:
+    xfailure("shouldn't reach here");
+    break;
+  }
+  return newarg;
+}
+
+// quarl 2006-07-26
+//    used in function call parameter type checking and also initializer
+bool Env::elaborateImplicitConversionArgToParam(Type *paramType, Expression *&arg)
+{
+  // try to convert the argument to the parameter
+  Type *src = arg->getType();
+  ImplicitConversion ic =
+    getImplicitConversion(env,
+                          arg->getSpecial(env.lang),
+                          src,
+                          paramType,
+                          false /*destIsReceiver*/);
+
+  if (!ic) {
+    if (paramType->isArrayType()) {
+      // quarl 2006-07-26
+      //    This seems to be a case that's not handled in
+      //    getImplicitConversion and it seems to persist because this case
+      //    can't occur in a function call, but now shows up in an
+      //    initializer.
+      return true;
+    }
+
+    return false;        // error
+  }
+
+  // Elaboration: if 'ic' involves a user-defined conversion, then
+  // modify the AST to make that explicit
+  arg = env.makeConvertedArg(arg, ic);
+
+  // at least note that we plan to use this conversion, so
+  // if it involves template functions, instantiate them
+  env.instantiateTemplatesInConversion(ic);
+
+  return true;           // success
 }
 
 
@@ -5345,7 +5540,7 @@ bool DefaultArgumentChecker::visitIDeclarator(IDeclarator *obj)
           // arg from the AST and attach it to the Variable
           xassert(d->init->isIN_expr());    // should be parse failure otherwise, I think
           IN_expr *ie = d->init->asIN_expr();
-          d->var->value = ie->e;
+          d->var->setValue(ie->e);
           ie->e = NULL;
         }
       }
@@ -5410,6 +5605,22 @@ DisambiguationErrorTrapper::~DisambiguationErrorTrapper()
   env.errors.prependMessages(existingErrors);
 }
 
+
+// ------------------------------------------------------------
+//
+// helper functions for elaboration not during elaboration stage, but during
+// type checking.
+
+// make a address-of operator.  This is not a method because it's used in
+// cc_tcheck to elaborate implicit conversions
+E_addrOf *makeAddr(TypeFactory &tfac, SourceLoc loc, Expression *e)
+{
+  // "&e"
+  E_addrOf *amprE = new E_addrOf(e);
+  amprE->type = tfac.makePointerType(CV_CONST, e->type);
+
+  return amprE;
+}
 
 // -------- diagnostics --------
 Type *Env::errorType()

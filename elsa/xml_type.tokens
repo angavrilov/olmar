@@ -70,11 +70,14 @@ scope
 # should no longer be using this: intData
 real
 maybeUsedAsAlias
+user1
+user2
 usingAlias_or_parameterizedEntity
 templInfo
 canAcceptNames
 parentScope
 scopeKind
+hasValue
 namespaceVar
 curCompound
 ct

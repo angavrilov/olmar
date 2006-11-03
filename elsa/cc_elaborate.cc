@@ -94,10 +94,9 @@ StringRef ElabVisitor::makeCatchClauseVarName()
 }
 
 
-Variable *ElabVisitor::makeVariable(SourceLoc loc, StringRef name,
-                                    Type *type, DeclFlags dflags)
+Variable *ElabVisitor::makeVariable(SourceLoc loc, StringRef name, Type *type, DeclFlags dflags)
 {
-  return tfac.makeVariable(loc, name, type, dflags, tunit /*doh!*/);
+  return tfac.makeVariable(loc, name, type, dflags);
 }
 
 
@@ -406,7 +405,7 @@ void ElabVisitor::elaborateCDtorsDeclaration(Declaration *decl)
   }
 
   // the caller isn't going to automatically traverse into the type
-  // specifier, so we must do it manually (e.g. qualcc's
+  // specifier, so we must do it manually (e.g. oink/qual's
   // test/memberInit_cdtor1.cc.filter-good.cc fails otherwise)
   decl->spec->traverse(this->loweredVisitor);
 }
@@ -783,7 +782,7 @@ bool ElabVisitor::wantsMemberInit(Variable *var)
   if (var->type->isFunctionType()) return false;
   // skip arrays for now; FIX: do something correct here
   if (var->type->isArrayType()) return false;
-  if (var->isStatic()) return false;
+  if (var->isStaticMember()) return false;
   if (var->hasFlag(DF_TYPEDEF)) return false;
   // FIX: do all this with one test
   xassert(!var->hasFlag(DF_AUTO));

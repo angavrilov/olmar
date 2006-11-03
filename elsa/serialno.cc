@@ -76,14 +76,10 @@ int incSerialNumber()
   return sn;
 }
 
-
-string printSerialNo(char const *pre, int num, char const *post)
+void printSerialNo(stringBuilder &sb, char const *pre, int num, char const *post)
 {
   if (tracingSys("serialNumbers")) {
-    return stringc << pre << num << post;
-  }
-  else {
-    return "";
+    sb << pre << num << post;
   }
 }
 

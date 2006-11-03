@@ -42,7 +42,7 @@ terminals {
   precedence {
     // see note at end regarding implementation of __attribute__
     prec  190 "__attribute__" "restrict";
-    
+
     // the experimentation I did in in/gnu/g0019.cc suggests that
     // these operators have the same prec/assoc as "<" and ">"
     //left   80 "<?" ">?";
@@ -94,6 +94,29 @@ nonterm(Expression*) UnaryExpression {
   -> "__alignof__" "(" e:Expression ")"
        { return new E_alignofExpr(e); }
 
+  // quarl 2006-07-12
+  //    Handle __offsetof__ (gcc-3.4), __builtin_offsetof (gcc-4.x)
+  -> "__builtin_offsetof" "(" t:TypeId "," n:NameAfterDot ")"
+       // { return new E_offsetof(t, n); }
+       {
+         // just create "(unsigned long) &((t*)0)->n)"
+
+         // make it a pointer
+         t->decl->decl = new D_pointer(loc, CV_NONE, t->decl->decl);
+
+         ASTTypeId *ulong = new ASTTypeId(new TS_simple(loc, ST_UNSIGNED_INT),
+                                          new Declarator(new D_name(loc, NULL), NULL));
+
+         return new E_cast(ulong,
+                           (new E_addrOf(
+                             new E_arrow(
+                               new E_cast(t, new E_intLit("0")),
+                               n))));
+       }
+
+  -> "__offsetof__" "(" e:Expression ")"
+       { return new E_grouping(e); }
+
   // sm: __builtin_expect is for static branch prediction, but none of
   // the analyses I forsee for this parser care about such things, so
   // I will simply pretend I never even saw it (though, this is a
@@ -139,6 +162,12 @@ nonterm(Expression*) ConditionalExpression {
 nonterm(Statement*) Statement {
   -> f:FunctionDefinition
        { return new S_function(loc, f); }
+  // quarl 2006-06-15
+  //    nested K&R functions; unimplemented for now but I guess we just need
+  //    to do the same as above?  see in/gnu/k0010.c
+  -> k:KandRFunctionDefinition
+       { xunimp(stringc << loc << "nested K&R function definition"
+                " (d00aa531-ca12-4d72-9caf-ca9db9941179)"); }
 }
 
 
@@ -359,7 +388,7 @@ nonterm(IDeclarator*) Declarator {
   // Asm Labels after declarators; see in/gnu/asm01.c
   -> d:DirectDeclarator "asm" "(" StringLiteral ")"
        { return d; }
-       
+
   // asm label + attributes ...
   -> d:DirectDeclarator "asm" "(" StringLiteral ")" /*DROPPED*/AttributeSpecifierList
        { return d; }
@@ -534,14 +563,14 @@ nonterm(enum TypeIntr) ClassKey {
 
 // attributes after "enum"
 nonterm(TypeSpecifier*) ElaboratedTypeSpecifier {
-  -> "enum" /*DROPPED*/AttributeSpecifierList n:PQTypeName        
+  -> "enum" /*DROPPED*/AttributeSpecifierList n:PQTypeName
        { return new TS_elaborated(loc, TI_ENUM, n); }
 }
 
 nonterm(TS_enumSpec*) EnumSpecifier {
   -> "enum" /*DROPPED*/AttributeSpecifierList "{" list:EnumeratorListOpt "}"
        { return new TS_enumSpec(loc, NULL /*name*/, list); }
-       
+
   // Adding this adds one S/R conflict... it was 3 until I changed
   // Identifier to PQTypeName.  I think cc.gr should similarly use
   // PQName instead of Identifier, and catch qualifiers in tcheck...
@@ -581,7 +610,7 @@ nonterm(FakeList<Declarator>*) InitDeclaratorList {
          return FakeList<Declarator>::makeList(d); }
 }
 
-                                      
+
 // cv-qualifiers mixed with __attribute__ arbitrarily
 nonterm(enum CVFlags) CVQualAttrSeqOpt {
   -> empty                             { return CV_NONE; }
@@ -624,7 +653,7 @@ nonterm(IDeclarator*) DirectDeclarator {
 nonterm(IDeclarator*) AbstractDeclarator {
   -> "*" cv:CVQualifierSeqOpt attrspec:AttributeSpecifier cv2:CVQualAttrSeqOpt d:AbstractDeclaratorOpt
        { return new D_pointer(loc, cv | cv2, d); }
-       
+
   -> d:DirectAbstractDeclarator attr:AttributeSpecifierList
        { return new D_attribute(loc, d, attr); }
 }
@@ -721,8 +750,8 @@ nonterm(StringRef) AttributeWord {
   -> "void"             { return str("void"); }
   -> "volatile"         { return str("volatile"); }
   -> "wchar_t"          { return str("wchar_t"); }
-  -> "while"            { return str("while"); } 
-  
+  -> "while"            { return str("while"); }
+
   // don't know if I need to allow these; gcc 2.95.3 doesn't like them
   //  // GNU extensions
   //  TOK___ATTRIBUTE__,       "__attribute__",             :    n
@@ -776,6 +805,18 @@ nonterm(AttributeSpecifierList*) AttributeSpecifierList {
 
   -> as:AttributeSpecifier asl:AttributeSpecifierList
      { return new AttributeSpecifierList(as, asl); }
+}
+
+// quarl 2006-06-14
+//    'using namespace N __attribute__(__strong__)'
+//    see in/gnu/k0009.cc or
+//    /usr/include/c++/3.4/i486-linux-gnu/bits/c++config.h
+
+nonterm(NamespaceDecl*) NamespaceDecl {
+  -> "using" "namespace" n:IdExpression AttributeSpecifierList ";"
+       { xunimp(stringc << loc << " using namespace __attribute__"
+                " (a86c8a1e-2cd7-41bd-8a23-f9049358c166)");
+         return new ND_usingDir(n); }
 }
 
 
@@ -857,7 +898,7 @@ nonterm(AttributeSpecifierList*) AttributeSpecifierList {
     *   - better: in Declarator after the Direct(Abstract)Declarator
 
   The two "/" above means I didn't end up putting them after the C++
-  type constructors, since I doubt I'll need them there.  
+  type constructors, since I doubt I'll need them there.
 
   I found it useful to keep track, while I was modifying the grammar, of
   the conflict totals.  This table shows the effect on conflicts of my

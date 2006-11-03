@@ -33,3 +33,9 @@ int main()
     struct S s;
     return __offsetof__((static_cast<S*> (0))->y);
 }
+
+int foo()
+{
+  // make sure it's a compile-time constant
+  int static_assertion[ (4 == __offsetof__((static_cast<S*> (0))->y)) ? 1 : -1 ];
+}

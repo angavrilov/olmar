@@ -369,8 +369,8 @@ CompoundType::CompoundType(Keyword k, StringRef n)
   : NamedAtomicType(n),
     Scope(SK_CLASS, 0 /*changeCount*/, SL_UNKNOWN /*dummy loc*/),
     forward(true),
-    keyword(k),
     isTransparentUnion(false),
+    keyword(k),
     bases(),
     virtualBases(),
     subobj(BaseClassSubobj(this, AK_PUBLIC, false /*isVirtual*/)),
@@ -1135,7 +1135,7 @@ EnumType::Value *EnumType::addValue(StringRef name, int value, Variable *decl)
   // the Value objects.  Daniel pointed out this was quadratic b/c
   // I was using 'append()'.  Since I never used the list anyway,
   // I just dropped it in favor of the dictionary (only).
-  
+
   if (value < 0) {
     hasNegativeValues = true;
   }
@@ -1331,6 +1331,15 @@ bool BaseType::isSimple(SimpleTypeId id) const
 {
   return isSimpleType() &&
          asSimpleTypeC()->type == id;
+}
+
+bool BaseType::isSomeKindOfCharType() const
+{
+  return
+    isSimple(ST_CHAR)          ||
+    isSimple(ST_UNSIGNED_CHAR) ||
+    isSimple(ST_SIGNED_CHAR)   ||
+    isSimple(ST_WCHAR_T);
 }
 
 bool BaseType::isStringType() const
@@ -2492,7 +2501,7 @@ string PseudoInstantiation::toMLString() const
 void BaseType::putSerialNo(stringBuilder &sb) const
 {
   #if USE_SERIAL_NUMBERS
-    sb << printSerialNo("t", serialNumber, "-");
+    printSerialNo(sb, "t", serialNumber, "-");
   #endif
 }
 
@@ -2733,12 +2742,17 @@ Type *TypeFactory::applyCVToType(SourceLoc loc, CVFlags cv, Type *baseType,
   }
 
   CVFlags now = baseType->getCVFlags();
-  if (now | cv == now) {
+  if (wantsQualifiedTypeReuseOptimization() &&
+      now | cv == now) {
     // no change, 'cv' already contained in the existing flags
     return baseType;
   }
   else if (baseType->isArrayType()) {
     // 8.3.4 para 1: apply cv to the element type
+    //
+    // Note: This clones the ArrayType object every time, if someone
+    // is adding const or volatile to an array (possible via typedef).
+    // This is probably a bug.
     ArrayType *at = baseType->asArrayType();
     return makeArrayType(applyCVToType(loc, cv, at->eltType, NULL /*syntax*/),
                          at->size);
@@ -2748,6 +2762,12 @@ Type *TypeFactory::applyCVToType(SourceLoc loc, CVFlags cv, Type *baseType,
     // inappropriate application (e.g. 'const' to a reference)
     return setQualifiers(loc, now | cv, baseType, syntax);
   }
+}
+
+
+bool TypeFactory::wantsQualifiedTypeReuseOptimization()
+{
+  return true;
 }
 
 
@@ -2924,7 +2944,7 @@ PointerToMemberType *BasicTypeFactory::makePointerToMemberType
 
 
 Variable *BasicTypeFactory::makeVariable(
-  SourceLoc L, StringRef n, Type *t, DeclFlags f, TranslationUnit *)
+  SourceLoc L, StringRef n, Type *t, DeclFlags f)
 {
   // I will turn this on from time to time as a way to check that
   // Types are always capable of printing themselves.  It should never

@@ -914,7 +914,7 @@ string STemplateArgument::toString() const
       CTypePrinter typePrinter0;
       stringBuilder sb;
       StringBuilderOutStream sbout0(sb);
-      typePrinter0.print(sbout0, value.t);
+      typePrinter0.print(sbout0, value.t, "" /*do not print "anon"*/);
       return sb;
     }
     case STA_INT:       return stringc << "/*int*/ " << value.i;
@@ -1711,7 +1711,7 @@ bool Env::insertTemplateArgBindings_oneParamList
 
       // set 'bindings->value', in some cases creating AST
       if (!sarg) {
-        binding->value = param->value;
+        binding->setValue(param->value);
 
         // sm: the statement above seems reasonable, but I'm not at
         // all convinced it's really right... has it been tcheck'd?
@@ -1719,7 +1719,7 @@ bool Env::insertTemplateArgBindings_oneParamList
         // I'll wait for a testcase to remove this assertion... before
         // this assertion *is* removed, someone should read over the
         // applicable parts of cppstd
-        xfailure("unimplemented: default non-type argument");
+        xunimp("default non-type argument");
       }
       switch (sarg->kind) {
         // The following cases get progressively more difficult for
@@ -1735,27 +1735,27 @@ bool Env::insertTemplateArgBindings_oneParamList
         // indirection through the 'binding' variable.
 
         case STemplateArgument::STA_INT: {
-          binding->value = build_E_intLit(sarg->getInt());
+          binding->setValue(build_E_intLit(sarg->getInt()));
           break;
         }
         case STemplateArgument::STA_ENUMERATOR: {
-          binding->value = build_E_variable(sarg->getEnumerator());
+          binding->setValue(build_E_variable(sarg->getEnumerator()));
           break;
         }
         case STemplateArgument::STA_REFERENCE: {
-          binding->value = build_E_variable(sarg->getReference());
+          binding->setValue(build_E_variable(sarg->getReference()));
           break;
         }
         case STemplateArgument::STA_POINTER: {
-          binding->value = build_E_addrOf(build_E_variable(sarg->getPointer()));
+          binding->setValue(build_E_addrOf(build_E_variable(sarg->getPointer())));
           break;
         }
         case STemplateArgument::STA_MEMBER: {
-          binding->value = build_E_addrOf(build_E_variable(sarg->getMember()));
+          binding->setValue(build_E_addrOf(build_E_variable(sarg->getMember())));
           break;
         }
         case STemplateArgument::STA_DEPEXPR: {
-          binding->value = sarg->getDepExpr();
+          binding->setValue(sarg->getDepExpr());
           break;
         }
         default: {
@@ -2143,7 +2143,7 @@ void cloneDefaultArguments(Variable *inst, TemplateInfo *instTI,
   for (; !instParam.isDone() && !primaryParam.isDone();
        instParam.adv(), primaryParam.adv()) {
     if (primaryParam.data()->value) {
-      instParam.data()->value = primaryParam.data()->value->clone();
+      instParam.data()->setValue(primaryParam.data()->value->clone());
       instTI->uninstantiatedDefaultArgs++;
     }
     else {
@@ -2177,6 +2177,35 @@ int countParamsWithDefaults(FunctionType *ft)
 // there is one.
 void syncDefaultArgsWithDefinition(Variable *instV, TemplateInfo *instTI)
 {
+  // SGM 2006-09-17: I can't figure out why I wanted to do this in
+  // the first place.  The basic default-args design is:
+  //
+  // * The template primary has the default arg expression, but it has
+  // only been tchecked for parsing and non-depenendent lookup
+  // purposes.
+  //
+  // * When the template is instantiated, the entire primary's AST is
+  // cloned, so the default arg gets cloned too.  But it is still not
+  // fully tchecked.
+  //
+  // * When the default arg is needed (possibly right after
+  // instantiating), it is tchecked in place.  This is at the
+  // declaration site.
+  //
+  // I don't see where the definition gets involved in any of this,
+  // unless it is the only declaration, in which case there is still
+  // no need to explicitly sync b/c that is where the default args are
+  // already.
+  //
+  // Disabling this fixed in/dk0127.cc, which was failing because when
+  // the argument is copied below, I do not clone 'sem->value', but
+  // rather just build an IN_expr on top of it, which breaks the
+  // tree-ness property of the AST.  I wrote a few more tests in
+  // in/t0588.cc, but still can't find a reason to copy the args to
+  // the defn.
+  //
+  #if 0      // disabled; see comments above
+
   if (!instV->funcDefn || !instTI->instantiateBody) {
     return;
   }
@@ -2208,6 +2237,12 @@ void syncDefaultArgsWithDefinition(Variable *instV, TemplateInfo *instTI)
       continue;       // already transferred
     }
 
+    // NOTE: This line is buggy, as it does not clone sem->value,
+    // which breaks the tree-ness of the AST.  Cloning it alone would
+    // not be enough, though, because the clone would need to be
+    // tchecked.  Anyway, I no longer remember why I wanted to do any
+    // of this, so the whole block of code is disabled.  See the
+    // comments above.
     d->init = new IN_expr(sem->loc /* not perfect, but it will do */,
                           sem->value);
   }
@@ -2222,6 +2257,8 @@ void syncDefaultArgsWithDefinition(Variable *instV, TemplateInfo *instTI)
     syntactic = syntactic->butFirst();
   }
   xassert(!syntactic && semantic.isDone());
+
+  #endif // 0
 }
 
 
@@ -2325,7 +2362,12 @@ void Env::instantiateDefaultArgs(Variable *instV, int neededDefaults)
   for (int i = noDefaults+m; i < noDefaults+n+m; i++) {
     Variable *param = ft->params.nth(i);
     if (param->value) {
-      param->value->tcheck(*this, param->value);
+      // this dance is necessary because Variable::value is const,
+      // forcing updates to go through setValue
+      Expression *tmp = param->value;
+      tmp->tcheck(*this, tmp);
+      param->setValue(tmp);
+
       instTI->uninstantiatedDefaultArgs--;
     }
     else {
@@ -3679,13 +3721,13 @@ bool Env::mergeParameterLists(Variable *prior,
       // leave it as a to-do for now; a proper implementation should
       // remember the name substitutions done so far, and apply them
       // inside the expression for 'dest->value'
-      xfailure("unimplemented: alpha conversion inside default values"
-               " (workaround: use consistent names in template parameter lists)");
+      xunimp("alpha conversion inside default values"
+             " (workaround: use consistent names in template parameter lists)");
     }
 
     // merge their default values
     if (src->value && !dest->value) {
-      dest->value = src->value;
+      dest->setValue(src->value);
     }
 
     // do they use the same name?
@@ -3708,7 +3750,7 @@ bool Env::mergeParameterLists(Variable *prior,
       Variable *v = makeVariable(dest->loc, src->name, src->type, dest->flags);
 
       // copy a few other fields, including default value
-      v->value = dest->value;
+      v->setValue(dest->value);
       v->defaultParamType = dest->defaultParamType;
       v->scope = dest->scope;
       v->setScopeKind(dest->getScopeKind());
@@ -3775,6 +3817,8 @@ bool Env::mergeTemplateInfos(Variable *prior, TemplateInfo *dest,
 // the return value is the type with substitutions performed.
 Type *Env::applyArgumentMapToType(MType &map, Type *origSrc)
 {
+  xassert(origSrc && "6ccc991e-bd8a-47d8-8f5c-e75d7065a29d");
+
   // my intent is to not modify 'origSrc', so I will use 'src', except
   // when I decide to return what I already have, in which case I will
   // use 'origSrc'
@@ -3819,7 +3863,7 @@ Type *Env::applyArgumentMapToType(MType &map, Type *origSrc)
           // TODO: I should be substituting the template parameters
           // in the default argument too... but for now I will just
           // use it without modification
-          rp->value = sp->value;
+          rp->setValue(sp->value);
         }
 
         rft->addParam(rp);
@@ -4693,6 +4737,13 @@ void Env::explicitlyInstantiate(Variable *var, DeclFlags instFlags)
     }
 
     else {
+      // quarl 2006-07-20
+      //    If there is an explicit "extern template" instantiation followed
+      //    by a non-extern template instantiation, then ignore the extern
+      //    instantiation.  See oink/Test/extern_template1.cc (can't test
+      //    linking in pure Elsa).
+      tinfo->instantiationDisallowed = false;
+      
       // It's ok if we haven't seen the definition yet, however, the
       // presence of this explicit instantiation request means that the
       // definition must be somewhere in the translation unit (14.7.2

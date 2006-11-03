@@ -56,6 +56,9 @@ protected:   // data
   // bound to '*this'; facilitates moving code into and out of Env
   Env &env;
 
+  // The TranslationUnit we are typechecking; see note in the ctor
+  TranslationUnit *unit;
+
   // stack of lexical scopes; first is innermost
   //
   // NOTE: If a scope has a non-NULL curCompound or namespaceVar,
@@ -122,12 +125,20 @@ public:      // data
   // interface for making types
   TypeFactory &tfac;
 
-  // client analyses may need to get ahold of all the Variables that I
-  // made up, so this is a list of them; these don't include Variables
-  // built for parameters of function types, but the functions
-  // themselves appear here so the parameters are reachable (NOTE:
-  // at the moment, I don't think anyone is using this information)
-  ArrayStack<Variable*> madeUpVariables;
+  // client analyses may need to get ahold of all the Variables that I made
+  // up, so this is a list of them; these don't include Variables built for
+  // parameters of function types, but the functions themselves appear here so
+  // the parameters are reachable (NOTE: at the moment, I don't think anyone
+  // is using this information)
+  //
+  // dsw: this is not what we wanted at all!  madeUpVariables has all kinds of
+  // weird crap in it; I vote that you get rid of it.  Things like elaborate
+  // member declarations for implicit members get found by LoweredASTVisitor
+  // anyway.
+  ArrayStack<Variable*> &madeUpVariables;
+
+  // Just the built-in variables.
+  ArrayStack<Variable*> &builtinVars;
 
   // ---- BEGIN: special names ----
   // name under which conversion operators are looked up
@@ -286,8 +297,11 @@ private:     // funcs
 
 public:      // funcs
   Env(StringTable &str, CCLang &lang, TypeFactory &tfac,
-      TranslationUnit *tunit0 /*TODO: eliminate this!*/);
-  virtual ~Env();      // 'virtual' only to silence stupid warning; destruction is not part of polymorphic contract
+      ArrayStack<Variable*> &madeUpVariables0, ArrayStack<Variable*> &builtinVars0,
+      TranslationUnit *unit0);
+
+  // 'virtual' only to silence stupid warning; destruction is not part of polymorphic contract
+  virtual ~Env();
 
   // this function kicks off type checking for a translation unit;
   // it is not recursive (it should *not* call itself for namespaces)
@@ -456,19 +470,20 @@ public:      // funcs
   // like the above, but for template *classes*
   TemplateInfo * /*owner*/ takeCTemplateInfo(bool allowInherited = true);
 
-  // return a new name for an anonymous type; 'keyword' says
-  // which kind of type we're naming
-  StringRef getAnonName(TypeIntr keyword);
+  // return a new name for an anonymous type; 'keyword' says which kind of
+  // type we're naming; 'relName' (if !NULL) gives it a deterministic name
+  // instead of an index
+  StringRef getAnonName(TypeIntr keyword, char const *relName);
 
   // more general
-  StringRef getAnonName(char const *why);
+  StringRef getAnonName(char const *why, char const *relName);
 
   // introduce a new compound type name; return the constructed
   // CompoundType's pointer in 'ct', after inserting it into 'scope'
   // (if that is not NULL)
   Type *makeNewCompound(CompoundType *&ct, Scope * /*nullable*/ scope,
                         StringRef name, SourceLoc loc,
-                        TypeIntr keyword, bool forward);
+                        TypeIntr keyword, bool forward, bool builtin);
 
 
   // this is for ErrorList clients
@@ -607,7 +622,7 @@ public:      // funcs
                         MatchFlags mflags = MF_NONE);
 
   // create a "using declaration" alias
-  void makeUsingAliasFor(SourceLoc loc, Variable *origVar);
+  Variable *makeUsingAliasFor(SourceLoc loc, Variable *origVar);
 
   // see comments at implementation site
   void handleTypeOfMain(SourceLoc loc, Variable *prior, Type *&type);
@@ -717,6 +732,11 @@ public:      // funcs
   // 'size', and return the type of the 'sizeof' expression itself.
   // If 't' was derived from an expression, it is passed as 'expr'.
   Type *sizeofType(Type *t, int &size, Expression * /*nullable*/ expr);
+
+  Expression *makeConvertedArg(Expression * const arg,
+                               ImplicitConversion const &ic);
+
+  bool elaborateImplicitConversionArgToParam(Type *paramType, Expression *&arg);
 
   // ------------ new lookup mechanism ---------------
 private:     // funcs

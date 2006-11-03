@@ -158,6 +158,10 @@ public:
   // 3.4.6 when optimizations are off and on respectively.
   bool handleExternInlineSpecially;
 
+  // quarl: whether "inline" implies static linkage.  True in C++ but not in
+  // C.
+  bool inlineImpliesStaticLinkage;
+
   // dsw: C99 std 6.4.5p5: "For character string literals, the array
   // elements have type char...."; Cppstd 2.13.4p1: "An ordinary
   // string literal has type "array of const char" and static storage
@@ -169,7 +173,8 @@ public:
   // have lvalue type
   bool lvalueFlowsThroughCast;
 
-  // when true, 'restrict' is a keyword
+  // when true, 'restrict' is a keyword (note that __restrict and
+  // __restrict__ are always keywords)
   bool restrictIsAKeyword;
 
   // ---- bug compatibility flags ----

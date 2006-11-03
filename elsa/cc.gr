@@ -338,7 +338,11 @@ nonterm(PQName*) PQualifiedId {
   -> n:Identifier "::" id:PQualifiedId
        { return new PQ_qualifier(loc, n, NULL /*targs*/, id); }
 
-  -> n:Identifier "<" targs:TemplateArgumentList ">" "::" id:PQualifiedId
+  // quarl 2006-06-14
+  //    changed targs:TemplateArgumentList to targs:TemplateArgumentListOpt;
+  //    see in/k0112.cc
+
+  -> n:Identifier "<" targs:TemplateArgumentListOpt ">" "::" id:PQualifiedId
        { return new PQ_qualifier(loc, n, targs, id); }
 
   // versions with "template" in front (it's not clear to me that this
@@ -351,7 +355,7 @@ nonterm(PQName*) PQualifiedId {
   // "template" but not supplying template arguments) is illegal
   //-> "template" n:Identifier "::" id:PQualifiedId
   //     { return new PQ_qualifier(loc, n, NULL /*targs*/, id); }
-  -> "template" n:Identifier "<" targs:TemplateArgumentList ">" "::" id:PQualifiedId
+  -> "template" n:Identifier "<" targs:TemplateArgumentListOpt ">" "::" id:PQualifiedId
        { return new PQ_qualifier(loc, n, templateUsed(targs), id); }
 }
 
@@ -649,6 +653,10 @@ nonterm(PQName*) NAD2 {
        { return new PQ_name(loc, n); }
   -> on:OperatorFunctionId
        { return new PQ_operator(loc, on, str(on->getOperatorName())); }
+  -> on:OperatorFunctionId "<" list:TemplateArgumentListOpt ">"
+       { xunimp(stringc << loc << " templatized operator (fc042c37-50e2-4596-8460-c095e7ac892b)"); }
+  -> "template" on:OperatorFunctionId "<" list:TemplateArgumentListOpt ">"
+       { xunimp(stringc << loc << " templatized operator (fc042c37-50e2-4596-8460-c095e7ac892b)"); }
 
   // qualifier names
   -> n:Identifier "<" list:TemplateArgumentListOpt ">" "::" rest:NAD1
@@ -1266,7 +1274,7 @@ nonterm(PQName*) PQTypeName_ncc {
 
   -> q:Identifier "::" n:PQTypeName_notfirst
        { return new PQ_qualifier(loc, q, NULL /*targs*/, n); }
-  -> q:Identifier "<" targs:TemplateArgumentList ">" "::" n:PQTypeName_notfirst
+  -> q:Identifier "<" targs:TemplateArgumentListOpt ">" "::" n:PQTypeName_notfirst
        { return new PQ_qualifier(loc, q, targs, n); }
 }
 
@@ -1287,7 +1295,7 @@ nonterm(PQName*) PQTypeName_notfirst {
   // TEMPLATE_QUALIFIER_HACK
   //-> "template" q:Identifier "::" n:PQTypeName_notfirst
   //     { return new PQ_qualifier(loc, q, NULL /*targs*/, n); }
-  -> "template" q:Identifier "<" targs:TemplateArgumentList ">" "::" n:PQTypeName_notfirst
+  -> "template" q:Identifier "<" targs:TemplateArgumentListOpt ">" "::" n:PQTypeName_notfirst
        { return new PQ_qualifier(loc, q, templateUsed(targs), n); }
 }
 
@@ -1450,7 +1458,12 @@ nonterm(IN_compound*) InitializerList {
 nonterm(IDeclarator*) Declarator {
   -> "*" cv:CVQualifierSeqOpt d:Declarator
        { return new D_pointer(loc, cv, d); }
-  -> "&" d:Declarator
+  // dsw: I could have just allowed 'restrict' here instead of
+  // allowing any CVQualifierSeqOpt after a "&" but it would mean
+  // duplicating the parsing rule three times (there are three
+  // occurances of "&" with this meaning in the grammar) and moving it
+  // to gnu.gr; perhaps Scott will prefer that more specific solution.
+  -> "&" cv:CVQualifierSeqOpt /*dsw: discarded; can be 'restrict' */ d:Declarator
        { return new D_reference(loc, d); }
   -> n:PtrToMemberName "*" cv:CVQualifierSeqOpt d:Declarator
        { return new D_ptrToMember(loc, n, cv, d); }
@@ -1502,7 +1515,7 @@ nonterm(PQName*) PQDtorName {
 
   -> "~" n:Identifier
        { return new PQ_name(loc, str(stringc << "~" << n)); }
-  -> "~" n:Identifier "<" list:TemplateArgumentList ">"
+  -> "~" n:Identifier "<" list:TemplateArgumentListOpt ">"
        { return new PQ_template(loc, str(stringc << "~" << n), list); }
 
   // as above for PQName_no_colon_colon, I'm temporarily removing an
@@ -1511,13 +1524,13 @@ nonterm(PQName*) PQDtorName {
   -> q:Identifier "::" rhs:PQDtorName
        { return new PQ_qualifier(loc, q, NULL /*targs*/, rhs); }
 
-  -> q:Identifier "<" targs:TemplateArgumentList ">" "::" rhs:PQDtorName
+  -> q:Identifier "<" targs:TemplateArgumentListOpt ">" "::" rhs:PQDtorName
        { return new PQ_qualifier(loc, q, targs, rhs); }
 
   // TEMPLATE_QUALIFIER_HACK
   //-> "template" q:Identifier "::" rhs:PQDtorName
   //     { return new PQ_qualifier(loc, q, NULL /*targs*/, rhs); }
-  -> "template" q:Identifier "<" targs:TemplateArgumentList ">" "::" rhs:PQDtorName
+  -> "template" q:Identifier "<" targs:TemplateArgumentListOpt ">" "::" rhs:PQDtorName
        { return new PQ_qualifier(loc, q, templateUsed(targs), rhs); }
 
   // this rule from cppstd is partially subsumed by the "template" hack
@@ -1579,7 +1592,7 @@ nonterm(IDeclarator*) AbstractDeclaratorOpt {
 nonterm(IDeclarator*) AbstractDeclarator {
   -> "*" cv:CVQualifierSeqOpt d:AbstractDeclaratorOpt
        { return new D_pointer(loc, cv, d); }
-  -> "&" d:AbstractDeclaratorOpt
+  -> "&" cv:CVQualifierSeqOpt /*dsw: discarded; can be 'restrict' */ d:AbstractDeclaratorOpt
        { return new D_reference(loc, d); }
   -> n:PtrToMemberName "*" cv:CVQualifierSeqOpt d:AbstractDeclaratorOpt
        { return new D_ptrToMember(loc, n, cv, d); }
@@ -1877,13 +1890,13 @@ nonterm(PQName*) ClassHeadName {
 
   -> n:Identifier "::" rest:ClassHeadName
        { return new PQ_qualifier(loc, n, NULL /*targs*/, rest); }
-  -> n:Identifier "<" targs:TemplateArgumentList ">" "::" rest:ClassHeadName
+  -> n:Identifier "<" targs:TemplateArgumentListOpt ">" "::" rest:ClassHeadName
        { return new PQ_qualifier(loc, n, targs, rest); }
 
   // TEMPLATE_QUALIFIER_HACK
   //-> "template" n:Identifier "::" rest:ClassHeadName
   //     { return new PQ_qualifier(loc, n, NULL /*targs*/, rest); }
-  -> "template" n:Identifier "<" targs:TemplateArgumentList ">" "::" rest:ClassHeadName
+  -> "template" n:Identifier "<" targs:TemplateArgumentListOpt ">" "::" rest:ClassHeadName
        { return new PQ_qualifier(loc, n, templateUsed(targs), rest); }
 }
 
@@ -2171,7 +2184,7 @@ nonterm(IDeclarator*) ConversionDeclaratorOpt {
 
   -> "*" cv:CVQualifierSeqOpt d:ConversionDeclaratorOpt
        { return new D_pointer(loc, cv, d); }
-  -> "&" d:ConversionDeclaratorOpt
+  -> "&" cv:CVQualifierSeqOpt /*dsw: discarded; can be 'restrict' */ d:ConversionDeclaratorOpt
        { return new D_reference(loc, d); }
   -> n:PtrToMemberName "*" cv:CVQualifierSeqOpt d:ConversionDeclaratorOpt
        { return new D_ptrToMember(loc, n, cv, d); }
@@ -2396,7 +2409,10 @@ nonterm ClassOrTypename {
   //    place to put it, but I just wanted to see a descriptive error message,
   //    in order to categorize parse errors.
   -> "template" "<" plist:TemplateParameterList ">" "class"
-     { xfailure("unimplemented: templatized template parameter list (25eb7000-851c-4028-b762-4e365a5b10bf)"); }
+     {
+       xunimp(stringc << loc << " templatized template parameter list"
+              " (25eb7000-851c-4028-b762-4e365a5b10bf)");
+     }
 }
 
 nonterm(ASTTypeId*) DefaultTypeOpt {
@@ -2488,6 +2504,9 @@ nonterm(TemplateArgument*) TemplateArgument {
 nonterm(TopForm*) ExplicitInstantiation {
   -> "template" d:BlockDeclaration
        { return new TF_explicitInst(loc, DF_NONE, d); }
+  -> "inline" "template" d:BlockDeclaration
+       { xunimp(stringc << loc << " inline explicit instantiations"
+                " (c24a5f9c-edbd-4945-a56a-ed73a1d6a0fa)"); }
 }
 
 // ------ A.13 Exception handling ------

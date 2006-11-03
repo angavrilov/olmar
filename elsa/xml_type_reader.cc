@@ -503,10 +503,25 @@ bool XmlTypeReader::registerAttr_Variable_super(Variable *obj, int attr, char co
     fromXml_bool(maybeUsedAsAlias, strValue);
     obj->setMaybeUsedAsAlias(maybeUsedAsAlias);
     break;
+  case XTOK_user1:
+    bool user1;
+    fromXml_bool(user1, strValue);
+    obj->setUser1(user1);
+    break;
+  case XTOK_user2:
+    bool user2;
+    fromXml_bool(user2, strValue);
+    obj->setUser2(user2);
+    break;
   case XTOK_scopeKind:
     ScopeKind scopeKind;
     fromXml(scopeKind, strValue);
     obj->setScopeKind(scopeKind);
+    break;
+  case XTOK_hasValue:
+    bool hasValue;
+    fromXml_bool(hasValue, strValue);
+    obj->setHasValue(hasValue);
     break;
   case XTOK_parameterOrdinal:
     int parameterOrdinal;
@@ -565,7 +580,7 @@ void XmlTypeReader::registerAttr_CompoundType(CompoundType *obj, int attr, char 
 
   switch(attr) {
   default: xmlUserFatalError("illegal attribute for a CompoundType"); break;
-  case XTOK_forward: fromXml_bool(obj->forward, strValue); break;
+  case XTOK_forward: obj->forward = fromXml_bool(strValue); break;
   case XTOK_keyword: fromXml(obj->keyword, strValue); break;
   case XTOK_dataMembers: ulEmbed(dataMembers, XTOK_List_CompoundType_dataMembers); break;
   case XTOK_bases: ulEmbed(bases, XTOK_List_CompoundType_bases); break;

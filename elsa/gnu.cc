@@ -34,11 +34,11 @@ void Env::addGNUBuiltins()
   Type *t_void = getSimpleType(ST_VOID);
   Type *t_ellipsis_ptr = makePtrType(getSimpleType(ST_ELLIPSIS));
 //    Type *t_voidconst = getSimpleType(SL_INIT, ST_VOID, CV_CONST);
-  Type *t_voidptr = makePtrType(t_void);
+//    Type *t_voidptr = makePtrType(t_void);
 //    Type *t_voidconstptr = makePtrType(SL_INIT, t_voidconst);
 
   Type *t_int = getSimpleType(ST_INT);
-  Type *t_unsigned_int = getSimpleType(ST_UNSIGNED_INT);
+//    Type *t_unsigned_int = getSimpleType(ST_UNSIGNED_INT);
   Type *t_char = getSimpleType(ST_CHAR);
   Type *t_charconst = getSimpleType(ST_CHAR, CV_CONST);
   Type *t_charptr = makePtrType(t_char);
@@ -59,6 +59,7 @@ void Env::addGNUBuiltins()
 //                  t_voidptr, DF_TYPEDEF | DF_BUILTIN | DF_GLOBAL);
                  t_ellipsis_ptr, DF_TYPEDEF | DF_BUILTIN | DF_GLOBAL);
   addVariable(var__builtin_va_list);
+  env.builtinVars.push(var__builtin_va_list);
 
   // void __builtin_stdarg_start(__builtin_va_list __list, char const *__format);
   // trying this instead:
@@ -89,9 +90,9 @@ void Env::addGNUBuiltins()
                       var__builtin_va_list->type, "__list");
 
 
-  // void *__builtin_alloca(unsigned int __len);
-  declareFunction1arg(t_voidptr, "__builtin_alloca",
-                      t_unsigned_int, "__len");
+  // // void *__builtin_alloca(unsigned int __len);
+  // declareFunction1arg(t_voidptr, "__builtin_alloca",
+  //                     t_unsigned_int, "__len");
 
   // char *__builtin_strchr(char const *str, int ch);
   declareFunction2arg(t_charptr, "__builtin_strchr",
@@ -126,7 +127,12 @@ void Env::addGNUBuiltins()
     // group 1: "Outside strict ISO C mode ..."
 
     // this set is from the 3.1 list
-    //"alloca",              // prototyped above
+
+    // quarl 2006-09-07
+    //    The above prototype causes linking to fail.  Use this until
+    //    builtin-declarations.h is used.
+
+    "alloca",              // prototyped above
     "bcmp",
     "bzero",
     "index",
@@ -390,7 +396,7 @@ void Env::addGNUBuiltins()
 
     // ------------------------------------------------
     // group 3: "There are also built-in versions of the ISO C99 functions ..."
-    
+
     // 3.1 list
     "cosf",
     "cosl",
@@ -446,10 +452,10 @@ void Env::addGNUBuiltins()
     "tanhf",
     "tanhl",
     "tanl",
-    
+
     // gcc-3.4.3 seems to have this, though it is not documented
     "modff",
-    
+
     // same for these
     "huge_val",
     "huge_valf",
@@ -458,7 +464,7 @@ void Env::addGNUBuiltins()
 
     // ------------------------------------------------
     // group 4: "The ISO C90 functions ..."
-    
+
     // this is the 3.1 list, with things prototyped above commented
     "abs",
     "cos",
@@ -517,6 +523,9 @@ void Env::addGNUBuiltins()
     //"memset",
     "modf",
     "pow",
+    "powi",
+    "powif",
+    "powil",
     //"printf",
     "putchar",
     "puts",
@@ -615,12 +624,13 @@ void Env::addGNUBuiltins()
   };
 
   for (int i=0; i < TABLESIZE(arr); i++) {
-    makeImplicitDeclFuncVar(str(stringc << "__builtin_" << arr[i]));
+    Variable *v = makeImplicitDeclFuncVar(str(stringc << "__builtin_" << arr[i]));
+    env.builtinVars.push(v);
   }
 
-  // initialize 'complexComponentFields'  
+  // initialize 'complexComponentFields'
   for (int axis=0; axis<=1; axis++) {
-    for (int prec=0; prec<=2; prec++) {                                 
+    for (int prec=0; prec<=2; prec++) {
       StringRef n = axis==0? string_realSelector : string_imagSelector;
       Type *t = env.getSimpleType(constructFloatingType(prec, axis));
       Variable *v = makeVariable(SL_INIT, n, t, DF_BUILTIN | DF_MEMBER);
@@ -637,7 +647,7 @@ ASTTypeof *ASTTypeof::tcheck(Env &env, DeclFlags dflags)
     mid_tcheck(env, dflags);
     return this;
   }
-  
+
   return resolveAmbiguity(this, env, "ASTTypeof", false /*priority*/, dflags);
 }
 
@@ -790,6 +800,15 @@ Type *E_alignofExpr::itcheck_x(Env &env, Expression *&replacement)
 }
 
 
+// Type *E_offsetof::itcheck_x(Env &env, Expression *&replacement)
+// {
+//   ASTTypeId::Tcheck tc(DF_NONE, DC_E_OFFSETOF);
+//   atype = atype->tcheck(env, tc);
+
+//   return env.getSimpleType(ST_UNSIGNED_INT);
+// }
+
+
 Type *E_statement::itcheck_x(Env &env, Expression *&replacement)
 {
   // An E_statement can contain declarations, and tchecking a
@@ -839,7 +858,7 @@ Type *E_gnuCond::itcheck_x(Env &env, Expression *&replacement)
 Type *E_addrOfLabel::itcheck_x(Env &env, Expression *&replacement)
 {
   // TODO: check that the label exists in the function
-  
+
   // type is void*
   return env.makePtrType(env.getSimpleType(ST_VOID));
 }
@@ -955,7 +974,7 @@ Type *E_binary::itcheck_complex_arith(Env &env)
       axis = 2/*complex*/;
       break;
   }
-  
+
   // result id
   return env.getSimpleType(constructFloatingType(prec, axis));
 }
@@ -1031,6 +1050,21 @@ bool E_gnuCond::extHasUnparenthesizedGT()
          hasUnparenthesizedGT(el);
 }
 
+// // quarl 2006-07-12
+// //    Handle __offsetof__ (gcc-3.4), __builtin_offsetof (gcc-4.x)
+// //
+// //    based on Expression::constEvalAddr#E_fieldAcc
+// bool E_offsetof::extConstEval(ConstEval &env) const
+// {
+//   CompoundType *ct = t->asRval()->ifCompoundType();
+//   if (ct) {
+//     CValue val;
+//     val.setUnsigned(CValue::K_UNSIGNED, ct->getDataMemberOffset(e->field));
+//     return val;
+//   } else {
+//     return CValue("invalid operand to offsetof, must be a compound type");
+//   }
+// }
 
 // ------------------------ print --------------------------
 void TS_typeof::print(PrintEnv &env)
@@ -1043,7 +1077,7 @@ void TS_typeof::print(PrintEnv &env)
 void ASTTypeof::printAmbiguities(ostream &os, int indent) const
 {
   genericPrintAmbiguities(this, "TypeSpecifier", os, indent);
-    
+
   // sm: what was this here for?
   //genericCheckNexts(this);
 }
@@ -1052,7 +1086,7 @@ void ASTTypeof::printAmbiguities(ostream &os, int indent) const
 void ASTTypeof::addAmbiguity(ASTTypeof *alt)
 {
   //genericAddAmbiguity(this, alt);
-  
+
   // insert 'alt' at the head of the 'ambiguity' list
   xassert(alt->ambiguity == NULL);
   alt->ambiguity = ambiguity;
@@ -1068,7 +1102,7 @@ void S_function::iprint(PrintEnv &env)
 
 
 void S_rangeCase::iprint(PrintEnv &env)
-{                    
+{
   TreeWalkDebug treeDebug("S_rangeCase::iprint");
   *env.out << "case";
   exprLo->print(env);
@@ -1127,6 +1161,14 @@ void E_alignofExpr::iprint(PrintEnv &env)
   PairDelim pair(*env.out, "__alignof__", "(", ")");
   expr->print(env);
 }
+
+// void E_offsetof:iprint(PrintEnv &env)
+// {
+//   TreeWalkDebug treeDebug("E_alignofType::iprint");
+//   PairDelim pair(*env.out, "__offsetof__", "(", ")");
+//   atype->print(env);
+//   fieldName->print(env);
+// }
 
 void E_statement::iprint(PrintEnv &env)
 {
@@ -1192,7 +1234,7 @@ void SubscriptDesignator::print(PrintEnv &env)
 void Designator::printAmbiguities(ostream &os, int indent) const
 {
   genericPrintAmbiguities(this, "Designator", os, indent);
-  
+
   genericCheckNexts(this);
 }
 
@@ -1373,6 +1415,53 @@ void D_attribute::tcheck(Env &env, Declarator::Tcheck &dt)
       }
     }
   }
+
+  tcheck_getAlias(&env);
+}
+
+StringRef D_attribute::getAlias() const
+{
+  return tcheck_getAlias(NULL);
+}
+
+// quarl 2006-07-13
+//    Type check attribute((alias("aliasTarget"))), and return alias target if
+//    any.  If penv==NULL, then we must have already typechecked.
+StringRef D_attribute::tcheck_getAlias(Env *penv) const
+{
+  StringRef foundAlias = NULL;
+
+  for (AttributeSpecifierList *l = alist; l; l = l->next) {
+    for (AttributeSpecifier *s = l->spec; s; s = s->next) {
+      if (s->attr->isAT_func()) {
+        AT_func *f = s->attr->asAT_func();
+
+        if (streq(f->f, "alias")) {
+          if (foundAlias) {
+            xassert(penv);
+            penv->error(loc, "more than one attribute alias");
+          }
+          if (f->args->count() != 1) {
+            xassert(penv);
+            penv->error(loc, "too many arguments to attribute alias");
+          }
+          Expression *&expr = f->args->first()->expr;
+          if (!expr->isE_stringLit()) {
+            xassert(penv);
+            penv->error(loc, "illegal argument to attribute alias");
+          }
+          if (penv) {
+            expr->tcheck(*penv, expr);
+          }
+          E_stringLit *str = expr->asE_stringLit();
+          xassert(str->text);
+          xassert(str->fullTextNQ);
+          foundAlias = str->fullTextNQ;
+        }
+      }
+    }
+  }
+  return foundAlias;
 }
 
 

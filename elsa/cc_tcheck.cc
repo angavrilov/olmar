@@ -43,10 +43,6 @@
 
 // forwards in this file
 
-// helper functions for elaboration not during elaboration stage, but during
-// type checking.
-E_addrOf *makeAddr(TypeFactory &tfac, SourceLoc loc, Expression *e);
-
 void tcheckPQName(PQName *&name, Env &env, Scope *scope = NULL,
                   LookupFlags lflags = LF_NONE);
 
@@ -953,18 +949,50 @@ void Declaration::tcheck(Env &env, DeclaratorContext context)
     if (spec->isTS_classSpec()) {
       TS_classSpec *cs = spec->asTS_classSpec();
       if (cs->name == NULL) {
-        cs->name = new PQ_name(SL_UNKNOWN, env.getAnonName(cs->keyword));
+        // quarl 2006-07-13, 2006-07-14
+        //    We want anonymous structs with typedefs to have consistent names
+        //    across translation units, so that functions with such parameters
+        //    mangle properly for linking.  (g++ mangles typedefed anonymous
+        //    structs the same as named structs.)
+        //
+        //    Since we may encounter "typedef struct { } *foo" in addition to
+        //    "typedef struct { } foo", we can't just name the struct "foo",
+        //    so instead we name it "__anon_struct_foo".
+        //
+        //    Note that gcc doesn't allow non-static-linkage functions to have
+        //    parameters with types declared like "typedef struct { } *foo"
+        //    because those are REALLY anonymous structs; so we could actually
+        //    name THOSE by index.
+
+        char const *relName = NULL;
+
+        if ((dflags & DF_TYPEDEF) && decllist->count() == 1) {
+          IDeclarator *decl = decllist->first()->decl;
+          relName = decl->getDeclaratorId()->getName();
+        }
+
+        cs->name = new PQ_name(SL_UNKNOWN, env.getAnonName(cs->keyword, relName));
       }
     }
+
     if (spec->isTS_enumSpec()) {
       TS_enumSpec *es = spec->asTS_enumSpec();
       if (es->name == NULL) {
-        es->name = env.getAnonName(TI_ENUM);
+        // anonymous enums - same as above
+
+        char const *relName = NULL;
+
+        if ((dflags & DF_TYPEDEF) && decllist->count() == 1) {
+          IDeclarator *decl = decllist->first()->decl;
+          relName = decl->getDeclaratorId()->getName();
+        }
+        es->name = env.getAnonName(TI_ENUM, relName);
       }
     }
   }
 
   // give warning for anonymous struct
+  //    TODO: this seems to be dead code since cs->name is assigned above if NULL
   if (decllist->isEmpty() &&
       spec->isTS_classSpec() &&
       spec->asTS_classSpec()->name == NULL &&
@@ -1034,7 +1062,7 @@ void ASTTypeId::mid_tcheck(Env &env, Tcheck &tc)
     // outside a declaration (that is, anyplace ASTTypeId occurs), gcc
     // does not do anonymous union or struct scope promotion, even in
     // C++ mode; so make up a name
-    StringRef fakeName = env.getAnonName(spec->asTS_classSpec()->keyword);
+    StringRef fakeName = env.getAnonName(spec->asTS_classSpec()->keyword, NULL);
     spec->asTS_classSpec()->name = new PQ_name(env.loc(), fakeName);
     TRACE("env", "substituted name " << fakeName <<
                  " in anon type at " << decl->getLoc());
@@ -1946,7 +1974,7 @@ CompoundType *checkClasskeyAndName(
 
       // this sets the parameterized primary of the scope
       env.makeNewCompound(ct, destScope, stringName, loc, keyword,
-                          !definition /*forward*/);
+                          !definition /*forward*/, false /*builtin*/);
 
       if (templateParams) {
         TRACE("template", "template class " << (definition? "defn" : "decl") <<
@@ -1961,7 +1989,7 @@ CompoundType *checkClasskeyAndName(
       // make a new type, since a specialization is a distinct template
       // [cppstd 14.5.4 and 14.7]; but don't add it to any scopes
       env.makeNewCompound(ct, NULL /*scope*/, stringName, loc, keyword,
-                          !definition /*forward*/);
+                          !definition /*forward*/, false /*builtin*/);
 
       if (gcc2hack_explicitSpec) {
         // we need to fake a TemplateInfo
@@ -3197,15 +3225,14 @@ Declarator *Declarator::tcheck(Env &env, Tcheck &dt)
 //   static int y[] = (int []) {1, 2, 3};
 // which is equivalent to:
 //   static int y[] = {1, 2, 3};
-Type *Env::computeArraySizeFromCompoundInit(SourceLoc tgt_loc, Type *tgt_type,
-                                            Type *src_type, Initializer *init)
+Type *Env::computeArraySizeFromCompoundInit
+  (SourceLoc tgt_loc, Type *tgt_type, Type *src_type, Initializer *init)
 {
   // If we start at a reference, we have to go down to the raw
   // ArrayType and then back up to a reference.
   bool tgt_type_isRef = tgt_type->isReferenceType();
   tgt_type = tgt_type->asRval();
-  if (tgt_type->isArrayType() &&
-      init->isIN_compound()) {
+  if (tgt_type->isArrayType() && init->isIN_compound()) {
     ArrayType *at = tgt_type->asArrayType();
     IN_compound const *cpd = init->asIN_compoundC();
 
@@ -3409,7 +3436,7 @@ void Declarator::mid_tcheck(Env &env, Tcheck &dt)
   if (!name && (dt.dflags & DF_TEMPL_PARAM)) {
     // give names to all template params, because we need to refer
     // to them in the self-name (in/t0493.cc)
-    name = new PQ_name(this->getLoc(), env.getAnonName("tparam"));
+    name = new PQ_name(this->getLoc(), env.getAnonName("tparam", NULL));
     this->setDeclaratorId(name);
   }
 
@@ -3510,6 +3537,18 @@ void Declarator::mid_tcheck(Env &env, Tcheck &dt)
       dt.dflags |= DF_STATIC;   // add the 'static'
     }
   }
+  // else if (dt.dflags >= (DF_INLINE) && env.lang.inlineImpliesStaticLinkage) {
+  //   if (dt.dflags & DF_MEMBER) {
+  //     // quarl 2006-07-11
+  //     //    Can't set DF_STATIC since DF_MEMBER|DF_STATIC implies static
+  //     //    member.  However, when DF_INLINE|DF_MEMBER can only occur in C++
+  //     //    where inlineImpliesStaticLinkage, so we check for that combination
+  //     //    in isStaticLinkage().  It would be nice to factor DF_STATIC into
+  //     //    DF_STATIC_LINKAGE and DF_STATIC_MEMBER.
+  //   } else {
+  //     dt.dflags |= DF_STATIC;
+  //   }
+  // }
 
   // dsw: the global function 'main' seems to always be considered to
   // be DF_EXTERN_C even in C++ mode whether it likes it or not; FIX:
@@ -3781,13 +3820,35 @@ void Declarator::mid_tcheck(Env &env, Tcheck &dt)
     // skip it
   }
   else if (init) {
-    // TODO: check the initializer for compatibility with
-    // the declared type
-
+    tcheck_init(env);
+    // quarl 2006-07-26
+    //    Check the initializer for compatibility with the declared type.
+    //    This also does some elaborations like function address-of.
+    if (IN_expr *initexpr = init->ifIN_expr()) {
+      if (!type->containsGeneralizedDependent()) {
+        if (!env.elaborateImplicitConversionArgToParam(type, initexpr->e)) {
+          // quarl 2006-07-26
+          //    This should be an error, but since too many test cases currently
+          //    fail this, it's just a warning for now.  getImplicitConversion
+          //    is incomplete.
+          //
+          // SGM 2006-08-05: I am turning this off.  There is nothing
+          // wrong (in the cases I've seen anyway) with the source code
+          // being analyzed, rather there is a bug in Elsa.  We should
+          // either deal with the Elsa bugs, or just be silent about the
+          // problems by default (which is what I am doing now).  There
+          // could be a command line flag to turn this back on, if
+          // desired.
+          #if 0
+          env.warning(/*type,*/ stringc
+                      << "cannot convert initializer type `" << initexpr->e->getType()->toString()
+                      << "' to type `" << type->toString() << "'");
+          #endif // 0
+        }
+      }
+    }
     // TODO: check compatibility with dflags; e.g. we can't allow
     // an initializer for a global variable declared with 'extern'
-
-    tcheck_init(env);
   }
 
   // pull the scope back out of the stack; if this is a
@@ -3796,10 +3857,13 @@ void Declarator::mid_tcheck(Env &env, Tcheck &dt)
   // the function body
   env.retractScopeSeq(qualifierScopes);
 
-  // If it is a function, is it virtual?
-  if (inClassBody
-      && var->type->isMethod()
-      && !var->hasFlag(DF_VIRTUAL)) {
+  // If it is a function, is it virtual?  We have to look up the class
+  // hierarchy in order to tell.  NOTE: EVEN IF we are already
+  // explicitly virtual, the code below also builds the
+  // var->virtuallyOverride list of things that we virtually-override,
+  // so we have to do this anyway; that is, don't skip the body if
+  // var->hasFlag(DF_VIRTUAL)
+  if (inClassBody && var->type->isMethod()) {
     FunctionType *varft = var->type->asFunctionType();
     CompoundType *myClass = env.scope()->curCompound;
 
@@ -3863,7 +3927,7 @@ void Declarator::tcheck_init(Env &env)
 
   // remember the initializing value, for const values
   if (init->isIN_expr()) {
-    var->value = init->asIN_exprC()->e;
+    var->setValue(init->asIN_exprC()->e);
   }
 
   // use the initializer size to refine array types
@@ -4842,8 +4906,8 @@ void Handler::tcheck(Env &env)
   Scope *scope = env.enterScope(SK_FUNCTION, "exception handler");
 
   // originally, I only did this for the non-isEllpsis() case, to
-  // avoid creating a type with ST_ELLIPSIS in it.. but qualcc finds
-  // it convenient, so now we tcheck 'typeId' always
+  // avoid creating a type with ST_ELLIPSIS in it.. but oink/qual
+  // finds it convenient, so now we tcheck 'typeId' always
   //
   // dsw: DF_PARAMETER: we think of the handler as an anonymous inline
   // function that is simultaneously defined and called in the same
@@ -5262,6 +5326,29 @@ Type *E_stringLit::itcheck_x(Env &env, Expression *&replacement)
     p = p->continuation;
   }
 
+  {
+    // quarl 2006-07-13
+    //    Build the dequoted full text.
+    //
+    //    TODO: could just clobber text+continuations with fullText.  Or just
+    //    do this in parsing...
+    stringBuilder sb(len);
+    p = this;
+    do {
+      char const *s = p->text;
+      if (*s == 'L') ++s;
+      int l = strlen(s);
+      if (l >= 2 && s[0] == '\"' && s[l-1] == '\"') {
+        sb.append(s+1, l-2);
+      } else {
+        // see in/gnu/d0122.c for missing quotes
+        sb.append(s, l);
+      }
+      p = p->continuation;
+    } while(p);
+    fullTextNQ = env.str(sb);
+  }
+
   CVFlags stringLitCharCVFlags = CV_NONE;
   if (env.lang.stringLitCharsAreConst) {
     stringLitCharCVFlags = CV_CONST;
@@ -5521,8 +5608,7 @@ Type *E_variable::itcheck_var_set(Env &env, Expression *&replacement,
 
   // elaborate 'this->'
   if (!(flags & LF_NO_IMPL_THIS) &&
-      var->isMember() &&
-      !var->isStatic()) {
+      var->isNonStaticMember()) {
     replacement = wrapWithImplicitThis(env, var, name);
     return replacement->type;
   }
@@ -5847,71 +5933,6 @@ void ArgExpression::mid_tcheck(Env &env, ArgumentInfo &info)
 }
 
 
-// This function is called *after* the arguments have been type
-// checked and overload resolution performed (if necessary).  It must
-// compare the actual arguments to the parameters.  It also must
-// finish the job started above of resolving address-of overloaded
-// function names, by comparing to the parameter.
-//
-// One bad aspect of the current design is the need to pass both 'args'
-// and 'argInfo'.  Only by having both pieces of information can I do
-// resolution of overloaded address-of.  I'd like to consolidate that
-// at some point...
-//
-// Note that 'args' *never* includes the receiver object, whereas
-// 'argInfo' *always* includes the type of the receiver object (or
-// NULL) as its first element.
-//
-// It returns the # of default args used.
-
-// Elaboration: if 'ic' involves a user-defined conversion, then modify the
-// AST to make that explicit.
-Expression *makeConvertedArg(Env &env, Expression * const arg,
-                             ImplicitConversion const &ic)
-{
-  Expression *newarg = arg;
-
-  switch (ic.kind) {
-  case ImplicitConversion::IC_NONE:
-    // an error message is already printed above.
-    break;
-  case ImplicitConversion::IC_STANDARD:
-    if (ic.scs & SC_GROUP_1_MASK) {
-      switch (ic.scs & SC_GROUP_1_MASK) {
-      case SC_LVAL_TO_RVAL:
-        // TODO
-        break;
-      case SC_ARRAY_TO_PTR:
-        // TODO
-        break;
-      case SC_FUNC_TO_PTR:
-        newarg = makeAddr(env.tfac, env.loc(), arg);
-        break;
-      default:
-        // only 3 kinds in SC_GROUP_1_MASK
-        xfailure("shouldn't reach here");
-        break;
-      }
-    } else {
-      // TODO
-    }
-    break;
-  case ImplicitConversion::IC_USER_DEFINED:
-    // TODO
-    break;
-  case ImplicitConversion::IC_ELLIPSIS:
-    // TODO
-    break;
-  case ImplicitConversion::IC_AMBIGUOUS:
-    xfailure("IC_AMBIGUOUS -- what does this mean here? (25f0c1af-5aea-4528-b994-ccaac0b3a8f1)");
-    break;
-  default:
-    xfailure("shouldn't reach here");
-    break;
-  }
-  return newarg;
-}
-
 int compareArgsToParams(Env &env, FunctionType *ft, FakeList<ArgExpression> *args,
                         ArgumentInfoArray &argInfo)
 {
@@ -5931,7 +5952,7 @@ int compareArgsToParams(Env &env, FunctionType *ft, FakeList<ArgExpression> *arg
         ImplicitConversion ic;
         ic.kind = ImplicitConversion::IC_STANDARD;
         ic.scs = SC_FUNC_TO_PTR;
-        arg->expr = makeConvertedArg(env, arg->expr, ic);
+        arg->expr = env.makeConvertedArg(arg->expr, ic);
       }
     }
 
@@ -6025,29 +6046,21 @@ int compareArgsToParams(Env &env, FunctionType *ft, FakeList<ArgExpression> *arg
     env.possiblySetOverloadedFunctionVar(arg->expr, param->type,
                                          argInfo[paramIndex].overloadSet);
 
-    if (!param->type->isGeneralizedDependent()) {
-      // try to convert the argument to the parameter
-      ImplicitConversion ic = getImplicitConversion(env,
-        arg->getSpecial(env.lang),
-        arg->getType(),
-        param->type,
-        false /*destIsReceiver*/);
-      if (!ic) {
+    // dsw: I changed this from isGeneralizedDependent() to
+    // containsGeneralizedDependent() because that is what I am doing
+    // at the other call site to
+    // elaborateImplicitConversionArgToParam()
+    if (!param->type->containsGeneralizedDependent()) {
+      if (env.elaborateImplicitConversionArgToParam(param->type, arg->expr)) {
+        xassert(arg->ambiguity == NULL);
+      } else {
         env.error(arg->getType(), stringc
-          << "cannot convert argument type `" << arg->getType()->toString()
-          << "' to parameter " << paramIndex
-          << " type `" << param->type->toString() << "'");
+                  << "cannot convert argument type `" << arg->getType()->toString()
+                  << "' to parameter " << paramIndex
+                  << " type `" << param->type->toString() << "'");
       }
-
-      // Elaboration: if 'ic' involves a user-defined conversion, then
-      // modify the AST to make that explicit
-      xassert(arg->ambiguity == NULL);
-      arg->expr = makeConvertedArg(env, arg->expr, ic);
-
-      // at least note that we plan to use this conversion, so
-      // if it involves template functions, instantiate them
-      env.instantiateTemplatesInConversion(ic);
     }
+
   }
 
   if (!env.doCompareArgsToParams) {
@@ -6090,6 +6103,27 @@ void compareCtorArgsToParams(Env &env, Variable *ctor,
     if (defaultArgsUsed) {
       env.instantiateDefaultArgs(ctor, defaultArgsUsed);
     }
+                
+    // in/dk1027.cc: instantiate the dtor too
+    //
+    // navigating up to get the class is inelegant..
+    //
+    // this isn't perfect, b/c I'm instantiating the dtor for "new
+    // Foo" as well as other declarations of Foo, but it's probably
+    // close enough
+    CompoundType *ct = ctor->scope->curCompound;
+    xassert(ct);
+    
+    // ugh, hacking it again
+    Variable *dtor = ct->rawLookupVariable(env.str(stringc << "~" << ct->name));
+    if (!dtor) {
+      // not sure if this is possible, but don't care to fully analyze
+      // right now
+      return;
+    }
+    
+    // instantiate it if necessary
+    env.ensureFuncBodyTChecked(dtor);
   }
 }
 
@@ -6214,8 +6248,7 @@ void possiblyWrapWithImplicitThis(Env &env, Expression *&func,
 {
   if (fevar &&
       fevar->var &&
-      fevar->var->isMember() &&
-      !fevar->var->isStatic()) {
+      fevar->var->isNonStaticMember()) {
     feacc = wrapWithImplicitThis(env, fevar->var, fevar->name);
     func = feacc;
     fevar = NULL;
@@ -7692,6 +7725,8 @@ Type *resolveOverloadedBinaryOperator(
 
         // TODO: need to replace the arguments according to their
         // conversions (if any)
+        //
+        // This is what causes in/t0148.cc to fail in Oink.
 
         if (op == OP_BRACKETS) {
           // built-in a[b] is equivalent to *(a+b)
@@ -8140,8 +8175,7 @@ Type *E_addrOf::itcheck_addrOf_set(Env &env, Expression *&replacement,
     xassert(evar->var);
     env.ensureFuncBodyTChecked(evar->var);
 
-    if (evar->var->isMember() &&
-        !evar->var->isStatic()) {
+    if (evar->var->isNonStaticMember()) {
       return makePTMType(env, evar->var, evar->name->loc);
     }
   }
@@ -8271,11 +8305,12 @@ Type *E_cast::itcheck_x(Env &env, Expression *&replacement)
 // 't1' is converted (it is not always exactly 't2') and set 'ic'
 // accordingly
 Type *attemptCondConversion(Env &env, ImplicitConversion &ic /*OUT*/,
-                            Type *t1, Type *t2)
-{
+                            Type *t1, Type *t2,
+                            SpecialExpr special1 // dsw: the special for t1
+                            ) {
   // bullet 1: attempt direct conversion to lvalue
   if (t2->isLval()) {
-    ic = getImplicitConversion(env, SE_NONE, t1, t2);
+    ic = getImplicitConversion(env, special1, t1, t2);
     if (ic) {
       return t2;
     }
@@ -8300,7 +8335,7 @@ Type *attemptCondConversion(Env &env, ImplicitConversion &ic /*OUT*/,
   else {
     // bullet 2.2
     t2 = t2->asRval();
-    ic = getImplicitConversion(env, SE_NONE, t1, t2);
+    ic = getImplicitConversion(env, special1, t1, t2);
     if (ic) {
       return t2;
     }
@@ -8456,9 +8491,9 @@ Type *E_cond::itcheck_x(Env &env, Expression *&replacement)
        elRval->isCompoundType())) {
     // try to convert each to the other
     ImplicitConversion ic_thToEl;
-    Type *thConv = attemptCondConversion(env, ic_thToEl, thType, elType);
+    Type *thConv = attemptCondConversion(env, ic_thToEl, thType, elType, th->getSpecial(env.lang));
     ImplicitConversion ic_elToTh;
-    Type *elConv = attemptCondConversion(env, ic_elToTh, elType, thType);
+    Type *elConv = attemptCondConversion(env, ic_elToTh, elType, thType, el->getSpecial(env.lang));
 
     if (thConv && elConv) {
       return env.error("class-valued argument(s) to ?: are ambiguously inter-convertible");
@@ -9350,7 +9385,7 @@ void TP_type::itcheck(Env &env, int&)
 {
   if (!name) {
     // name them all for uniformity
-    name = env.getAnonName("tparam");
+    name = env.getAnonName("tparam", NULL);
   }
 
   // cppstd 14.1 is a little unclear about whether the type name is
@@ -9608,21 +9643,5 @@ void ND_usingDir::tcheck(Env &env)
   }
 }
 
-
-// ------------------------------------------------------------
-//
-// helper functions for elaboration not during elaboration stage, but during
-// type checking.
-
-// make a address-of operator.  This is not a method because it's used in
-// cc_tcheck to elaborate implicit conversions
-E_addrOf *makeAddr(TypeFactory &tfac, SourceLoc loc, Expression *e)
-{
-  // "&e"
-  E_addrOf *amprE = new E_addrOf(e);
-  amprE->type = tfac.makePointerType(CV_CONST, e->type);
-
-  return amprE;
-}
 
 // EOF

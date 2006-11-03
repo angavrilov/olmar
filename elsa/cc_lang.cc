@@ -3,6 +3,7 @@
 
 #include "cc_lang.h"     // this module
 #include "trace.h"       // tracingSys
+#include "xassert.h"     // xfailure
 
 #include <string.h>      // memset
 
@@ -69,6 +70,7 @@ void CCLang::ANSI_C89()
   predefined_Bool = false;
 
   handleExternInlineSpecially = false;
+  inlineImpliesStaticLinkage = false;
   stringLitCharsAreConst = false; // Didn't check C89; C99 says they are non-const
 
   // C99 spec: Section 6.5.4, footnote 85: "A cast does not yield an lvalue".
@@ -206,6 +208,7 @@ void CCLang::ANSI_Cplusplus()
 
   predefined_Bool = false;
   handleExternInlineSpecially = false;
+  inlineImpliesStaticLinkage = true;
   stringLitCharsAreConst = true; // Cppstd says they are const.
   lvalueFlowsThroughCast = false;
   restrictIsAKeyword = false;
@@ -276,48 +279,59 @@ bool handleExternInline_asWeakStaticInline() {
 // -------------------------- toString ---------------------
 
 string CCLang::toString() {
-  // SGM: TODO: This should be done using a macro so each flag name
-  // only has to be appear once.
-
   stringBuilder str;
-  str << "isCplusplus " << isCplusplus << '\n';
-  str << "declareGNUBuiltins " << declareGNUBuiltins << '\n';
-  str << "tagsAreTypes " << tagsAreTypes << '\n';
-  str << "recognizeCppKeywords " << recognizeCppKeywords << '\n';
-  str << "implicitFuncVariable " << implicitFuncVariable << '\n';
-  str << "noInnerClasses " << noInnerClasses << '\n';
-  str << "uninitializedGlobalDataIsCommon " << uninitializedGlobalDataIsCommon << '\n';
-  str << "emptyParamsMeansNoInfo " << emptyParamsMeansNoInfo << '\n';
-  str << "strictArraySizeRequirements " << strictArraySizeRequirements << '\n';
-  str << "assumeNoSizeArrayHasSizeOne " << assumeNoSizeArrayHasSizeOne << '\n';
-  str << "allowOverloading " << allowOverloading << '\n';
-  str << "compoundSelfName " << compoundSelfName << '\n';
-  str << "allowImplicitFunctionDecls " << allowImplicitFunctionDecls << '\n';
-  str << "allowImplicitInt " << allowImplicitInt << '\n';
-  str << "allowDynamicallySizedArrays " << allowDynamicallySizedArrays << '\n';
-  str << "allowIncompleteEnums " << allowIncompleteEnums << '\n';
-  str << "allowMemberWithClassName " << allowMemberWithClassName << '\n';
-  str << "nonstandardAssignmentOperator " << nonstandardAssignmentOperator << '\n';
-  str << "allowExternCThrowMismatch " << allowExternCThrowMismatch << '\n';
-  str << "allowImplicitIntForMain " << allowImplicitIntForMain << '\n';
-  str << "predefined " << predefined_Bool << '\n';
-  str << "handleExternInlineSpecially " << handleExternInlineSpecially << '\n';
-  str << "stringLitCharsAreConst " << stringLitCharsAreConst << '\n';
-  str << "lvalueFlowsThroughCast " << lvalueFlowsThroughCast << '\n';
-  str << "restrictIsAKeyword " << restrictIsAKeyword << '\n';
-  str << "allowNewlinesInStringLits " << allowNewlinesInStringLits << '\n';
-  str << "allowImplicitIntForOperators " << allowImplicitIntForOperators << '\n';
-  str << "allowQualifiedMemberDeclarations " << allowQualifiedMemberDeclarations << '\n';
-  str << "allowModifiersWithTypedefNames " << allowModifiersWithTypedefNames << '\n';
-  str << "allowAnonymousStructs " << allowAnonymousStructs << '\n';
-  str << "gcc2StdEqualsGlobalHacks " << gcc2StdEqualsGlobalHacks << '\n';
-  str << "allowGcc2HeaderSyntax " << allowGcc2HeaderSyntax << '\n';
-  str << "allowRepeatedTypeSpecifierKeywords " << allowRepeatedTypeSpecifierKeywords << '\n';
-  str << "allowCVAppliedToFunctionTypes " << allowCVAppliedToFunctionTypes << '\n';
-  str << "allowDefinitionsInWrongScopes " << allowDefinitionsInWrongScopes << '\n';
-  str << "allowDuplicateParameterNames " << allowDuplicateParameterNames << '\n';
-  str << "allowExplicitSpecWithoutParams " << allowExplicitSpecWithoutParams << '\n';
-  str << "allowStaticAfterNonStatic " << allowStaticAfterNonStatic << '\n';
+#define PRINT(X) str << #X " " << X << '\n'
+  PRINT(isCplusplus);
+  PRINT(declareGNUBuiltins);
+  PRINT(tagsAreTypes);
+  PRINT(recognizeCppKeywords);
+  PRINT(implicitFuncVariable);
+
+  // an exception since it is not a bool or a 3-way bool:
+  str << "gccFuncBehavior ";
+  switch(gccFuncBehavior) {
+  default: xfailure("illegal gccFuncBehavior");
+  case GFB_none: str << "GFB_none"; break;
+  case GFB_string: str << "GFB_string"; break;
+  case GFB_variable: str << "GFB_variable"; break;
+  }
+  str << '\n';
+
+  PRINT(noInnerClasses);
+  PRINT(uninitializedGlobalDataIsCommon);
+  PRINT(emptyParamsMeansNoInfo);
+  PRINT(strictArraySizeRequirements);
+  PRINT(assumeNoSizeArrayHasSizeOne);
+  PRINT(allowOverloading);
+  PRINT(compoundSelfName);
+  PRINT(allowImplicitFunctionDecls);
+  PRINT(allowImplicitInt);
+  PRINT(allowDynamicallySizedArrays);
+  PRINT(allowIncompleteEnums);
+  PRINT(allowMemberWithClassName);
+  PRINT(nonstandardAssignmentOperator);
+  PRINT(allowExternCThrowMismatch);
+  PRINT(allowImplicitIntForMain);
+  PRINT(predefined_Bool);
+  PRINT(handleExternInlineSpecially);
+  PRINT(inlineImpliesStaticLinkage);
+  PRINT(stringLitCharsAreConst);
+  PRINT(lvalueFlowsThroughCast);
+  PRINT(restrictIsAKeyword);
+  PRINT(allowNewlinesInStringLits);
+  PRINT(allowImplicitIntForOperators);
+  PRINT(allowQualifiedMemberDeclarations);
+  PRINT(allowModifiersWithTypedefNames);
+  PRINT(allowAnonymousStructs);
+  PRINT(gcc2StdEqualsGlobalHacks);
+  PRINT(allowGcc2HeaderSyntax);
+  PRINT(allowRepeatedTypeSpecifierKeywords);
+  PRINT(allowCVAppliedToFunctionTypes);
+  PRINT(allowDefinitionsInWrongScopes);
+  PRINT(allowDuplicateParameterNames);
+  PRINT(allowExplicitSpecWithoutParams);
+  PRINT(allowStaticAfterNonStatic);
+#undef PRINT
   return str;
 }
 
