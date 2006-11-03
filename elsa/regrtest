@@ -993,6 +993,10 @@ testparse_special treeCheck dk0127.cc #"a non-tree AST results: default param ar
 # containsGeneralizedDependent()
 testparse d0128.cc
 
+# The implicit conversion of 0 to Foo(0) was not happennig in '?:'
+# expressions: "? Foo() : 0"
+testparse d0129.cc
+
 testparse k0001.cc #"left side of .* must be a class or reference to a class"
 testparse k0002.cc #"template function declared in another class (as a friend)"
 testparse k0003.cc #"template argument from static const member of template class"
