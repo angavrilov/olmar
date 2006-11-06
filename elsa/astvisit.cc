@@ -39,8 +39,18 @@ bool ASTVisitorEx::visitFunction(Function *obj)
 }
 
 
-// wrap the unsafe cast
-#define CAST_AMBIG(node) ((void**)(&((node)->ambiguity)))
+// // wrap the unsafe cast
+// #define CAST_AMBIG(node) ((void**)(&((node)->ambiguity)))
+
+// quarl 2006-11-06
+//     Pass in a pointer to a real void* to avoid type-punning.
+#define CALL_FOUND_AMBIGUOUS(obj, T, node, name)                  \
+  do {                                                            \
+    T *&ambiguity = (node)->ambiguity;                            \
+    void *ambiguity0 = (void*) ambiguity;                         \
+    foundAmbiguous(obj, &ambiguity0, name);                       \
+    ambiguity = (T*) ambiguity0;                                  \
+  } while(0)
 
 bool ASTVisitorEx::visitPQName(PQName *obj)
 {
@@ -49,7 +59,7 @@ bool ASTVisitorEx::visitPQName(PQName *obj)
   }
   if (obj->isPQ_qualifier() &&
       obj->asPQ_qualifier()->ambiguity) {
-    foundAmbiguous(obj, CAST_AMBIG(obj->asPQ_qualifier()), "PQ_qualifier");
+    CALL_FOUND_AMBIGUOUS(obj, PQName, obj->asPQ_qualifier(), "PQ_qualifier");
   }
   return true;
 }
@@ -60,7 +70,7 @@ bool ASTVisitorEx::visitPQName(PQName *obj)
   bool ASTVisitorEx::visit##type(type *obj)                        \
   {                                                                \
     if (obj->ambiguity) {                                          \
-      foundAmbiguous(obj, CAST_AMBIG(obj), obj->kindName());       \
+      CALL_FOUND_AMBIGUOUS(obj, type, obj, obj->kindName());       \
     }                                                              \
     return true;                                                   \
   }
@@ -83,7 +93,7 @@ bool ASTVisitorEx::visitPQName(PQName *obj)
       loc = obj->loc;                                              \
     }                                                              \
     if (obj->ambiguity) {                                          \
-      foundAmbiguous(obj, CAST_AMBIG(obj), obj->kindName());       \
+      CALL_FOUND_AMBIGUOUS(obj, type, obj, obj->kindName());       \
     }                                                              \
     return true;                                                   \
   }
@@ -108,7 +118,6 @@ VISIT_W_LOC_AMBIG(TemplateParameter)
 #undef VISIT_W_AMBIG
 #undef VISIT_W_LOC
 #undef VISIT_W_LOC_AMBIG
-#undef CAST_AMBIG
 
 
 // EOF
