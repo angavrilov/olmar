@@ -1670,7 +1670,7 @@ inline unsigned cvHash(CVFlags cv)
 unsigned CVAtomicType::innerHashValue() const
 {
   // underlying atomic is pointer-based equality
-  return (unsigned)atomic +
+  return (unsigned long)atomic +
          cvHash(cv);
          // T_ATOMIC is zero anyway
 }
@@ -2365,7 +2365,7 @@ unsigned PointerToMemberType::innerHashValue() const
   return atType->innerHashValue() * HASH_KICK +
          cvHash(cv) +
          T_POINTERTOMEMBER * TAG_KICK +
-         (unsigned)inClass();   // we'll see...
+         (unsigned long)inClass();   // we'll see...
 }
 
 
