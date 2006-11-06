@@ -46,7 +46,7 @@ public:     // funcs
   virtual ~AtomicType();
 
   // stand-in if I'm not really using ids..
-  long getId() const { return (int)this; }
+  long getId() const { return (long)this; }
 
   virtual Tag getTag() const = 0;
   bool isSimpleType() const { return getTag() == T_SIMPLE; }
@@ -235,7 +235,7 @@ public:     // funcs
   Type();
   virtual ~Type();
 
-  long getId() const { return (int)this; }
+  long getId() const { return (long)this; }
 
   virtual Tag getTag() const = 0;
   bool isCVAtomicType() const { return getTag() == T_ATOMIC; }
