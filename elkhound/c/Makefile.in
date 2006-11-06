@@ -22,7 +22,7 @@ Makefile: Makefile.in
 
 # ----------------------- compiler configuration -------------------
 # C++ preprocessor, compiler and linker
-CXX := g++
+CXX := @CXX@
 
 # flags for the C++ compiler (and preprocessor)
 CCFLAGS := @CCFLAGS@ -I$(SMBASE) -I$(AST) -I$(ELKHOUND)
