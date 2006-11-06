@@ -1428,7 +1428,7 @@ testCparse c/k0013.c #"enum variable declared earlier as int"
 testCparse c/k0014.c #"offsetof cannot be assumed to be 0 (evaluated e.g. in case labels)"
 testCparse c/k0015.c #"variable-sized character buffer in function-local struct using same name for size as a member variable and another variable in outside scope"
 testCparse c/k0016.c #"expression in compound initializer array index"
-testCparse c/k0017.c #"E_fieldAcc is not constEval'able"
+failCparse c/k0017.c #"E_fieldAcc is not constEval'able"
 
 ### </quarl-testcases-c>
 
