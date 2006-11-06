@@ -63,7 +63,7 @@ class TopForm (SourceLoc loc) {
        // total # of paths, the sum from all roots
        public int numPaths;
        ctor numPaths=0;
-                                               
+
        public void printExtras(ostream &os, int indent) const;   // tcheck.cc
        custom debugPrint { printExtras(os, indent); }
      }
@@ -71,7 +71,7 @@ class TopForm (SourceLoc loc) {
 
 impl_verbatim {
   // pulled these out of line because Declaration appears lower in .h file
-  FunctionType const *TF_func::ftype() const 
+  FunctionType const *TF_func::ftype() const
     { return &( nameParams->var->type->asFunctionTypeC() ); }
   StringRef TF_func::name() const { return nameParams->var->name; }
 }
@@ -192,7 +192,7 @@ class IDeclarator {
 
   // dig down and find the name being declared; may return NULL
   pure_virtual StringRef getName() const;
-                                                                
+
   // "x" (NULL means abstract declarator or anonymous parameter)
   -> D_name(SourceLoc loc, StringRef /*nullable*/ name,
             ThmprvAttr attr);
@@ -250,7 +250,7 @@ verbatim {
   // the loop from scratch
   inline bool nextPtrContinue(NextPtr np)
   {
-    return (bool)((int)np & 1);
+    return (bool)((long)np & 1);
   }
 
   // prints like Statement::kindLocString, with a "(c)" appended
@@ -353,11 +353,11 @@ class Statement (SourceLoc loc) {
   // theorem prover extensions
   -> S_assert(Expression expr, bool pure);    // pure means don't look at it during inference
   -> S_assume(Expression expr);
-  -> S_invariant(Expression expr) {           
+  -> S_invariant(Expression expr) {
        // this is the set of facts inferred automatically for this
        // invariant point; it's a set of serf pointers into the AST
        public SObjList<Expression> inferFacts;
-       
+
        // retrieve a predicate expressing the conjunction of expr and
        // inferFacts
        public Predicate *vcgenPredicate(AEnv &env) const;
@@ -417,7 +417,7 @@ class Expression {
   -> E_stringLit(StringRef s);    // not quite right b/c can't handle embedded nuls
   -> E_charLit(char c);
   //-> E_structLit(ASTTypeId stype, ASTList<Initializer> init);
-                                               
+
   // variable reference; scopeName can be NULL, or the name of a type
   // of which 'name' is a member; at some point 'scopeName' will need to
   // be extended to permit nested qualifiers
