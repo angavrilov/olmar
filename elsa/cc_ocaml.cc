@@ -1946,6 +1946,7 @@ value ocaml_from_DeclaratorContext(const DeclaratorContext &id, ToOcamlData *d){
   static value * create_DC_MR_DECL_constructor_closure = NULL;
   static value * create_DC_S_DECL_constructor_closure = NULL;
   static value * create_DC_TD_DECL_constructor_closure = NULL;
+  static value * create_DC_FEA_constructor_closure = NULL;
   static value * create_DC_D_FUNC_constructor_closure = NULL;
   static value * create_DC_EXCEPTIONSPEC_constructor_closure = NULL;
   static value * create_DC_ON_CONVERSION_constructor_closure = NULL;
@@ -2028,6 +2029,15 @@ value ocaml_from_DeclaratorContext(const DeclaratorContext &id, ToOcamlData *d){
         caml_named_value("create_DC_TD_DECL_constructor");
     xassert(create_DC_TD_DECL_constructor_closure);
     result = caml_callback(*create_DC_TD_DECL_constructor_closure, Val_unit);
+    xassert(IS_OCAML_AST_VALUE(result));
+    return result;
+
+  case DC_FEA:
+    if(create_DC_FEA_constructor_closure == NULL)
+      create_DC_FEA_constructor_closure = 
+        caml_named_value("create_DC_FEA_constructor");
+    xassert(create_DC_FEA_constructor_closure);
+    result = caml_callback(*create_DC_FEA_constructor_closure, Val_unit);
     xassert(IS_OCAML_AST_VALUE(result));
     return result;
 

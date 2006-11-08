@@ -10,21 +10,26 @@
 #ifndef HASHLINE_H
 #define HASHLINE_H
 
-#include "strobjdict.h"     // StringObjDict
+#include "strtable.h"       // StringTable
 #include "array.h"          // ArrayStack
 
 // map from lines in some given pp source file to lines in
 // orig source files; there should be one HashLineMap object
 // for each pp source file of interest
 class HashLineMap {
-private:    // types
+  // dsw: Scott, I need this to be public so I can serialize it;
+  // private data I can get with an accessor, but private classes are
+  // a problem.  I could make the xml serialization a friend, but that
+  // would make a dependency of smbase on elsa.
+  public:
+//  private:    // types
   // records a single #line directive
   class HashLine {
   public:
     int ppLine;              // pp source line where it appears
     int origLine;            // orig line it names
     char const *origFname;   // orig fname it names
-    
+
   public:
     HashLine()
       : ppLine(0), origLine(0), origFname(NULL) {}
@@ -34,19 +39,25 @@ private:    // types
       : DMEMB(ppLine), DMEMB(origLine), DMEMB(origFname) {}
   };
 
+public:
+  char const *canonizeFilename(char const *fname);
+
 private:    // data
   // name of the pp file; this is needed for queries to lines
   // before any #line is encountered
   string ppFname;
 
-  // map for canonical storage of orig filenames; I don't rely on
-  // an external string table because I don't want the extra
-  // dependency
-  StringObjDict<string> filenames;
+  // map for canonical storage of orig filenames
+  StringTable filenames;
+
+public:
+// dsw: it is a real pain to do de-serialization without making this
+// public
 
   // growable array of HashLine objects
   ArrayStack<HashLine> directives;
 
+private:                        // more data
   // previously-added ppLine; used to verify the entries are
   // being added in sorted order
   int prev_ppLine;
@@ -69,10 +80,15 @@ public:     // funcs
   void map(int ppLine, int &origLine, char const *&origFname) const;
   int mapLine(int ppLine) const;           // returns 'origLine'
   char const *mapFile(int ppLine) const;   // returns 'origFname'
-  
+
   // for curiosity, find out how many unique filenames are recorded in
   // the 'filenames' dictionary
-  int numUniqueFilenames() { return filenames.size(); }
+  // int numUniqueFilenames() { return filenames.size(); }
+
+  // XML serialization only
+  string &serializationOnly_get_ppFname() { return ppFname; }
+  void serializationOnly_set_ppFname(string const &ppFname0) { ppFname = ppFname0; }
+  ArrayStack<HashLine> &serializationOnly_get_directives() { return directives; }
 };
 
 #endif // HASHLINE_H

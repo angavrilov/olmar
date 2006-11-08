@@ -2,6 +2,14 @@
 // using strtok to parse an entire string at once
 // Scott McPeak, 1997  This file is public domain.
 
+// NOTE: This class should not be used for any high-performance
+// parsing tasks; i.e., it should not find itself in the inner loop of
+// anything.  Among other things, it allocates, which is always bad in
+// an inner loop.  This class makes certain common tasks convenient,
+// but that convenience is at the expense of performance.  That is why
+// the interfaces below accept 'rostring', not 'char const *'.  (See
+// string.txt.)
+
 #ifndef __STRTOKP_H
 #define __STRTOKP_H
 
@@ -12,7 +20,7 @@
 class StrtokParse {
   Array<char> buf;     // locally allocated storage; NUL terminated
   int _tokc;           // # of tokens found
-  char **_tokv;        // array of tokens themselves; NULL terminated
+  char **_tokv;        // array of tokens themselves; NULL terminated (owner)
 
 private:
   void validate(int which) const;
@@ -20,10 +28,11 @@ private:
 
 public:
   StrtokParse(rostring str, rostring delim);
-    // parse 'str' into tokens delimited by chars from 'delim'
+    // parse 'str' into tokens delimited by chars from 'delim'; the
+    // use of 'rostring' is intentional (see above)
 
   ~StrtokParse();
-    // clean up'
+    // clean up
 
   int tokc() const { return _tokc; }
   operator int () const { return tokc(); }

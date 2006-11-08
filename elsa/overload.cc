@@ -87,7 +87,7 @@ CType *OverloadResolver::getReturnType(Candidate const *winner) const
 
   // Ok!  Now we have some concrete parameter types, and can apply
   // the algorithm specified by 'retId'.
-  switch (retId) {                                    
+  switch (retId) {
     // if this fails, we should have detected above that a concrete
     // return type was available
     default: xfailure("bad return type algorithm id");
@@ -114,7 +114,7 @@ CType *OverloadResolver::getReturnType(Candidate const *winner) const
 
     // e.g.: LR operator* (L, R)
     case ST_PRET_ARITH_CONV:
-      return usualArithmeticConversions(env.tfac, 
+      return usualArithmeticConversions(env.tfac,
                concreteParamTypes[0], concreteParamTypes[1]);
 
     // e.g.: L operator<< (L, R)
@@ -255,7 +255,7 @@ void OverloadResolver::printArgInfo()
   IFDEBUG(
     if (tracingSys("overload")) {
       string info = argInfoString();
-      
+
       // it's a little inefficient to construct the string only to
       // parse it at line boundaries, but I want the indentation to
       // be a certain way, and this is only done in debug mode (and
@@ -319,7 +319,7 @@ void OverloadResolver::processCandidates(SObjList<Variable> &varList)
   }
 }
 
- 
+
 void OverloadResolver::addCandidate(Variable *var0, Variable *instFrom)
 {
   xassert(var0);
@@ -346,6 +346,9 @@ void OverloadResolver::addTemplCandidate
     (env.loc(),
      baseV,
      sargs);
+  // quarl: for some reason adding ``xassert(var0inst != NULL)'' sometimes
+  // stops the segfault without throwing an assertion failure!
+  xassert(var0inst != NULL && "f1c15444-8783-4296-981f-e3908d7cb1b4");
   xassert(var0inst->templateInfo()->isCompleteSpecOrInstantiation());
 
   // try adding the candidate
@@ -372,7 +375,7 @@ void OverloadResolver::processCandidate(Variable *v)
       // what is it an instantiation of?
       instFrom = v->templateInfo()->instantiationOf;
       xassert(instFrom);
-                                                                   
+
       // do not consider members of template classes to be templates
       // (in/t0269.cc)
       if (!instFrom->isTemplate(false /*considerInherited*/)) {
@@ -403,7 +406,7 @@ void OverloadResolver::processCandidate(Variable *v)
     if (flags & OF_METHODS) {
       iflags |= IA_RECEIVER;
     }
-    
+
     // (in/t0484.cc) an operator invocation site's LHS argument is the
     // receiver when we are considering operators that are methods;
     // but if the operator is a global function, then the LHS is not
@@ -432,7 +435,7 @@ void OverloadResolver::processCandidate(Variable *v)
     Variable *var0 = iter.data();
     TemplateInfo *templInfo0 = var0->templateInfo();
     xassert(templInfo0);      // should have templateness
-    
+
     // see if this candidate matches
     MType match;
     if (!match.matchSTemplateArguments(sargs, templInfo0->arguments, MF_MATCH)) {
@@ -467,7 +470,7 @@ void OverloadResolver::addAmbiguousBinaryCandidate(Variable *v)
 
   OVERLOADINDTRACE("candidate: ambiguous-arguments placeholder");
   IFDEBUG( c->conversionDescriptions(); )
-  
+
   candidates.push(c);
 }
 
@@ -491,7 +494,7 @@ static bool parameterAcceptsDirectly(EnumType *et, FunctionType *ft, int param)
                                     
     // treat 'T&' the same as 'T'
     paramType = paramType->asRval();
-    
+
     // get down to an enumtype
     EnumType *paramEnumType = ifEnumType(paramType);
 
@@ -536,11 +539,11 @@ void OverloadResolver::addUserOperatorCandidates
     env.associatedScopeLookup(candidates, opName, argTypes, flags);
 
     // ordinary lookup
-    { 
+    {
       Scope *dummy;
       env.lookupVariable_set(candidates, opName, flags, dummy);
     }
-    
+
     // filter candidates if no class-typed args
     if ((lhsType && lhsType->isCompoundType()) ||
         (rhsType && rhsType->isCompoundType())) {
@@ -670,7 +673,7 @@ CANDIDATE *selectBestCandidate(RESOLVER &resolver, CANDIDATE *dummy)
 // selectBestCandidate() templatized function into overload.h
 Variable *selectBestCandidate_templCompoundType(TemplCandidates &resolver)
 {
-  Variable *dummy = NULL; 
+  Variable *dummy = NULL;
     // dsw: this dummy idiom is dumb
     // sm: horsepucky!
 
@@ -799,7 +802,7 @@ Variable *OverloadResolver::resolve(bool &wasAmbig)
     xassert(retV->templateInfo());
     xassert(retV->templateInfo()->isCompleteSpecOrInstantiation());
   } else {
-    // sm: in/t0411.cc causes this to fail, because we (correctly) 
+    // sm: in/t0411.cc causes this to fail, because we (correctly)
     // do overload resolution while analyzing an uninstantiated
     // template body, and the winner is a member of that template,
     // so it *is* a template but is *not* instantiated from anything
@@ -933,7 +936,7 @@ Candidate * /*owner*/ OverloadResolver::makeCandidate
   return c.xfr();
 }
 
-  
+
 // 14.5.5.2 paras 3 and 4
 bool atLeastAsSpecializedAs(Env &env, CType *concrete, CType *pattern)
 {
@@ -1124,7 +1127,7 @@ int compareConversions(ArgumentInfo const &src,
     if (rightGroup < leftGroup) return +1;
   }
 
-  if (left.kind == ImplicitConversion::IC_AMBIGUOUS || 
+  if (left.kind == ImplicitConversion::IC_AMBIGUOUS ||
       right.kind == ImplicitConversion::IC_AMBIGUOUS) {
     return 0;    // indistinguishable
   }
@@ -1150,7 +1153,7 @@ int compareConversions(ArgumentInfo const &src,
     return compareStandardConversions(src, left.scs2, leftDest,
                                       src, right.scs2, rightDest);
   }
-  
+
   // if ellipsis, no comparison
   xassert(left.kind == ImplicitConversion::IC_ELLIPSIS);
   return 0;
@@ -1411,6 +1414,10 @@ int compareStandardConversions
 
 bool convertsPtrToBool(CType const *src, CType const *dest)
 {
+  // src was encountered to be NULL here after unimplemented: address of
+  // overloaded name, with a templatized element
+  xassert(src != NULL && "860cd085-9d59-4395-980c-d5f87bac7f5c");
+
   // I believe this test is meant to transcend any reference bindings
   src = src->asRvalC();
   dest = dest->asRvalC();
@@ -1522,12 +1529,12 @@ bool isProperSubpath(CompoundType const *LS, CompoundType const *LD,
 bool isCompoundType_orConstRefTo(CType const *t)
 {
   if (t->isCompoundType()) { return true; }
-  
+
   if (t->isReferenceType()) {
     t = t->asReferenceTypeC()->atType;
     return t->isConst() && t->isCompoundType();
   }
-  
+
   return false;
 }
 
@@ -1656,7 +1663,7 @@ ImplicitConversion getConversionOperator(
   // pick the winner
   bool wasAmbig;
   Variable *winner = resolver.resolve(wasAmbig);
-  
+
   // return an IC with that winner
   ImplicitConversion ic;
   if (!winner) {
@@ -1681,7 +1688,7 @@ ImplicitConversion getConversionOperator(
   return ic;
 }
 
-          
+
 
 // ------------------ LUB --------------------
 static CVFlags unionCV(CVFlags cv1, CVFlags cv2, bool &cvdiffers, bool toplevel)
@@ -1781,7 +1788,7 @@ CompoundType *ifPtrToMember(CType *t)
   }
   return NULL;
 }
- 
+
 // clear any toplevel cv-qualifications
 CType *cvUnqualified(Env &env, CType *t)
 {
@@ -1862,7 +1869,7 @@ CType *computeLUB(Env &env, CType *t1, CType *t2, bool &wasAmbig)
   //
   // Since this situation should be extremely rare, I won't bother for
   // now.  (See also convertibility.txt.)
-  
+
   // 2005-08-09: I managed to accidentally hack in/t0150.cc so that it
   // exposes the need to at least check for direct descendant
   // relationship with identical types, since GCC and ICC do so.
@@ -1894,7 +1901,7 @@ CType *computeLUB(Env &env, CType *t1, CType *t2, bool &wasAmbig)
     // use 't1', but make sure we're not returning a cv-qualified type
     return cvUnqualified(env, t1);
   }
-  
+
   // not equal, but they *are* similar, so construct the lub type; for
   // any pair of similar types, there is always a type to which both
   // can be converted

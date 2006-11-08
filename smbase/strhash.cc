@@ -59,7 +59,7 @@ STATICDEF unsigned StringHash::coreHash(char const *key)
   xassertdb(key);
 
   // some more references:
-  
+
   // http://www.cs.yorku.ca/~oz/hash.html
   //
   // Describes three well-known hashes: djb2, sdbm, and K&R ed. 1.
@@ -69,7 +69,7 @@ STATICDEF unsigned StringHash::coreHash(char const *key)
   // Describes a particular hash function (called simply "My Hash")
   // and provides justifications for preferring it to several others,
   // including MD4.
-  
+
   // http://www.isthe.com/chongo/tech/comp/fnv/
   //
   // Glen Fowler, Landon Curt Noll, and Phong Vo's hash function.
@@ -104,7 +104,7 @@ STATICDEF unsigned StringHash::coreHash(char const *key)
 
   #if STRHASH_ALG == 1
   #ifdef SAY_STRHASH_ALG
-    #warning hash function 1: Nelson 
+    #warning hash function 1: Nelson
   #endif // SAY_STRHASH_ALG
   // this one is supposed to be better
   /* An excellent string hashing function.
@@ -240,7 +240,7 @@ end0:
   // H has had a chance to affect any bit in L.  We are not done
   // though, since the high order bits in H have not had a chance to
   // affect the low order bits of H (yes H).  Please note however,
-  // that since L affected H and H affected L, the hight order bits of
+  // that since L affected H and H affected L, the high order bits of
   // L *have* had a chance to affect the low order bits of L.
   h = ROTATE(h, 16);
   h *= primeC;
@@ -430,7 +430,7 @@ void performanceTest(int numPerfRuns) {
   long stopTime = getMilliseconds();
   long duration = stopTime - startTime;
   cout << "milliseconds to hash: " << duration << endl;
-  
+
   traceProgress() << "end of strhash performance testing\n";
 }
 

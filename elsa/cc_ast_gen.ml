@@ -14,7 +14,7 @@ open Cc_ast_gen_type;;   (* ast type definition *)
  * *********** callbacks for TranslationUnit ******************
  * ********************************************************************* *)
 
-let create_TranslationUnit_tuple a0 a1 = (a0, a1)
+let create_TranslationUnit_tuple a0 a1 a2 = (a0, a1, a2)
 
 
 (* *********************************************************************
@@ -231,7 +231,7 @@ let create_E_intLit_constructor a0 a1 a2 a3 = E_intLit(a0, a1, a2, a3)
 
 let create_E_floatLit_constructor a0 a1 a2 a3 = E_floatLit(a0, a1, a2, a3)
 
-let create_E_stringLit_constructor a0 a1 a2 a3 = E_stringLit(a0, a1, a2, a3)
+let create_E_stringLit_constructor a0 a1 a2 a3 a4 = E_stringLit(a0, a1, a2, a3, a4)
 
 let create_E_charLit_constructor a0 a1 a2 a3 = E_charLit(a0, a1, a2, a3)
 

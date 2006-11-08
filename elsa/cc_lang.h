@@ -9,6 +9,8 @@
 #ifndef CCLANG_H
 #define CCLANG_H
 
+#include "str.h"                // string
+
 
 // This type is used for options that nominally either allow or
 // disallow some syntax, but can also trigger a warning.  Values of
@@ -20,6 +22,8 @@ enum Bool3 {
 };
 
 
+// NOTE: be sure to add a line to the body of toString() if you add
+// another flag
 class CCLang {
 public:
   // catch-call for behaviors that are unique to C++ but aren't
@@ -113,7 +117,7 @@ public:
   // when true, allow function definitions that omit any return type
   // to implicitly return 'int'.
   bool allowImplicitInt;
-  
+
   // GNU extension: when true, allow local variable arrays to have
   // sizes that are not constant
   bool allowDynamicallySizedArrays;
@@ -141,9 +145,22 @@ public:
   // when true, "_Bool" is a built-in type keyword (C99)
   bool predefined_Bool;
 
-  // when true, a function definition with 'extern' and 'inline'
-  // keywords is treated like a prototype
-  bool treatExternInlineAsPrototype;
+  // dsw: when true, a function definition with 'extern' and 'inline'
+  // keywords is handled specially.  How exactly is a function of the
+  // optimization conditions; these are not language conditions so
+  // they are handed by a tracing flag rather than by a language flag.
+  // The tracing flag is 'handleExternInline-asPrototype'.  If true,
+  // then we simply ignore the body of an extern inline.  When false
+  // we handle extern inlines as weak static inlines: the 'extern
+  // inline' is converted to 'static inline' and if another definition
+  // in the translation unit is found, it replaces that of the extern
+  // inline.  These two modes seem to reflect the behavior of gcc
+  // 3.4.6 when optimizations are off and on respectively.
+  bool handleExternInlineSpecially;
+
+  // quarl: whether "inline" implies static linkage.  True in C++ but not in
+  // C.
+  bool inlineImpliesStaticLinkage;
 
   // dsw: C99 std 6.4.5p5: "For character string literals, the array
   // elements have type char...."; Cppstd 2.13.4p1: "An ordinary
@@ -156,7 +173,8 @@ public:
   // have lvalue type
   bool lvalueFlowsThroughCast;
 
-  // when true, 'restrict' is a keyword
+  // when true, 'restrict' is a keyword (note that __restrict and
+  // __restrict__ are always keywords)
   bool restrictIsAKeyword;
 
   // ---- bug compatibility flags ----
@@ -191,11 +209,11 @@ public:
   // and transforms it into valid syntax for Elsa.  Actually, it just
   // enables some hacks that have similar effect.
   Bool3 allowGcc2HeaderSyntax;
-  
+
   // gcc C-mode bug compat: accept duplicate type specifier keywords
   // like 'int int'
   Bool3 allowRepeatedTypeSpecifierKeywords;
-  
+
   // gcc C-mode bug compat: silently allow const/volatile to be
   // applied to function types via typedefs; it's meaningless
   Bool3 allowCVAppliedToFunctionTypes;
@@ -203,15 +221,20 @@ public:
   // gcc bug compat: gcc does not enforce the rule that a definition
   // must be in a scope that encloses the declaration
   Bool3 allowDefinitionsInWrongScopes;
-  
+
   // gcc bug compat: in C++ mode, gcc allows prototype parameters to
   // have the same name (in/gnu/bugs/gb0011.cc)
   Bool3 allowDuplicateParameterNames;
-  
+
   // gcc bug compat: gcc does not require "template <>" is some
   // cases for explicit specializations (in/gnu/bugs/gb0012.cc)
   Bool3 allowExplicitSpecWithoutParams;
-                     
+
+  // quarl: declaring (or defining) a function as static after previously
+  // declaring it without 'static'. gcc-3.4 allows with warning; gcc-4.0
+  // disallows.
+  Bool3 allowStaticAfterNonStatic;
+
 private:     // funcs
   void setAllWarnings(bool enable);
 
@@ -250,6 +273,13 @@ public:      // funcs
 
   void ANSI_Cplusplus();    // settings for ANSI C++ 98
   void GNU_Cplusplus();     // settings for GNU C++
+
+  // dsw: I regret having to mention all of the flags yet one more
+  // place, however I think I need this.
+  string toString();
 };
+
+bool handleExternInline_asPrototype();
+bool handleExternInline_asWeakStaticInline();
 
 #endif // CCLANG_H

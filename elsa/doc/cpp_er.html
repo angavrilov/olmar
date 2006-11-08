@@ -159,7 +159,7 @@ followed by a Type [12.3.2].
 A Scope ("declarative region") [3.3] is a set of Variables.  Name
 lookup [3.4] searches for a Name amongst a certain sequence of Scopes,
 yielding the set of Variables that have the given Name.  There are
-rules [3.3p4] that restrict the set of Variables that may have the
+rules [3.3p4, 3.3.7p2] that restrict the set of Variables that may have the
 same Name and Scope; the data model itself does not enforce them.
 
 <p>
@@ -211,8 +211,30 @@ Variable is a member of exactly one Scope.
 A Variable's name is both optional and mutable.  It is optional
 because function and template parameters may be declared without names
 [8.3.5p8, 14.1p1].  It is mutable because subsequent declarations may
-add or change a name.  Variables without names are not subject to the
-rules of [3.3p4] that restrict same-named Variables in a Scope.
+add or change a parameter name.  Variables without names are not
+subject to the rules of [3.3p4, 3.3.7p2] that restrict same-named
+Variables in a Scope.
+
+<p>
+Note that this is <em>not</em> the same as the Standard term "variable" [3p4].
+It is simply a convenient appelation for an important concept.
+
+<h3>StorageClass</h3>
+
+<p>
+The "storage" member of Variable is a subset of StorageClass, which 
+has (exactly) the following members:
+<ul>
+<li><tt>auto</tt>
+<li><tt>register</tt>
+<li><tt>static</tt>
+<li><tt>extern</tt>
+</ul>
+
+<p>
+This is not the same as the Standard storage-class-specifier [7.1.1],
+as that contains <tt>mutable</tt>, whereas I have instead introduced
+the MutableNonstaticDataMember specialization.
 
 <h3>NamespaceAlias</h3>
 
@@ -749,6 +771,10 @@ A ClassTemplatePartialSpecialization [14.5.4] is a Specialization of
 a ClassTemplate, whose template arguments ("args[]") are not all concrete.
 The holes in its arguments are declared in its MetaParameterList; i.e.,
 it is itself a ClassTemplate.
+
+<p>
+[TODO: This schema is missing the state needed to keep track of the
+instantiation of <em>members</em> of class templates.]
 
 
 <h2>FunctionTemplate</h2>

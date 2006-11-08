@@ -132,7 +132,6 @@ ASTGEN_OBJS := \
   ast.hand.o \
   asthelp.o \
   xmlhelp.o \
-  strtable.o \
   agrampar.o  \
   astgen.o
 -include $(ASTGEN_OBJS:.o=.d)
@@ -148,7 +147,7 @@ astgen: $(ASTGEN_OBJS) ast.ast.cc $(LIBSMBASE)
 example.cc: astgen example.ast
 	./astgen example.ast
 
-exampletest: exampletest.o example.o asthelp.o locstr.o strtable.o $(LIBSMBASE)
+exampletest: exampletest.o example.o asthelp.o locstr.o $(LIBSMBASE)
 	$(CXX) -o $@ $^
 
 # simple extension
@@ -176,7 +175,6 @@ LIB_OBJS := \
   embedded.o \
   asthelp.o \
   xmlhelp.o \
-  strtable.o \
   locstr.o
 -include $(ASTGEN_OBJS:.o=.d)
 
@@ -211,7 +209,7 @@ check: ccsstr ocsstr
 # delete outputs of compiler, linker
 clean:
 	rm -f $(TOCLEAN)
-	rm -f *.o tmp *.d
+	rm -f *.o tmp *.d gmon.out
 	rm -f agrampar astgen ccsstr ocsstr towner exampletest libast.a
 	rm -f agrampar.output
 	rm -f example.{h.cc} ext1.{h,cc}

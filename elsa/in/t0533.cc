@@ -10,13 +10,13 @@ void foo()
   f(2*d+4, 3.0);           // calls 'f' on line 4
   f(4+2*d, 3.0);           // calls 'f' on line 4
 
-  __checkType(2*d+4, (double)0);
-  __checkType(4+2*d, (double)0);
+  __elsa_checkType(2*d+4, (double)0);
+  __elsa_checkType(4+2*d, (double)0);
   
   char *p;
   int i;
   
-  __checkType(p+i, (char*)0);
-  __checkType(p-i, (char*)0);
-  __checkType(p-p, (int)0);
+  __elsa_checkType(p+i, (char*)0);
+  __elsa_checkType(p-i, (char*)0);
+  __elsa_checkType(p-p, (int)0);
 }

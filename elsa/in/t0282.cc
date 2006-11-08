@@ -10,12 +10,12 @@ unsigned long lu;
 
 void f()
 {
-  __checkType(e + i,  (int)0);
-  __checkType(e + ui, (unsigned)0);
-  __checkType(e + l,  (long)0);
-  __checkType(e + lu, (unsigned long)0);
+  __elsa_checkType(e + i,  (int)0);
+  __elsa_checkType(e + ui, (unsigned)0);
+  __elsa_checkType(e + l,  (long)0);
+  __elsa_checkType(e + lu, (unsigned long)0);
 
-  __checkType(e - ui, (unsigned)0);
+  __elsa_checkType(e - ui, (unsigned)0);
 }
 
 
@@ -31,10 +31,10 @@ struct Unsigned {
 
 void g()
 {
-  __checkType(c2 + i,  (int)0);
-  __checkType(c2 + c2, (int)0);     // char + char = int
+  __elsa_checkType(c2 + i,  (int)0);
+  __elsa_checkType(c2 + c2, (int)0);     // char + char = int
   
-  __checkType(u2 + l, (unsigned long)0);
+  __elsa_checkType(u2 + l, (unsigned long)0);
 }
 
 

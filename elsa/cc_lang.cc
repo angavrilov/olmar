@@ -2,6 +2,8 @@
 // code for cc_lang.h
 
 #include "cc_lang.h"     // this module
+#include "trace.h"       // tracingSys
+#include "xassert.h"     // xfailure
 
 #include <string.h>      // memset
 
@@ -33,6 +35,7 @@ void CCLang::setAllWarnings(bool enable)
   setWarning(allowDefinitionsInWrongScopes, enable);
   setWarning(allowDuplicateParameterNames, enable);
   setWarning(allowExplicitSpecWithoutParams, enable);
+  setWarning(allowStaticAfterNonStatic, enable);
 }
 
 
@@ -66,7 +69,8 @@ void CCLang::ANSI_C89()
   allowImplicitIntForMain = false;
   predefined_Bool = false;
 
-  treatExternInlineAsPrototype = false;
+  handleExternInlineSpecially = false;
+  inlineImpliesStaticLinkage = false;
   stringLitCharsAreConst = false; // Didn't check C89; C99 says they are non-const
 
   // C99 spec: Section 6.5.4, footnote 85: "A cast does not yield an lvalue".
@@ -87,6 +91,7 @@ void CCLang::ANSI_C89()
   allowDefinitionsInWrongScopes = B3_FALSE;
   allowDuplicateParameterNames = B3_FALSE;
   allowExplicitSpecWithoutParams = B3_FALSE;
+  allowStaticAfterNonStatic =  B3_WARN;
 }
 
 void CCLang::KandR_C()
@@ -122,7 +127,7 @@ void CCLang::GNU_C_extensions()
   gccFuncBehavior = GFB_string;
   allowDynamicallySizedArrays = true;
   assumeNoSizeArrayHasSizeOne = true;
-  treatExternInlineAsPrototype = true;
+  handleExternInlineSpecially = true;
   declareGNUBuiltins = true;
 
   // http://gcc.gnu.org/onlinedocs/gcc-3.1/gcc/Lvalues.html
@@ -202,7 +207,8 @@ void CCLang::ANSI_Cplusplus()
   allowImplicitIntForMain = false;
 
   predefined_Bool = false;
-  treatExternInlineAsPrototype = false;
+  handleExternInlineSpecially = false;
+  inlineImpliesStaticLinkage = true;
   stringLitCharsAreConst = true; // Cppstd says they are const.
   lvalueFlowsThroughCast = false;
   restrictIsAKeyword = false;
@@ -220,6 +226,7 @@ void CCLang::ANSI_Cplusplus()
   allowDefinitionsInWrongScopes = B3_FALSE;
   allowDuplicateParameterNames = B3_FALSE;
   allowExplicitSpecWithoutParams = B3_FALSE;
+  allowStaticAfterNonStatic =  B3_WARN;
 }
 
 void CCLang::GNU_Cplusplus()
@@ -255,6 +262,77 @@ void CCLang::MSVC_bug_compatibility()
 {
   allowImplicitIntForOperators = B3_TRUE;
   allowAnonymousStructs = B3_TRUE;
+}
+
+
+// -------------------------- handleExternInlineSpecially ---------------------
+
+// dsw: how to interpret handleExternInlineSpecially
+bool handleExternInline_asPrototype() {
+  return tracingSys("handleExternInline-asPrototype");
+}
+bool handleExternInline_asWeakStaticInline() {
+  return !tracingSys("handleExternInline-asPrototype");
+}
+
+
+// -------------------------- toString ---------------------
+
+string CCLang::toString() {
+  stringBuilder str;
+#define PRINT(X) str << #X " " << X << '\n'
+  PRINT(isCplusplus);
+  PRINT(declareGNUBuiltins);
+  PRINT(tagsAreTypes);
+  PRINT(recognizeCppKeywords);
+  PRINT(implicitFuncVariable);
+
+  // an exception since it is not a bool or a 3-way bool:
+  str << "gccFuncBehavior ";
+  switch(gccFuncBehavior) {
+  default: xfailure("illegal gccFuncBehavior");
+  case GFB_none: str << "GFB_none"; break;
+  case GFB_string: str << "GFB_string"; break;
+  case GFB_variable: str << "GFB_variable"; break;
+  }
+  str << '\n';
+
+  PRINT(noInnerClasses);
+  PRINT(uninitializedGlobalDataIsCommon);
+  PRINT(emptyParamsMeansNoInfo);
+  PRINT(strictArraySizeRequirements);
+  PRINT(assumeNoSizeArrayHasSizeOne);
+  PRINT(allowOverloading);
+  PRINT(compoundSelfName);
+  PRINT(allowImplicitFunctionDecls);
+  PRINT(allowImplicitInt);
+  PRINT(allowDynamicallySizedArrays);
+  PRINT(allowIncompleteEnums);
+  PRINT(allowMemberWithClassName);
+  PRINT(nonstandardAssignmentOperator);
+  PRINT(allowExternCThrowMismatch);
+  PRINT(allowImplicitIntForMain);
+  PRINT(predefined_Bool);
+  PRINT(handleExternInlineSpecially);
+  PRINT(inlineImpliesStaticLinkage);
+  PRINT(stringLitCharsAreConst);
+  PRINT(lvalueFlowsThroughCast);
+  PRINT(restrictIsAKeyword);
+  PRINT(allowNewlinesInStringLits);
+  PRINT(allowImplicitIntForOperators);
+  PRINT(allowQualifiedMemberDeclarations);
+  PRINT(allowModifiersWithTypedefNames);
+  PRINT(allowAnonymousStructs);
+  PRINT(gcc2StdEqualsGlobalHacks);
+  PRINT(allowGcc2HeaderSyntax);
+  PRINT(allowRepeatedTypeSpecifierKeywords);
+  PRINT(allowCVAppliedToFunctionTypes);
+  PRINT(allowDefinitionsInWrongScopes);
+  PRINT(allowDuplicateParameterNames);
+  PRINT(allowExplicitSpecWithoutParams);
+  PRINT(allowStaticAfterNonStatic);
+#undef PRINT
+  return str;
 }
 
 

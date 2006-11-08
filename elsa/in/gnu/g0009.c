@@ -3,7 +3,7 @@
 
 void f()
 {
-  char *a = __func__;
+  char const *a = __func__;
   char *b = __FUNCTION__;
   char *c = __PRETTY_FUNCTION__;
 

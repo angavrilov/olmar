@@ -1,6 +1,8 @@
+// ERR-MATCH: c312d480-2c8d-43ee-9d9d-13d900e51aa3
+
 // t0151.cc
 // operator->*
-       
+
 //         A      D   .
 //        / \         .
 //       B   C        .

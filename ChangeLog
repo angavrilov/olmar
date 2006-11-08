@@ -1,4 +1,30 @@
+2006-11-08  Hendrik Tews  <tews@tandem.cs.ru.nl>
+
+	* completed merge with changes from
+	  smbase-484-ast-278-elkhound-1036-elsa-2439, a few issues are
+	  delayed/ignored for a while, see TODO
+
+2006-11-05  Hendrik Tews  <tews@localhost.localdomain>
+
+	* elsa compiles + non-ocaml regression tests
+	* new nullables:
+		TranslationUnit.globalScope
+		E_stringLit.fullTextNQ
+	* regression tests pass!
+
+2006-11-04  Hendrik Tews  <tews@localhost.localdomain>
+
+	* smbase merged
+	* ast merged
+	* elkhound merged
+	* started merge
+
+	* vendor import from oink: smbase-484-ast-278-elkhound-1036-elsa-2439
+	* removed files from the vendor import
+
 2006-10-30  Hendrik Tews  <tews@tandem.cs.ru.nl>
+
+	* released version 0.2: elsa-2005.08.22b-olmar-2006.10.30 snapshot
 
 	* small release/snapshot fixes
 
@@ -84,6 +110,8 @@
 	  TS_elaborated.atype
 	  Declarator.var
 	  Declarator.type
+	  TranslationUnit.globalScope
+	  E_stringLit.fullTextNQ
 	
 	  - fields without nullable comment, that happen to be null in at
 	  elast one regression test

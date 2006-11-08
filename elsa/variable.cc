@@ -4,17 +4,12 @@
 #include "variable.h"      // this module
 #include "template.h"      // CType, TemplateInfo, etc.
 #include "trace.h"         // tracingSys
+#include "mangle.h"        // mangle()
 #include "cc_ocaml.h"	   // ToOcamlData
 #include "cc.ast.gen.h"    // Function::toOcaml, Variable::toOcaml
 
-string toXml_Variable_intData(unsigned id) {
-  return stringc << static_cast<int>(id);
-}
-
-void fromXml_Variable_intData(unsigned &out, rostring str) {
-  out = static_cast<DeclFlags>(atoi(str));
-}
-
+// dsw: need this for Oink; we'll figure out how to make this non-global later
+bool variablesLinkerVisibleEvenIfNonStaticDataMember = false;
 
 // ---------------------- SomeTypeVarNotInTemplParams_Pred --------------------
 
@@ -61,6 +56,7 @@ bool SomeTypeVarNotInTemplParams_Pred::operator() (CType const *t)
   return false;                 // some other type of compound type
 };
 
+size_t Variable::numVariables = 0;
 
 // ---------------------- Variable --------------------
 Variable::Variable(SourceLoc L, StringRef n, CType *t, DeclFlags f)
@@ -72,9 +68,9 @@ Variable::Variable(SourceLoc L, StringRef n, CType *t, DeclFlags f)
     defaultParamType(NULL),
     funcDefn(NULL),
     overload(NULL),
+    virtuallyOverride(NULL),
     scope(NULL),
     ocaml_val(0),
-    intData(0),
     usingAlias_or_parameterizedEntity(NULL),
     templInfo(NULL)
 {
@@ -87,7 +83,7 @@ Variable::Variable(SourceLoc L, StringRef n, CType *t, DeclFlags f)
     setAccess(AK_PRIVATE);
     setScopeKind(SK_NAMESPACE);
     setParameterOrdinal(1000);
-    
+
     xassert(getAccess() == AK_PRIVATE);
     xassert(getScopeKind() == SK_NAMESPACE);
     xassert(getParameterOrdinal() == 1000);
@@ -109,10 +105,12 @@ Variable::Variable(SourceLoc L, StringRef n, CType *t, DeclFlags f)
   if (!isNamespace()) {
     xassert(type);
   }
+
+  ++numVariables;
 }
 
 // ctor for de-serialization
-Variable::Variable(ReadXML&)
+Variable::Variable(XmlReader&)
   : loc(SL_UNKNOWN),
     name(NULL),
     type(NULL),
@@ -121,12 +119,14 @@ Variable::Variable(ReadXML&)
     defaultParamType(NULL),
     funcDefn(NULL),
     overload(NULL),
+    virtuallyOverride(NULL),
     scope(NULL),
     ocaml_val(0),
-    intData(0),
     usingAlias_or_parameterizedEntity(NULL),
     templInfo(NULL)
-{}
+{
+  ++numVariables;
+}
 
 Variable::~Variable()
 {}
@@ -138,6 +138,86 @@ void Variable::setFlagsTo(DeclFlags f)
   const_cast<DeclFlags&>(flags) = f;
 }
 
+bool Variable::inGlobalOrNamespaceScope() const {
+  return scope && (scope->isGlobalScope() || scope->isNamespace());
+}
+
+bool Variable::linkerVisibleName() const {
+  return linkerVisibleName(false);
+}
+
+bool Variable::linkerVisibleName(bool evenIfStaticLinkage) const {
+//    bool oldAnswer;
+//    if (scope) oldAnswer = scope->linkerVisible();
+//    else oldAnswer = hasFlag(DF_GLOBAL);
+
+  // do not consider templates
+  if (isTemplate()) return false;
+
+  // do not consider members of uninstantiated template primaries or
+  // partial specializations
+  if (isUninstTemplateMember()) return false;
+
+  // it seems that we should not consider typedefs to be linker-visible
+  if (hasFlag(DF_TYPEDEF)) return false;
+  // nor namespaces, such as '<globalScope>'
+  if (hasFlag(DF_NAMESPACE)) return false;
+
+  // dsw: nothing starting with __builtin_va is linker-visible
+  static char *builtin_va_prefix = "__builtin_va";
+  static int builtin_va_prefix_len = strlen(builtin_va_prefix);
+  if (name && 0==strncmp(name, builtin_va_prefix, builtin_va_prefix_len)) return false;
+
+  // quarl 2006-06-03, 2006-07-11
+  //     *In C++ mode only*, inline implies static.  In C mode, 'inline'
+  //     functions can be non-static (see e.g. package gnutls11).
+  //     isStaticLinkage() now handles this implication with help from
+  //     typechecking.  A function can both be a static member and have static
+  //     linkage (via inline).
+  if (!evenIfStaticLinkage) {
+    if (isStaticLinkage()) {
+      return false;
+    }
+  }
+
+  // FIX: what the heck was this?  Some attempt to treat struct
+  // members as linkerVisibleName-s?  This doesn't work because there
+  // is no well-defined name for an anonymous struct anyway.
+  if (!scope) {
+    // FIX: I hope this is right.
+    // FIX: hmm, when else can this occur?
+//      xassert(hasFlag(DF_PARAMETER));
+    // this one fails for template parameters!?
+//      xassert(!hasFlag(DF_GLOBAL));
+    return false;
+  }
+
+  // quarl 2006-07-11
+  //    Check for this even if not in class scope, e.g. a struct defined
+  //    within a function (Test/struct_sizeof.c)
+  if (!scope->linkerVisible()) {
+    return false;
+  }
+
+  // dsw: I hate this overloading of the 'static' keyword.  Static members of
+  // CompoundTypes are linker visible if the CompoundType is linkerVisible.
+  // Non-static members are visible only if they are FunctionTypes.
+  if (scope->isClassScope()) {
+    if (!hasFlag(DF_MEMBER)) {
+      return false;
+    }
+
+    // non-static members of a class
+    if (!variablesLinkerVisibleEvenIfNonStaticDataMember) {
+      if (!(type->asRval()->isFunctionType() || hasFlag(DF_STATIC))) {
+        return false;
+      }
+    }
+  }
+
+  return true;
+}
+
 
 // 2005-08-15: Previously, this would return false for unions because
 // I misunderstood the standard.  However, 9p4 is clear that unions
@@ -145,44 +225,6 @@ void Variable::setFlagsTo(DeclFlags f)
 bool Variable::isClass() const
 {
   return hasFlag(DF_TYPEDEF) && type->isCompoundType();
-}
-
-
-AccessKeyword Variable::getAccess() const
-{
-  return (AccessKeyword)(intData & 0xFF);
-}
-
-void Variable::setAccess(AccessKeyword k)
-{
-  intData = (intData & ~0xFF) | (k & 0xFF);
-}
-
-
-ScopeKind Variable::getScopeKind() const
-{
-  return (ScopeKind)((intData & 0xFF00) >> 8);
-}
-
-void Variable::setScopeKind(ScopeKind k)
-{
-  intData = (intData & ~0xFF00) | ((k << 8) & 0xFF00);
-}
-
-
-int Variable::getParameterOrdinal() const
-{
-  return (intData >> 16) & 0xFFFF;
-}
-
-void Variable::setParameterOrdinal(int ord)
-{
-  // this imposes a limit of 0xFFFF template parameters; but that is
-  // probably ok, as the standard's recommended minimum limit is 1024
-  // (annex B, para 2, near the end of the list)
-  xassert(0 <= ord && ord <= 0xFFFF);
-
-  intData = (intData & ~0xFFFF0000) | ((ord << 16) & 0xFFFF0000);
 }
 
 
@@ -196,11 +238,18 @@ bool Variable::isUninstTemplateMember() const
 }
 
 
+bool Variable::isUninstClassTemplMethod() const
+{
+  return hasFlag(DF_VIRTUAL) && type->isMethod() && isInstantiation() && !funcDefn;
+}
+
+
 bool Variable::isTemplate(bool considerInherited) const
 {
   return templateInfo() &&
          templateInfo()->hasParametersEx(considerInherited);
 }
+
 
 bool Variable::isTemplateFunction(bool considerInherited) const
 {
@@ -209,6 +258,7 @@ bool Variable::isTemplateFunction(bool considerInherited) const
          isTemplate(considerInherited) &&
          !hasFlag(DF_TYPEDEF);
 }
+
 
 bool Variable::isTemplateClass(bool considerInherited) const
 {
@@ -225,20 +275,20 @@ bool Variable::isInstantiation() const
 
 
 TemplateInfo *Variable::templateInfo() const
-{                  
-  // 2005-02-23: experiment: alias share's referent's template info
+{
+  // 2005-02-23: experiment: alias shares referent's template info
   return skipAliasC()->templInfo;
 }
 
 void Variable::setTemplateInfo(TemplateInfo *templInfo0)
 {
   templInfo = templInfo0;
-  
+
   // 2005-03-07: this assertion fails in some error cases (e.g., error
   // 1 of in/t0434.cc); I tried a few hacks but am now giving up on it
   // entirely
   //xassert(!(templInfo && notQuantifiedOut()));
-  
+
   // complete the association
   if (templInfo) {
     // I am the method allowed to change TemplateInfo::var
@@ -293,15 +343,28 @@ string Variable::toCString() const
   // If more specialized printing is desired, do that specialized
   // printing from outside (by directly accessing 'name', 'type',
   // 'flags', etc.).
-  return type->toCString(stringc << (name? name : "/*anon*/") << namePrintSuffix());
+  //
+  // dsw: namespace variables have no type
+  if (type) {
+    return type->toCString(stringc << (name? name : "/*anon*/") << namePrintSuffix());
+  } else {
+    return name? name : "/*anon*/";
+  }
 }
 
 
 string Variable::toQualifiedString() const
-{                             
+{
+  if (isType()) {
+    // I'm seeing printouts like "S1<T>::S2 S1<T>::S2", where the type
+    // is printed twice.  I think for types we should just print the
+    // type itself.
+    return type->toCString();
+  }
+
   string qname;
   if (name) {
-    qname = fullyQualifiedName();
+    qname = fullyQualifiedName0();
   }
   else {
     qname = "/*anon*/";
@@ -312,7 +375,7 @@ string Variable::toQualifiedString() const
 
 string Variable::toCStringAsParameter() const
 {
-  if (!global_mayUseTypeAndVarToCString) xfailure("suspended during TypePrinterC::print");
+  if (!global_mayUseTypeAndVarToCString) xfailure("suspended during CTypePrinter::print");
   stringBuilder sb;
   if (type->isTypeVariable()) {
     // type variable's name, then the parameter's name (if any)
@@ -336,7 +399,7 @@ string Variable::toMLString() const
 {
   stringBuilder sb;
   #if USE_SERIAL_NUMBERS
-    sb << printSerialNo("v", serialNumber, "-");
+    printSerialNo(sb, "v", serialNumber, "-");
   #endif
   char const *name0 = "<no_name>";
   if (name) {
@@ -347,8 +410,26 @@ string Variable::toMLString() const
 }
 
 
-string Variable::fullyQualifiedName() const
+string Variable::fullyQualifiedName0() const
 {
+  // dsw: I don't think it makes sense to ask for the fully qualified
+  // name of a Variable that does not reside in a permanent scope,
+  // except for built-ins which are basically global.  Unfortunately,
+  // Scott doesn't use it that way.
+//   if (loc != SL_INIT) {
+//     xassert(scope);
+//     xassert(scope->hasName() || scope->isGlobalScope());
+//   }
+
+  if (isNamespace()) {
+    if (scope->isGlobalScope()) {
+      return "::";
+    }
+    else {
+      return scope->fullyQualifiedCName();
+    }
+  }
+
   stringBuilder tmp;
   if (scope && !scope->isGlobalScope()) {
     tmp << scope->fullyQualifiedCName();
@@ -357,13 +438,13 @@ string Variable::fullyQualifiedName() const
     // don't need another "::name", since my 'scope' is the same
   }
   else {
-    if (!tmp.isempty()) {
+    if (!tmp.empty()) {
       tmp << "::";
     }
-    
+
     if (name) {
       tmp << name;        // NOTE: not mangled
-                     
+
       TemplateInfo *ti = templateInfo();
       if (ti) {
         // only print arguments that do not correspond to inherited params
@@ -390,6 +471,69 @@ string Variable::fullyQualifiedName() const
     }
   }
   return tmp;
+}
+
+void Variable::appendMangledness(stringBuilder &mgldName) {
+  // for function types, be sure to use the mangled name of their
+  // signature so that overloading works right
+  if (type && type->isFunctionType() && !hasFlag(DF_EXTERN_C)) {
+    mgldName << " SIG " << mangle(type); // this is passed through the globalStrTable below
+  }
+}
+
+string Variable::mangledName0() {
+  // dsw: what was I thinking here?  See assertion at the top of
+  // fullyQualifiedName0()
+  //
+  // NOTE: This is a very important assertion
+//   xassert(linkerVisibleName());
+
+  stringBuilder mgldName;
+  // FIX: should this be an assertion?  It can fail.
+  if (name) mgldName << name;
+  appendMangledness(mgldName);
+  return mgldName;
+}
+
+string Variable::fullyQualifiedMangledName0() {
+//    cout << "name '" << name;
+//    if (scope) cout << "; has a scope" << endl;
+//    else cout << "; NO scope" << endl;
+
+  // dsw: what was I thinking here?  See assertion at the top of
+  // fullyQualifiedName0()
+  //
+  // NOTE: dsw: This is a very important assertion
+//   xassert(linkerVisibleName());
+
+  stringBuilder fqName;
+
+  // dsw: prepend with the filename if is global and static; this
+  // ensures proper linking
+  if (isStaticLinkage()) {
+    fqName << "file:" << sourceLocManager->getFile(loc) << ";";
+  }
+
+  // quarl 2006-07-10
+  //    Prepend with either "D:" or "F:" for data/function.  This way we
+  //    imitate the real linker's "type system" for data and functions
+  //    (e.g. "clog" the iostream data member and "clog" the math function can
+  //    coexist).
+  //
+  //    Should we add more -- templates?
+
+  if (type->isFunctionType()) {
+    fqName << "F:";
+  } else {
+    fqName << "D:";
+  }
+
+  fqName << fullyQualifiedName0();
+//    if (scope) fqName << scope->fullyQualifiedName();
+//    fqName << "::" << mangledName0();
+  appendMangledness(fqName);
+
+  return fqName;
 }
 
 
@@ -427,6 +571,22 @@ int Variable::overloadSetSize() const
   return overload? overload->count() : 1;
 }
 
+bool Variable::isPureVirtualMethod() const
+{
+  // NOTE: use getHasValue() here instead of testing for the existance
+  // of the value field.  The value field is AST and there are some
+  // modes of usage where we serialize the typesystem but not the AST;
+  // the behavior of this method before and after serialization would
+  // alter in such a case.
+  bool ret = type && type->isMethod() && getHasValue();
+  // FIX: figure out how to add these assertions without having to
+  // include cc_ast.h
+//   if (ret) {
+//     xassert(value->isE_intLit());
+//     xassert(value->asE_intLit()->i == 0);
+//   }
+  return ret;
+}
 
 bool Variable::isMemberOfTemplate() const
 {
@@ -459,6 +619,9 @@ bool Variable::isTemplateTypeParam() const
 Variable *Variable::getUsingAlias() const
 {
   if (!isTemplateParam()) {
+    if (usingAlias_or_parameterizedEntity) {
+      xassert(usingAlias_or_parameterizedEntity->getMaybeUsedAsAlias());
+    }
     return usingAlias_or_parameterizedEntity;
   }
   else {
@@ -470,6 +633,9 @@ void Variable::setUsingAlias(Variable *target)
 {
   xassert(!isTemplateParam());
   usingAlias_or_parameterizedEntity = target;
+  if (usingAlias_or_parameterizedEntity) {
+    usingAlias_or_parameterizedEntity->setMaybeUsedAsAlias(true);
+  }
 }
 
 
@@ -503,7 +669,7 @@ bool Variable::sameTemplateParameter(Variable const *other) const
     // same!
     return true;
   }
-  
+
   return false;
 }
 
@@ -535,11 +701,11 @@ bool sameEntity(Variable const *v1, Variable const *v2)
 {
   v1 = v1->skipAliasC();
   v2 = v2->skipAliasC();
-  
+
   if (v1 == v2) {
     return true;
   }
-  
+
   if (v1 && v2 &&                   // both non-NULL
       v1->name == v2->name &&       // same simple name
       v1->hasFlag(DF_EXTERN_C) &&   // both are extern "C"
@@ -553,7 +719,7 @@ bool sameEntity(Variable const *v1, Variable const *v2)
     // implement that now.
     return true;
   }
-  
+
   return false;
 }
 
@@ -565,7 +731,7 @@ static bool namesTemplateFunction_one(Variable const *v)
   // template-ness of the name itself, not any parent scopes
   bool const considerInherited = false;
 
-  return v->isTemplate(considerInherited) || 
+  return v->isTemplate(considerInherited) ||
          v->isInstantiation();     // 2005-08-11: in/t0545.cc
 }
 
@@ -619,7 +785,7 @@ Scope *Variable::getDenotedScope() const
   if (isNamespace()) {
     return scope;
   }
-  
+
   if (type->isCompoundType()) {
     CompoundType *ct = type->asCompoundType();
     return ct;

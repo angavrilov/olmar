@@ -40,6 +40,7 @@ RANLIB := ranlib
 
 %.o: %.c
 	$(CC) -c -o $@ $< $(CFLAGS)
+	@perl ./depend.pl -o $@ $< $(CCFLAGS) > $*.d
 
 
 # remake the generated Makefile if its inputs have changed
@@ -65,6 +66,11 @@ objlist.h: xobjlist.h
 	rm -f objlist.h
 	m4 -Dm4_output=objlist.h --prefix-builtins xobjlist.h > objlist.h
 	chmod a-w objlist.h
+
+strobjdict.h strsobjdict.h strintdict.h: xstrobjdict.h
+	rm -f $@
+	m4 -Dm4_output=$@ --prefix-builtins $< > $@
+	chmod a-w $@
 
 
 # ----------------------- malloc ------------------------
@@ -116,6 +122,7 @@ OBJS := \
   crc.o \
   cycles.o \
   datablok.o \
+  d2vector.o \
   exc.o \
   flatten.o \
   gprintf.o \
@@ -127,6 +134,7 @@ OBJS := \
   mypopen.o \
   mysig.o \
   nonport.o \
+  ofstreamts.o \
   point.o \
   pprint.o \
   smregexp.o \
@@ -135,6 +143,7 @@ OBJS := \
   strdict.o \
   strhash.o \
   stringset.o \
+  strtable.o \
   strtokp.o \
   strutil.o \
   svdict.o \
@@ -174,7 +183,7 @@ TESTS := nonport voidlist tobjlist bit2d growbuf testmalloc mypopen \
          testmalloc mypopen tobjpool strhash cycles tsobjlist crc \
          srcloc hashline gprintf smregexp vptrmap vdtllist pprint \
          boxprint tarrayqueue testarray taillist_test autofile \
-         bitarray
+         bitarray d2vector
 
 # some programs do not build on mingw32
 ifeq ($(strip $(CROSSTARGET)),i386-mingw32msvc)
@@ -295,6 +304,10 @@ autofile$(EXE): autofile.cc $(THIS)
 bitarray$(EXE): bitarray.cc $(THIS)
 	$(TESTCXX) -o $@ -DTEST_BITARRAY bitarray.cc $(TESTFLAGS)
 
+d2vector$(EXE): d2vector.c $(THIS)
+	$(TESTCXX) -o $@ -DTEST_D2VECTOR d2vector.c $(TESTFLAGS)
+
+
 ifeq ($(CROSSTARGET),0)
   RUN :=
 else
@@ -334,6 +347,7 @@ check: $(TESTS)
 	$(RUN)./taillist_test$(EXE)
 	$(RUN)./autofile$(EXE) autofile.cc
 	$(RUN)./bitarray$(EXE)
+	$(RUN)./d2vector$(EXE)
 ifeq ($(CROSSTARGET),0)
 	@echo
 	@echo "make check: all the tests PASSED"

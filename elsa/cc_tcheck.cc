@@ -42,7 +42,8 @@
 
 
 // forwards in this file
-void tcheckPQName(PQName *&name, Env &env, Scope *scope = NULL, 
+
+void tcheckPQName(PQName *&name, Env &env, Scope *scope = NULL,
                   LookupFlags lflags = LF_NONE);
 
 static Variable *outerResolveOverload_ctor
@@ -179,8 +180,35 @@ public:
 
 
 // ------------------- TranslationUnit --------------------
+// dsw: this method is generic enough that perhaps it should be called
+// "applyFlagsToGlobals" or something since you could in theory call
+// it with any kind of flag
+void applyExternC(TopForm *form, DeclFlags flags)
+{
+  ASTSWITCH(TopForm, form) {
+    ASTCASE(TF_decl, d)   d->decl->dflags |= flags;
+    ASTNEXT(TF_func, f)   f->f->dflags |= flags;
+    // just ignore other forms
+    ASTENDCASED
+  }
+}
+
 void TranslationUnit::tcheck(Env &env)
 {
+  // dsw: this is copied from TF_linkage::itcheck(); per Scott's
+  // suggestion, in C mode we just want to pretend that the entire
+  // TranslationUnit was wrapped in an extern "C" {} block.  This way
+  // our mangled names from C and C++ translation units will link
+  // together correctly.
+  if (!env.lang.isCplusplus) {
+    // since there is no 'extern "C"' syntax in C, this block
+    // shouldn't ever get called on this TranslationUnit from both
+    // here and from TF_linkage::itcheck()
+    FOREACH_ASTLIST_NC(TopForm, topForms, iter) {
+      applyExternC(iter.data(), DF_EXTERN_C);
+    }
+  }
+
   static int topForm = 0;
   FOREACH_ASTLIST_NC(TopForm, topForms, iter) {
     ++topForm;
@@ -247,7 +275,7 @@ void TF_explicitInst::itcheck(Env &env)
   d->dflags |= instFlags;
 
   d->tcheck(env, DC_TF_EXPLICITINST);
-  
+
   // class instantiation?
   if (d->decllist->isEmpty()) {
     if (d->spec->isTS_elaborated()) {
@@ -273,22 +301,12 @@ void TF_explicitInst::itcheck(Env &env)
   else if (d->decllist->count() == 1) {
     // instantiation is handled by declarator::mid_tcheck
   }
-  
+
   else {
     // other template declarations are limited to one declarator, so I
     // am simply assuming the same is true of explicit instantiations,
     // even though 14.7.2 doesn't say so explicitly...
     env.error("too many declarators in explicit instantiation");
-  }
-}
-
-void applyExternC(TopForm *form, DeclFlags flags)
-{
-  ASTSWITCH(TopForm, form) {
-    ASTCASE(TF_decl, d)   d->decl->dflags |= flags;
-    ASTNEXT(TF_func, f)   f->f->dflags |= flags;
-    // just ignore other forms
-    ASTENDCASED
   }
 }
 
@@ -327,12 +345,12 @@ void TF_one_linkage::itcheck(Env &env)
 string collectContinuations(E_stringLit *strLit)
 {
   stringBuilder sb;
-  
+
   while (strLit) {
     sb << parseQuotedString(strLit->text);
     strLit = strLit->continuation;
   }
-  
+
   return sb;
 }
 
@@ -359,7 +377,7 @@ void TF_namespaceDefn::itcheck(Env &env)
   if (name) {
     existing = env.lookupVariable(name, LF_INNER_ONLY);
   }
-  
+
   // violation of 7.3.1 para 2?
   if (existing && !existing->hasFlag(DF_NAMESPACE)) {
     env.error(loc, stringc
@@ -369,7 +387,7 @@ void TF_namespaceDefn::itcheck(Env &env)
     existing = NULL;
     name = NULL;                // dsw: this causes problems when you add it to the scope
   }
-    
+
   Scope *s;
   if (existing) {
     // extend existing scope
@@ -398,7 +416,7 @@ void TF_namespaceDecl::itcheck(Env &env)
 
 // --------------------- Function -----------------
 void Function::tcheck(Env &env, Variable *instV)
-{                               
+{
   bool checkBody = env.checkFunctionBodies;
 
   if (env.secondPassTcheck) {
@@ -425,8 +443,9 @@ void Function::tcheck(Env &env, Variable *instV)
 
   // supply DF_DEFINITION?
   DeclFlags dfDefn = (checkBody? DF_DEFINITION : DF_NONE);
-  if (env.lang.treatExternInlineAsPrototype &&
-      dflags >= (DF_EXTERN | DF_INLINE)) {
+  if (dflags >= (DF_EXTERN | DF_INLINE) &&
+      env.lang.handleExternInlineSpecially &&
+      handleExternInline_asPrototype()) {
     // gcc treats extern-inline function definitions specially:
     //
     //   http://gcc.gnu.org/onlinedocs/gcc-3.4.1/gcc/Inline.html
@@ -630,7 +649,7 @@ void Function::tcheckBody(Env &env)
 
   if (handlers) {
     tcheck_handlers(env);
-    
+
     // TODO: same checks for handlers that S_try::itcheck mentions in
     // its TODO ...
   }
@@ -641,8 +660,9 @@ void Function::tcheckBody(Env &env)
   // stop extending the named scope, if there was one
   env.retractScopeSeq(qualifierScopes);
 
-  if (env.lang.treatExternInlineAsPrototype &&
-      dflags >= (DF_EXTERN | DF_INLINE)) {
+  if (dflags >= (DF_EXTERN | DF_INLINE) &&
+      env.lang.handleExternInlineSpecially &&
+      handleExternInline_asPrototype()) {
     // more extern-inline nonsense; skip 'funcDefn' setting
     return;
   }
@@ -663,10 +683,19 @@ void Function::tcheckBody(Env &env)
   //
   // UPDATE: I've changed this invariant, as I need to point the
   // funcDefn at the definition even if the body has not been tchecked.
-  if (nameAndParams->var->funcDefn) {
-    xassert(nameAndParams->var->funcDefn == this);
+  Function *&vfd = nameAndParams->var->funcDefn;
+  if (vfd) {
+    if (nameAndParams->var->hasFlag(DF_GNU_EXTERN_INLINE)) {
+      // we should not even get here if we are handling extern inlines
+      // as prototypes as there is no function definition to override
+      xassert(handleExternInline_asWeakStaticInline());
+      // dsw: stomp on the old definition if it was an extern inline
+      vfd = this;
+    } else {
+      xassert(vfd == this);
+    }
   } else {
-    nameAndParams->var->funcDefn = this;
+    vfd = this;
   }
 }
 
@@ -894,7 +923,7 @@ void Function::tcheck_handlers(Env &env)
 
 
 bool Function::instButNotTchecked() const
-{            
+{
   return !!cloneThunkSource;
 }
 
@@ -920,18 +949,50 @@ void Declaration::tcheck(Env &env, DeclaratorContext context)
     if (spec->isTS_classSpec()) {
       TS_classSpec *cs = spec->asTS_classSpec();
       if (cs->name == NULL) {
-        cs->name = new PQ_name(SL_UNKNOWN, env.getAnonName(cs->keyword));
+        // quarl 2006-07-13, 2006-07-14
+        //    We want anonymous structs with typedefs to have consistent names
+        //    across translation units, so that functions with such parameters
+        //    mangle properly for linking.  (g++ mangles typedefed anonymous
+        //    structs the same as named structs.)
+        //
+        //    Since we may encounter "typedef struct { } *foo" in addition to
+        //    "typedef struct { } foo", we can't just name the struct "foo",
+        //    so instead we name it "__anon_struct_foo".
+        //
+        //    Note that gcc doesn't allow non-static-linkage functions to have
+        //    parameters with types declared like "typedef struct { } *foo"
+        //    because those are REALLY anonymous structs; so we could actually
+        //    name THOSE by index.
+
+        char const *relName = NULL;
+
+        if ((dflags & DF_TYPEDEF) && decllist->count() == 1) {
+          IDeclarator *decl = decllist->first()->decl;
+          relName = decl->getDeclaratorId()->getName();
+        }
+
+        cs->name = new PQ_name(SL_UNKNOWN, env.getAnonName(cs->keyword, relName));
       }
     }
+
     if (spec->isTS_enumSpec()) {
       TS_enumSpec *es = spec->asTS_enumSpec();
       if (es->name == NULL) {
-        es->name = env.getAnonName(TI_ENUM);
+        // anonymous enums - same as above
+
+        char const *relName = NULL;
+
+        if ((dflags & DF_TYPEDEF) && decllist->count() == 1) {
+          IDeclarator *decl = decllist->first()->decl;
+          relName = decl->getDeclaratorId()->getName();
+        }
+        es->name = env.getAnonName(TI_ENUM, relName);
       }
     }
   }
 
   // give warning for anonymous struct
+  //    TODO: this seems to be dead code since cs->name is assigned above if NULL
   if (decllist->isEmpty() &&
       spec->isTS_classSpec() &&
       spec->asTS_classSpec()->name == NULL &&
@@ -988,7 +1049,7 @@ ASTTypeId *ASTTypeId::tcheck(Env &env, Tcheck &tc)
   if (ret) {
     return ret->tcheck(env, tc);
   }
-  
+
   // as far as I can tell, the only ambiguities in ASTTypeId are
   // due to implicit-int, therefore this should not be reached
   xfailure("unexpected ASTTypeId ambiguity");
@@ -1001,7 +1062,7 @@ void ASTTypeId::mid_tcheck(Env &env, Tcheck &tc)
     // outside a declaration (that is, anyplace ASTTypeId occurs), gcc
     // does not do anonymous union or struct scope promotion, even in
     // C++ mode; so make up a name
-    StringRef fakeName = env.getAnonName(spec->asTS_classSpec()->keyword);
+    StringRef fakeName = env.getAnonName(spec->asTS_classSpec()->keyword, NULL);
     spec->asTS_classSpec()->name = new PQ_name(env.loc(), fakeName);
     TRACE("env", "substituted name " << fakeName <<
                  " in anon type at " << decl->getLoc());
@@ -1012,7 +1073,7 @@ void ASTTypeId::mid_tcheck(Env &env, Tcheck &tc)
 
   // pass contextual info to declarator
   Declarator::Tcheck dt(specType, tc.dflags, tc.context);
-  
+
   xassert(!tc.newSizeExpr || tc.context == DC_E_NEW);
 
   // check declarator
@@ -1247,7 +1308,7 @@ void PQ_qualifier::tcheck_pq(Env &env, Scope *scope, LookupFlags lflags)
 
             TRACE("templateParams",
               "associated " << paramScope->desc() <<
-              " with " << ti->var->fullyQualifiedName() <<
+              " with " << ti->var->fullyQualifiedName0() <<
               " (found using typedef expansion)");
           }
           else {
@@ -1260,7 +1321,7 @@ void PQ_qualifier::tcheck_pq(Env &env, Scope *scope, LookupFlags lflags)
 
             TRACE("templateParams",
               "later, will associate " << paramScope->desc() <<
-              " with " << ti->var->fullyQualifiedName() <<
+              " with " << ti->var->fullyQualifiedName0() <<
               " (found using typedef expansion)");
           }
         }
@@ -1324,7 +1385,7 @@ void PQ_operator::tcheck_pq(Env &env, Scope *, LookupFlags)
 }
 
 void PQ_template::tcheck_pq(Env &env, Scope *, LookupFlags lflags)
-{                             
+{
   tcheckTemplateArgumentList(sargs, templArgs, env);
 }
 
@@ -1497,6 +1558,10 @@ CType *TS_name::itcheck(Env &env, DeclFlags dflags)
     // in C, we never look at a class scope unless the name is
     // preceded by "." or "->", which it certainly is not in a TS_name
     // (in/c/dC0013.c)
+    //
+    // this is actually done below as well for E_variable; for the
+    // moment I'm refraining from factoring it for fear of
+    // destabilizing things..
     lflags |= LF_SKIP_CLASSES;
   }
 
@@ -1585,7 +1650,7 @@ CType *TS_simple::itcheck(Env &env, DeclFlags dflags)
   // have to know about any of this parsing nonsense.
   if (id == ST_IMPLINT) {
     // 2005-04-07: I had been doing the following:
-    //   id = ST_INT;      
+    //   id = ST_INT;
     // but the problem with that is that there are cases (e.g.,
     // in/c/k0008.c) where a single TS_simple will appear in more than
     // one context.  If the first context's tcheck changes 'id' as
@@ -1703,7 +1768,7 @@ CompoundType *checkClasskeyAndName(
       env.diagnose3(env.lang.allowGcc2HeaderSyntax, name->loc,
                     "explicit class specialization requires \"template <>\" (gcc-2 bug allows it)");
       gcc2hack_explicitSpec = true;
-                    
+
       // pretend we saw "template <>"
       templateParams = new SObjList<Variable>;    // will be leaked
     }
@@ -1760,17 +1825,17 @@ CompoundType *checkClasskeyAndName(
             // found a user-introduced (not implicit) typedef, which
             // is illegal (3.4.4p2,3; 7.1.5.3p2)
             env.error(stringc << "`" << *name << "' is a typedef-name, "
-                              << "so cannot be used after '" 
+                              << "so cannot be used after '"
                               << toString(keyword) << "'");
             return NULL;
           }
           ct = tag->type->asCompoundType();
-        } 
+        }
         else if (tag->type->isGeneralizedDependent()) {
           return NULL;
         }
         else {
-          env.error(tag->type, stringc 
+          env.error(tag->type, stringc
             << "`" << *name << "' is not a struct/class/union");
           return NULL;
         }
@@ -1810,7 +1875,7 @@ CompoundType *checkClasskeyAndName(
         ct = spec->type->asCompoundType();
         if (ct->forward) {
           // body not yet instantiated, we're ok
-          TRACE("template", "changing " << ct->instName << 
+          TRACE("template", "changing " << ct->instName <<
                             " from implicit inst to explicit spec");
           spec->templateInfo()->changeToExplicitSpec();
         }
@@ -1909,7 +1974,7 @@ CompoundType *checkClasskeyAndName(
 
       // this sets the parameterized primary of the scope
       env.makeNewCompound(ct, destScope, stringName, loc, keyword,
-                          !definition /*forward*/);
+                          !definition /*forward*/, false /*builtin*/);
 
       if (templateParams) {
         TRACE("template", "template class " << (definition? "defn" : "decl") <<
@@ -1924,7 +1989,7 @@ CompoundType *checkClasskeyAndName(
       // make a new type, since a specialization is a distinct template
       // [cppstd 14.5.4 and 14.7]; but don't add it to any scopes
       env.makeNewCompound(ct, NULL /*scope*/, stringName, loc, keyword,
-                          !definition /*forward*/);
+                          !definition /*forward*/, false /*builtin*/);
 
       if (gcc2hack_explicitSpec) {
         // we need to fake a TemplateInfo
@@ -1943,7 +2008,7 @@ CompoundType *checkClasskeyAndName(
       // into 'specialTI', but not the template arguments
       TemplateInfo *ctTI = ct->templateInfo();
       ctTI->copyArguments(ssargs);
-      
+
       // fix the self-type arguments (only if partial inst)
       if (ct->selfType->isPseudoInstantiation()) {
         PseudoInstantiation *selfTypePI = ct->selfType->asPseudoInstantiation();
@@ -1970,7 +2035,7 @@ CompoundType *checkClasskeyAndName(
 
       TRACE("template", (definition? "defn" : "decl") <<
                         " of specialization of template class " <<
-                        primary->typedefVar->fullyQualifiedName() <<
+                        primary->typedefVar->fullyQualifiedName0() <<
                         ", " << ct->instName);
     }
 
@@ -2005,7 +2070,7 @@ CType *TS_elaborated::itcheck(Env &env, DeclFlags dflags)
       }
     }
     xassert(tag->isType());      // ensured by LF_ONLY_TYPES
-    
+
     if (!tag->type->isEnumType()) {
       return env.error(stringc << "`" << *name << "' is not an enum");
     }
@@ -2020,7 +2085,7 @@ CType *TS_elaborated::itcheck(Env &env, DeclFlags dflags)
     this->atype = et;          // annotation
     return env.makeType(et);
   }
-                                     
+
   CompoundType *ct =
     checkClasskeyAndName(env, env.scope(), loc, dflags, keyword, name);
   if (!ct) {
@@ -2032,7 +2097,7 @@ CType *TS_elaborated::itcheck(Env &env, DeclFlags dflags)
   return ct->typedefVar->type;
 }
 
-                            
+
 // typecheck declarator name 'name', pushing the sequence of scopes
 // that necessary to tcheck what follows, and also returning that
 // sequence in 'qualifierScopes' so the caller can undo it
@@ -2047,7 +2112,7 @@ void tcheckDeclaratorPQName(Env &env, ScopeSeq &qualifierScopes,
 
     // lookup the name minus the final component; this is the scope
     Variable *scopeVar = env.lookupPQ_one(name, LF_GET_SCOPE_ONLY | lflags);
-    
+
     // if that worked, get that scope and its parents, up to the current
     // innermost scope
     if (scopeVar) {
@@ -2199,11 +2264,11 @@ void TS_classSpec::tcheckIntoCompound(
       AccessKeyword acc = iter->access;
       if (acc == AK_UNSPECIFIED) {
         acc = (ct->keyword==CompoundType::K_CLASS? AK_PRIVATE : AK_PUBLIC);
-      }                                  
-      
+      }
+
       // add this to the class's list of base classes
       ct->addBaseClass(new BaseClass(base, acc, iter->isVirtual));
-      
+
       // annotate the AST with the type we found
       iter->type = base;
     }
@@ -2246,7 +2311,7 @@ void TS_classSpec::tcheckIntoCompound(
   // default args affects whether (e.g.) a copy ctor exists.
   {
     DefaultArgumentChecker checker(env, ct->isInstantiation());
-    
+
     // 2005-05-28: start with 'members' instead of 'this', to skip
     // around the prune in visitTypeSpecifier
     members->traverse(checker);
@@ -2288,7 +2353,7 @@ void TS_classSpec::tcheckIntoCompound(
 // the members have been added to the class scope before checking any
 // of the function bodies.  Pass 1 does the former, pass 2 the latter.
 void TS_classSpec::tcheckFunctionBodies(Env &env)
-{ 
+{
   xassert(env.checkFunctionBodies);
 
   CompoundType *ct = env.scope()->curCompound;
@@ -2297,7 +2362,7 @@ void TS_classSpec::tcheckFunctionBodies(Env &env)
   // inform the members that they are being checked on the second
   // pass through a class definition
   Restorer<bool> r(env.secondPassTcheck, true);
-  
+
   // check function bodies and elaborate ctors and dtors of member
   // declarations
   FOREACH_ASTLIST_NC(Member, members->list, iter) {
@@ -2353,7 +2418,7 @@ void checkMemberFlags(Env &env, DeclFlags flags)
   if (flags & (DF_AUTO | DF_EXTERN | DF_REGISTER)) {
     env.error("class members cannot be marked `auto', `extern', "
               "or `register'");
-  }   
+  }
 }
 
 void MR_decl::tcheck(Env &env)
@@ -2386,8 +2451,8 @@ void MR_func::tcheck(Env &env)
   env.setLoc(loc);
 
   if (env.scope()->curCompound->keyword == CompoundType::K_UNION) {
-    // TODO: is this even true?  
-    // apparently not, as Mozilla has them; would like to find 
+    // TODO: is this even true?
+    // apparently not, as Mozilla has them; would like to find
     // a definitive answer
     //env.error("unions cannot have member functions");
     //return;
@@ -2461,13 +2526,13 @@ void Enumerator::tcheck(Env &env, EnumType *parentEnum, CType *parentType)
   //     { enum { x = x }; }
   //   Here, the enumerator x is initialized with the value of the
   //   constant x, namely 12. ]"
-           
+
   bool forceReplace = false;
 
   // (in/t0527.cc) will the name conflict with an implicit typedef?
   Variable *prior = env.unqualifiedLookup_one(name, LF_INNER_ONLY);
   if (prior && prior->isImplicitTypedef()) {
-    TRACE("env", "replacing implicit typedef " << name << 
+    TRACE("env", "replacing implicit typedef " << name <<
                  " with enumerator");
     forceReplace = true;
   }
@@ -2480,7 +2545,7 @@ void Enumerator::tcheck(Env &env, EnumType *parentEnum, CType *parentType)
 }
 
 
-// ----------------- declareNewVariable ---------------   
+// ----------------- declareNewVariable ---------------
 // This block of helpers, especially 'declareNewVariable', is the
 // heart of the type checker, and the most complicated.
 
@@ -2492,7 +2557,7 @@ void Enumerator::tcheck(Env &env, EnumType *parentEnum, CType *parentType)
 // that can't be done in one central location, so this does it unless
 // it has already been done, and is called in several places;
 // 'dt.funcSyntax' is used as a flag to tell when it's happened
-void possiblyConsumeFunctionType(Env &env, Declarator::Tcheck &dt, 
+void possiblyConsumeFunctionType(Env &env, Declarator::Tcheck &dt,
                                  bool reportErrors = true)
 {
   if (dt.funcSyntax) {
@@ -2625,7 +2690,7 @@ void checkOperatorOverload(Env &env, Declarator::Tcheck &dt,
 
         // 13.5.3
         TWOPARAMS,                                  // OP_ASSIGN
-        
+
         // 13.5.2 (these are handled as ordinary binary operators (13.5 para 9))
         NONMEMBER | TWOPARAMS,                      // OP_PLUSEQ
         NONMEMBER | TWOPARAMS,                      // OP_MINUSEQ
@@ -2664,16 +2729,16 @@ void checkOperatorOverload(Env &env, Declarator::Tcheck &dt,
 
         // 13.5.2
         NONMEMBER | TWOPARAMS,                      // OP_COMMA
-        
+
         OD_NONE,                                    // OP_QUESTION (not used)
-        
+
         // I am guessing that <? and >? overload similar to OP_PLUS
         NONMEMBER | ONEPARAM | TWOPARAMS,           // OP_MINUMUM
         NONMEMBER | ONEPARAM | TWOPARAMS,           // OP_MAXIMUM
       };
       ASSERT_TABLESIZE(map, NUM_OVERLOADABLE_OPS);
-      xassert(validCode(o->op));      
-      
+      xassert(validCode(o->op));
+
       // the table is declared int[] so that I can bitwise-OR
       // enumerated values without a cast; and overloading operator|
       // like I do elsewhere is nonportable b/c then an initializing
@@ -2691,7 +2756,7 @@ void checkOperatorOverload(Env &env, Declarator::Tcheck &dt,
   }
 
   xassert(desc & (ONEPARAM | TWOPARAMS | ANYPARAMS));
-            
+
   bool isMember = scope->curCompound != NULL;
   if (!isMember && !(desc & NONMEMBER)) {
     env.error(loc, stringc << strname << " must be a member function");
@@ -2799,7 +2864,7 @@ static Variable *declareNewVariable(
   // scope in which to insert the name, and to look for pre-existing
   // declarations
   Scope *scope = env.acceptingScope(dt.dflags);
-  
+
   // class that is befriending this entity
   CompoundType *befriending = NULL;
 
@@ -2859,7 +2924,7 @@ realStart:
     // of the friend declaration
 
     // is the scope in which this declaration appears (that is,
-    // skipping any template<> that might be associated directly 
+    // skipping any template<> that might be associated directly
     // with this declaration) itself a template?
     bool insideTemplate = env.enclosingKindScopeAbove(SK_TEMPLATE_PARAMS, scope);
 
@@ -3024,7 +3089,7 @@ realStart:
       if (!prior) {
         env.error(stringc
           << "the name `" << *name << "' is overloaded, but the type `"
-          << dtft->toString_withCV(dt.funcSyntax->cv) 
+          << dtft->toString_withCV(dt.funcSyntax->cv)
           << "' doesn't match any of the "
           << howMany << " declared overloaded instances",
           EF_STRONG);
@@ -3102,11 +3167,11 @@ realStart:
   Variable *ret =
     env.createDeclaration(loc, unqualifiedName, dt.type, dt.dflags,
                           scope, enclosingClass, prior, overloadSet);
-                          
+
   if (befriending) {
     befriending->friends.prepend(ret);
   }
-  
+
   return ret;
 }
 
@@ -3160,18 +3225,17 @@ Declarator *Declarator::tcheck(Env &env, Tcheck &dt)
 //   static int y[] = (int []) {1, 2, 3};
 // which is equivalent to:
 //   static int y[] = {1, 2, 3};
-CType *Env::computeArraySizeFromCompoundInit(SourceLoc tgt_loc, CType *tgt_type,
-                                            CType *src_type, Initializer *init)
+CType *Env::computeArraySizeFromCompoundInit
+  (SourceLoc tgt_loc, CType *tgt_type, CType *src_type, Initializer *init)
 {
   // If we start at a reference, we have to go down to the raw
   // ArrayType and then back up to a reference.
   bool tgt_type_isRef = tgt_type->isReferenceType();
   tgt_type = tgt_type->asRval();
-  if (tgt_type->isArrayType() &&
-      init->isIN_compound()) {
+  if (tgt_type->isArrayType() && init->isIN_compound()) {
     ArrayType *at = tgt_type->asArrayType();
     IN_compound const *cpd = init->asIN_compoundC();
-                   
+
     // count the initializers; this is done via the environment
     // so the designated-initializer extension can intercept
     int initLen = countInitializers(loc(), src_type, cpd);
@@ -3258,7 +3322,7 @@ bool checkCompleteTypeRules(Env &env, DeclFlags dflags, DeclaratorContext contex
     // I'm not sure where the exception for 'extern' is specified, but
     // it clearly exists.... (t0170.cc)
     return true;
-  }        
+  }
 
   if (context == DC_MR_DECL &&
       (dflags & DF_STATIC)) {
@@ -3275,6 +3339,11 @@ bool checkCompleteTypeRules(Env &env, DeclFlags dflags, DeclaratorContext contex
     return true;
   }
 
+  if (context == DC_TP_TYPE) {
+    // quarl: default parameter to template; see in/k0065.cc
+    return true;
+  }
+
   if (type->isArrayType()) {
     if (init) {
       // The array type might be incomplete now, but the initializer
@@ -3284,7 +3353,7 @@ bool checkCompleteTypeRules(Env &env, DeclFlags dflags, DeclaratorContext contex
       // (t0077.cc)
       return true;
     }
-                                       
+
     if (context == DC_MR_DECL &&
         !env.lang.strictArraySizeRequirements) {
       // Allow incomplete array types, so-called "open arrays".
@@ -3306,7 +3375,7 @@ bool checkCompleteTypeRules(Env &env, DeclFlags dflags, DeclaratorContext contex
   // ok, we're not in an exceptional circumstance, so the type
   // must be complete; if we have an error, what will we say?
   char const *action = 0;
-  switch (context) {                           
+  switch (context) {
     default /*catch-all*/:     action = "create an object of"; break;
     case DC_EXCEPTIONSPEC:     action = "name in exception spec"; break;
     case DC_E_KEYWORDCAST:     // fallthru
@@ -3317,7 +3386,7 @@ bool checkCompleteTypeRules(Env &env, DeclFlags dflags, DeclaratorContext contex
   // check it
   return env.ensureCompleteType(action, type);
 }
- 
+
 // Is 't' an object type built in to the language, such that it
 // could not possibly have a user-defined constructor?  It needs
 // to not be a class of course, but also not a dependent type that
@@ -3339,11 +3408,11 @@ void Declarator::mid_tcheck(Env &env, Tcheck &dt)
   // true if we're immediately in a class body
   Scope *enclosingScope = env.scope();
   bool inClassBody = !!(enclosingScope->curCompound);
-           
-  // is this declarator in a templatizable context?  this prevents 
+
+  // is this declarator in a templatizable context?  this prevents
   // confusion when processing the template arguments themselves (which
   // contain declarators), among other things
-  bool templatizableContext = 
+  bool templatizableContext =
     dt.context == DC_FUNCTION ||   // could be in MR_func or TD_func
     dt.context == DC_TD_DECL ||
     dt.context == DC_MR_DECL;
@@ -3367,7 +3436,7 @@ void Declarator::mid_tcheck(Env &env, Tcheck &dt)
   if (!name && (dt.dflags & DF_TEMPL_PARAM)) {
     // give names to all template params, because we need to refer
     // to them in the self-name (in/t0493.cc)
-    name = new PQ_name(this->getLoc(), env.getAnonName("tparam"));
+    name = new PQ_name(this->getLoc(), env.getAnonName("tparam", NULL));
     this->setDeclaratorId(name);
   }
 
@@ -3405,7 +3474,7 @@ void Declarator::mid_tcheck(Env &env, Tcheck &dt)
   // get the type from the IDeclarator
   decl->tcheck(env, dt);
 
-  // this this a specialization of a global template function,
+  // is this a specialization of a global template function,
   // or a member template function?
   if (templatizableContext &&                      // e.g. toplevel
       enclosingScope->isTemplateParamScope() &&    // "template <...>" above
@@ -3444,12 +3513,60 @@ void Declarator::mid_tcheck(Env &env, Tcheck &dt)
 
   // explicit instantiation?
   if (dt.context == DC_TF_EXPLICITINST) {
-    dt.existingVar = 
+    dt.existingVar =
       env.explicitFunctionInstantiation(name, dt.type, instFlags);
   }
 
   // DF_FRIEND gets turned off by 'declareNewVariable' ...
   bool isFriend = !!(dt.dflags & DF_FRIEND);
+
+  if ((dt.dflags >= (DF_EXTERN | DF_INLINE)) && env.lang.handleExternInlineSpecially) {
+    // dsw: We want to add a flag saying that this isn't really an
+    // extern inline.  This is necessary because sometimes we still
+    // need to know later that it started off as an extern inline even
+    // though it is now a static inline.  One such place is if this
+    // function has two definitions in the same translation unit; the
+    // second one stomps on the first, but we only allow this if the
+    // first was an extern inline.
+    dt.dflags |= DF_GNU_EXTERN_INLINE;
+    // if this isn't filled in by now we have a problem
+    xassert(dt.context != DC_UNKNOWN);
+    if (dt.context == DC_FUNCTION && handleExternInline_asWeakStaticInline()) {
+      // convert it to static inline
+      dt.dflags &= ~DF_EXTERN;  // subtract the 'extern'
+      dt.dflags |= DF_STATIC;   // add the 'static'
+    }
+  }
+  // else if (dt.dflags >= (DF_INLINE) && env.lang.inlineImpliesStaticLinkage) {
+  //   if (dt.dflags & DF_MEMBER) {
+  //     // quarl 2006-07-11
+  //     //    Can't set DF_STATIC since DF_MEMBER|DF_STATIC implies static
+  //     //    member.  However, when DF_INLINE|DF_MEMBER can only occur in C++
+  //     //    where inlineImpliesStaticLinkage, so we check for that combination
+  //     //    in isStaticLinkage().  It would be nice to factor DF_STATIC into
+  //     //    DF_STATIC_LINKAGE and DF_STATIC_MEMBER.
+  //   } else {
+  //     dt.dflags |= DF_STATIC;
+  //   }
+  // }
+
+  // dsw: the global function 'main' seems to always be considered to
+  // be DF_EXTERN_C even in C++ mode whether it likes it or not; FIX:
+  // I wonder if this should go down inside the 'if' below that ends
+  // up calling handleTypeOfMain(); I like it here because the
+  // DF_EXTERN_C ends up on the declaration as well I think, whereas
+  // if I put it there it just ends up on the Variable; maybe just on
+  // the Variable would be better and also we wouldn't have to
+  // differnt 'if' statements that are testing different conditions.
+  if (name && name->isPQ_name() && name->asPQ_name()->name == env.string_main) {
+    // quarl: had to add guard for friend declarations; I do think this should
+    // be moved below
+    if (env.scope()->isGlobalScope() ||
+        env.scope()->isClassScope() && (dt.dflags | DF_FRIEND))
+    {
+      dt.dflags |= DF_EXTERN_C;
+    }
+  }
 
   bool callerPassedInstV = false;
   if (!dt.existingVar) {
@@ -3533,9 +3650,9 @@ void Declarator::mid_tcheck(Env &env, Tcheck &dt)
   }
 
   if (templateInfo) {
-    TRACE("template", "template func " << 
+    TRACE("template", "template func " <<
                       ((dt.dflags & DF_DEFINITION) ? "defn" : "decl")
-                      << ": " << dt.type->toCString(var->fullyQualifiedName()));
+                      << ": " << dt.type->toCString(var->fullyQualifiedName0()));
 
     if (!var->templateInfo()) {
       // this is a new template decl; attach it to the Variable
@@ -3548,7 +3665,7 @@ void Declarator::mid_tcheck(Env &env, Tcheck &dt)
       // TODO: merge default arguments
 
       if (dt.dflags & DF_DEFINITION) {
-        // save this templateInfo for use with the definition  
+        // save this templateInfo for use with the definition
         //
         // TODO: this really should just be TemplateParams, not
         // a full TemplateInfo ...
@@ -3589,7 +3706,7 @@ void Declarator::mid_tcheck(Env &env, Tcheck &dt)
       }
     }
   }
-  
+
   else /* !templateInfo */ {
     TemplateInfo *ti = var->templateInfo();
     if (ti && ti->isInstantiation() &&               // var seems to be an instantiation
@@ -3654,7 +3771,7 @@ void Declarator::mid_tcheck(Env &env, Tcheck &dt)
         init = inctor;
       }
     }
-    
+
     // for non-class types, normalize IN_ctor into IN_expr, as this
     // makes it clear that no function call is occurring, and is how
     // constant-value variables are recognized (in/t0512.cc)
@@ -3671,7 +3788,7 @@ void Declarator::mid_tcheck(Env &env, Tcheck &dt)
       else {
         // substitute IN_expr
         init = new IN_expr(getLoc(), inc->args->first()->expr);
-        
+
         // Above, I dispose of the replaced initializer, but that is
         // only valid if I am sure that no other AST node is pointing
         // at it, and I am not.  So, just leave 'inc' alone.  (The
@@ -3703,13 +3820,35 @@ void Declarator::mid_tcheck(Env &env, Tcheck &dt)
     // skip it
   }
   else if (init) {
-    // TODO: check the initializer for compatibility with
-    // the declared type
-
+    tcheck_init(env);
+    // quarl 2006-07-26
+    //    Check the initializer for compatibility with the declared type.
+    //    This also does some elaborations like function address-of.
+    if (IN_expr *initexpr = init->ifIN_expr()) {
+      if (!type->containsGeneralizedDependent()) {
+        if (!env.elaborateImplicitConversionArgToParam(type, initexpr->e)) {
+          // quarl 2006-07-26
+          //    This should be an error, but since too many test cases currently
+          //    fail this, it's just a warning for now.  getImplicitConversion
+          //    is incomplete.
+          //
+          // SGM 2006-08-05: I am turning this off.  There is nothing
+          // wrong (in the cases I've seen anyway) with the source code
+          // being analyzed, rather there is a bug in Elsa.  We should
+          // either deal with the Elsa bugs, or just be silent about the
+          // problems by default (which is what I am doing now).  There
+          // could be a command line flag to turn this back on, if
+          // desired.
+          #if 0
+          env.warning(/*type,*/ stringc
+                      << "cannot convert initializer type `" << initexpr->e->getType()->toString()
+                      << "' to type `" << type->toString() << "'");
+          #endif // 0
+        }
+      }
+    }
     // TODO: check compatibility with dflags; e.g. we can't allow
     // an initializer for a global variable declared with 'extern'
-
-    tcheck_init(env);
   }
 
   // pull the scope back out of the stack; if this is a
@@ -3718,10 +3857,13 @@ void Declarator::mid_tcheck(Env &env, Tcheck &dt)
   // the function body
   env.retractScopeSeq(qualifierScopes);
 
-  // If it is a function, is it virtual?
-  if (inClassBody
-      && var->type->isMethod()
-      && !var->hasFlag(DF_VIRTUAL)) {
+  // If it is a function, is it virtual?  We have to look up the class
+  // hierarchy in order to tell.  NOTE: EVEN IF we are already
+  // explicitly virtual, the code below also builds the
+  // var->virtuallyOverride list of things that we virtually-override,
+  // so we have to do this anyway; that is, don't skip the body if
+  // var->hasFlag(DF_VIRTUAL)
+  if (inClassBody && var->type->isMethod()) {
     FunctionType *varft = var->type->asFunctionType();
     CompoundType *myClass = env.scope()->curCompound;
 
@@ -3737,8 +3879,17 @@ void Declarator::mid_tcheck(Env &env, Tcheck &dt)
       base->lookup(set, var->name, NULL /*env*/, LF_INNER_ONLY);
 
       // look for any virtual functions with matching signatures
-      SFOREACH_OBJLIST(Variable, set, iter2) {
-        Variable const *var2 = iter2.data();
+      SFOREACH_OBJLIST_NC(Variable, set, iter2) {
+        Variable *var2 = iter2.data();
+
+        // NOTE: since classes must be presented to the C++ compiler
+        // in an order that is going monotonically down the
+        // inheritance heirarchy, we can rely on this function having
+        // marked any implicitly-virtual methods above it explicitly
+        // virtual by the time the methods of any subclass that may
+        // override them might look at them here.  That is, this
+        // var2->hasFlag(DF_VIRTUAL) test below will work even if var2
+        // was not syntactically marked as virutal by the programmer
 
         if (var2->hasFlag(DF_VIRTUAL) && var2->type->isFunctionType()) {
           FunctionType *var2ft = var2->type->asFunctionType();
@@ -3746,13 +3897,17 @@ void Declarator::mid_tcheck(Env &env, Tcheck &dt)
               var2ft->getReceiverCV() == varft->getReceiverCV()) {
             // make this one virtual too
             var->setFlag(DF_VIRTUAL);
-            goto done_with_virtual_stuff;    // two-level break
+            // this makes a set of all of the possible functions that
+            // we override; please see the note at
+            // Variable::virtuallyOverride
+            if (!var->virtuallyOverride) {
+              var->virtuallyOverride = new SObjSet<Variable*>();
+            }
+            var->virtuallyOverride->add(var2);
           }
         }
       }
     }
-
-    done_with_virtual_stuff:;
   }
 }
 
@@ -3772,7 +3927,7 @@ void Declarator::tcheck_init(Env &env)
 
   // remember the initializing value, for const values
   if (init->isIN_expr()) {
-    var->varValue = init->asIN_exprC()->e;
+    var->setValue(init->asIN_exprC()->e);
   }
 
   // use the initializer size to refine array types
@@ -3943,7 +4098,7 @@ void D_func::tcheck(Env &env, Declarator::Tcheck &dt)
         }
         else {
           env.diagnose3(env.lang.allowImplicitIntForOperators, name->loc,
-                        stringc << "cannot declare `" << name->toString() 
+                        stringc << "cannot declare `" << name->toString()
                                 << "' with no return type (MSVC bug accepts it)");
           dt.type = env.getSimpleType(ST_INT);     // recovery
         }
@@ -3984,7 +4139,7 @@ void D_func::tcheck(Env &env, Declarator::Tcheck &dt)
             }
             else {
               env.error("constructors must be class members (and implicit int is not supported)");
-              
+
               // 2005-03-09: At one point I had the following:
               //
               //    return;    // otherwise would segfault below..
@@ -4010,7 +4165,7 @@ void D_func::tcheck(Env &env, Declarator::Tcheck &dt)
         }
       }
     }
-    
+
     else {     // C
       if (env.lang.allowImplicitInt) {
         // surely this is not adequate, as implicit-int applies to
@@ -4288,15 +4443,15 @@ void D_bitfield::tcheck(Env &env, Declarator::Tcheck &dt)
     // remember the size of the bit field
     this->numBits = n;
   }
-  
+
   dt.dflags |= DF_BITFIELD;
 }
 
 
 void D_ptrToMember::tcheck(Env &env, Declarator::Tcheck &dt)
 {
-  env.setLoc(loc);                   
-  
+  env.setLoc(loc);
+
   // typecheck the nested name
   tcheckPQName(nestedName, env, NULL /*scope*/, LF_NONE);
 
@@ -4385,7 +4540,7 @@ bool IDeclarator::hasInnerGrouping() const
       case D_GROUPING:
         ret = true;
         break;
-              
+
       // silence warning..
       default:
         break;
@@ -4446,7 +4601,7 @@ void OperatorName::tcheck(Env &env)
 {
   if (isON_conversion()) {
     ON_conversion *conv = asON_conversion();
-    
+
     // check the "return" type
     ASTTypeId::Tcheck tc(DF_NONE, DC_ON_CONVERSION);
     conv->type->tcheck(env, tc);
@@ -4487,7 +4642,7 @@ Statement *Statement::tcheck(Env &env)
     // swap the expr and decl
     return swap_then_resolveAmbiguity(this, env, "Statement", true /*priority*/, dummy);
   }                                                    // gcov-end-ignore
-  
+
   // unknown ambiguity situation
   xfailure("unknown statement ambiguity");
   return this;        // silence warning
@@ -4512,13 +4667,13 @@ void S_label::itcheck(Env &env)
   // potentially-ambiguous subtree; we have to change the
   // pointer to whatever is returned by the tcheck call
   s = s->tcheck(env);
-  
+
   // TODO: check that the label is not a duplicate
 }
 
 
 void S_case::itcheck(Env &env)
-{                    
+{
   expr->tcheck(env, expr);
   s = s->tcheck(env);
 
@@ -4528,7 +4683,7 @@ void S_case::itcheck(Env &env)
 
   // UPDATE: dsw: whatever you do here, do it in
   // gnu.cc:S_rangeCase::itcheck() as well
-                           
+
   // compute case label value
   expr->constEval(env, labelVal);
 }
@@ -4537,7 +4692,7 @@ void S_case::itcheck(Env &env)
 void S_default::itcheck(Env &env)
 {
   s = s->tcheck(env);
-  
+
   // TODO: check that there is only one 'default' case
 }
 
@@ -4549,7 +4704,7 @@ void S_expr::itcheck(Env &env)
 
 
 void S_compound::itcheck(Env &env)
-{ 
+{
   Scope *scope = env.enterScope(SK_FUNCTION, "compound statement");
 
   FOREACH_ASTLIST_NC(Statement, stmts, iter) {
@@ -4564,7 +4719,7 @@ void S_compound::itcheck(Env &env)
 // Given a (reference to) a pointer to a statement, make it into an
 // S_compound if it isn't already, so that it will be treated as having
 // its own local scope (cppstd 6.4 para 1, 6.5 para 2).  Note that we
-// don't need this for try-blocks, because their substatements are 
+// don't need this for try-blocks, because their substatements are
 // *required* to be compound statements already.
 void implicitLocalScope(Statement *&stmt)
 {
@@ -4665,7 +4820,7 @@ void S_return::itcheck(Env &env)
 {
   if (expr) {
     expr->tcheck(env);
-    
+
     // TODO: verify that 'expr' is compatible with the current
     // function's declared return type
   }
@@ -4691,11 +4846,11 @@ void S_decl::itcheck(Env &env)
 void S_try::itcheck(Env &env)
 {
   body->tcheck(env);
-  
+
   FAKELIST_FOREACH_NC(Handler, handlers, iter) {
     iter->tcheck(env);
   }
-  
+
   // TODO: verify the handlers make sense in sequence:
   //   - nothing follows a "..." specifier
   //   - no duplicates
@@ -4739,7 +4894,7 @@ void CN_decl::itcheck(Env &env)
 {
   ASTTypeId::Tcheck tc(DF_NONE, DC_CN_DECL);
   typeId = typeId->tcheck(env, tc);
-  
+
   // TODO: verify the type of the variable declared makes sense
   // in a boolean or switch context
 }
@@ -4751,7 +4906,7 @@ void Handler::tcheck(Env &env)
   Scope *scope = env.enterScope(SK_FUNCTION, "exception handler");
 
   // originally, I only did this for the non-isEllpsis() case, to
-  // avoid creating a type with ST_ELLIPSIS in it.. but cc_qual
+  // avoid creating a type with ST_ELLIPSIS in it.. but oink/qual
   // finds it convenient, so now we tcheck 'typeId' always
   //
   // dsw: DF_PARAMETER: we think of the handler as an anonymous inline
@@ -4899,7 +5054,7 @@ void Expression::tcheck(Env &env, Expression *&replacement)
       // ok, finish up
       TRACE("disamb", toString(loc) << ": selected E_constructor");
       env.errors.prependMessages(existing);
-      
+
       // a little tricky because E_constructor::inner2_itcheck is
       // allowed to yield a replacement AST node
       replacement = ctor;
@@ -5171,6 +5326,29 @@ CType *E_stringLit::itcheck_x(Env &env, Expression *&replacement)
     p = p->continuation;
   }
 
+  {
+    // quarl 2006-07-13
+    //    Build the dequoted full text.
+    //
+    //    TODO: could just clobber text+continuations with fullText.  Or just
+    //    do this in parsing...
+    stringBuilder sb(len);
+    p = this;
+    do {
+      char const *s = p->text;
+      if (*s == 'L') ++s;
+      int l = strlen(s);
+      if (l >= 2 && s[0] == '\"' && s[l-1] == '\"') {
+        sb.append(s+1, l-2);
+      } else {
+        // see in/gnu/d0122.c for missing quotes
+        sb.append(s, l);
+      }
+      p = p->continuation;
+    } while(p);
+    fullTextNQ = env.str(sb);
+  }
+
   CVFlags stringLitCharCVFlags = CV_NONE;
   if (env.lang.stringLitCharsAreConst) {
     stringLitCharCVFlags = CV_CONST;
@@ -5185,7 +5363,7 @@ CType *E_stringLit::itcheck_x(Env &env, Expression *&replacement)
   for (p = continuation; p; p = p->continuation) {
     p->type = ret;
   }
-  
+
   return ret;
 }
 
@@ -5203,7 +5381,7 @@ CType *E_charLit::itcheck_x(Env &env, Expression *&replacement)
   // cppstd 2.13.2 paras 1 and 2
 
   SimpleTypeId id = ST_CHAR;
-  
+
   if (!env.lang.isCplusplus) {
     // nominal type of character literals in C is int, not char
     id = ST_INT;
@@ -5320,16 +5498,24 @@ CType *E_variable::itcheck_var_set(Env &env, Expression *&replacement,
   Variable *v = maybeReuseNondependent(env, name->loc, flags, nondependentVar);
   if (v) {
     var = v;
-    
+
     // 2005-02-20: 'add' instead of 'adds', because when we remember a
     // non-dependent lookup, we do *not* want to re-do overload
     // resolution
     candidates.add(v);
   }
   else {
+    // in/c/k0015.c: in C, struct members are only visible after the
+    // "." or "->" (which is not E_variable)
+    //
+    // this is done above for TS_name as well..
+    if (!env.lang.isCplusplus) {
+      flags |= LF_SKIP_CLASSES;
+    }
+
     // do lookup normally
     env.lookupPQ(candidates, name, flags);
-    
+
     // gcc-2 hack
     if (candidates.isEmpty() &&
         env.lang.gcc2StdEqualsGlobalHacks &&
@@ -5351,7 +5537,7 @@ CType *E_variable::itcheck_var_set(Env &env, Expression *&replacement,
 
     // 2005-02-18: cppstd 14.2 para 2: if template arguments are
     // supplied, then the name must look up to a template name
-    if (v != env.dependentVar && 
+    if (v != env.dependentVar &&
         name->getUnqualifiedName()->isPQ_template()) {
       if (!v || !v->namesTemplateFunction()) {
         // would disambiguate use of '<' as less-than
@@ -5369,7 +5555,7 @@ CType *E_variable::itcheck_var_set(Env &env, Expression *&replacement,
       // notice this fact and if we are in K and R C we insert a
       // variable with signature "int ()(...)" which is what I recall as
       // the correct signature for such an implicit variable.
-      if (env.lang.allowImplicitFunctionDecls && 
+      if (env.lang.allowImplicitFunctionDecls &&
           (flags & LF_FUNCTION_NAME) &&
           name->isPQ_name()) {
         if (env.lang.allowImplicitFunctionDecls == B3_WARN) {
@@ -5422,8 +5608,7 @@ CType *E_variable::itcheck_var_set(Env &env, Expression *&replacement,
 
   // elaborate 'this->'
   if (!(flags & LF_NO_IMPL_THIS) &&
-      var->isMember() &&
-      !var->isStatic()) {
+      var->isNonStaticMember()) {
     replacement = wrapWithImplicitThis(env, var, name);
     return replacement->type;
   }
@@ -5454,7 +5639,7 @@ static bool allMethods(SObjList<Variable> &set)
     if (!iter.data()->type->asFunctionType()->isMethod()) return false;
   }
   return true;
-}                      
+}
 #endif // 0
 
 
@@ -5703,7 +5888,7 @@ ArgExpression *ArgExpression::tcheck(Env &env, ArgumentInfo &info)
 
   return resolveAmbiguity(this, env, "ArgExpression", false /*priority*/, info);
 }
-                      
+
 // function or pointer to function
 static bool isFunctionTypeOr(CType *t)
 {
@@ -5713,7 +5898,7 @@ static bool isFunctionTypeOr(CType *t)
   if (t->isPointerType() && t->getAtType()->isFunctionType()) {
     return true;
   }
-  
+
   // could also be a pointer to a member function
   if (t->isPointerToMemberType() && t->getAtType()->isFunctionType()) {
     return true;
@@ -5748,29 +5933,29 @@ void ArgExpression::mid_tcheck(Env &env, ArgumentInfo &info)
 }
 
 
-// This function is called *after* the arguments have been type
-// checked and overload resolution performed (if necessary).  It must
-// compare the actual arguments to the parameters.  It also must
-// finish the job started above of resolving address-of overloaded
-// function names, by comparing to the parameter.
-//
-// One bad aspect of the current design is the need to pass both 'args'
-// and 'argInfo'.  Only by having both pieces of information can I do
-// resolution of overloaded address-of.  I'd like to consolidate that
-// at some point...
-//
-// Note that 'args' *never* includes the receeiver object, whereas
-// 'argInfo' *always* includes the type of the recevier object (or
-// NULL) as its first element.
-//
-// It returns the # of default args used.
 int compareArgsToParams(Env &env, FunctionType *ft, FakeList<ArgExpression> *args,
                         ArgumentInfoArray &argInfo)
 {
   int defaultArgsUsed = 0;
 
-  if (!env.doCompareArgsToParams ||
-      (ft->flags & FF_NO_PARAM_INFO)) {
+  if (ft->flags & FF_NO_PARAM_INFO) {
+    // we want to convert certain argument types closer to int, e.g. functions
+    // to function pointers.
+
+    for (FakeList<ArgExpression> *argIter = args;
+         !argIter->isEmpty();
+         argIter = argIter->butFirst()) {
+      ArgExpression *arg = argIter->first();
+
+      if (arg->expr->type->isFunctionType()) {
+        // add implicit &
+        ImplicitConversion ic;
+        ic.kind = ImplicitConversion::IC_STANDARD;
+        ic.scs = SC_FUNC_TO_PTR;
+        arg->expr = env.makeConvertedArg(arg->expr, ic);
+      }
+    }
+
     return defaultArgsUsed;
   }
 
@@ -5791,6 +5976,68 @@ int compareArgsToParams(Env &env, FunctionType *ft, FakeList<ArgExpression> *arg
     Variable *param = paramIter.data();
     ArgExpression *arg = argIter->first();
 
+    // Normalize arguments passed to transparent unions.
+    // http://gcc.gnu.org/onlinedocs/gcc-3.2/gcc/Type-Attributes.html
+    //
+    // We only do this in C mode because our experiments indicate that
+    // GCC does not do the transparent union thing in C++ mode.
+    if (!env.lang.isCplusplus && param->type->isUnionType()) {
+      CompoundType *ct = param->type->asCompoundType();
+      if (ct->isTransparentUnion) {
+        // look for a member of the union that has the same type
+        // as the argument
+        SFOREACH_OBJLIST(Variable, ct->dataMembers, memberIter) {
+          Variable const *memb = memberIter.data();
+
+          StandardConversion sc = getStandardConversion(NULL /*errorMsg*/,
+            SE_NONE, arg->expr->type, memb->type);
+          if (sc != SC_ERROR) {
+            // success
+            TRACE("transparent_union", env.locStr() <<
+              ": converted arg type `" << arg->expr->type->toString() <<
+              "' to union member " << memb->name);
+
+            // build a compound literal for it; this has a pointer
+            // to the original 'arg->expr' inside it
+            SourceLoc loc = env.loc();
+            Designator *d = new FieldDesignator(loc, memb->name);
+            ASTList<Initializer> *inits = new ASTList<Initializer>;
+            inits->append(new IN_designated(loc,
+                                            FakeList<Designator>::makeList(d),
+                                            new IN_expr(loc, arg->expr)));
+            ASTTypeId *ati = env.buildASTTypeId(param->type);
+            E_compoundLit *ecl =
+              new E_compoundLit(ati, new IN_compound(loc, inits));
+
+            // now stick this new thing into arg->expr, so the whole
+            // thing is still a tree
+            arg->expr = ecl;
+
+            // since we're in C mode, it should be quite safe to go
+            // ahead and re-tcheck this (the original 'arg->expr' is
+            // what is being tcheck'd twice)
+            arg->expr->tcheck(env, arg->expr);
+
+            // stop iterating over members
+            break;
+          }
+        }
+
+        // we might not have found any matching member, but I don't
+        // care b/c I am not trying to diagnose errors, just
+        // normalize away some extension syntax
+      }
+      else {
+        // not a transparent union, do nothing special
+      }
+    }
+
+    if (!env.doCompareArgsToParams) {
+      // do not do the usual argument checking; but we keep iterating
+      // so that we can normalize transparent unions
+      continue;
+    }
+
     // check correspondence between 'args' and 'argInfo'
     xassert(!argInfo[paramIndex].type ||
             arg->getType() == argInfo[paramIndex].type);
@@ -5799,27 +6046,27 @@ int compareArgsToParams(Env &env, FunctionType *ft, FakeList<ArgExpression> *arg
     env.possiblySetOverloadedFunctionVar(arg->expr, param->type,
                                          argInfo[paramIndex].overloadSet);
 
-    if (!param->type->isGeneralizedDependent()) {
-      // try to convert the argument to the parameter
-      ImplicitConversion ic = getImplicitConversion(env,
-        arg->getSpecial(env.lang),
-        arg->getType(),
-        param->type,
-        false /*destIsReceiver*/);
-      if (!ic) {
+    // dsw: I changed this from isGeneralizedDependent() to
+    // containsGeneralizedDependent() because that is what I am doing
+    // at the other call site to
+    // elaborateImplicitConversionArgToParam()
+    if (!param->type->containsGeneralizedDependent()) {
+      if (env.elaborateImplicitConversionArgToParam(param->type, arg->expr)) {
+        xassert(arg->ambiguity == NULL);
+      } else {
         env.error(arg->getType(), stringc
-          << "cannot convert argument type `" << arg->getType()->toString()
-          << "' to parameter " << paramIndex 
-          << " type `" << param->type->toString() << "'");
+                  << "cannot convert argument type `" << arg->getType()->toString()
+                  << "' to parameter " << paramIndex
+                  << " type `" << param->type->toString() << "'");
       }
-
-      // TODO (elaboration): if 'ic' involves a user-defined
-      // conversion, then modify the AST to make that explicit
-
-      // at least note that we plan to use this conversion, so
-      // if it involves template functions, instantiate them
-      env.instantiateTemplatesInConversion(ic);
     }
+
+  }
+
+  if (!env.doCompareArgsToParams) {
+    // Only reason for sticking around this long was to normalize
+    // transparent unions..
+    return defaultArgsUsed;
   }
 
   if (argIter->isEmpty()) {
@@ -5840,7 +6087,7 @@ int compareArgsToParams(Env &env, FunctionType *ft, FakeList<ArgExpression> *arg
   else if (paramIter.isDone() && !ft->acceptsVarargs()) {
     env.error("too many arguments supplied");
   }
-  
+
   return defaultArgsUsed;
 }
 
@@ -5856,6 +6103,27 @@ void compareCtorArgsToParams(Env &env, Variable *ctor,
     if (defaultArgsUsed) {
       env.instantiateDefaultArgs(ctor, defaultArgsUsed);
     }
+                
+    // in/dk1027.cc: instantiate the dtor too
+    //
+    // navigating up to get the class is inelegant..
+    //
+    // this isn't perfect, b/c I'm instantiating the dtor for "new
+    // Foo" as well as other declarations of Foo, but it's probably
+    // close enough
+    CompoundType *ct = ctor->scope->curCompound;
+    xassert(ct);
+    
+    // ugh, hacking it again
+    Variable *dtor = ct->rawLookupVariable(env.str(stringc << "~" << ct->name));
+    if (!dtor) {
+      // not sure if this is possible, but don't care to fully analyze
+      // right now
+      return;
+    }
+    
+    // instantiate it if necessary
+    env.ensureFuncBodyTChecked(dtor);
   }
 }
 
@@ -5872,7 +6140,7 @@ static Variable *getNamedFunction(Expression *e)
   xfailure("no named function");
   return NULL;   // silence warning
 }
-  
+
 // fwd
 static CType *internalTestingHooks
   (Env &env, StringRef funcName, FakeList<ArgExpression> *args);
@@ -5957,7 +6225,7 @@ void E_funCall::inner1_itcheck(Env &env, LookupSet &candidates)
       // fails too.
       specialFlags |= LF_SUPPRESS_NONEXIST;
   }
-  
+
   // tcheck, passing candidates if possible
   tcheckExpression_set(env, func, specialFlags, candidates);
 }
@@ -5967,7 +6235,7 @@ bool hasDependentTemplateArgs(PQName *name)
 {
   // I think I only want to look at the final component
   name = name->getUnqualifiedName();
-  
+
   if (name->isPQ_template()) {
     return containsVariables(name->asPQ_template()->sargs);
   }
@@ -5980,8 +6248,7 @@ void possiblyWrapWithImplicitThis(Env &env, Expression *&func,
 {
   if (fevar &&
       fevar->var &&
-      fevar->var->isMember() &&
-      !fevar->var->isStatic()) {
+      fevar->var->isNonStaticMember()) {
     feacc = wrapWithImplicitThis(env, fevar->var, fevar->name);
     func = feacc;
     fevar = NULL;
@@ -5998,7 +6265,7 @@ CType *E_funCall::inner2_itcheck(Env &env, LookupSet &candidates)
 
   // similarly for E_fieldAcc
   E_fieldAcc *feacc = func->isE_fieldAcc()? func->asE_fieldAcc() : NULL;
-                       
+
   // if a method is being invoked, what is the type of the receiver
   // object?  (may be NULL if none is available)
   CType *receiverType = feacc? feacc->obj->type : env.implicitReceiverType();
@@ -6046,8 +6313,8 @@ CType *E_funCall::inner2_itcheck(Env &env, LookupSet &candidates)
   // result?  (in/t0387.cc)
   bool const alreadyDidLookup =
     !env.inUninstTemplate() &&
-    fevar && 
-    fevar->nondependentVar && 
+    fevar &&
+    fevar->nondependentVar &&
     fevar->nondependentVar == fevar->var;
 
   // 2005-02-18: rewrote function call site name lookup; see doc/lookup.txt
@@ -6070,7 +6337,7 @@ CType *E_funCall::inner2_itcheck(Env &env, LookupSet &candidates)
     if (fevar &&                                // E_variable,
         !pqname->hasQualifiers() &&             // unqualified,
         (fevar->type->isSimple(ST_NOTFOUND) ||  // orig lookup failed
-         !fevar->var->isMember())) {            //   or found a nonmember 
+         !fevar->var->isMember())) {            //   or found a nonmember
       // get additional candidates from associated scopes
       ArrayStack<CType*> argTypes(args->count());
       FAKELIST_FOREACH(ArgExpression, args, iter) {
@@ -6141,7 +6408,7 @@ CType *E_funCall::inner2_itcheck(Env &env, LookupSet &candidates)
         // replace the template primary with its instantiation
         mut.dataRef() = inst;
       }
-      
+
       mut.adv();
     }
 
@@ -6244,6 +6511,8 @@ CType *E_funCall::inner2_itcheck(Env &env, LookupSet &candidates)
   }
 
   // automatically coerce function pointers into functions
+  // dsw: FIX: It would be nice to actually lower this so the analysis
+  // doesn't have to do it again. (Oink currently does it.)
   if (t->isPointerType()) {
     t = t->asPointerTypeC()->atType;
     // if it is an E_variable then its overload set will be NULL so we
@@ -6362,12 +6631,12 @@ static CType *internalTestingHooks
         // ok
       }
       else {
-        env.error(stringc << "checkType: `" << t1->toString() 
+        env.error(stringc << "checkType: `" << t1->toString()
                           << "' != `" << t2->toString() << "'");
       }
     }
     else {
-      env.error("invalid call to __checkType");
+      env.error("invalid call to __elsa_checkType");
     }
   }
 
@@ -6497,7 +6766,7 @@ static CType *internalTestingHooks
     }
   }
 
-  
+
   // syntax of calls to __test_mtype:
   //
   // Form 1: match is expected to succeed
@@ -6593,12 +6862,12 @@ static CType *internalTestingHooks
             }
           }
         } // end of loop over supplied bindings
-        
+
         // the user should have supplied as many bindings as there
         // are bindings in 'mtype'
         if (mtype.getNumBindings() != i) {
           return env.error(stringc << "__test_mtype: "
-            << "call site supplied " << pluraln(i , "binding") 
+            << "call site supplied " << pluraln(i , "binding")
             << ", but match yielded " << mtype.getNumBindings());
         }
       }
@@ -6721,12 +6990,12 @@ CType *E_constructor::inner2_itcheck(Env &env, Expression *&replacement)
 string kindAndType(Variable *v)
 {
   if (v->isNamespace()) {
-    return stringc << "namespace " << v->fullyQualifiedName();
+    return stringc << "namespace " << v->fullyQualifiedName0();
   }
   else if (v->isType()) {
     if (v->type->isCompoundType()) {
       CompoundType *ct = v->type->asCompoundType();
-      return stringc << toString(ct->keyword) << " " << v->fullyQualifiedName();
+      return stringc << toString(ct->keyword) << " " << v->fullyQualifiedName0();
     }
     else {
       return stringc << "type `" << v->type->toString() << "'";
@@ -6749,7 +7018,7 @@ PQ_qualifier *getSecondToLast(PQ_qualifier *name)
   return name;
 }
 
- 
+
 // do 'var1' and 'var2' refer to the same class type,
 // as required by 3.4.5p3?
 bool sameCompounds(Variable *var1, Variable *var2)
@@ -6759,7 +7028,7 @@ bool sameCompounds(Variable *var1, Variable *var2)
   if (ct1 == ct2) {
     return true;      // easy case
   }
-  
+
   // in/t0481.cc contains an interesting variation where one of the
   // variables refers to a template, and the other to an instantiation
   // of that template, through no fault of the programmer.  Since both
@@ -6772,7 +7041,7 @@ bool sameCompounds(Variable *var1, Variable *var2)
       ti1->getPrimary() == ti2->getPrimary()) {     // other is specialization
     return true;
   }
-  
+
   return false;
 }
 
@@ -7098,9 +7367,9 @@ CType *E_fieldAcc::itcheck_fieldAcc_set(Env &env, LookupFlags flags,
       env.unqualifiedFinalNameLookup(candidates, ct, fieldName, flags);
     }
   }
-  
+
   #undef HANDLE_DEPENDENT
-  
+
   // investigate what lookup yielded
   if (candidates.isEmpty()) {
     TemplateInfo *ti = ct->templateInfo();
@@ -7123,7 +7392,7 @@ CType *E_fieldAcc::itcheck_fieldAcc_set(Env &env, LookupFlags flags,
     if (v->scope == ct) {
       continue;         // easy case
     }
-    
+
     if (!v->scope || !v->scope->curCompound) {
       return env.error(fieldName->loc, stringc
         << "field `" << *fieldName << "' is not a class member");
@@ -7456,6 +7725,8 @@ CType *resolveOverloadedBinaryOperator(
 
         // TODO: need to replace the arguments according to their
         // conversions (if any)
+        //
+        // This is what causes in/t0148.cc to fail in Oink.
 
         if (op == OP_BRACKETS) {
           // built-in a[b] is equivalent to *(a+b)
@@ -7563,7 +7834,7 @@ CType *E_unary::itcheck_x(Env &env, Expression *&replacement)
       return env.error(t, stringc
         << "argument to unary ~ must be of integer or enumeration type, not `"
         << t->toString() << "'");
-        
+
       // 5.3.1 para 9 also mentions an ambiguity with "~X()", which I
       // tried to exercise in in/t0343.cc, but I can't seem to get it;
       // so either Elsa already does what is necessary, or I do not
@@ -7576,7 +7847,7 @@ CType *E_effect::itcheck_x(Env &env, Expression *&replacement)
 {
   ArgumentInfoArray argInfo(2);
   tcheckArgumentExpression(env, expr, argInfo[0]);
-  
+
   if (argInfo[0].overloadSet.isNotEmpty()) {
     env.error(stringc << "cannot use overloaded function name with " << toString(op));
   }
@@ -7818,7 +8089,7 @@ static CType *makePTMType(Env &env, Variable *var, SourceLoc loc)
 {
   // cppstd: 8.3.3 para 3, can't be static
   xassert(!var->hasFlag(DF_STATIC));
-  
+
   // this is essentially a consequence of not being static
   if (var->type->isFunctionType()) {
     xassert(var->type->asFunctionType()->isMethod());
@@ -7904,8 +8175,7 @@ CType *E_addrOf::itcheck_addrOf_set(Env &env, Expression *&replacement,
     xassert(evar->var);
     env.ensureFuncBodyTChecked(evar->var);
 
-    if (evar->var->isMember() &&
-        !evar->var->isStatic()) {
+    if (evar->var->isNonStaticMember()) {
       return makePTMType(env, evar->var, evar->name->loc);
     }
   }
@@ -7925,7 +8195,7 @@ CType *E_addrOf::itcheck_addrOf_set(Env &env, Expression *&replacement,
 
   if (!expr->type->isLval()) {
     return env.error(expr->type, stringc
-      << "cannot take address of non-lvalue `" 
+      << "cannot take address of non-lvalue `"
       << expr->type->toString() << "'");
   }
   ReferenceType *rt = expr->type->asReferenceType();
@@ -8010,7 +8280,7 @@ CType *E_cast::itcheck_x(Env &env, Expression *&replacement)
 
   // check the source expression
   expr->tcheck(env, expr);
-  
+
   // TODO: check that the cast makes sense
 
   CType *ret = ctype->getType();
@@ -8035,11 +8305,12 @@ CType *E_cast::itcheck_x(Env &env, Expression *&replacement)
 // 't1' is converted (it is not always exactly 't2') and set 'ic'
 // accordingly
 CType *attemptCondConversion(Env &env, ImplicitConversion &ic /*OUT*/,
-                            CType *t1, CType *t2)
-{
+                            CType *t1, CType *t2,
+                            SpecialExpr special1 // dsw: the special for t1
+                            ) {
   // bullet 1: attempt direct conversion to lvalue
   if (t2->isLval()) {
-    ic = getImplicitConversion(env, SE_NONE, t1, t2);
+    ic = getImplicitConversion(env, special1, t1, t2);
     if (ic) {
       return t2;
     }
@@ -8064,7 +8335,7 @@ CType *attemptCondConversion(Env &env, ImplicitConversion &ic /*OUT*/,
   else {
     // bullet 2.2
     t2 = t2->asRval();
-    ic = getImplicitConversion(env, SE_NONE, t1, t2);
+    ic = getImplicitConversion(env, special1, t1, t2);
     if (ic) {
       return t2;
     }
@@ -8137,7 +8408,7 @@ CType *E_cond::itcheck_x(Env &env, Expression *&replacement)
   if (!getImplicitConversion(env, cond->getSpecial(env.lang), cond->type,
                              env.getSimpleType(ST_BOOL))) {
     env.error(cond->type, stringc
-      << "cannot convert `" << cond->type->toString() 
+      << "cannot convert `" << cond->type->toString()
       << "' to bool for conditional of ?:");
   }
   // TODO (elaboration): rewrite AST if a user-defined conversion was used
@@ -8177,7 +8448,7 @@ CType *E_cond::itcheck_x(Env &env, Expression *&replacement)
         thRval->asPointerType()->atType->isVoid()) {
       return bothLvals? elType : elRval;
     }
-    
+
     // for in/c/t0025.c
     if (elRval->isPointerType() &&
         thRval->isIntegerType()) {
@@ -8220,9 +8491,9 @@ CType *E_cond::itcheck_x(Env &env, Expression *&replacement)
        elRval->isCompoundType())) {
     // try to convert each to the other
     ImplicitConversion ic_thToEl;
-    CType *thConv = attemptCondConversion(env, ic_thToEl, thType, elType);
+    CType *thConv = attemptCondConversion(env, ic_thToEl, thType, elType, th->getSpecial(env.lang));
     ImplicitConversion ic_elToTh;
-    CType *elConv = attemptCondConversion(env, ic_elToTh, elType, thType);
+    CType *elConv = attemptCondConversion(env, ic_elToTh, elType, thType, el->getSpecial(env.lang));
 
     if (thConv && elConv) {
       return env.error("class-valued argument(s) to ?: are ambiguously inter-convertible");
@@ -8297,18 +8568,18 @@ CType *E_cond::itcheck_x(Env &env, Expression *&replacement)
       return ret;
     }
   }
-  
+
   // para 6: final standard conversions (conversion to rvalues has
   // already been done, so use the '*Rval' variables)
   {
     thRval = arrAndFuncToPtr(env, thRval);
     elRval = arrAndFuncToPtr(env, elRval);
-    
+
     // bullet 1
     if (thRval->equals(elRval, MF_IGNORE_TOP_CV /*(in/t0499.cc)*/)) {
       return thRval;
     }
-    
+
     // bullet 2
     if (isArithmeticOrEnumType(thRval) &&
         isArithmeticOrEnumType(elRval)) {
@@ -8488,7 +8759,7 @@ CType *E_delete::itcheck_x(Env &env, Expression *&replacement)
     env.error(t, stringc
       << "can only delete pointers, not `" << t->toString() << "'");
   }
-  
+
   return env.getSimpleType(ST_VOID);
 }
 
@@ -8513,7 +8784,7 @@ CType *E_keywordCast::itcheck_x(Env &env, Expression *&replacement)
     // 5.2.9p1: not allowed in static_cast
     // 5.2.10p1: not allowed in reinterpret_cast
     // 5.2.11p1: not allowed in const_cast
-    return env.error(ctype->spec->loc, stringc 
+    return env.error(ctype->spec->loc, stringc
       << "cannot define types in a " << toString(key));
   }
 
@@ -8553,7 +8824,7 @@ CType *E_grouping::itcheck_grouping_set(Env &env, Expression *&replacement,
                                        LookupFlags flags, LookupSet &set)
 {
   tcheckExpression_set(env, expr, flags, set);
-  
+
   // 2005-08-14: Let's try throwing away the E_groupings as part
   // of type checking.
   replacement = expr;
@@ -8585,7 +8856,7 @@ bool Expression::constEval(Env &env, int &result, bool &dependent) const
     env.error(*(val.getWhy()));
     delete val.getWhy();
     return false;
-  }              
+  }
   else if (val.isDependent()) {
     dependent = true;
     return true;
@@ -8721,12 +8992,12 @@ bool allowableNullPtrCastDest(CCLang &lang, CType *t)
   }
 
   // C99 6.3.2.3: in C, void* casts are also allowed
-  if (!lang.isCplusplus && 
+  if (!lang.isCplusplus &&
       t->isPointerType() &&
       t->asPointerType()->atType->isVoid()) {
     return true;
   }
-  
+
   return false;
 }
 
@@ -8829,12 +9100,12 @@ void initializeAggregate(Env &env, CType *type,
       initIter.adv();
 
       // 8.5p14: initialize using a constructor
-      
+
       if (init->isIN_ctor()) {
         init->tcheck(env, type);
         return;
       }
-      
+
       xassert(init->isIN_expr());
       Expression *&arg = init->asIN_expr()->e;
       arg->tcheck(env, arg);
@@ -8869,7 +9140,7 @@ void IN_compound::tcheck(Env &env, CType *type)
   initializeAggregate(env, type, initIter);
 
   // we should have consumed them all
-  if (!initIter.isDone()) {   
+  if (!initIter.isDone()) {
     // This is a weak error because of designated initializers,
     // e.g., in/gnu/t0130.cc and in/c99/t0133.cc.  Once we get
     // the compound_init stuff folded into Elsa I should be able
@@ -8921,7 +9192,7 @@ void IN_ctor::tcheck(Env &env, CType *destType)
           << "' to target type `" << destType->toString() << "'");
         return;
       }
-      
+
       // rewrite the AST to reflect the use of any user-defined
       // conversions
       if (ic.kind == ImplicitConversion::IC_USER_DEFINED) {
@@ -8955,7 +9226,7 @@ void IN_ctor::tcheck(Env &env, CType *destType)
       argInfo[1].type = srcType;
       ctorVar = env.storeVar(
         outerResolveOverload_ctor(env, loc, destType, argInfo));
-        
+
       // don't do the final comparison; it will be confused by
       // the discrepancy between 'args' and 'argInfo', owing to
       // not having rewritten the AST above
@@ -9045,7 +9316,7 @@ void TD_func::itcheck(Env &env)
   // check the function definition; internally this will get
   // the template parameters attached to the function type
   f->tcheck(env);
-                                                                            
+
   // instantiate any instantiations that were requested but delayed
   // due to not having the definition
   env.instantiateForwardFunctions(f->nameAndParams->var);
@@ -9114,7 +9385,7 @@ void TP_type::itcheck(Env &env, int&)
 {
   if (!name) {
     // name them all for uniformity
-    name = env.getAnonName("tparam");
+    name = env.getAnonName("tparam", NULL);
   }
 
   // cppstd 14.1 is a little unclear about whether the type name is
@@ -9264,7 +9535,7 @@ void ND_alias::tcheck(Env &env)
 
   // make it refer to the same namespace as the original one
   v->scope = origVar->scope;
-  
+
   // note that, if one cares to, the alias can be distinguished from
   // the original name in that the scope's 'namespaceVar' still points
   // to the original one (only)
@@ -9290,7 +9561,7 @@ void ND_usingDecl::tcheck(Env &env)
 
   // find what we're referring to; if this is a template, then it
   // names the template primary, not any instantiated version
-  LookupSet set;      
+  LookupSet set;
   env.lookupPQ(set, name, LF_TEMPL_PRIMARY);
   if (set.isEmpty()) {
     env.error(stringc << "undeclared identifier: `" << *name << "'");
@@ -9302,7 +9573,7 @@ void ND_usingDecl::tcheck(Env &env)
     // if the lookup was dependent, add the name with dependent type
     // (k0048.cc, t0468.cc)
     Variable *v = env.makeVariable(name->loc, name->getName(), origVar->type, DF_NONE);
-    
+
     // add with replacement; if the name already exists, then presumably
     // we are trying to make an overload set, but without a real function
     // type it all just degenerates to a dependent-typed set
@@ -9348,7 +9619,7 @@ void ND_usingDir::tcheck(Env &env)
   }
   xassert(targetVar->isNamespace());   // meaning of LF_ONLY_NAMESPACES
   Scope *target = targetVar->scope;
-  
+
   // to implement transitivity of 'using namespace', add a "using"
   // edge from the current scope to the target scope, if the current
   // one has a name (and thus could be the target of another 'using

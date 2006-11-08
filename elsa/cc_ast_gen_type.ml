@@ -15,7 +15,7 @@
   open Ml_ctype;;
 (* ocaml type verbatim end *)
 
-type 'a translationUnit_type = 'a * 'a topForm_type list 
+type 'a translationUnit_type = 'a * 'a topForm_type list * scope option 
 
 and 'a topForm_type = 
   | TF_decl of 'a * sourceLoc * 'a declaration_type 
@@ -106,7 +106,7 @@ and 'a expression_type =
   | E_boolLit of 'a * 'a cType option * bool 
   | E_intLit of 'a * 'a cType option * stringRef * unsigned_long 
   | E_floatLit of 'a * 'a cType option * stringRef * double 
-  | E_stringLit of 'a * 'a cType option * stringRef * 'a expression_type (* = E_stringLit  *) option 
+  | E_stringLit of 'a * 'a cType option * stringRef * 'a expression_type (* = E_stringLit  *) option * stringRef option 
   | E_charLit of 'a * 'a cType option * stringRef * unsigned_int 
   | E_this of 'a * 'a cType option * 'a variable 
   | E_variable of 'a * 'a cType option * 'a pQName_type * 'a variable option * 'a variable option 
@@ -383,7 +383,9 @@ and 'a sTemplateArgument =
   | STA_ATOMIC of 'a * 'a atomicType
 
 
+(***************************** Scope ******************************************)
 
+and scope = unit
 
 (* ocaml type verbatim end *)
 

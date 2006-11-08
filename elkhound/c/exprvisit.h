@@ -9,10 +9,8 @@ class Expression;
 // interface for clients to implement
 class ExpressionVisitor {
 public:
+  virtual ~ExpressionVisitor() {}
   virtual void visitExpr(Expression const *expr) = 0;
-
-  // silence the virtual destructor warning
-  virtual ~ExpressionVisitor() {};
 };
 
 // outer driver to visit an expression tree

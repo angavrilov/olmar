@@ -25,6 +25,7 @@ private:     // funcs
   static void const* getIntNameKeyFn(OwnerMapping *data);
 
 public:      // funcs
+  // throws XOpen if cannot open 'fname'
   BFlatten(char const *fname, bool reading);
   virtual ~BFlatten();
 

@@ -9,7 +9,7 @@
 #include <ctype.h>       // isspace
 #include <string.h>      // strstr, memcmp
 #include <stdio.h>       // sprintf
-#include <stdlib.h>      // strtoul
+#include <stdlib.h>      // strtoul, qsort
 #include <time.h>        // time, asctime, localtime
 
 
@@ -40,19 +40,26 @@ string replace(rostring origSrc, rostring oldstr, rostring newstr)
 }
 
 
-string expandRanges(char const *chars)
+string expandRanges(char const *chars_)
 {
   stringBuilder ret;
-  
+
+  // Fix from Hendrik Tews: use unsigned chars to as not to fall over
+  // when ranges have values near 127 on compilers for which 'char' is
+  // signed by default (which is probably the common case)
+  unsigned char *chars = (unsigned char*)chars_;
+
   while (*chars) {
     if (chars[1] == '-' && chars[2] != 0) {
       // range specification
-      if ((unsigned char)chars[0] > (unsigned char)chars[2]) {
+      if (chars[0] > chars[2]) {
         xformat("range specification with wrong collation order");
       }
 
-      for (int c = (unsigned char)chars[0]; c <= (unsigned char)chars[2]; c++) {
-        ret << (char)c;
+      // use 'int' so we can handle chars[2] == 255 (otherwise we get
+      // infinite loop)
+      for (int c = chars[0]; c <= chars[2]; c++) {
+        ret << (unsigned char)c;
       }
       chars += 3;
     }
@@ -75,7 +82,7 @@ string translate(rostring origSrc, rostring srcchars, rostring destchars)
 
   // build a translation map
   char map[256];
-  int i;
+  string::size_type i;
   for (i=0; i<256; i++) {
     map[i] = i;
   }
@@ -106,7 +113,7 @@ string stringToupper(rostring src)
 
 
 string trimWhitespace(rostring origStr)
-{                                   
+{
   char const *str = toCStr(origStr);
 
   // trim leading whitespace
@@ -127,7 +134,7 @@ string trimWhitespace(rostring origStr)
 
 
 string firstAlphanumToken(rostring origStr)
-{                                   
+{
   char const *str = toCStr(origStr);
 
   // find the first alpha-numeric; NOTE: if we hit the NUL at the end,
@@ -194,7 +201,7 @@ string encodeWithEscapes(char const *p, int len)
     sprintf(tmp, "\\x%02X", (unsigned char)(*p));
     sb << tmp;
   }
-  
+
   return sb;
 }
 
@@ -357,7 +364,7 @@ string sm_basename(rostring origSrc)
 }
 
 string dirname(rostring origSrc)
-{                              
+{
   char const *src = toCStr(origSrc);
 
   char const *sl = strrchr(src, '/');   // locate last slash
@@ -418,7 +425,7 @@ string a_or_an(rostring noun)
   if (noun[0]=='m' && noun[1]=='v') {
     use_an = true;
   }
-  
+
   if (use_an) {
     return stringc << "an " << noun;
   }
@@ -429,7 +436,7 @@ string a_or_an(rostring noun)
 
 
 char *copyToStaticBuffer(char const *s)
-{           
+{
   enum { SZ=200 };
   static char buf[SZ+1];
 
@@ -533,11 +540,37 @@ string chomp(rostring src)
 }
 
 
+DelimStr::DelimStr(char delimiter0)
+  : delimiter(delimiter0)
+{}
+
+DelimStr& DelimStr::operator<< (char const *text) {
+  if (!sb.empty()) sb << delimiter;
+  sb << text;
+  return *this;
+}
+
+
+int compareStrings(const void *a, const void *b) {
+  char const **a1 = (char const **)a;
+  char const **b1 = (char const **)b;
+  return strcmp(*a1, *b1);
+}
+
+void qsortStringArray(char const **strings, int size) {
+  qsort(strings, size, sizeof strings[0], compareStrings);
+}
+
+
 // ----------------------- test code -----------------------------
 #ifdef TEST_STRUTIL
 
 #include "test.h"      // USUAL_MAIN
-#include <stdio.h>     // printf
+
+#include <assert.h>    // assert
+#include <fstream.h>   // ofstream
+#include <stdlib.h>    // getenv
+#include <stdio.h>     // printf, remove
 
 void expRangeVector(char const *in, char const *out)
 {
@@ -584,6 +617,36 @@ void pluralVector(int n, char const *in, char const *out)
 }
 
 
+// testcase from Hendrik Tews
+void translateAscii()
+{
+  char ascii[256];
+  char underscore[256];
+
+  for(int i=0; i<=254; i++){
+    ascii[i] = i+1;
+    underscore[i] = '_';
+  }
+  ascii[255] = 0;
+  underscore[255] = 0;
+
+  {
+    ofstream file("strutil.out");
+    assert(file);
+    file << "Hallo" << endl
+         << ascii << endl
+         << "Hallo2" << endl
+         << translate(ascii, "\001-\057\072-\101\133-\140\173-\377", underscore)
+                                          // ^^^ probably should be 100, no biggie
+         << endl;
+  }
+
+  if (!getenv("SAVE_OUTPUT")) {
+    remove("strutil.out");
+  }
+}
+
+
 void entry()
 {
   expRangeVector("abcd", "abcd");
@@ -617,6 +680,8 @@ void entry()
   pluralVector(1, "fly", "fly");
   pluralVector(2, "fly", "flies");
   pluralVector(2, "was", "were");
+
+  translateAscii();
 }
 
 

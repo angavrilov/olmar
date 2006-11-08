@@ -63,38 +63,38 @@ let register_src_loc_callbacks () =
  *)
 
 let df_flag_array = [|
-  DF_AUTO;        (* = 0x00000001 *)
-  DF_REGISTER;    (* = 0x00000002 *)
-  DF_STATIC;      (* = 0x00000004 *)
-  DF_EXTERN;      (* = 0x00000008 *)
-  DF_MUTABLE;     (* = 0x00000010 *)
-  DF_INLINE;      (* = 0x00000020 *)
-  DF_VIRTUAL;     (* = 0x00000040 *)
-  DF_EXPLICIT;    (* = 0x00000080 *)
-  DF_FRIEND;      (* = 0x00000100 *)
-  DF_TYPEDEF;     (* = 0x00000200 *)
-  DF_ENUMERATOR;  (* = 0x00000400 *)
-  DF_GLOBAL;      (* = 0x00000800 *)
-  DF_INITIALIZED; (* = 0x00001000 *)
-  DF_BUILTIN;     (* = 0x00002000 *)
-  DF_BOUND_TPARAM;(* = 0x00004000 *)
-  DF_ADDRTAKEN;   (* = 0x00008000 *)
-  DF_PARAMETER;   (* = 0x00010000 *)
-  DF_UNIVERSAL;   (* = 0x00020000 *)
-  DF_EXISTENTIAL; (* = 0x00040000 *)
-  DF_MEMBER;      (* = 0x00080000 *)
-  DF_DEFINITION;  (* = 0x00100000 *)
-  DF_INLINE_DEFN; (* = 0x00200000 *)
-  DF_IMPLICIT;    (* = 0x00400000 *)
-  DF_FORWARD;     (* = 0x00800000 *)
-  DF_TEMPORARY;   (* = 0x01000000 *)
-  DF_unused;      (* = 0x02000000 *)
-  DF_NAMESPACE;   (* = 0x04000000 *)
-  DF_EXTERN_C;    (* = 0x08000000 *)
-  DF_SELFNAME;    (* = 0x10000000 *)
-  DF_TEMPL_PARAM; (* = 0x20000000 *)
-  DF_USING_ALIAS; (* = 0x40000000 *)
-  DF_BITFIELD;    (* = 0x80000000 *)
+  DF_AUTO;        	(* = 0x00000001 *)
+  DF_REGISTER;    	(* = 0x00000002 *)
+  DF_STATIC;      	(* = 0x00000004 *)
+  DF_EXTERN;      	(* = 0x00000008 *)
+  DF_MUTABLE;     	(* = 0x00000010 *)
+  DF_INLINE;      	(* = 0x00000020 *)
+  DF_VIRTUAL;     	(* = 0x00000040 *)
+  DF_EXPLICIT;    	(* = 0x00000080 *)
+  DF_FRIEND;      	(* = 0x00000100 *)
+  DF_TYPEDEF;     	(* = 0x00000200 *)
+  DF_ENUMERATOR;  	(* = 0x00000400 *)
+  DF_GLOBAL;      	(* = 0x00000800 *)
+  DF_INITIALIZED; 	(* = 0x00001000 *)
+  DF_BUILTIN;     	(* = 0x00002000 *)
+  DF_BOUND_TPARAM;	(* = 0x00004000 *)
+  DF_ADDRTAKEN;   	(* = 0x00008000 *)
+  DF_PARAMETER;   	(* = 0x00010000 *)
+  DF_UNIVERSAL;   	(* = 0x00020000 *)
+  DF_EXISTENTIAL; 	(* = 0x00040000 *)
+  DF_MEMBER;      	(* = 0x00080000 *)
+  DF_DEFINITION;  	(* = 0x00100000 *)
+  DF_INLINE_DEFN; 	(* = 0x00200000 *)
+  DF_IMPLICIT;    	(* = 0x00400000 *)
+  DF_FORWARD;     	(* = 0x00800000 *)
+  DF_TEMPORARY;   	(* = 0x01000000 *)
+  DF_GNU_EXTERN_INLINE;	(* = 0x02000000 *)
+  DF_NAMESPACE;   	(* = 0x04000000 *)
+  DF_EXTERN_C;    	(* = 0x08000000 *)
+  DF_SELFNAME;    	(* = 0x10000000 *)
+  DF_TEMPL_PARAM; 	(* = 0x20000000 *)
+  DF_USING_ALIAS; 	(* = 0x40000000 *)
+  DF_BITFIELD;    	(* = 0x80000000 *)
 |]
 
 let _ = assert(Array.length df_flag_array = 32)
@@ -111,13 +111,6 @@ let declFlag_from_int32 (flags : int32) =
   in
   let res = doit 0 []
   in
-    (* Printf.eprintf "declFlag_from_int32 start\n%!"; *)
-    assert(List.for_all
-	     (function 
-		| DF_unused -> false
-		| _ -> true)
-	     res);
-    (* Printf.eprintf "declFlag_from_int32 end\n%!"; *)
     res
 	  
   
@@ -724,6 +717,7 @@ let create_DC_TF_EXPLICITINST_constructor () = DC_TF_EXPLICITINST
 let create_DC_MR_DECL_constructor () = DC_MR_DECL
 let create_DC_S_DECL_constructor () = DC_S_DECL
 let create_DC_TD_DECL_constructor () = DC_TD_DECL
+let create_DC_FEA_constructor () = DC_FEA
 let create_DC_D_FUNC_constructor () = DC_D_FUNC
 let create_DC_EXCEPTIONSPEC_constructor () = DC_EXCEPTIONSPEC
 let create_DC_ON_CONVERSION_constructor () = DC_ON_CONVERSION
@@ -764,6 +758,9 @@ let register_DC_callbacks () =
   Callback.register 
     "create_DC_TD_DECL_constructor"
     create_DC_TD_DECL_constructor;
+  Callback.register
+    "create_DC_FEA_constructor"
+    create_DC_FEA_constructor;
   Callback.register 
     "create_DC_D_FUNC_constructor"
     create_DC_D_FUNC_constructor;

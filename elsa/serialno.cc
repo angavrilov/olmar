@@ -3,6 +3,7 @@
 
 #include "serialno.h"         // this module
 #include "trace.h"            // tracingSys
+#include "fstream.h"          // ifstream
 
 
 // -------------------- serial numbers ON --------------------
@@ -27,8 +28,42 @@ SerialBase& SerialBase::operator= (SerialBase const &)
 }
 
 
+// FIX: given that I keep counting across multiple files now and given
+// that we will be analyizing huge inputs, it might help if this were
+// unsigned; then again, you couldn't catch a rollover
 int globalSerialNumber = 0;
 
+// initialize the global serial number; this is for multi-file
+// symmetry breaking
+class GlobalSerialNoInit {
+  char const * const filename;
+
+  public:
+  GlobalSerialNoInit(char const * const filename0)
+    : filename(filename0)
+  {
+    if (tracingSys("serialno-read")) {
+      try {
+        ifstream in(filename);
+        in >> globalSerialNumber;
+      } catch(...) {}
+    }
+    if (tracingSys("serialno-announce")) {
+      cout << "starting with globalSerialNumber " << globalSerialNumber << endl;
+    }
+  }
+
+  ~GlobalSerialNoInit() {
+    if (tracingSys("serialno-write")) {
+      ofstream out(filename);
+      out << globalSerialNumber << endl;
+    }
+    if (tracingSys("serialno-announce")) {
+      cout << "ending with globalSerialNumber " << globalSerialNumber << endl;
+    }
+  }
+};
+GlobalSerialNoInit gsnInit(".serialno"); // I need it to run at initialization time
 
 int incSerialNumber()
 {
@@ -41,14 +76,10 @@ int incSerialNumber()
   return sn;
 }
 
-
-string printSerialNo(char const *pre, int num, char const *post)
+void printSerialNo(stringBuilder &sb, char const *pre, int num, char const *post)
 {
   if (tracingSys("serialNumbers")) {
-    return stringc << pre << num << post;
-  }
-  else {
-    return "";
+    sb << pre << num << post;
   }
 }
 

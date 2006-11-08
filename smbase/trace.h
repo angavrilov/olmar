@@ -81,4 +81,7 @@ void traceAddFromEnvVar();
 extern bool ignoreTraceEnvVar;    // initially false
 
 
+// render the tracers as a string for examination
+void printTracers(ostream &out, char *delim = ", ");
+
 #endif // TRACE_H

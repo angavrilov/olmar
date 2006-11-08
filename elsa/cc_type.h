@@ -53,8 +53,8 @@ class Declaration;        // cc.ast
 class TypeVariable;       // template.h
 class PseudoInstantiation;// template.h
 class DependentQType;     // template.h
-class ReadXML;            // xml.h
 class MType;              // mtype.h
+class XmlReader;
 
 // fwd in this file
 class AtomicType;
@@ -77,11 +77,11 @@ class BasicTypeFactory;
 class TypePred;
 
 
-// FIX: is a debugging aid; remove
+// This is a debugging aid.
 extern bool global_mayUseTypeAndVarToCString;
 
 
-// --------------------- type visitor -----------------------        
+// --------------------- type visitor -----------------------
 // Visitor that digs down into template arguments, among other things.
 // Like the AST visitors, the 'visit' functions return true to
 // continue digging into subtrees, or false to prune the search.
@@ -111,7 +111,7 @@ public:
   //
   // Also, please note that I cannot forward declare EnumType::Value,
   // so unless I move this class until after class Enum, I have to
-  // make the argument type void!
+  // make the argument type 'void*'!
   virtual bool visitEnumType_Value(void /*EnumType::Value*/ *obj);
   virtual void postvisitEnumType_Value(void /*EnumType::Value*/ *obj);
 
@@ -226,7 +226,7 @@ public:     // funcs
 
   // print in "ML" notation (really just more verbose)
   virtual string toMLString() const = 0;
-  
+
   // size this type's representation occupies in memory; this
   // might throw XReprSize, see below
   virtual int reprSize() const = 0;
@@ -253,7 +253,7 @@ class SimpleType : public AtomicType {
 public:     // data
   SimpleTypeId const type;
 
-  // global read-only array for each built-in type        
+  // global read-only array for each built-in type
   // (read-only is enforced by making all of SimpleType's members
   // const, rather then the objects themselves, because doing the
   // latter would clash AtomicType pointers not being const below)
@@ -280,8 +280,9 @@ public:     // data
   // HT: name is NULL in in/t0030.cc inside EnumType
   // also in in/t0032.cc inside CompoundType
   StringRef name;          // (nullable) user-assigned name of this struct or enum
-  // HT: typedefVar is NULL in regtest 568 (t0566.cc)
+  // HT: typedefVar is NULL in regtest 568 (t0566.cc) ??
   // also in in/t0030.cc inside EnumType
+  // also in regrtest 27 in in/t0027.cc inside PseudoInstantiation
   Variable *typedefVar;    // (owner) implicit typedef variable
   AccessKeyword access;    // accessibility of this type in its declaration context
 
@@ -371,7 +372,12 @@ public:      // types
   enum Keyword { K_STRUCT, K_CLASS, K_UNION, NUM_KEYWORDS };
 
 public:      // data
-  bool forward;               // true when it's only fwd-declared
+  bool forward : 1;               // true when it's only fwd-declared
+
+  // When true, this is a GNU transparent union.  I think adding
+  // a bool like this is inelegant, but oh well.
+  bool isTransparentUnion : 1;
+
   Keyword keyword;            // keyword used to introduce the type
 
   // nonstatic data members, in the order they appear within the body
@@ -380,26 +386,31 @@ public:      // data
   // without also updating that map
   SObjList<Variable> dataMembers;
 
-  // classes from which this one inherits; 'const' so you have to
-  // use 'addBaseClass', but public to make traversal easy
+  // classes from which this one directly/syntactically inherits;
+  // 'const' so you have to use 'addBaseClass', but public to make
   // HT: changed the const bases into non-const, to ensure using
   // addBaseClass, the field is protected now. 
   // 
   // this field is protected now (to ensure using addBaseClass)
-  // use getBases to access the bases list
+  // use get_bases() to access the bases list
   // const ObjList<BaseClass> bases;
 
-  // collected virtual base class subobjects
+  // all the bases the class inherits from virtually, including for
+  // transitive reasons; collected virtual base class subobjects
   ObjList<BaseClassSubobj> virtualBases;
 
-  // this is the root of the subobject hierarchy diagram
-  // invariant: subobj.ct == this
+  // this is the root of the subobject hierarchy diagram which
+  // includes the transitive consequences of inheritance; NOTE: this
+  // entire hierarchy is just for the parents of this particular
+  // CompoundType and is isomorphic to but NOT shared with the
+  // subobject hierarchy of this CompoundType's parents; invariant:
+  // subobj.ct == this
   BaseClassSubobj subobj;
 
   // list of all conversion operators this class has, including
   // those that have been inherited but not then hidden
   SObjList<Variable> conversionOperators;
-  
+
   // list of friends; the friends are members of other scopes, but
   // they can access protected/private members of this class, and
   // argument-dependent lookups in this class can find them
@@ -456,8 +467,8 @@ protected:   // funcs
   // experiment: force creation of these to go through the factory too
   CompoundType(Keyword keyword, StringRef name);
   friend class TypeFactory;
-  friend class TypeXmlReader;
-  
+  friend class XmlTypeReader;
+
   // override no-op implementation in Scope
   virtual void afterAddVariable(Variable *v);
 
@@ -467,12 +478,12 @@ public:      // funcs
   const ObjList<BaseClass> & get_bases() { return bases;};
   
   bool isComplete() const { return !forward; }
-  
+
   // true if this is a class that is incomplete because it requires
   // template arguments to be supplied (i.e. not true for classes
   // that come from templates, but all arguments have been supplied)
   bool isTemplate(bool considerInherited = false) const;
-  
+
   // true if it is an instance (fully concrete type arguments) of some
   // template
   bool isInstantiation() const;
@@ -509,13 +520,20 @@ public:      // funcs
   void addField(Variable *v);
 
   // sm: for compatibility with existing code
-  SObjList<Variable> &getDataVariablesInOrder() 
+  SObjList<Variable> &getDataVariablesInOrder()
     { return dataMembers; }
 
   // return the ordinal position of the named nonstatic data field
   // in this class, starting with 0; or, return -1 if the field does
   // not exist (this is a query on 'dataMembers')
   int getDataMemberPosition(StringRef name) const;
+
+  // return the offset in bytes of 'dataMember' in this struct;
+  // fail an assertion if it is not present (why does this function
+  // take a Variable* and the previous one a StringRef?  I'm not
+  // sure, I think Variable* is better, but don't want to mess with
+  // the other one right now)
+  int getDataMemberOffset(Variable *dataMember) const;
 
   // add to 'bases'; incrementally maintains 'virtualBases'
   virtual void addBaseClass(BaseClass * /*owner*/ newBase);
@@ -529,7 +547,7 @@ public:      // funcs
   void clearSubobjVisited() const;
 
   // collect all of the subobjects into a list; each subobject
-  // appears exactly once; NOTE: you may want to call 
+  // appears exactly once; NOTE: you may want to call
   // Env::ensureClassBodyInstantiated before calling this, since
   // an uninstantiated class won't have any subobjects yet
   void getSubobjects(SObjList<BaseClassSubobj const> &dest) const;
@@ -559,7 +577,7 @@ public:      // funcs
   // name under which the conversion operators have been filed in
   // the class scope
   virtual void finishedClassDefinition(StringRef specialName);
-  
+
   // true if this is an "aggregate" (8.5.1p1)
   bool isAggregate() const;
 
@@ -605,9 +623,11 @@ public:     // types
 public:     // data
   StringObjDict<Value> valueIndex;    // values in this enumeration
   int nextValue;                      // next value to assign to elements automatically
+  bool hasNegativeValues;             // true iff some 'value' is negative
 
 public:     // funcs
-  EnumType(StringRef n) : NamedAtomicType(n), nextValue(0) {}
+  EnumType(StringRef n)
+    : NamedAtomicType(n), nextValue(0), hasNegativeValues(false) {}
   ~EnumType();
 
   // AtomicType interface
@@ -744,7 +764,7 @@ public:     // funcs
   // NOTE: yes, toMLString() is virtual, whereas toCString() is not
   virtual string toMLString() const = 0;
   void putSerialNo(stringBuilder &sb) const;
-  
+
   // toString+newline to cout
   void gdb() const;
 
@@ -785,6 +805,7 @@ public:     // funcs
   bool isSimple(SimpleTypeId id) const;
   bool isSimpleCharType() const { return isSimple(ST_CHAR); }
   bool isSimpleWChar_tType() const { return isSimple(ST_WCHAR_T); }
+  bool isSomeKindOfCharType() const;
   bool isStringType() const;
   bool isIntegerType() const;            // any of the simple integer types
   bool isEnumType() const;
@@ -882,7 +903,10 @@ string cvToString(CVFlags cv);
 #ifdef TYPE_CLASS_FILE
   // pull in the definition of CType, which may have additional
   // fields (etc.) added for the client analysis
+#define CC_TYPE_INCLUDE_CLASS_FILE_FLAG
   #include TYPE_CLASS_FILE
+// this 'undef' is rather important
+#undef CC_TYPE_INCLUDE_CLASS_FILE
 #else
   // please see cc_type.html, section 6, "BaseType and CType", for more
   // information about this class
@@ -920,7 +944,7 @@ public:     // data
 
 protected:
   friend class BasicTypeFactory;
-  friend class TypeXmlReader;
+  friend class XmlTypeReader;
   CVAtomicType(AtomicType *a, CVFlags c)
     : atomic(a), cv(c) {}
 
@@ -955,7 +979,7 @@ public:     // data
 
 protected:  // funcs
   friend class BasicTypeFactory;
-  friend class TypeXmlReader;
+  friend class XmlTypeReader;
   PointerType(CVFlags c, CType *a);
 
 public:
@@ -985,7 +1009,7 @@ public:     // data
 
 protected:  // funcs
   friend class BasicTypeFactory;
-  friend class TypeXmlReader;
+  friend class XmlTypeReader;
   ReferenceType(CType *a);
 
 public:
@@ -1057,7 +1081,7 @@ public:     // data
 
 protected:  // funcs
   friend class BasicTypeFactory;
-  friend class TypeXmlReader;
+  friend class XmlTypeReader;
 
   FunctionType(CType *retType);
 
@@ -1071,7 +1095,7 @@ public:
   bool isConversionOperator() const   { return hasFlag(FF_CONVERSION); }
   bool isConstructor() const          { return hasFlag(FF_CTOR); }
   bool isDestructor() const           { return hasFlag(FF_DTOR); }
-  
+
   void setFlag(FunctionFlags f)       { flags |= f; }
   void clearFlag(FunctionFlags f)     { flags &= ~f; }
 
@@ -1079,9 +1103,9 @@ public:
   // function types, am I equal to 'obj'?
   bool equalOmittingReceiver(FunctionType const *obj) const
     { return equals(obj, MF_STAT_EQ_NONSTAT | MF_IGNORE_IMPLICIT); }
-                                             
+
   // true if all parameters after 'startParam' (0 is first) have
-  // default values      
+  // default values
   bool paramsHaveDefaultsPast(int startParam) const;
 
   // append a parameter to the (ordinary) parameters list
@@ -1099,7 +1123,7 @@ public:
 
   CVFlags getReceiverCV() const;         // dig down; or CV_NONE if !isMember
   CompoundType *getClassOfMember();      // 'isMember' must be true
-  
+
   // the above only works if the function is a member of a concrete
   // class; if it's a member of a template class, this must be used
   NamedAtomicType *getNATOfMember();
@@ -1145,7 +1169,7 @@ inline void detach_ocaml_FunctionType(FunctionType &t) {
 // type of an array
 class ArrayType : public CType {
 public:       // types
-  enum { 
+  enum {
     NO_SIZE = -1,              // no size specified
     DYN_SIZE = -2              // GNU extension: size is not a constant
   };
@@ -1153,7 +1177,7 @@ public:       // types
 public:       // data
   CType *eltType;               // (serf) type of the elements
   int size;                    // specified size (>=0), or NO_SIZE or DYN_SIZE
-  
+
   // Note that whether a size of 0 is legal depends on the current
   // language settings (cc_lang.h), so most code should adapt itself
   // to that possibility.
@@ -1163,10 +1187,10 @@ private:      // funcs
 
 protected:
   friend class BasicTypeFactory;
-  friend class TypeXmlReader;
+  friend class XmlTypeReader;
   ArrayType(CType *e, int s = NO_SIZE)
     : eltType(e), size(s) { checkWellFormedness(); }
-  ArrayType(ReadXML&)           // a ctor for de-serialization
+  ArrayType(XmlReader&)           // a ctor for de-serialization
     : eltType(NULL), size(NO_SIZE) {}
 
 public:
@@ -1202,9 +1226,9 @@ public:
 
 protected:
   friend class BasicTypeFactory;
-  friend class TypeXmlReader;
+  friend class XmlTypeReader;
   PointerToMemberType(NamedAtomicType *inClassNAT0, CVFlags c, CType *a);
-  PointerToMemberType(ReadXML&) // a ctor for de-serialization
+  PointerToMemberType(XmlReader&) // a ctor for de-serialization
     : inClassNAT(NULL), cv(CV_NONE), atType(NULL) {}
 
 public:
@@ -1272,7 +1296,7 @@ public:
   // ---- constructors for the atomic types ----
   // for now, only CompoundType is built this way, and I'm going to
   // provide a default implementation in TypeFactory to avoid having
-  // to change the interface w.r.t. cc_qual
+  // to change the interface w.r.t. oink/qual
   virtual CompoundType *makeCompoundType
     (CompoundType::Keyword keyword, StringRef name);
 
@@ -1322,6 +1346,11 @@ public:
   virtual CType *applyCVToType(SourceLoc loc, CVFlags cv, CType *baseType,
                               TypeSpecifier * /*nullable*/ syntax);
 
+  // Return true if this factory wants to reuse type objects in
+  // 'applyCVToType' when the new and existing qualifiers are the same.
+  // By default, returns true.
+  virtual bool wantsQualifiedTypeReuseOptimization();
+
   // build a pointer type from a syntactic description; here I allow
   // the factory to know the name of an AST node, but the default
   // implementation will not use it, so it need not be linked in for
@@ -1363,8 +1392,7 @@ public:
   //     or neither.
   //   - Variable is used by CType and vice-versa.. they could have
   //     both been defined in cc_type.h
-  virtual Variable *makeVariable(SourceLoc L, StringRef n,
-                                 CType *t, DeclFlags f, TranslationUnit *tunit)=0;
+  virtual Variable *makeVariable(SourceLoc L, StringRef n, CType *t, DeclFlags f)=0;
 
 
   // ---- convenience functions ----
@@ -1416,8 +1444,7 @@ public:    // funcs
   virtual PointerToMemberType *makePointerToMemberType
     (NamedAtomicType *inClassNAT, CVFlags cv, CType *atType);
 
-  virtual Variable *makeVariable(SourceLoc L, StringRef n,
-                                 CType *t, DeclFlags f, TranslationUnit *tunit);
+  virtual Variable *makeVariable(SourceLoc L, StringRef n, CType *t, DeclFlags f);
 };
 
 
@@ -1433,7 +1460,7 @@ inline SObjList<T> const & objToSObjListC(ObjList<T> const &list)
 // thrown when the reprSize() function cannot determine an
 // array size
 class XReprSize : public xBase {
-public:          
+public:
   // This is set to true when the reason for failing to determine a
   // size is that a dynamically-sized array was involved (this is a
   // gnu extension).

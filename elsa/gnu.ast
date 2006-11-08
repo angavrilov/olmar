@@ -22,6 +22,7 @@ verbatim {
 //   DC_TS_TYPEOF_TYPE,      //   TS_typeof_type::atype
 //   DC_E_COMPOUNDLIT,       //   E_compoundLit::stype
 //   DC_E_ALIGNOFTYPE,       //   E_alignofType::atype
+//   // DC_E_OFFSETOF,          //   E_offsetof::atype
 //   DC_E_BUILTIN_VA_ARG,    //   E___builtin_va_arg::atype
 // }
 
@@ -71,7 +72,14 @@ class Expression {
   // as AST nodes instead of ordinary function calls (...)
   // http://gcc.gnu.org/onlinedocs/gcc-3.1/gcc/Other-Builtins.html
   -> E___builtin_constant_p(SourceLoc loc, Expression expr);
+
+  // varargs; dsw: I think that we should make all of these their own
+  // AST node, I just don't want to deal with the parsing ambiguity
+  // with E_funCall right now
+//   -> E___builtin_va_start(SourceLoc loc, Expression expr, Expression expr2);
+//   -> E___builtin_va_copy(SourceLoc loc, Expression expr, Expression expr2);
   -> E___builtin_va_arg(SourceLoc loc, Expression expr, ASTTypeId atype);
+//   -> E___builtin_va_end(SourceLoc loc, Expression expr);
 
   // alignment inquiry
   // http://gcc.gnu.org/onlinedocs/gcc-3.1/gcc/Alignment.html
@@ -79,7 +87,7 @@ class Expression {
        public virtual CValue extConstEval(ConstEval &env) const;
        public(xml) int alignment = 0; // set by tcheck
      }
-     
+
   -> E_alignofExpr(Expression expr) {
        public virtual CValue extConstEval(ConstEval &env) const;
        public(xml) int alignment = 0;
@@ -91,6 +99,12 @@ class Expression {
        public virtual CValue extConstEval(ConstEval &env) const;
        public virtual bool extHasUnparenthesizedGT();
      }
+
+  // // quarl 2006-07-12
+  // //    Handle __offsetof__ (gcc-3.4), __builtin_offsetof (gcc-4.x)
+  // -> E_offsetof(ASTTypeId atype, PQName fieldName) {
+  //      public virtual CValue extConstEval(ConstEval &env) const;
+  //    }
 }
 
 
@@ -210,9 +224,9 @@ class Designator (SourceLoc loc) {
 
 
 // ------------ gcc computed goto ----------
-class Expression {                      
+class Expression {
   // address of a label, e.g., "&&labelName"
-  -> E_addrOfLabel(StringRef labelName);      
+  -> E_addrOfLabel(StringRef labelName);
 }
 
 class Statement {
@@ -228,7 +242,7 @@ class Expression {
        public CType *itcheck_complex_selector(Env &env, LookupFlags flags,
                                              LookupSet &candidates);
      }
-     
+
   -> E_binary {
        // tcheck arith involving complex or imaginary types
        public CType *itcheck_complex_arith(Env &env);
@@ -266,7 +280,7 @@ class AttributeSpecifier(
 // attributes are separated by commas in the parens
 class Attribute(SourceLoc loc) {
   // e.g., __attribute__(( ))
-  //                      ^                      
+  //                      ^
   // I decided to keep these even though the GNU documentation states
   // that they are always ignored, because it would be a bit awkward
   // to drop them in the parser, and they shouldn't occur frequently
@@ -318,7 +332,7 @@ verbatim {
     D_attribute(SourceLoc loc, IDeclarator *base,
                 AttributeSpecifierList *alist);
     virtual ~D_attribute();
-    
+
     virtual void debugPrint(ostream &os, int indent, char const *subtreeName = "tree") const;
     virtual void traverse(ASTVisitor &vis);
 
@@ -326,11 +340,19 @@ verbatim {
 
     virtual void tcheck(Env &env, Declarator::Tcheck &dt);
 
+    // Return the attribute(alias("name")) name, or NULL if none.  There
+    // mustn't be more than one.
+    virtual StringRef getAlias() const;
+
     // ocaml serialization methods
     virtual value toOcaml(ToOcamlData *);
     virtual void detachOcaml();
+
+  private:
+    // Return the attribute alias, and check for errors
+    StringRef tcheck_getAlias(Env *penv) const;
   };
 }
-
+// TODO: IDeclarator::isD_attribute(), asD_attribute(), ifD_attribute()
 
 // EOF

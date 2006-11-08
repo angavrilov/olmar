@@ -12,69 +12,73 @@
 string mangleAtomic(AtomicType const *t)
 {
   switch (t->getTag()) {
-    default: xfailure("bad tag");
+  default: xfailure("bad tag");
 
-    case AtomicType::T_SIMPLE: {
-      SimpleType const *st = t->asSimpleTypeC();
-      return simpleTypeName(st->type);
+  case AtomicType::T_SIMPLE: {
+    SimpleType const *st = t->asSimpleTypeC();
+    return simpleTypeName(st->type);
+  }
+
+  case AtomicType::T_COMPOUND: {
+    CompoundType const *ct = t->asCompoundTypeC();
+
+    stringBuilder sb;
+
+    bool hasParams = ct->templateInfo() && ct->templateInfo()->params.isNotEmpty();
+    if (hasParams) {
+      sb << mangleTemplateParams(ct->templateInfo()) << " ";
     }
 
-    case AtomicType::T_COMPOUND: {
-      CompoundType const *ct = t->asCompoundTypeC();
-
-      stringBuilder sb;
-
-      bool hasParams = ct->templateInfo() && ct->templateInfo()->params.isNotEmpty();
-      if (hasParams) {
-        sb << mangleTemplateParams(ct->templateInfo()) << " ";
-      }
-
-      if (!ct->templateInfo() || hasParams) {
-        // only say 'class' if this is like a class definition, or
-        // if we're not a template, since template instantiations
-        // usually don't include the keyword 'class' (this isn't perfect..
-        // I think I need more context)
-        sb << CompoundType::keywordName(ct->keyword) << " ";
-      }
-
-      // sm: I'm sure this is a bug; the class name is always part
-      // of the type...
-      // dsw: yup, it was a bug alright
-//        if (!(tsf & TTS_CANON)) {
-      sb << (ct->name? ct->name : "/*anonymous*/");
-//        }
-
-      // template arguments are now in the name
-      //if (templateInfo && templateInfo->specialArguments) {
-      //  sb << "<" << templateInfo->specialArgumentsRepr << ">";
-      //}
-
-      return sb;
+    if (!ct->templateInfo() || hasParams) {
+      // only say 'class' if this is like a class definition, or
+      // if we're not a template, since template instantiations
+      // usually don't include the keyword 'class' (this isn't perfect..
+      // I think I need more context)
+      sb << CompoundType::keywordName(ct->keyword) << " ";
     }
 
-    case AtomicType::T_ENUM: {
-      EnumType const *et = t->asEnumTypeC(); // unused for the moment
+    // sm: I'm sure this is a bug; the class name is always part
+    // of the type...
+    // dsw: yup, it was a bug alright
+    //        if (!(tsf & TTS_CANON)) {
+    sb << (ct->name? ct->name : "/*anonymous*/");
+    //        }
 
-      stringBuilder sb;
-      sb << "enum ";
+    // template arguments are now in the name
+    //if (templateInfo && templateInfo->specialArguments) {
+    //  sb << "<" << templateInfo->specialArgumentsRepr << ">";
+    //}
+
+    return sb;
+  }
+
+  case AtomicType::T_ENUM: {
+    EnumType const *et = t->asEnumTypeC(); // unused for the moment
+
+    stringBuilder sb;
+    sb << "enum ";
       
-      // sm: again, to fail to include the name is a bug
-      // dsw: yup
-      //if (!(tsf & TTS_CANON)) {
-      sb << (et->name? et->name : "/*anonymous*/");
-      //}
+    // sm: again, to fail to include the name is a bug
+    // dsw: yup
+    //if (!(tsf & TTS_CANON)) {
+    sb << (et->name? et->name : "/*anonymous*/");
+    //}
 
-      return sb;
-    }
+    return sb;
+  }
 
-    case AtomicType::T_TYPEVAR:
-      return string("TVAR");      // dsw: my replacement for an actual name
+  case AtomicType::T_TYPEVAR:
+    return string("TVAR");      // dsw: my replacement for an actual name
       
-    case AtomicType::T_PSEUDOINSTANTIATION:
-      // sm: not clear what should happen here; I think in fact
-      // that pseudoinstantiations should not be "linker visible"
-      // so it won't matter
-      return t->toString();
+  case AtomicType::T_PSEUDOINSTANTIATION:
+    // sm: not clear what should happen here; I think in fact
+    // that pseudoinstantiations should not be "linker visible"
+    // so it won't matter
+    return t->toString();
+
+  case AtomicType:: T_DEPENDENTQTYPE:
+    // dsw: this is just a guess, but you never added this
+    return t->toString();
   }
 }
 
@@ -386,58 +390,6 @@ string mangleTemplateParams(TemplateInfo const *tp)
   }
   sb << ">";
   return sb;
-}
-
-
-void mangleSTemplateArgs(stringBuilder &sb, ObjList<STemplateArgument> const &args)
-{
-  sb << "<";
-  int ct=0;
-  FOREACH_OBJLIST(STemplateArgument, args, iter) {
-    if (ct++) { sb << ", "; }
-    switch(iter.data()->kind) {
-    default:
-      xfailure("Illegal STemplateArgument::kind");
-      break;
-
-    case STemplateArgument::STA_NONE:
-      xfailure("STA_NONE should never occur here");
-      //          sb << "-NONE"; break;
-      break;
-
-    case STemplateArgument::STA_TYPE:
-      sb << "TYPE-" << mangle(iter.data()->sta_value.t);
-      break;
-
-    case STemplateArgument::STA_INT:
-      sb << "INT-" << iter.data()->sta_value.i;
-      break;
-
-    case STemplateArgument::STA_ENUMERATOR: // reference to enumerator
-    case STemplateArgument::STA_REFERENCE: // reference to global object
-    case STemplateArgument::STA_POINTER: // pointer to global object
-    case STemplateArgument::STA_MEMBER: // pointer to class member
-      // sm: this should be mangling the *name*, not the type!
-      sb << "OBJECT-" << mangle(iter.data()->sta_value.v->type);
-      break;
-
-    case STemplateArgument::STA_DEPEXPR: { // value-dependent expression
-      sb << "DEPEXPR-";
-      StringBuilderOutStream out0(sb);
-      CodeOutStream codeOut(out0);
-      TypePrinterC typePrinter;
-      PrintEnv penv(typePrinter, &codeOut);
-      iter.data()->sta_value.e->print(penv);
-      break;
-    }
-
-    case STemplateArgument::STA_TEMPLATE: // template argument (not implemented)
-      xfailure("STA_TEMPLATE is not implemented");
-      break;
-
-    }
-  }
-  sb << ">";
 }
 
 

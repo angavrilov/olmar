@@ -302,7 +302,7 @@ Productions: /* empty */                   { $$ = new ASTList<ProdDecl>; }
            ;
 
 /* yields: ProdDecl */
-Production: TOK_ARROW RHS Action           { $$ = new ProdDecl($1, PDK_NEW, $2, $3); }
+Production: TOK_ARROW RHS Action                { $$ = new ProdDecl($1, PDK_NEW, $2, $3); }
           | "replace" TOK_ARROW RHS Action      { $$ = new ProdDecl($2, PDK_REPLACE,$3, $4); }
           | "delete" TOK_ARROW RHS ";"          { $$ = new ProdDecl($2, PDK_DELETE, $3, nolocNULL()); }
           ;

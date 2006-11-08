@@ -33,6 +33,9 @@ class ToplevelForm {
   // code to be copied verbatim into the generated ocaml type def file
   -> TF_ocaml_type_verbatim(string code);
 
+  // code to be copied verbatim into the generated optional xmlVisitor class
+  -> TF_xml_verbatim(string code);
+
   // a superclass, and a list of subclasses ("constructors")
   -> TF_class(ASTClass super,
               ASTList<ASTClass> ctors) {

@@ -118,4 +118,19 @@ bool readLine(string &dest, FILE *fp);
 string chomp(rostring src);
 
 
+// dsw: build a string with delimiters between each appended string
+struct DelimStr {
+  char delimiter;               // this could be more general but I don't need it
+  stringBuilder sb;
+
+  explicit DelimStr(char delimiter0);
+  DelimStr& operator << (char const *text);
+};
+
+
+// compare function for strings; for use with qsort()
+int compareStrings(const void *a, const void *b);
+void qsortStringArray(char const **strings, int size);
+
+
 #endif // STRUTIL_H

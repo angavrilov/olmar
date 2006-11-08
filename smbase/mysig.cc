@@ -77,8 +77,8 @@ void jmpHandler(int signum)
 
 void printAddrHandler(int signum, siginfo_t *info, void *)
 {
-  fprintf(stderr, "faulting address: 0x%08X\n", (int)(info->si_addr));
-  
+  fprintf(stderr, "faulting address: %p\n", info->si_addr);
+
   // reset handler and re-raise
   setHandler(signum, SIG_DFL);
   raise(signum);
@@ -164,8 +164,8 @@ int main(int argc, char **argv)
       infiniteRecursion();
     }
 
-    int addr = strtoul(argv[1], NULL /*endp*/, 0 /*radix*/);
-    printf("about to access 0x%08X ...\n", addr);
+    long addr = strtoul(argv[1], NULL /*endp*/, 0 /*radix*/);
+    printf("about to access 0x%lX ...\n", addr);
     *((int*)addr) = 0;
     return 0;     // won't be reached for most values of 'addr'
   }

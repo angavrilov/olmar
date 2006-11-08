@@ -24,17 +24,14 @@
 #include "smregexp.h"     // regexpMatch
 #include "cc_elaborate.h" // ElabVisitor
 #include "integrity.h"    // IntegrityVisitor
+#include "xml_file_writer.h" // XmlFileWriter
+#include "xml_reader.h"   // xmlDanglingPointersAllowed
+#include "xml_do_read.h"  // xmlDoRead()
+#include "xml_type_writer.h" // XmlTypeWriter
 extern "C" {
 #include <caml/memory.h>
 #include <caml/callback.h>// ocaml callbacks
 };
-#if XML
-  #include "main_astxmlparse.h"// astxmlparse
-  #include "cc_type_xml.h"  // TypeToXml
-#endif // XML
-
-// don't know why I need this
-//  class TypeToXml;
 
 bool caml_start_up_done = false;
 string ocamlAstFname;
@@ -96,7 +93,7 @@ public:
     else if (obj->isE_fieldAcc()) {
       v = obj->asE_fieldAcc()->field;
     }
-    
+
     // this output format is designed to minimize the effect of
     // changes to unrelated details
     if (v
@@ -126,9 +123,9 @@ void if_malloc_stats()
 class SectionTimer {
   long start;
   long &elapsed;
-  
+
 public:
-  SectionTimer(long &e) 
+  SectionTimer(long &e)
     : start(getMilliseconds()),
       elapsed(e)
   {}
@@ -136,145 +133,6 @@ public:
   {
     elapsed += getMilliseconds() - start;
   }
-};
-
-// print out type annotations for every ast node that has a type
-class ToXmlASTVisitor_Types : public ToXmlASTVisitor {
-//    ostream &out;                 // for the <Link/> tags
-  TypeToXml &ttx;
-
-  public:
-  ToXmlASTVisitor_Types
-    (TypeToXml &ttx0,
-     ostream &out0,
-     int &depth0,
-     bool indent0 = false,
-     bool ensureOneVisit0 = true)
-      : ToXmlASTVisitor(out0, depth0, indent0, ensureOneVisit0)
-      , ttx(ttx0)
-  {}
-
-  // Note that idempotency is handled in TypeToXml
-  #define PRINT_ANNOT(A)   \
-    if (A) {               \
-      ttx.toXml(A); \
-    }
-
-  // this was part of the macro
-//    printASTBiLink((void**)&(A), (A));
-
-  // print the link between the ast node and the annotating node
-//    void printASTBiLink(void **astField, void *annotation) {
-//      out << "<__Link from=\"";
-//      // this is not from an ast *node* but from the *field* of one
-//      xmlPrintPointer(out, "FLD", astField);
-//      out << "\" to=\"";
-//      xmlPrintPointer(out, "TY", annotation);
-//      out << "\"/>\n";
-//    }
-
-  // **** visit methods
-  bool visitTypeSpecifier(TypeSpecifier *ts) {
-    if (!ToXmlASTVisitor::visitTypeSpecifier(ts)) return false;
-    if (ts->isTS_type()) {
-      PRINT_ANNOT(ts->asTS_type()->type);
-    } else if (ts->isTS_name()) {
-      PRINT_ANNOT(ts->asTS_name()->var);
-      PRINT_ANNOT(ts->asTS_name()->nondependentVar);
-    } else if (ts->isTS_elaborated()) {
-      PRINT_ANNOT(ts->asTS_elaborated()->atype);
-    } else if (ts->isTS_classSpec()) {
-      PRINT_ANNOT(ts->asTS_classSpec()->ctype);
-    } else if (ts->isTS_enumSpec()) {
-      PRINT_ANNOT(ts->asTS_enumSpec()->etype);
-    }
-    return true;
-  }
-
-  bool visitFunction(Function *f) {
-    if (!ToXmlASTVisitor::visitFunction(f)) return false;
-    PRINT_ANNOT(f->funcType);
-    PRINT_ANNOT(f->receiver);
-    return true;
-  }
-
-  bool visitMemberInit(MemberInit *memberInit) {
-    if (!ToXmlASTVisitor::visitMemberInit(memberInit)) return false;
-    PRINT_ANNOT(memberInit->member);
-    PRINT_ANNOT(memberInit->base);
-    PRINT_ANNOT(memberInit->ctorVar);
-    return true;
-  }
-
-  bool visitBaseClassSpec(BaseClassSpec *bcs) {
-    if (!ToXmlASTVisitor::visitBaseClassSpec(bcs)) return false;
-    PRINT_ANNOT(bcs->type);
-    return true;
-  }
-
-  bool visitDeclarator(Declarator *d) {
-    if (!ToXmlASTVisitor::visitDeclarator(d)) return false;
-    PRINT_ANNOT(d->var);
-    PRINT_ANNOT(d->type);
-    return true;
-  }
-
-  bool visitExpression(Expression *e) {
-    if (!ToXmlASTVisitor::visitExpression(e)) return false;
-    PRINT_ANNOT(e->type);
-    if (e->isE_this()) {
-      PRINT_ANNOT(e->asE_this()->receiver);
-    } else if (e->isE_variable()) {
-      PRINT_ANNOT(e->asE_variable()->var);
-      PRINT_ANNOT(e->asE_variable()->nondependentVar);
-    } else if (e->isE_constructor()) {
-      PRINT_ANNOT(e->asE_constructor()->ctorVar);
-    } else if (e->isE_fieldAcc()) {
-      PRINT_ANNOT(e->asE_fieldAcc()->field);
-    } else if (e->isE_new()) {
-      PRINT_ANNOT(e->asE_new()->ctorVar);
-    }
-    return true;
-  }
-
-  #ifdef GNU_EXTENSION
-  bool visitASTTypeof(ASTTypeof *a) {
-    if (!ToXmlASTVisitor::visitASTTypeof(a)) return false;
-    PRINT_ANNOT(a->type);
-    return true;
-  }
-  #endif // GNU_EXTENSION
-
-  bool visitPQName(PQName *pqn) {
-    if (!ToXmlASTVisitor::visitPQName(pqn)) return false;
-    if (pqn->isPQ_qualifier()) {
-      PRINT_ANNOT(pqn->asPQ_qualifier()->qualifierVar);
-      ttx.toXml(&(pqn->asPQ_qualifier()->sargs));
-    } else if (pqn->isPQ_template()) {
-      ttx.toXml(&(pqn->asPQ_template()->sargs));
-    } else if (pqn->isPQ_variable()) {
-      PRINT_ANNOT(pqn->asPQ_variable()->var);
-    }
-    return true;
-  }
-
-  bool visitEnumerator(Enumerator *e) {
-    if (!ToXmlASTVisitor::visitEnumerator(e)) return false;
-    PRINT_ANNOT(e->var);
-    return true;
-  }
-
-  bool visitInitializer(Initializer *e) {
-    if (!ToXmlASTVisitor::visitInitializer(e)) return false;
-    if (e->isIN_ctor()) {
-      PRINT_ANNOT(e->asIN_ctor()->ctorVar);
-    }
-    return true;
-  }
-
-  // FIX: TemplateParameter
-
-  #undef PRINT_ANNOT
 };
 
 
@@ -455,8 +313,18 @@ void doit(int argc, char **argv)
     CType::printAsML = true;
   }
 
+  // FIX: dsw: couldn't we put dashes or something in here to break up
+  // the word?
   if (tracingSys("nohashline")) {
     sourceLocManager->useHashLines = false;
+  }
+
+  if (tracingSys("tolerateHashlineErrors")) {
+    sourceLocManager->tolerateHashlineErrors = true;
+  }
+
+  if (tracingSys("no-orig-offset")) {
+    sourceLocManager->useOriginalOffset = false;
   }
 
   if (tracingSys("ansi")) {
@@ -474,7 +342,7 @@ void doit(int argc, char **argv)
   if (tracingSys("c_lang")) {
     lang.GNU_C();
   }
-  
+
   if (tracingSys("gnu_c89")) {
     lang.ANSI_C89();
     lang.GNU_C_extensions();
@@ -493,7 +361,7 @@ void doit(int argc, char **argv)
       xfatal("gnu2_kandr_c_lang option requires the K&R module (./configure -kandr=yes)");
     #endif
   }
-  
+
   if (tracingSys("test_xfatal")) {
     xfatal("this is a test error message");
   }
@@ -518,7 +386,7 @@ void doit(int argc, char **argv)
     traceAddSys("xmlPrintAST");
     traceAddSys("topform");
   }
-  
+
   if (tracingSys("only_works_on_32bit") &&
       sizeof(long) != 4) {
     // we are running a regression test, and the testcase is known to
@@ -527,24 +395,40 @@ void doit(int argc, char **argv)
     exit(0);
   }
 
+  // dump out the lang settings if the user wants them
+  if (tracingSys("printLang")) {
+    cout << "language settings:\n";
+    cout << lang.toString();
+    cout << endl;
+  }
+  if (tracingSys("printTracers")) {
+    cout << "tracing flags:\n\t";
+    printTracers(std::cout, "\n\t");
+    cout << endl;
+  }
+
   // --------------- parse --------------
   TranslationUnit *unit;
+
+  // dsw: I needed this to persist past typechecking, so I moved it
+  // out here.  Feel free to refactor.
+  ArrayStack<Variable*> madeUpVariables;
+  ArrayStack<Variable*> builtinVars;
+
   int parseWarnings = 0;
   long parseTime = 0;
   if (tracingSys("parseXml")) {
-#if XML
-    unit = astxmlparse(strTable, inputFname);
+    if (tracingSys("parseXml-no-danglingPointers")) {
+      xmlDanglingPointersAllowed = false;
+    }
+    unit = xmlDoRead(strTable, inputFname);
     if (!unit) return;
-#else
-    cout << "XML features are not compiled in" << endl;
-    exit(1);
-#endif // XML
   }
   else {
     SectionTimer timer(parseTime);
     SemanticValue treeTop;
     ParseTreeAndTokens tree(lang, treeTop, strTable, inputFname);
-    
+
     // grab the lexer so we can check it for errors (damn this
     // 'tree' thing is stupid..)
     Lexer *lexer = dynamic_cast<Lexer*>(tree.lexer);
@@ -621,7 +505,7 @@ void doit(int argc, char **argv)
     cout << "no-typecheck" << endl;
   } else {
     SectionTimer timer(tcheckTime);
-    Env env(strTable, lang, tfac, unit);
+    Env env(strTable, lang, tfac, madeUpVariables, builtinVars, unit);
     try {
       env.tcheckTranslationUnit(unit);
     }
@@ -634,7 +518,7 @@ void doit(int argc, char **argv)
     }
     catch (x_assert &x) {
       HANDLER();
-      
+
       if (env.errors.hasFromNonDisambErrors()) {
         if (tracingSys("expect_confused_bail")) {
           cout << "got the expected confused/bail\n";
@@ -707,7 +591,7 @@ void doit(int argc, char **argv)
       // this is useful to measure the cost of disambiguation, since
       // now the tree is entirely free of ambiguities
       traceProgress() << "beginning second tcheck...\n";
-      Env env2(strTable, lang, tfac, unit);
+      Env env2(strTable, lang, tfac, madeUpVariables, builtinVars, unit);
       unit->tcheck(env2);
       traceProgress() << "end of second tcheck\n";
     }
@@ -779,14 +663,18 @@ void doit(int argc, char **argv)
 
   // ----------------- elaboration ------------------
   long elaborationTime = 0;
-  if (!lang.isCplusplus || tracingSys("no-elaborate")) {
+  if (tracingSys("no-elaborate")) {
     cout << "no-elaborate" << endl;
-  } 
+  }
   else {
     SectionTimer timer(elaborationTime);
 
-    // do elaboration
     ElabVisitor vis(strTable, tfac, unit);
+
+    if (!lang.isCplusplus) {
+      // do only the C elaboration activities
+      vis.activities = EA_C_ACTIVITIES;
+    }
 
     // if we are going to pretty print, then we need to retain defunct children
     if (tracingSys("prettyPrint")
@@ -798,6 +686,7 @@ void doit(int argc, char **argv)
       vis.cloneDefunctChildren = true;
     }
 
+    // do elaboration
     unit->traverse(vis.loweredVisitor);
 
     // print abstract syntax tree annotated with types
@@ -807,6 +696,14 @@ void doit(int argc, char **argv)
     if (tracingSys("stopAfterElab")) {
       return;
     }
+  }
+
+  // mark "real" (non-template) variables as such
+  if (!tracingSys("parseXml")) {
+    // mark "real" (non-template) variables as such
+    MarkRealVars markReal;
+    visitVarsF(builtinVars, markReal);
+    visitRealVarsF(unit, markReal);
   }
 
   // more integrity checking
@@ -830,7 +727,7 @@ void doit(int argc, char **argv)
     traceProgress() << "dsw pretty print...\n";
     OStreamOutStream out0(cout);
     CodeOutStream codeOut(out0);
-    TypePrinterC typePrinter;
+    CTypePrinter typePrinter;
     PrintEnv env(typePrinter, &codeOut);
     cout << "---- START ----" << endl;
     cout << "// -*-c++-*-" << endl;
@@ -842,14 +739,21 @@ void doit(int argc, char **argv)
 
   // dsw: xml printing of the raw ast
   if (tracingSys("xmlPrintAST")) {
-#if XML
     traceProgress() << "dsw xml print...\n";
     bool indent = tracingSys("xmlPrintAST-indent");
     int depth = 0;              // shared depth counter between printers
     cout << "---- START ----" << endl;
+
+    // serialize Files
+    IdentityManager idmgr;
+    XmlFileWriter fileXmlWriter(idmgr, &cout, depth, indent, NULL);
+    fileXmlWriter.toXml(sourceLocManager->serializationOnly_get_files());
+
+    // serialize AST and maybe Types
     if (tracingSys("xmlPrintAST-types")) {
-      TypeToXml xmlTypeVis(cout, depth, indent);
-      ToXmlASTVisitor_Types xmlVis_Types(xmlTypeVis, cout, depth, indent);
+      IdentityManager idmgr;
+      XmlTypeWriter xmlTypeVis( idmgr, (ASTVisitor*)NULL, &cout, depth, indent, NULL );
+      XmlTypeWriter_AstVisitor xmlVis_Types(xmlTypeVis, cout, depth, indent);
       xmlTypeVis.astVisitor = &xmlVis_Types;
       ASTVisitor *vis = &xmlVis_Types;
       LoweredASTVisitor loweredXmlVis(&xmlVis_Types); // might not be used
@@ -858,7 +762,8 @@ void doit(int argc, char **argv)
       }
       unit->traverse(*vis);
     } else {
-      ToXmlASTVisitor xmlVis(cout, depth, indent);
+      IdentityManager idmgr;
+      XmlAstWriter_AstVisitor xmlVis(cout, idmgr, depth, indent);
       ASTVisitor *vis = &xmlVis;
       LoweredASTVisitor loweredXmlVis(&xmlVis); // might not be used
       if (tracingSys("xmlPrintAST-lowered")) {
@@ -866,15 +771,11 @@ void doit(int argc, char **argv)
       }
       unit->traverse(*vis);
     }
+
     cout << endl;
     cout << "---- STOP ----" << endl;
     traceProgress() << "dsw xml print... done\n";
-#else
-    cout << "XML features are not compiled in" << endl;
-    exit(1);
-#endif // XML
   }
-
 
   // HT: marshal to ocaml
   long ocamlTime = 0;
@@ -883,25 +784,6 @@ void doit(int argc, char **argv)
 
     marshal_to_ocaml(argv, inputFname, unit);
   }
-
-  // dsw: xml printing of the lowered ast
-//    if (tracingSys("xmlPrintLoweredAST")) {
-//  #if XML
-//      traceProgress() << "dsw xml print...\n";
-//      bool indent = tracingSys("xmlPrintLoweredAST-indent");
-//      ToXmlASTVisitor xmlVis(cout, indent);
-//      LoweredASTVisitor loweredXmlVis(&xmlVis);
-//      // FIX: do type visitor
-//      cout << "---- START ----" << endl;
-//      unit->traverse(loweredXmlVis);
-//      cout << endl;
-//      cout << "---- STOP ----" << endl;
-//      traceProgress() << "dsw xml print... done\n";
-//  #else
-//      cout << "XML features are not compiled in" << endl;
-//      exit(1);
-//  #endif // XML
-//    }
 
   // test AST cloning
   if (tracingSys("testClone")) {
@@ -913,8 +795,10 @@ void doit(int argc, char **argv)
     }
 
     if (tracingSys("cloneCheck")) {
+      ArrayStack<Variable*> madeUpVariables2;
+      ArrayStack<Variable*> builtinVars2;
       // dsw: I hope you intend that I should use the cloned TranslationUnit
-      Env env3(strTable, lang, tfac, u2);
+      Env env3(strTable, lang, tfac, madeUpVariables2, builtinVars2, u2);
       u2->tcheck(env3);
 
       if (tracingSys("cloneTypedAST")) {
@@ -925,7 +809,7 @@ void doit(int argc, char **argv)
       if (tracingSys("clonePrint")) {
         OStreamOutStream out0(cout);
         CodeOutStream codeOut(out0);
-        TypePrinterC typePrinter;
+        CTypePrinter typePrinter;
         PrintEnv penv(typePrinter, &codeOut);
         cout << "---- cloned pretty print ----" << endl;
         u2->print(penv);
@@ -980,7 +864,7 @@ int main(int argc, char **argv)
   }
   catch (XFatal &x) {
     HANDLER();
-    
+
     // similar to XUnimp
     cout << x << endl;
     return 10;

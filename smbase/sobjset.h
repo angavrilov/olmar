@@ -4,7 +4,7 @@
 
 #ifndef SOBJSET_H
 #define SOBJSET_H
-               
+
 #include "hashtbl.h"    // HashTable
 
 template <class T> class SObjSetIter;
@@ -18,8 +18,8 @@ class SObjSet : private HashTable {
   friend class SObjSetIter<T>;
 
 public:
-  SObjSet()
-    : HashTable(identityKeyFn, lcprngHashFn, pointerEqualKeyFn) {}
+  SObjSet(int initSize = HashTable::defaultSize)
+    : HashTable(identityKeyFn, lcprngHashFn, pointerEqualKeyFn, initSize) {}
 
   // # of distinct elements in the set
   int size() const               { return HashTable::getNumEntries(); }

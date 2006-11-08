@@ -16,10 +16,6 @@
 #include "str.h"         // string
 #include <iostream.h>    // ostream
 
-// forward declarations
-class stringBuilder;
-
-
 // by using this macro, the debugger gets a shot before the stack is unwound
 #ifdef THROW
 #undef THROW
@@ -87,6 +83,9 @@ public:
   // exception was thrown; this should be called with the innermost
   // context string first, i.e., in the normal unwind order
   void addContext(rostring context);
+  // dsw: sometimes I want the context to be, say a "file:line" number
+  // on the left
+  void addContextLeft(rostring context);
 };
 
 // equivalent to THROW(xBase(msg))
@@ -140,13 +139,13 @@ void formatAssert_fail(char const *cond, char const *file, int line) NORETURN;
 #define formatAssert(cond) \
   ((cond)? (void)0 : formatAssert_fail(#cond, __FILE__, __LINE__))
 
-  
+
 // -------------------- XOpen ---------------------
 // thrown when we fail to open a file
 class XOpen : public xBase {
 public:
   string filename;
-  
+
 public:
   XOpen(rostring fname);
   XOpen(XOpen const &obj);
@@ -167,7 +166,7 @@ public:
   XOpenEx(rostring fname, rostring mode, rostring cause);
   XOpenEx(XOpenEx const &obj);
   ~XOpenEx();
-                                              
+
   // convert a mode string as into human-readable participle,
   // e.g. "r" becomes "reading"
   static string interpretMode(rostring mode);

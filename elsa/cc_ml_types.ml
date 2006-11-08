@@ -62,6 +62,7 @@ type declFlag =
                   *                 // and implicit compiler-supplied member decls (if not DF_TYPEDEF) *)
   | DF_FORWARD     (* = 0x00800000    // for syntax which only provides a forward declaration *)
   | DF_TEMPORARY   (* = 0x01000000    // temporary variable introduced by elaboration *)
+  | DF_GNU_EXTERN_INLINE (* = 0x02000000 // dsw: was extern inline (record since might be changed to static inline) *)
   | DF_EXTERN_C    (* = 0x08000000    // name is marked extern "C" *)
   | DF_SELFNAME    (* = 0x10000000    // section 9 para 2: name of class inside its own scope *)
   | DF_BOUND_TPARAM(* = 0x00004000    // template parameter bound to a concrete argument *)
@@ -78,9 +79,6 @@ type declFlag =
   | DF_ADDRTAKEN   (* = 0x00008000    // true if it's address has been (or can be) taken *)
   | DF_UNIVERSAL   (* = 0x00020000    // universally-quantified variable *)
   | DF_EXISTENTIAL (* = 0x00040000    // existentially-quantified *)
-
-  (* not used *)
-  | DF_unused      (* = 0x02000000    // (available) *)
 
   (*
    * ALL_DECLFLAGS  = 0xFFFFFFFF
@@ -113,38 +111,38 @@ type declFlags = declFlag list
 
 
 let string_of_declFlag = function
-  | DF_AUTO         -> "auto"
-  | DF_REGISTER     -> "register"
-  | DF_STATIC       -> "static"
-  | DF_EXTERN       -> "extern"
-  | DF_MUTABLE      -> "mutable"
-  | DF_INLINE       -> "inline"
-  | DF_VIRTUAL      -> "virtual"
-  | DF_EXPLICIT     -> "explicit"
-  | DF_FRIEND       -> "friend"
-  | DF_TYPEDEF      -> "typedef"
-  | DF_NAMESPACE    -> "namespace"
-  | DF_ENUMERATOR   -> "enumerator"
-  | DF_GLOBAL       -> "global"
-  | DF_INITIALIZED  -> "initialized"
-  | DF_BUILTIN      -> "builtin"
-  | DF_PARAMETER    -> "parameter"
-  | DF_MEMBER       -> "member"
-  | DF_DEFINITION   -> "definition"
-  | DF_INLINE_DEFN  -> "inline_defn"
-  | DF_IMPLICIT     -> "implicit"
-  | DF_FORWARD      -> "forward"
-  | DF_TEMPORARY    -> "temporary"
-  | DF_EXTERN_C     -> "extern_c"
-  | DF_SELFNAME     -> "selfname"
-  | DF_BOUND_TPARAM -> "bound_tparam"
-  | DF_TEMPL_PARAM  -> "templ_param"
-  | DF_USING_ALIAS  -> "using_alias"
-  | DF_BITFIELD     -> "bitfield"
-  | DF_ADDRTAKEN    -> "addrtaken"
-  | DF_UNIVERSAL    -> "universal"
-  | DF_EXISTENTIAL  -> "existential"
-  | DF_unused       -> "unused"
+  | DF_AUTO         		-> "auto"
+  | DF_REGISTER     		-> "register"
+  | DF_STATIC       		-> "static"
+  | DF_EXTERN       		-> "extern"
+  | DF_MUTABLE      		-> "mutable"
+  | DF_INLINE       		-> "inline"
+  | DF_VIRTUAL      		-> "virtual"
+  | DF_EXPLICIT     		-> "explicit"
+  | DF_FRIEND       		-> "friend"
+  | DF_TYPEDEF      		-> "typedef"
+  | DF_NAMESPACE    		-> "namespace"
+  | DF_ENUMERATOR   		-> "enumerator"
+  | DF_GLOBAL       		-> "global"
+  | DF_INITIALIZED  		-> "initialized"
+  | DF_BUILTIN      		-> "builtin"
+  | DF_PARAMETER    		-> "parameter"
+  | DF_MEMBER       		-> "member"
+  | DF_DEFINITION   		-> "definition"
+  | DF_INLINE_DEFN  		-> "inline_defn"
+  | DF_IMPLICIT     		-> "implicit"
+  | DF_FORWARD      		-> "forward"
+  | DF_TEMPORARY    		-> "temporary"
+  | DF_EXTERN_C     		-> "extern_c"
+  | DF_SELFNAME     		-> "selfname"
+  | DF_BOUND_TPARAM 		-> "bound_tparam"
+  | DF_TEMPL_PARAM  		-> "templ_param"
+  | DF_USING_ALIAS  		-> "using_alias"
+  | DF_BITFIELD     		-> "bitfield"
+  | DF_GNU_EXTERN_INLINE 	-> "gnu extern inline"
+  | DF_ADDRTAKEN		-> "addrtaken"
+  | DF_UNIVERSAL		-> "universal"
+  | DF_EXISTENTIAL		-> "existential"
 
 let string_of_declFlags l = Elsa_util.string_of_flag_list string_of_declFlag l
 
@@ -636,6 +634,7 @@ type declaratorContext =
   | DC_MR_DECL         (*   MR_decl::d *)
   | DC_S_DECL          (*   S_decl::decl *)
   | DC_TD_DECL         (*   TD_decl::d *)
+  | DC_FEA             (*   FullExpressionAnnot::declarations *)
 
                        (* inside ASTTypeId *)
   | DC_D_FUNC          (*   D_func::params *)
@@ -657,6 +656,7 @@ type declaratorContext =
   | DC_TS_TYPEOF_TYPE      (*   TS_typeof_type::atype *)
   | DC_E_COMPOUNDLIT       (*   E_compoundLit::stype *)
   | DC_E_ALIGNOFTYPE       (*   E_alignofType::atype *)
+  (* | DC_E_OFFSETOF,         (\*   E_offsetof::atype *\) *)
   | DC_E_BUILTIN_VA_ARG    (*   E___builtin_va_arg::atype *)
 
 
@@ -669,6 +669,7 @@ let string_of_declaratorContext = function
   | DC_MR_DECL          -> "DC_MR_DECL"
   | DC_S_DECL           -> "DC_S_DECL"
   | DC_TD_DECL          -> "DC_TD_DECL"
+  | DC_FEA		-> "DC_FEA"
   | DC_D_FUNC           -> "DC_D_FUNC"
   | DC_EXCEPTIONSPEC    -> "DC_EXCEPTIONSPEC"
   | DC_ON_CONVERSION    -> "DC_ON_CONVERSION"

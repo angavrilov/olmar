@@ -5,7 +5,7 @@
 // Every binding introduction (e.g. declaration) of a name will own
 // one of these to describe the introduced name; every reference to
 // that name will be annotated with a pointer to the Variable hanging
-// off the introduction.   
+// off the introduction.
 //
 // The name 'variable' is a slight misnomer; it's used for naming:
 //   - local and global variables
@@ -37,7 +37,9 @@
 #include "strtable.h"          // StringRef
 #include "cc_flags.h"          // DeclFlags, ScopeKind
 #include "sobjlist.h"          // SObjList
+#include "sobjset.h"           // SObjSet
 #include "serialno.h"          // INHERIT_SERIAL_BASE
+#include "packedword.h"        // PackedWord
 #include "ocamlhelp.h"	       // ocaml serialization helpers
 
 class CType;                    // cc_type.h
@@ -49,15 +51,7 @@ class Expression;              // cc.ast
 class Function;                // cc.ast
 class BasicTypeFactory;        // cc_type.h
 class TemplateInfo;            // cc_type.h
-class ReadXML;                 // xml.h
-
-string toXml(DeclFlags id);
-void fromXml(DeclFlags &out, rostring str);
-
-// FIX: this is temporary; I just want to get the int out and back in
-// again for now.
-string toXml_Variable_intData(unsigned id);
-void fromXml_Variable_intData(unsigned &out, rostring str);
+class XmlReader;
 
 class Variable INHERIT_SERIAL_BASE {
 public:    // data
@@ -66,9 +60,9 @@ public:    // data
   // are significant advantages to storing *two* locations (first
   // declaration, and definition), but I haven't done that yet
   SourceLoc loc;          // location of the name in the source text
-                          
+
   // name introduced (possibly NULL for abstract declarators)
-  StringRef name;        
+  StringRef name;
 
   // type of the variable (NULL iff flags has DF_NAMESPACE)
   // HT: circular pointer for compound types that have an 
@@ -85,7 +79,9 @@ public:    // data
   // if this Variable is a parameter of a template function, then this
   // 'value' might not have been tchecked; you have to look at the
   // associated TemplateInfo::uninstantiatedDefaultArgs to find out
-  Expression *varValue;      // (nullable serf)
+  //
+  // this is const to encourage use of use setValue()
+  Expression * const varValue;     // (nullable serf)
 
   // default value for template parameters; see TODO at end
   // of this file
@@ -99,6 +95,19 @@ public:    // data
   // to the set of overloaded names; otherwise it's NULL
   OverloadSet *overload;  // (nullable serf)
 
+  // if we are a virtual method, the set of variables of other
+  // viritual methods that we immediately override; a NULL pointer
+  // here just means the empty list;
+  //
+  // NOTE: Scott: I wanted to do it in full correctness and not omit
+  // anything in the case of multiple-inheritance; however it is
+  // really hard to know what functions to omit, so I therefore do the
+  // quadratic thing and include them all; given that you do something
+  // similar with the BaseClassSubobj heriarchy for classes, I don't
+  // think this is so bad; feel free to change it; please change the
+  // name to directlyVirtuallyOverride if you do.
+  SObjSet<Variable*> *virtuallyOverride;
+
   // named scope in which the variable appears; this is only non-NULL
   // if the scope has a name, i.e. it continues to be available for
   // use even after it's lexically closed
@@ -108,14 +117,17 @@ public:    // data
   // getDenotedScope()
   Scope *scope;           // (nullable serf)
 
+  // total number of Variables created
+  static size_t numVariables;
+
 protected:  // data
   value ocaml_val;       // cache ocaml serialization result
 
 private:      // data
 
   // so serialization/deserialization is possible
-  friend class TypeToXml;
-  friend class TypeXmlReader;
+  friend class XmlTypeWriter;
+  friend class XmlTypeReader;
 
   // The next two fields are used to store conceptually different
   // things in a single word in order to save space.  I am concerned
@@ -124,11 +136,10 @@ private:      // data
   // there are subclasses for various roles, as that would minimize
   // wasted storage, but that is a fairly big change, and for the
   // moment these localized hacks will suffice.
-
-  // bits 0-7: result of 'getAccess()'
-  // bits 8-15: result of 'getScopeKind()'
-  // bits 16-31: result of 'getParameterOrdinal()' or 'getBitfieldSize()'
-  unsigned intData;
+  //
+  // dsw: see the use of the PACKEDWORD_DEF_GS macro below for the
+  // partition into bits
+  PackedWord intData;
 
   // for most kinds of Variables, this is 'getUsingAlias()'; for
   // template parameters (isTemplateParam()), this is
@@ -147,7 +158,7 @@ private:      // data
 protected:    // funcs
   friend class BasicTypeFactory;
   Variable(SourceLoc L, StringRef n, CType *t, DeclFlags f);
-  Variable(ReadXML&);           // ctor for de-serialization
+  Variable(XmlReader&);         // ctor for de-serialization
 
 public:
   virtual ~Variable();
@@ -167,7 +178,25 @@ public:
   // some convenient interpretations of 'flags'
   bool hasAddrTaken() const { return hasFlag(DF_ADDRTAKEN); }
   bool isGlobal() const { return hasFlag(DF_GLOBAL); }
-  bool isStatic() const { return hasFlag(DF_STATIC); }
+  bool inGlobalOrNamespaceScope() const;
+  bool isStaticLinkage() const {
+    // quarl 2006-07-11
+    //    See Declarator::mid_tcheck() for why this checks for DF_INLINE|DF_MEMBER.
+    //    Note that these are not exclusive; a variable can have both static
+    //    linkage (by being inline) and be a static member.
+    return ((hasFlag(DF_STATIC) &&
+             (hasFlag(DF_GLOBAL) || inGlobalOrNamespaceScope()) ||
+             hasAllFlags(DF_INLINE | DF_MEMBER)) /*&&
+                                                   !hasFlag(DF_GNU_EXTERN_INLINE)*/);
+  }
+  bool isStaticLocal() const {
+    return (hasFlag(DF_STATIC) &&
+            !(hasFlag(DF_GLOBAL) || inGlobalOrNamespaceScope()) &&
+            !hasFlag(DF_MEMBER));
+  }
+  bool isStaticMember() const { return hasAllFlags(DF_STATIC | DF_MEMBER); }
+  bool isNonStaticMember() const { return hasFlag(DF_MEMBER) && !hasFlag(DF_STATIC); }
+  // bool isStatic() const { return hasFlag(DF_STATIC); }
   bool isMember() const { return hasFlag(DF_MEMBER); }
   bool isNamespace() const { return hasFlag(DF_NAMESPACE); }
   bool isImplicitTypedef() const { return hasAllFlags(DF_IMPLICIT | DF_TYPEDEF); }
@@ -175,31 +204,31 @@ public:
   bool isEnumerator() const { return hasFlag(DF_ENUMERATOR); }
   bool isType() const { return hasFlag(DF_TYPEDEF); }
 
+  bool linkerVisibleName() const;
+  bool linkerVisibleName(bool evenIfStaticLinkage) const;
+
   // true if this name refers to a class or struct or union
   bool isClass() const;
 
   // refers to a user-provided typedef
-  bool isExplicitTypedef() const 
+  bool isExplicitTypedef() const
     { return hasFlag(DF_TYPEDEF) && !hasFlag(DF_IMPLICIT); }
 
-  // access control applied to this variable in the context
-  // in which it appears (defaults to AK_PUBLIC)
-  AccessKeyword getAccess() const;
-  void setAccess(AccessKeyword k);
+  // break intData apart into various typed sub-fields
+  PACKEDWORD_DEF_GS(intData, Access,           AccessKeyword,  0,  4)
+  PACKEDWORD_DEF_GS(intData, Real,             bool,           4,  5)
+  PACKEDWORD_DEF_GS(intData, MaybeUsedAsAlias, bool,           5,  6)
+  PACKEDWORD_DEF_GS(intData, User1,            bool,           6,  7)
+  PACKEDWORD_DEF_GS(intData, User2,            bool,           7,  8)
+  PACKEDWORD_DEF_GS(intData, ScopeKind,        ScopeKind,      8, 11)
+  PACKEDWORD_DEF_GS(intData, HasValue,         bool,          11, 12)
+  PACKEDWORD_DEF_GS(intData, ParameterOrdinal, int,           16, 32)
+  // ParameterOrdinal and BitfieldSize overlap, but
+  // set/getBitfieldSize check an assertion before delegating to
+  // ParameterOrdinal
+  // PACKEDWORD_DEF_GS(intData, BitfieldSize, int, 16, 32)
 
-  // kind of scope in which the name is declared; initially this
-  // is SK_UNKNOWN
-  //
-  // 2005-03-02: It appears that this quantity is never actually used;
-  // furthermore, I think it is computable (mainly from 'scope').  So,
-  // it is a candidate for removal at some point.
-  ScopeKind getScopeKind() const;
-  void setScopeKind(ScopeKind k);
-
-  // for template parameters, this says which parameter this is in
-  // the parameter list, e.g., 0 for first, 1 for second, etc.
-  int getParameterOrdinal() const;
-  void setParameterOrdinal(int ord);
+  void setValue(Expression *e) { const_cast<Expression *&>(varValue)=e; setHasValue(e!=NULL); }
 
   // true if this name refers to a template function, or is
   // the typedef-name of a template class (or partial specialization)
@@ -225,6 +254,11 @@ public:
   // are we an uninstantiated template or a member of one?
   bool isUninstTemplateMember() const;
 
+  // dsw: need a way to tell if a Variable is a method on a
+  // templatized class that was never instantiated because it was
+  // never used
+  bool isUninstClassTemplMethod() const;
+
   // variable's type.. same as the public 'type' field..
   CType *getType() { return type; }
   CType const *getTypeC() const { return type; }
@@ -246,17 +280,20 @@ public:
   // overload set
   int overloadSetSize() const;
 
+  // true if this a pure virtual non-static member function (method)
+  bool isPureVirtualMethod() const;
+
   // true if this is a member of a template (uninstantiated template)
   bool isMemberOfTemplate() const;
 
   // true if this is a template parameter or bound arg or both
-  bool isAbstractTemplateParam() const 
+  bool isAbstractTemplateParam() const
     { return hasFlag(DF_TEMPL_PARAM) && !hasFlag(DF_BOUND_TPARAM); }
   bool isBoundTemplateParam() const
     { return hasAllFlags(DF_TEMPL_PARAM | DF_BOUND_TPARAM); }
   bool isTemplateParam() const
     { return hasFlag(DF_TEMPL_PARAM); }
-    
+
   // true if this is a template type parameter (unbound/abstract)
   bool isTemplateTypeParam() const;
 
@@ -276,7 +313,10 @@ public:
   void gdb() const;
 
   // fully qualified but not mangled name
-  string fullyQualifiedName() const;
+  string fullyQualifiedName0() const;
+  void appendMangledness(stringBuilder &mgldName);
+  string mangledName0(); 	// no scope
+  string fullyQualifiedMangledName0(); // scope+mangling
 
   // like toString but with the fully qualified name
   string toQualifiedString() const;
@@ -296,7 +336,7 @@ public:
   // template entity is paramterized by it; otherwise NULL
   Variable *getParameterizedEntity() const;
   void setParameterizedEntity(Variable *templ);
-                                                          
+
   // true if 'this' and 'other' are the same ordinal parameter of
   // the same template entity
   bool sameTemplateParameter(Variable const *other) const;
@@ -308,7 +348,7 @@ public:
   // true if this name refers to a template (function) or an overload
   // set that includes one
   bool namesTemplateFunction() const;
-  
+
   // this must be an enumerator; get the integer value it denotes
   int getEnumeratorValue() const;
 
@@ -347,15 +387,15 @@ class OverloadSet {
 public:
   // list-as-set
   SObjList<Variable> set;
-  
+
 public:
   OverloadSet();
   ~OverloadSet();
-  
+
   void addMember(Variable *v);
   int count() const { return set.count(); }
 
-  // These are obsolete; see Env::findInOverloadSet.              
+  // These are obsolete; see Env::findInOverloadSet.
   //
   // Update: But Oink wants to use them for linker imitation.. and
   // I don't see much harm in that, since non-concrete types should
@@ -402,5 +442,7 @@ gets split I can arrange a storage sharing strategy among the
 (then four) fields that are bit-sets.
 
 */
+
+extern bool variablesLinkerVisibleEvenIfNonStaticDataMember;
 
 #endif // VARIABLE_H

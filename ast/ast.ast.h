@@ -13,6 +13,7 @@ class ToplevelForm;
 class TF_verbatim;
 class TF_impl_verbatim;
 class TF_ocaml_type_verbatim;
+class TF_xml_verbatim;
 class TF_class;
 class TF_option;
 class TF_custom;
@@ -74,7 +75,7 @@ public:      // funcs
   }
   virtual ~ToplevelForm();
 
-  enum Kind { TF_VERBATIM, TF_IMPL_VERBATIM, TF_OCAML_TYPE_VERBATIM, TF_CLASS, TF_OPTION, TF_CUSTOM, TF_ENUM, NUM_KINDS };
+  enum Kind { TF_VERBATIM, TF_IMPL_VERBATIM, TF_OCAML_TYPE_VERBATIM, TF_XML_VERBATIM, TF_CLASS, TF_OPTION, TF_CUSTOM, TF_ENUM, NUM_KINDS };
   virtual Kind kind() const = 0;
 
   static char const * const kindNames[NUM_KINDS];
@@ -83,6 +84,7 @@ public:      // funcs
   DECL_AST_DOWNCASTS(TF_verbatim, TF_VERBATIM)
   DECL_AST_DOWNCASTS(TF_impl_verbatim, TF_IMPL_VERBATIM)
   DECL_AST_DOWNCASTS(TF_ocaml_type_verbatim, TF_OCAML_TYPE_VERBATIM)
+  DECL_AST_DOWNCASTS(TF_xml_verbatim, TF_XML_VERBATIM)
   DECL_AST_DOWNCASTS(TF_class, TF_CLASS)
   DECL_AST_DOWNCASTS(TF_option, TF_OPTION)
   DECL_AST_DOWNCASTS(TF_custom, TF_CUSTOM)
@@ -145,6 +147,24 @@ public:      // funcs
   virtual void debugPrint(ostream &os, int indent, char const *subtreeName = "tree") const;
 
   virtual TF_ocaml_type_verbatim *clone() const;
+
+};
+
+class TF_xml_verbatim : public ToplevelForm {
+public:      // data
+  string code;
+
+public:      // funcs
+  TF_xml_verbatim(string _code) : ToplevelForm(), code(_code) {
+  }
+  virtual ~TF_xml_verbatim();
+
+  virtual Kind kind() const { return TF_XML_VERBATIM; }
+  enum { TYPE_TAG = TF_XML_VERBATIM };
+
+  virtual void debugPrint(ostream &os, int indent, char const *subtreeName = "tree") const;
+
+  virtual TF_xml_verbatim *clone() const;
 
 };
 

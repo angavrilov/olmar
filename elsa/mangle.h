@@ -33,7 +33,6 @@ string leftMangle(CType const *t, bool innerParen = true);
 string rightMangle(CType const *t, bool innerParen = true);
 string mangleVariable(Variable const *v);
 string mangleTemplateParams(TemplateInfo const *tp);
-void mangleSTemplateArgs(stringBuilder &sb, ObjList<STemplateArgument> const &args);
 
 
 #endif // MANGLE_H

@@ -54,7 +54,7 @@
   // NOTE: Currently, the tracing flag "serialNumbers" must be set
   // for the printouts to include the serial numbers.  (When it is
   // not set, this function just returns "".)
-  string printSerialNo(char const *pre, int num, char const *post);
+  void printSerialNo(stringBuilder &sb, char const *pre, int num, char const *post);
 
 #else // !USE_SERIAL_NUMBERS
 

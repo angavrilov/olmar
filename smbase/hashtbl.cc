@@ -16,7 +16,8 @@ unsigned HashTable::hashFunction(void const *key) const
 HashTable::HashTable(GetKeyFn gk, HashFn hf, EqualKeyFn ek, int initSize)
   : getKey(gk),
     coreHashFn(hf),
-    equalKeys(ek)
+    equalKeys(ek),
+    enableShrink(true)
 {
   makeTable(initSize);
 }
@@ -36,7 +37,7 @@ void HashTable::makeTable(int size)
 }
 
 
-int HashTable::getEntry(void const *key) const
+inline int HashTable::getEntry(void const *key) const
 {
   int index = hashFunction(key);
   int originalIndex = index;
@@ -69,18 +70,39 @@ void *HashTable::get(void const *key) const
 
 void HashTable::resizeTable(int newSize)
 {
+  // Make sure newSize is not the result of an overflowed computation, and
+  // that we're not going to resizeTable again right away in the add() call.
+  xassert(newSize >= numEntries);
+  xassert(newSize/3*2 >= numEntries-1);
+
   // save old stuff
   void **oldTable = hashTable;
   int oldSize = tableSize;
   int oldEntries = numEntries;
 
-  // make the new table
+  // make the new table (sets 'numEntries' to 0)
   makeTable(newSize);
+
+  // set this now, rather than incrementing it with each add
+  numEntries = oldEntries;
 
   // move entries to the new table
   for (int i=0; i<oldSize; i++) {
     if (oldTable[i] != NULL) {
-      add(getKey(oldTable[i]), oldTable[i]);
+      // This function is worth optimizing; it accounts for 12% of qualcc
+      // runtime.  This simple inlining reduces resizeTable()'s impact from
+      // 12% to 2%.
+      if (0) {
+        // original code:
+        add(getKey(oldTable[i]), oldTable[i]);
+      }
+      else {
+        // inlined version:
+        int newIndex = getEntry(getKey(oldTable[i]));
+        xassertdb(hashTable[newIndex] == NULL);    // must not be a mapping yet
+        hashTable[newIndex] = oldTable[i];
+      }
+
       oldEntries--;
     }
   }
@@ -94,9 +116,14 @@ void HashTable::resizeTable(int newSize)
 void HashTable::add(void const *key, void *value)
 {
   if (numEntries+1 > tableSize*2/3) {
-    // we're over the usage threshold; increase table size
+    // We're over the usage threshold; increase table size.
+    //
+    // Note: Resizing by numEntries*4 instead of tableSize*2 gives 42% speedup
+    // in total time used by resizeTable(), at the expense of more memory used.
     resizeTable(tableSize * 2 + 1);
   }
+  // make sure above didn't fail due to integer overflow
+  xassert(numEntries+1 < tableSize);
 
   int index = getEntry(key);
   xassert(hashTable[index] == NULL);    // must not be a mapping yet
@@ -146,7 +173,7 @@ void *HashTable::remove(void const *key)
     // add it back
     add(getKey(data), data);
   }
-  
+
   return retval;
 }
 
@@ -218,7 +245,7 @@ void HashTableIter::moveToSth()
          table.hashTable[index] == NULL) {
     index++;
   }
-  
+
   if (index == table.tableSize) {
     index = -1;    // mark as done
   }

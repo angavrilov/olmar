@@ -135,7 +135,9 @@ void doit(int argc, char **argv)
 
     // tcheck
     BasicTypeFactory tfac;
-    Env env(strTable, lang, tfac, unit);
+    ArrayStack<Variable*> madeUpVariables;
+    ArrayStack<Variable*> builtinVars;
+    Env env(strTable, lang, tfac, madeUpVariables, builtinVars, unit);
     unit->tcheck(env);
 
     int numErrors = env.errors.numErrors();

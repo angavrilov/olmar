@@ -34,8 +34,8 @@ enum TypeIntr {
 
 extern char const * const typeIntrNames[NUM_TYPEINTRS];    // "struct", ...
 char const *toString(TypeIntr tr);
-string toXml(TypeIntr tr);
-void fromXml(TypeIntr &out, rostring str);
+char const *toXml(TypeIntr tr);
+void fromXml(TypeIntr &out, char const *str);
 
 
 // --------------------- CVFlags ---------------------
@@ -58,7 +58,7 @@ enum CVFlags {
 extern char const * const cvFlagNames[NUM_CVFLAGS];      // 0="const", 1="volatile", 2="owner"
 string toString(CVFlags cv);
 string toXml(CVFlags cv);
-void fromXml(CVFlags &out, rostring str);
+void fromXml(CVFlags &out, char const *str);
 
 ENUM_BITWISE_OPS(CVFlags, CV_ALL)
 
@@ -114,6 +114,8 @@ enum DeclFlags {
   DF_TEMPL_PARAM = 0x20000000,    // template parameter (bound only to itself)
   DF_USING_ALIAS = 0x40000000,    // this is a 'using' alias
   DF_BITFIELD    = 0x80000000,    // this is a bitfield
+  DF_GNU_EXTERN_INLINE            // dsw: was extern inline (record since might be changed to static inline)
+                 = 0x02000000,
 
   // These flags are used by the old (direct C -> VC) verifier client
   // analysis; I will remove them once I finish transitioning to the
@@ -124,9 +126,6 @@ enum DeclFlags {
   DF_UNIVERSAL   = 0x00020000,    // universally-quantified variable
   DF_EXISTENTIAL = 0x00040000,    // existentially-quantified
 
-  // not used
-  DF_unused      = 0x02000000,    // (available)
-
   ALL_DECLFLAGS  = 0xFFFFFFFF,
   NUM_DECLFLAGS  = 32             // # bits set to 1 in ALL_DECLFLAGS
 };
@@ -134,7 +133,8 @@ enum DeclFlags {
 extern char const * const declFlagNames[NUM_DECLFLAGS];      // 0="inline", 1="virtual", 2="friend", ..
 string toString(DeclFlags df);
 string toXml(DeclFlags df);
-void fromXml(DeclFlags &out, rostring str);
+void fromXml(DeclFlags &out, char const *str);
+
 
 ENUM_BITWISE_OPS(DeclFlags, ALL_DECLFLAGS)
 
@@ -142,7 +142,8 @@ inline bool operator>= (DeclFlags df1, DeclFlags df2)
   { return (df1 & df2) == df2; }
 
 // helper of possibly general purpose
-string bitmapString(int bitmap, char const * const *names, int numflags);
+string bitmapString(int bitmap, char const * const *names,
+                    int numflags, char const *delim);
 
 
 // -------------------------- ScopeKind ------------------------------
@@ -262,8 +263,8 @@ inline bool isConcreteSimpleType(SimpleTypeId id)
 bool isComplexOrImaginary(SimpleTypeId id);
 
 inline char const *toString(SimpleTypeId id)        { return simpleTypeName(id); }
-string toXml(SimpleTypeId id);
-void fromXml(SimpleTypeId &out, rostring str);
+char const *toXml(SimpleTypeId id);
+void fromXml(SimpleTypeId &out, char const *str);
 
 
 // ---------------------------- UnaryOp ---------------------------
@@ -280,8 +281,8 @@ inline bool validCode(UnaryOp op)
 
 extern char const * const unaryOpNames[NUM_UNARYOPS];     // "+", ...
 char const *toString(UnaryOp op);
-string toXml(UnaryOp op);
-void fromXml(UnaryOp &out, rostring str);
+char const *toXml(UnaryOp op);
+void fromXml(UnaryOp &out, char const *str);
 
 
 // ------------------------- EffectOp -------------------------
@@ -299,8 +300,8 @@ inline bool validCode(EffectOp op)
 
 extern char const * const effectOpNames[NUM_EFFECTOPS];   // "++", ...
 char const *toString(EffectOp op);
-string toXml(EffectOp op);
-void fromXml(EffectOp &out, rostring str);
+char const *toXml(EffectOp op);
+void fromXml(EffectOp &out, char const *str);
 bool isPostfix(EffectOp op);
 inline bool isPrefix(EffectOp op) { return !isPostfix(op); }
 
@@ -356,14 +357,14 @@ inline bool validCode(BinaryOp op)
 
 extern char const * const binaryOpNames[NUM_BINARYOPS];   // "*", ..
 char const *toString(BinaryOp op);
-string toXml(BinaryOp op);
-void fromXml(BinaryOp &out, rostring str);
+char const *toXml(BinaryOp op);
+void fromXml(BinaryOp &out, char const *str);
 
 bool isPredicateCombinator(BinaryOp op);     // &&, ||, ==>, <==>
 bool isRelational(BinaryOp op);              // == thru >=
 bool isInequality(BinaryOp op);              // <, >, <=, >=
 bool isOverloadable(BinaryOp op);
-                                                                     
+
 
 // ---------------- access control ------------
 // these are listed from least restrictive to most restrictive,
@@ -373,14 +374,14 @@ enum AccessKeyword {
   AK_PROTECTED,
   AK_PRIVATE,
   AK_UNSPECIFIED,      // not explicitly specified; typechecking changes it later
-  
+
   NUM_ACCESS_KEYWORDS
 };
 
 extern char const * const accessKeywordNames[NUM_ACCESS_KEYWORDS];
 char const *toString(AccessKeyword key);
-string toXml(AccessKeyword key);
-void fromXml(AccessKeyword &out, rostring str);
+char const *toXml(AccessKeyword key);
+void fromXml(AccessKeyword &out, char const *str);
 
 // ---------------- cast keywords -------------
 enum CastKeyword {
@@ -394,11 +395,11 @@ enum CastKeyword {
 
 extern char const * const castKeywordNames[NUM_CAST_KEYWORDS];
 char const *toString(CastKeyword key);
-string toXml(CastKeyword key);
-void fromXml(CastKeyword &out, rostring str);
+char const *toXml(CastKeyword key);
+void fromXml(CastKeyword &out, char const *str);
 
 
-// --------------- overloadable operators -------------            
+// --------------- overloadable operators -------------
 // This is all of the unary and binary operators that are overloadable
 // in C++.  While it repeats operators that are also declared above in
 // some form, it makes the design more orthogonal: the operators above
@@ -464,7 +465,7 @@ enum OverloadableOp {
   OP_PARENS,       // ()
   OP_COMMA,        // ,
   OP_QUESTION,     // ?:  (not overloadable, but resolution used nonetheless)
-  
+
   // gcc extensions
   OP_MINIMUM,      // <?
   OP_MAXIMUM,      // >?
@@ -477,8 +478,8 @@ inline bool validCode(OverloadableOp op)
 
 extern char const * const overloadableOpNames[NUM_OVERLOADABLE_OPS];    // "!", ...
 char const *toString(OverloadableOp op);
-string toXml(OverloadableOp op);
-void fromXml(OverloadableOp &out, rostring str);
+char const *toXml(OverloadableOp op);
+void fromXml(OverloadableOp &out, char const *str);
 
 // yields things like "operator+"
 extern char const * const operatorFunctionNames[NUM_OVERLOADABLE_OPS];
@@ -589,6 +590,7 @@ enum DeclaratorContext {
   DC_MR_DECL,             //   MR_decl::d
   DC_S_DECL,              //   S_decl::decl
   DC_TD_DECL,             //   TD_decl::d
+  DC_FEA,                 //   FullExpressionAnnot::declarations
                           // inside ASTTypeId
   DC_D_FUNC,              //   D_func::params
   DC_EXCEPTIONSPEC,       //   ExceptionSpec::types
@@ -609,8 +611,16 @@ enum DeclaratorContext {
   DC_TS_TYPEOF_TYPE,      //   TS_typeof_type::atype
   DC_E_COMPOUNDLIT,       //   E_compoundLit::stype
   DC_E_ALIGNOFTYPE,       //   E_alignofType::atype
+  // DC_E_OFFSETOF,          //   E_offsetof::atype
   DC_E_BUILTIN_VA_ARG,    //   E___builtin_va_arg::atype
 };
+
+// HT: the following functions are copied from astgen-generated files
+// in an original elsa
+char const *toString(DeclaratorContext);
+inline char const *toXml(DeclaratorContext id)
+  { return toString(id); }
+void fromXml(DeclaratorContext &out, rostring str);
 
 
 

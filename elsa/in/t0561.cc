@@ -1,6 +1,8 @@
 // t0561.cc
 // template parameter of ptr-to-func type
 
+// see also oink/Test/templatized_on_func1.cc (750e1581-41c2-4079-b8e1-482a5c78404e)
+
 template <int (*f)(int)>
 struct A {
   A<f>();

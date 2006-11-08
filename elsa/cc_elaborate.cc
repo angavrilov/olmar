@@ -40,7 +40,7 @@
 #include "ast_build.h"         // makeExprList1, etc.
 #include "trace.h"             // TRACE
 #include "cc_print.h"          // PrintEnv
-                                                        
+
 // cc_type.h
 CType *makeLvalType(TypeFactory &tfac, CType *underlying);
 
@@ -57,11 +57,17 @@ ElabVisitor::ElabVisitor(StringTable &s, TypeFactory &tf,
     fullExpressionAnnotStack(),   // empty
     enclosingStmtLoc(SL_UNKNOWN),
     receiverName(s("__receiver")),
-    activities(EA_ALL),
-    cloneDefunctChildren(false),
     tempSerialNumber(0),
-    e_newSerialNumber(0)
-{}
+    e_newSerialNumber(0),
+
+    // elaboration parameters
+    activities(EA_ALL),
+    cloneDefunctChildren(false)
+{
+  // don't do anything here that depends on the elaboration
+  // parameters, because then the client would be unable to affect
+  // them in time
+}
 
 ElabVisitor::~ElabVisitor()
 {}
@@ -91,7 +97,7 @@ StringRef ElabVisitor::makeCatchClauseVarName()
 Variable *ElabVisitor::makeVariable(SourceLoc loc, StringRef name,
                                     CType *type, DeclFlags dflags)
 {
-  return tfac.makeVariable(loc, name, type, dflags, tunit /*doh!*/);
+  return tfac.makeVariable(loc, name, type, dflags);
 }
 
 
@@ -115,21 +121,23 @@ D_name *ElabVisitor::makeD_name(SourceLoc loc, Variable *var)
 // given a Variable, make a Declarator that refers to it; assume it's
 // being preceded by a TS_name that fully specifies the variable's
 // type, so we just use a D_name to finish it off
-Declarator *ElabVisitor::makeDeclarator(SourceLoc loc, Variable *var)
+Declarator *ElabVisitor::makeDeclarator(SourceLoc loc, Variable *var, DeclaratorContext context)
 {
   IDeclarator *idecl = makeD_name(loc, var);
 
   Declarator *decl = new Declarator(idecl, NULL /*init*/);
   decl->var = var;
   decl->type = var->type;
+  xassert(decl->context == DC_UNKNOWN);
+  decl->context = context;
 
   return decl;
 }
 
 // and similar for a full (singleton) declaration
-Declaration *ElabVisitor::makeDeclaration(SourceLoc loc, Variable *var)
+Declaration *ElabVisitor::makeDeclaration(SourceLoc loc, Variable *var, DeclaratorContext context)
 {
-  Declarator *declarator = makeDeclarator(loc, var);
+  Declarator *declarator = makeDeclarator(loc, var, context);
   Declaration *declaration =
     new Declaration(DF_NONE, new TS_type(loc, var->type),
       FakeList<Declarator>::makeList(declarator));
@@ -139,7 +147,7 @@ Declaration *ElabVisitor::makeDeclaration(SourceLoc loc, Variable *var)
 
 // given a function declaration, make a Declarator containing
 // a D_func that refers to it
-Declarator *ElabVisitor::makeFuncDeclarator(SourceLoc loc, Variable *var)
+Declarator *ElabVisitor::makeFuncDeclarator(SourceLoc loc, Variable *var, DeclaratorContext context)
 {
   FunctionType *ft = var->type->asFunctionType();
 
@@ -155,7 +163,7 @@ Declarator *ElabVisitor::makeFuncDeclarator(SourceLoc loc, Variable *var)
       Variable *param = iter.data();
 
       ASTTypeId *typeId = new ASTTypeId(new TS_type(loc, param->type),
-                                        makeDeclarator(loc, param));
+                                        makeDeclarator(loc, param, DC_D_FUNC));
       params = params->prepend(typeId);
     }
     params = params->reverse();     // fix prepend()-induced reversal
@@ -171,19 +179,21 @@ Declarator *ElabVisitor::makeFuncDeclarator(SourceLoc loc, Variable *var)
   Declarator *funcDecl = new Declarator(funcIDecl, NULL /*init*/);
   funcDecl->var = var;
   funcDecl->type = var->type;
+  xassert(funcDecl->context == DC_UNKNOWN);
+  funcDecl->context = context;
 
   return funcDecl;
 }
 
 
 // given a function declaration and a body, make a Function AST node
-Function *ElabVisitor::makeFunction(SourceLoc loc, Variable *var, 
+Function *ElabVisitor::makeFunction(SourceLoc loc, Variable *var,
                                     FakeList<MemberInit> *inits,
                                     S_compound *body)
 {
   FunctionType *ft = var->type->asFunctionType();
 
-  Declarator *funcDecl = makeFuncDeclarator(loc, var);
+  Declarator *funcDecl = makeFuncDeclarator(loc, var, DC_FUNCTION);
 
   Function *f = new Function(
     var->flags        // this is too many (I only want syntactic); but won't hurt
@@ -248,7 +258,7 @@ FakeList<ArgExpression> *ElabVisitor::emptyArgs()
   return FakeList<ArgExpression>::emptyList();
 }
 
-          
+
 // reference to the receiver object of the current function
 Expression *ElabVisitor::makeThisRef(SourceLoc loc)
 {
@@ -276,7 +286,7 @@ S_expr *ElabVisitor::makeS_expr(SourceLoc loc, Expression *e)
 
 // make an empty S_compound
 S_compound *ElabVisitor::makeS_compound(SourceLoc loc)
-{       
+{
   // note that the ASTList object created here is *deleted* by
   // the act of passing it to the S_compound; the S_compound has
   // its own ASTList<Statement> inside it
@@ -321,7 +331,10 @@ Statement *ElabVisitor::makeCtorStatement(
   // see comment below regarding 'getDefaultCtor'; if this assertion
   // fails it may be due to an input program that is not valid C++,
   // but the type checker failed to diagnose it
-  xassert(ctor);
+  //xassert(ctor);
+  //
+  // 2006-04-09: The semantics of E_constructor has been changed to
+  // allow a NULL 'ctorVar', and it means the ctor is trivial.
 
   E_constructor *ector0 = makeCtorExpr(loc, target, type, ctor, args);
   Statement *ctorStmt0 = makeS_expr(loc, ector0);
@@ -369,7 +382,7 @@ FakeList<ArgExpression> *ElabVisitor::cloneExprList(FakeList<ArgExpression> *arg
     return ret;
   }
 }
-            
+
 
 Expression *ElabVisitor::cloneExpr(Expression *e)
 {
@@ -392,9 +405,9 @@ void ElabVisitor::elaborateCDtorsDeclaration(Declaration *decl)
     decliter->elaborateCDtors(env, decl->dflags);
   }
 
-  // the caller isn't going to automatically traverse into the
-  // type specifier, so we must do it manually
-  // (e.g. cc_qual's test/memberInit_cdtor1.cc.filter-good.cc fails otherwise)
+  // the caller isn't going to automatically traverse into the type
+  // specifier, so we must do it manually (e.g. oink/qual's
+  // test/memberInit_cdtor1.cc.filter-good.cc fails otherwise)
   decl->spec->traverse(this->loweredVisitor);
 }
 
@@ -503,16 +516,13 @@ void Declarator::elaborateCDtors(ElabVisitor &env, DeclFlags dflags)
 
         fullexp = incpd->getAnnot(); // sm: not sure about this..
         ctor = env.getDefaultCtor(ct);
-        
-        // NOTE: 'getDefaultCtor' can return NULL, corresponding to a class
-        // that has no default ctor.  However, it is the responsibility of
-        // the type checker to diagnose this case.  Now, as it happens, our
-        // tchecker does not do so right now; but nevertheless it would be
-        // wrong to, say, emit an error message here.  Instead,
-        // 'makeCtorStatement' simply asserts that it is non-NULL.
       }
       ASTENDCASED
     }
+
+    // According to the semantics of E_constructor, it is legal for
+    // 'ctor' to be NULL here, as it signifies the use of a trivial
+    // constructor.
 
     env.push(fullexp);
     ctorStatement = env.makeCtorStatement(loc, env.makeE_variable(loc, var),
@@ -525,7 +535,7 @@ void Declarator::elaborateCDtors(ElabVisitor &env, DeclFlags dflags)
         !isTemporary &&
         !isMember &&
         !isExtern
-        ) {                               
+        ) {
       // sm: I think this should not be reachable because I modified
       // the type checker to insert an IN_ctor in this case.  It would be
       // be bad if it *were* reachable, because there's no fullexp here.
@@ -579,7 +589,7 @@ void Declarator::elaborateCDtors(ElabVisitor &env, DeclFlags dflags)
 //
 // Make a Declaration for a temporary; yield the Variable too.
 Declaration *ElabVisitor::makeTempDeclaration
-  (SourceLoc loc, CType *retType, Variable *&var /*OUT*/)
+  (SourceLoc loc, CType *retType, Variable *&var /*OUT*/, DeclaratorContext context)
 {
   // while a user may attempt this, we should catch it earlier and not
   // end up down here.
@@ -589,11 +599,13 @@ Declaration *ElabVisitor::makeTempDeclaration
   var = makeVariable(loc, makeTempName(), retType, DF_TEMPORARY);
 
   // make a decl for it
-  Declaration *decl = makeDeclaration(loc, var);
+  Declaration *decl = makeDeclaration(loc, var, context);
 
-  // elaborate this declaration; because of DF_TEMPORARY this will *not*
-  // add a ctor, but it will add a dtor
-  elaborateCDtorsDeclaration(decl);
+  if (doing(EA_VARIABLE_DECL_CDTOR)) {
+    // elaborate this declaration; because of DF_TEMPORARY this will *not*
+    // add a ctor, but it will add a dtor
+    elaborateCDtorsDeclaration(decl);
+  }
 
   return decl;
 }
@@ -605,7 +617,7 @@ Variable *ElabVisitor::insertTempDeclaration(SourceLoc loc, CType *retType)
   FullExpressionAnnot *fea0 = env.fullExpressionAnnotStack.top();
 
   Variable *var;
-  Declaration *declaration0 = makeTempDeclaration(loc, retType, var);
+  Declaration *declaration0 = makeTempDeclaration(loc, retType, var, DC_FEA);
 
   // put it into fea0
   fea0->declarations.append(declaration0);
@@ -765,13 +777,13 @@ void ElabVisitor::elaborateFunctionStart(Function *f)
 // add no-arg MemberInits to existing ctor body ****************
 
 // Does this Variable want a no-arg MemberInitializer?
-bool ElabVisitor::wantsMemberInit(Variable *var) 
+bool ElabVisitor::wantsMemberInit(Variable *var)
 {
   // function members should be skipped
   if (var->type->isFunctionType()) return false;
   // skip arrays for now; FIX: do something correct here
   if (var->type->isArrayType()) return false;
-  if (var->isStatic()) return false;
+  if (var->isStaticMember()) return false;
   if (var->hasFlag(DF_TYPEDEF)) return false;
   // FIX: do all this with one test
   xassert(!var->hasFlag(DF_AUTO));
@@ -1252,7 +1264,7 @@ void ElabVisitor::completeDtorCalls(
     if (!wantsMemberInit(var)) continue;
     if (!var->type->isCompoundType()) continue;
     dtorStmtsReverse.push(
-      make_S_expr_memberDtor(loc, makeE_variable(loc, var), 
+      make_S_expr_memberDtor(loc, makeE_variable(loc, var),
                              var->type->asCompoundType()));
   }
 
@@ -1260,7 +1272,7 @@ void ElabVisitor::completeDtorCalls(
   ASTList<Statement> *dtorStatements = new ASTList<Statement>();
   while (!dtorStmtsReverse.isEmpty()) {
     dtorStatements->append(dtorStmtsReverse.pop());
-  }     
+  }
 
   // FIX: I can't figure out the bug right now, but in/t0019.cc fails
   // with a seg fault if I put this line *before* the while loop
@@ -1480,11 +1492,11 @@ bool E_throw::elaborate(ElabVisitor &env)
         env.makeCtorStatement(loc, env.makeE_variable(loc, globalVar), exprType,
                               env.getCopyCtor(exprType->asCompoundType()),
                               makeExprList1(origExpr));
-                              
+
       return false;     // SES
     }
-  }                           
-  
+  }
+
   return true;
 }
 
@@ -1560,7 +1572,7 @@ bool E_delete::elaborate(ElabVisitor &env)
        deref,
        to->atType               // no need to clone this type; it is not stored
        );
-       
+
     return false;     // SES
   }
 
@@ -1598,7 +1610,7 @@ bool S_return::elaborate(ElabVisitor &env)
       // down below the FullExpression to the raw Expression
       Expression *subExpr = expr->expr;
       FakeList<ArgExpression> *args0 =
-        FakeList<ArgExpression>::makeList(new ArgExpression(subExpr));
+      FakeList<ArgExpression>::makeList(new ArgExpression(subExpr));
       xassert(args0->count() == 1);      // makeList always returns a singleton list
 
       // make the constructor function
@@ -1609,7 +1621,7 @@ bool S_return::elaborate(ElabVisitor &env)
 
       // make the original expression a clone
       expr->expr = env.cloneExpr(expr->expr);
-      
+
       // traverse only the elaboration
       //ctorStatement->traverse(env);    // 'makeCtorStatement' does this internally
       return false;
@@ -1632,8 +1644,8 @@ bool ElabVisitor::visitTopForm(TopForm *tf)
     // global variables
     elaborateCDtorsDeclaration(tf->asTF_decl()->decl);
     return false;     // SES (e.g. in/d0027.cc breaks if we return true)
-  } 
-  
+  }
+
   return true;
 }
 
@@ -1664,8 +1676,8 @@ bool ElabVisitor::visitFunction(Function *f)
     CompoundType *ct = f->receiver->type->asReferenceType()->
                           atType->asCompoundType();
     completeNoArgMemberInits(f, ct);
-  } 
-  
+  }
+
   return true;
 }
 
@@ -1688,6 +1700,8 @@ bool ElabVisitor::visitMemberInit(MemberInit *mi)
   xassert(mi->member || mi->base);
 
   // TODO: use assignments instead of ctors for non-class-valued objects
+  //        dsw: this comment above is wrong - should be initializations, not
+  //        assignments
 
   if (doing(EA_MEMBER_CTOR) &&
       mi->ctorVar) {
@@ -1793,7 +1807,7 @@ bool ElabVisitor::visitTypeSpecifier(TypeSpecifier *ts)
 
 // ------------------------ Member -----------------------------
 bool ElabVisitor::visitMember(Member *m)
-{           
+{
   // Calling 'elaborateCDtorsDeclaration' wouldn't make sense because
   // ctors need to depend on member init arguments, and dtors are more
   // easily handled by adding them to the containing dtors.
@@ -1838,8 +1852,8 @@ bool ElabVisitor::visitCondition(Condition *c)
       c->isCN_decl()) {
     c->asCN_decl()->typeId->decl->elaborateCDtors(*this);
     return false;      // SES
-  }                          
-  
+  }
+
   return true;
 }
 
@@ -1863,7 +1877,7 @@ bool ElabVisitor::visitHandler(Handler *h)
 }
 
 void ElabVisitor::postvisitHandler(Handler *h)
-{  
+{
   pop(h->getAnnot());
 }
 
@@ -1881,6 +1895,8 @@ bool ElabVisitor::visitExpression(Expression *e)
     // literals in 'asm's.
     return false;
   }
+
+  xassert (e->type && "48c58fcf-900a-4b17-bf13-17a2c93d799d");
 
   // don't elaborate template-dependent expressions
   //

@@ -57,6 +57,7 @@ public:
   bool isEmpty() const               { return top == NULL; }
   bool isNotEmpty() const            { return top != NULL; }
   void *nth(int which) const;        // get particular item, 0 is first (item must exist)
+  void *&nthRef(int which);
   void *first() const { return nth(0); }
   void *last() const { return nth(count()-1); }
 
@@ -107,7 +108,7 @@ public:
 
   // equal items in equal positions
   bool equalAsLists(VoidList const &otherList, VoidDiff diff, void *extra=NULL) const;
-  
+
   // if equal, returns 0; otherwise, return order (-1/+1) according to
   // the first differing pair of elements; a shorter (but otherwise
   // idential list) will compare as being less

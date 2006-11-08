@@ -1,3 +1,28 @@
+BEFORE NEXT RELEASE
+
+* check licence.txt file list
+
+GENERAL   
+
+
+* elsa merge plan:
+  - renamings varValue, sta_value, CType
+  - gnu_attribute clever idea in gnu.ast (change to list list?)
+  - array index designators default in gnu.ast
+  - 
+
+* check whether IDeclarator.kAndR_params should be nullable
+   (kandr.ast)
+
+* serialize Variable.virtuallyOverride
+   CompoundType.isTransparentUnion EnumType.hasNegativeValues
+
+* check enum support in astgen, especially wrt DeclaratorContext
+  for which astgen generates toXml and fromXml functions
+  might move DeclaratorContext back into the cc_tcheck.ast
+
+* rename Type -> CType in elsa/doc/*fig
+
 * SubscriptDesignator.idx_computed2 is INT_MIN
 
 * add compound_info.syntax
@@ -6,8 +31,6 @@
 
 * update dependency graph in elsa/gendoc, include ocaml modules, check
    for all modules
-
-* serialize type fields to Ocaml, eg. Expression::type
 
 * attributes in elsa/in/gnu/attr02.c seem incomplete
 

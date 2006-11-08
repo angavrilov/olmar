@@ -268,4 +268,10 @@ public:
     void operator=(name&) /*user ;*/
 
 
+// The intended semantics of 'override' is that the function is
+// overriding a virtual member of a base class.  I intend to write
+// a checker for this annotation at some point.
+#define override virtual
+
+
 #endif // __MACROS_H

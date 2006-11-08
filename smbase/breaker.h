@@ -6,7 +6,7 @@
 #ifndef __BREAKER_H
 #define __BREAKER_H
 
-void breaker();
+extern "C" void breaker();
 
 // bassert = breaker assert; failure simply calls breaker, which is
 // a breakpoint in the debugger and is ignored when not in debugger;

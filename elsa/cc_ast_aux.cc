@@ -68,7 +68,7 @@ void LoweredASTVisitorHelper::oneVariable(Variable *tinfoVar)
 
   // look in the primary (as a container)
   oneContainer(tinfoVar);
-    
+
   // look in the specializations (as containers)
   SFOREACH_OBJLIST_NC(Variable, tinfo->specializations, iter) {
     oneContainer(iter.data());
@@ -379,8 +379,8 @@ bool LoweredASTVisitor::visitedAST(void *ast)
 //
 // 1/15/04: Modified to tolerate NULL 'v' values, and to print types,
 // since Daniel and I wanted to see addtional information while
-// debugging a tricky cc_qual issue.  The result is more verbose
-// but the extra information is probably worth it.
+// debugging a tricky oink/qual issue.  The result is more verbose but
+// the extra information is probably worth it.
 string refersTo(Variable *v)
 {
   if (!v) {
@@ -472,7 +472,7 @@ Function *Function::shallowClone() const
   );
 
   ret->cloneThunkSource = this;
-  
+
   return ret;
 }
 
@@ -529,7 +529,7 @@ void MemberInit::printExtras(ostream &os, int indent) const
 void ASTTypeId::printAmbiguities(ostream &os, int indent) const
 {
   genericPrintAmbiguities(this, "ASTTypeId", os, indent);
-  
+
   genericCheckNexts(this);
 }
 
@@ -605,7 +605,7 @@ stringBuilder& operator<< (stringBuilder &sb, PQName const &obj)
 
 string PQName::toString() const
 {
-  return stringc << qualifierString() 
+  return stringc << qualifierString()
                  << getUnqualifiedNameC()->toComponentString();
 }
 
@@ -669,7 +669,7 @@ string PQ_template::toComponentString() const
 
 
 PQName const *PQName::getUnqualifiedNameC() const
-{                   
+{
   PQName const *p = this;
   while (p->isPQ_qualifier()) {
     p = p->asPQ_qualifierC()->rest;
@@ -702,7 +702,7 @@ bool PQName::templateUsed() const
 // list is of nonzero length (neither is NULL), and there can be
 // at most one PQ_template among both lists.  So the situation
 // looks something like this:
-//            
+//
 //            +--------------+   +--------------+   +-------------+
 //     this-->| PQ_qualifier |-->| PQ_qualifier |-->| PQ_template |
 //            +--------------+   +--------------+   +-------------+
@@ -760,7 +760,7 @@ PQName *PQName::mergeAmbiguous(PQName *obj)
 
 
 void PQ_qualifier::printAmbiguities(ostream &os, int indent) const
-{                                                   
+{
   PQName const *n = this;
   genericPrintAmbiguities(n, "PQName", os, indent);
 }
@@ -803,8 +803,14 @@ bool TypeSpecifier::canBeTypeParam() const
     return true;
   }
 
+  // quarl 2006-06-06
+  //    cppstd 14.1 para 2 "typename followed by a qualified-name denotes the
+  //    type in a non-type parameter-declaration."  If the specifier is
+  //    qualified, then "typename" is not used as a type param.
   if (isTS_name() &&
-      asTS_nameC()->typenameUsed) {
+      asTS_nameC()->typenameUsed &&
+      !asTS_nameC()->name->hasQualifiers())
+  {
     return true;
   }
 
@@ -853,7 +859,7 @@ void BaseClassSpec::printExtras(ostream &os, int indent) const
 void Enumerator::printExtras(ostream &os, int indent) const
 {
   if (var) {
-    ind(os, indent) << "var: " 
+    ind(os, indent) << "var: "
       << toString(var->flags) << (var->flags? " " : "")
       << var->toString() << "\n";
     PRINT_GENERIC(enumValue);
@@ -865,7 +871,7 @@ void Enumerator::printExtras(ostream &os, int indent) const
 void Declarator::printAmbiguities(ostream &os, int indent) const
 {
   genericPrintAmbiguities(this, "Declarator", os, indent);
-  
+
   // check 'next' fields
   for (Declarator *d = ambiguity; d != NULL; d = d->ambiguity) {
     xassert(this->next == d->next);
@@ -907,7 +913,7 @@ void Declarator::setDeclaratorId(PQName *n)
   else if (d->isD_bitfield()) {
     d->asD_bitfield()->name = n;
   }
-  else {                                                 
+  else {
     // getBase loop should only have stopped at D_name or D_bitfield
     xfailure("setting name of unknown base IDeclarator");
   }
@@ -1093,7 +1099,7 @@ bool Handler::isEllipsis() const
 void Expression::printAmbiguities(ostream &os, int indent) const
 {
   genericPrintAmbiguities(this, "Expression", os, indent);
-    
+
   // old
   //genericCheckNexts(this);
 }
@@ -1139,7 +1145,7 @@ void Expression::setNext(Expression *newNext)
 
 
 void Expression::printExtras(ostream &os, int indent) const
-{         
+{
   if (type) {
     ind(os, indent) << "type: " << type->toString() << "\n";
   }
@@ -1215,7 +1221,7 @@ void ArgExpression::setNext(ArgExpression *newNext)
   xassert(next == NULL);
   next = newNext;
 }
-        
+
 
 void ArgExpression::addAmbiguity(ArgExpression *alt)
 {
@@ -1244,7 +1250,7 @@ void ArgExpression::printAmbiguities(ostream &os, int indent) const
 
 // -------------------- TemplateParameter ---------------------
 bool anyHaveDefaultArgs(TemplateParameter const *list)
-{ 
+{
   for (TemplateParameter const *iter = list; iter; iter = iter->next) {
     if (iter->hasDefaultArg()) {
       return true;
@@ -1312,5 +1318,243 @@ string TA_templateUsed::argString() const
   return "(templateUsed)";
 }
 
+
+// ----------------- RealVarAndTypeASTVisitor ----------------
+
+void RealVarAndTypeASTVisitor::visitVariable(Variable *var) {
+  if (variableVisitor) variableVisitor->visitVariable(var);
+}
+
+void RealVarAndTypeASTVisitor::visitType(CType *type) {
+  if (typeVisitor) typeVisitor->visitType(type);
+}
+
+
+// **** visit methods
+
+// class BaseClassSpec {
+//   public(xml_TY) CompoundType *type = NULL;
+// }
+
+bool RealVarAndTypeASTVisitor::visitTranslationUnit(TranslationUnit *obj) {
+  typeVisitor->visitScope(obj->globalScope);
+  return true;
+}
+
+bool RealVarAndTypeASTVisitor::visitFunction(Function *obj) {
+  visitVariable(obj->retVar);
+  visitVariable(obj->receiver);
+  visitType(obj->funcType);
+  return true;
+}
+
+bool RealVarAndTypeASTVisitor::visitPQName(PQName *obj) {
+  if (obj->isPQ_variable()) {
+    visitVariable(obj->asPQ_variable()->var);
+  }
+//   else if (obj->isPQ_qualifier()) {
+    // dsw: Ok, it seems that this is supposed to sometimes be a
+    // template even for an instantiated instance (in/t0057.cc).  Is
+    // it possible for this variable to 1) not be a template primary
+    // and 2) also not get visited somehow else?
+//     visitVariable(obj->asPQ_qualifier()->qualifierVar);
+//   }
+  return true;
+}
+
+bool RealVarAndTypeASTVisitor::visitHandler(Handler *obj) {
+  visitVariable(obj->globalVar);
+  return true;
+}
+
+bool RealVarAndTypeASTVisitor::visitExpression(Expression *obj) {
+  if (obj->isE_new()) {
+    E_new *enew = obj->asE_new();
+    visitVariable(enew->heapVar);
+    visitVariable(enew->ctorVar);
+  } else if (obj->isE_throw()) {
+    visitVariable(obj->asE_throw()->globalVar);
+  } else if (obj->isE_this()) {
+    visitVariable(obj->asE_this()->receiver);
+  } else if (obj->isE_variable()) {
+    E_variable *evar = obj->asE_variable();
+    visitVariable(evar->var);
+    visitVariable(evar->nondependentVar);
+  } else if (obj->isE_constructor()) {
+    visitVariable(obj->asE_constructor()->ctorVar);
+  } else if (obj->isE_fieldAcc()) {
+    visitVariable(obj->asE_fieldAcc()->field);
+  }
+  visitType(obj->type);
+  return true;
+}
+
+bool RealVarAndTypeASTVisitor::visitMemberInit(MemberInit *obj) {
+  visitVariable(obj->member);
+  visitVariable(obj->ctorVar);
+//   public(xml_TY) CompoundType *base = NULL;
+  return true;
+}
+
+bool RealVarAndTypeASTVisitor::visitTypeSpecifier(TypeSpecifier *obj) {
+  if (obj->isTS_name()) {
+    TS_name *tsn = obj->asTS_name();
+    visitVariable(tsn->var);
+    visitVariable(tsn->nondependentVar);
+  }
+  if (obj->isTS_type()) {
+    visitType(obj->asTS_type()->type);
+  }
+//   -> TS_elaborated {
+//        public(xml_TY) NamedAtomicType *atype = NULL;
+//      }
+//   -> TS_classSpec {
+//        public(xml_TY) CompoundType *ctype = NULL;
+//      }
+//   -> TS_enumSpec {
+//        public(xml_TY) EnumType *etype = NULL;
+//      }
+  return true;
+}
+
+bool RealVarAndTypeASTVisitor::visitEnumerator(Enumerator *obj) {
+  visitVariable(obj->var);
+  return true;
+}
+
+bool RealVarAndTypeASTVisitor::visitDeclarator(Declarator *obj) {
+  visitVariable(obj->var);
+  visitType(obj->type);
+  return true;
+}
+
+bool RealVarAndTypeASTVisitor::visitInitializer(Initializer *obj) {
+  if (obj->isIN_ctor()) {
+    visitVariable(obj->asIN_ctor()->ctorVar);
+  }
+  return true;
+}
+
+bool RealVarAndTypeASTVisitor::visitTemplateParameter(TemplateParameter *obj) {
+  // this one is a bit outlandish as the whole point is to avoid
+  // templates, so it should probably never be called
+  visitVariable(obj->var);
+  return true;
+}
+
+#ifdef GNU_EXTENSION
+bool RealVarAndTypeASTVisitor::visitASTTypeof(ASTTypeof *obj) {
+  visitType(obj->type);
+  return true;
+}
+#endif // GNU_EXTENSION
+
+// ---------------- ReachableVarsTypeVisitor --------------
+
+bool ReachableVarsTypePred::operator() (CType const *t0) {
+  CType *t = const_cast<CType *>(t0);
+  if (t->isFunctionType()) {
+    // visit the function param variables
+    SFOREACH_OBJLIST_NC(Variable, t->asFunctionType()->params, iter) {
+      variableVisitor.visitVariable(iter.data());
+    }
+  } else if (t->isCompoundType()) {
+    typeVisitor.visitCompoundType(t->asCompoundType());
+  }
+  return false;                 // dummy value; just means keep searching
+}
+
+void ReachableVarsTypeVisitor::visitType(CType *type) {
+  if (!type) return;
+  if (seenTypes.contains(type)) return;
+  seenTypes.add(type);
+  visitTypeIdem(type);
+  ReachableVarsTypePred tPred(*variableVisitor
+                              , *this
+//                               , seenCpdTypes
+                              );
+  bool sat = type->anyCtorSatisfies(tPred);
+  xassert(!sat);                // the point was just to visit anyway
+}
+
+void ReachableVarsTypeVisitor::visitCompoundType(CompoundType *ct) {
+  variableVisitor->visitVariable(ct->typedefVar);
+  visitScope(ct);
+  for(StringRefMap<Variable>::Iter iter(ct->getVariableIter()); !iter.isDone(); iter.adv()) {
+    Variable *v = iter.value();
+    if (v->templateInfo() && !v->templateInfo()->isInstantiation()) continue;
+    variableVisitor->visitVariable(v);
+  }
+  for(StringRefMap<Variable>::Iter iter(ct->getTypeTagIter()); !iter.isDone(); iter.adv()) {
+    Variable *v = iter.value();
+    if (v->templateInfo() && !v->templateInfo()->isInstantiation()) continue;
+    variableVisitor->visitVariable(v);
+  }
+  FOREACH_OBJLIST(BaseClass, ct->get_bases(), iter) {
+    visitCompoundType(iter.data()->ct);
+  }
+  SFOREACH_OBJLIST_NC(Variable, ct->conversionOperators, iter) {
+    Variable *v = iter.data();
+    if (v->templateInfo() && !v->templateInfo()->isInstantiation()) continue;
+    variableVisitor->visitVariable(v);
+  }
+  visitType(ct->selfType);
+}
+
+void ReachableVarsTypeVisitor::visitScope(Scope *scope) {
+  if (!scope) return;
+  // See comment at the declaration of seenScopes.
+  if (seenScopes.contains(scope)) return;
+  seenScopes.add(scope);
+  variableVisitor->visitVariable(scope->namespaceVar);
+  // FIX: If this type is a CompoundType, I think it will get visited
+  // as a CType by the type visitor at some point
+  visitScope(scope->parentScope);
+}
+
+bool ReachableVarsVariableVisitor::shouldVisitVariable(Variable *var) {
+  return true;
+}
+
+void ReachableVarsVariableVisitor::visitVariable(Variable *var) {
+  if (!var) return;
+  if (seenVariables.contains(var)) return;
+  seenVariables.add(var);
+  xassert(!var->isTemplate() && "ee42ebc5-7154-4ace-be35-c2090a2821c5");
+  xassert(!var->isUninstTemplateMember());
+  if (shouldVisitVariable(var)) visitVariableIdem(var);
+  typeVisitor->visitType(var->type);
+  typeVisitor->visitScope(var->scope);
+}
+
+void VisitRealVars::visitVariableIdem(Variable *var) {
+  xassert(var->getReal());     // if this visit is idempotent, this should always be false
+  if (visitVarFunc) visitVarFunc(var);
+}
+
+void MarkRealVars::visitVariableIdem(Variable *var) {
+  xassert(!var->getReal());     // if this visit is idempotent, this should always be false
+  var->setReal(true);
+}
+
+void visitVarsF(ArrayStack<Variable*> &builtinVars, VisitRealVars &visitReal) {
+  FOREACH_ARRAYSTACK_NC(Variable*, builtinVars, iter) {
+    Variable *var = *iter.data();
+    visitReal.visitVariable(var);
+  }
+}
+
+void visitVarsMarkedRealF(ArrayStack<Variable*> &builtinVars, VisitRealVars &visitReal) {
+  FOREACH_ARRAYSTACK_NC(Variable*, builtinVars, iter) {
+    Variable *var = *iter.data();
+    if (!var->getReal()) continue;
+    visitReal.visitVariable(var);
+  }
+}
+
+void visitRealVarsF(TranslationUnit *tunit, VisitRealVars &visitReal) {
+  RealVarAndTypeASTVisitor vis(&visitReal, &visitReal.doNothing_tv);
+  tunit->traverse(vis.loweredVisitor);
+}
 
 // EOF

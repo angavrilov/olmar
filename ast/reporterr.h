@@ -7,15 +7,13 @@
 #include "str.h"        // rostring
 
 class ReportError {
-public:                                     
+public:
+  virtual ~ReportError() {}
   // report an error; 'str' should not have a newline
   virtual void reportError(rostring str)=0;
 
   // report a warning
   virtual void reportWarning(rostring str)=0;
-
-  // silence the virtual destructor warning
-  virtual ~ReportError() {};
 };
 
 
@@ -26,6 +24,7 @@ public:
   int warnings;
 
 public:
+  virtual ~SilentReportError() {}
   SilentReportError();
   virtual void reportError(rostring str);
   virtual void reportWarning(rostring str);
@@ -37,6 +36,7 @@ extern SilentReportError silentReportError;
 // print messages to stdout with "error: " or "warning: " prepended
 class SimpleReportError : public SilentReportError {
 public:
+  virtual ~SimpleReportError() {}
   virtual void reportError(rostring str);
   virtual void reportWarning(rostring str);
 };

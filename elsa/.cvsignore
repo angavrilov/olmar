@@ -80,3 +80,4 @@ bigin
 *.cmo
 *.cmx
 quickocamltest
+packedword_test

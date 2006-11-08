@@ -198,7 +198,7 @@ SLWHITE   [ \t]
              /*[2] == 'r'*/TOK_PURE_VIRTUAL ;
 }
 
-("verbatim"|"impl_verbatim"|"ocaml_type_verbatim") {
+("verbatim"|"impl_verbatim"|"ocaml_type_verbatim"|"xml_verbatim") {
   TOK_UPD_COL;
 
   // need to see one more token before we begin embedded processing
@@ -209,8 +209,13 @@ SLWHITE   [ \t]
   embedded = yytext[0] == 'o' ? oc_embedded : cc_embedded;
   embedded->reset();
   embedMode = TOK_EMBEDDED_CODE;
-  return yytext[0]=='v'? TOK_VERBATIM :
-    (yytext[0]=='i' ? TOK_IMPL_VERBATIM : TOK_OCAML_TYPE_VERBATIM);
+  switch (yytext[0]) {
+  default: xfailure("can't happen");
+  case 'v': return TOK_VERBATIM;
+  case 'i': return TOK_IMPL_VERBATIM;
+  case 'o': return TOK_OCAML_TYPE_VERBATIM;
+  case 'x': return TOK_XML_VERBATIM;
+  }
 }
 
 "custom" {

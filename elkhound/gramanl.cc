@@ -16,6 +16,7 @@
 #include "strutil.h"     // replace
 #include "ckheap.h"      // numMallocCalls
 #include "genml.h"       // emitMLActionCode
+#include "ofstreamts.h"  // ofstreamTS
 
 #include <fstream.h>     // ofstream
 #include <stdlib.h>      // getenv
@@ -89,7 +90,7 @@ DottedProduction::DottedProduction(DottedProduction const &obj)
   afterDot = obj.afterDot;
   firstSet = obj.firstSet;
   canDeriveEmpty = obj.canDeriveEmpty;
-}                
+}
 #endif // 0
 
 
@@ -343,7 +344,7 @@ DottedProduction *getNthDottedProduction(Production *p, int n)
   }
   else {
     return NULL;
-  }                                 
+  }
 }
 #endif // 0
 
@@ -434,7 +435,7 @@ void ItemSet::xferSerfs(Flatten &flat, GrammarAnalysis &g)
   //if (flat.reading()) {
   //  changedItems();
   //}
-                         
+
   if (flat.reading()) {
     dotsAtEnd = new LRItem const * [numDotsAtEnd];
   }
@@ -533,7 +534,7 @@ bool ItemSet::operator==(ItemSet const &obj) const
   // since common case is disequality, check the
   // CRCs first, and only do full check if they
   // match
-  if (kernelItemsCRC == obj.kernelItemsCRC) {                 
+  if (kernelItemsCRC == obj.kernelItemsCRC) {
     // since nonkernel items are entirely determined by kernel
     // items, and kernel items are sorted, it's sufficient to
     // check for kernel list equality
@@ -552,13 +553,13 @@ bool ItemSet::operator==(ItemSet const &obj) const
 void ItemSet::addNonkernelItem(LRItem *item)
 {
   nonkernelItems.appendUnique(item);
-  
+
   // note: the caller is supposed to call changedItems
 }
 
 
 void ItemSet::removeReduce(Production const *prod, Terminal const *sym)
-{                       
+{
   MUTATE_EACH_OBJLIST(LRItem, kernelItems, k) {
     if (k.data()->isDotAtEnd() &&
         k.data()->getProd() == prod) {
@@ -653,7 +654,7 @@ void ItemSet::getPossibleReductions(ProductionList &reductions,
       if (!item->getProd()->left->follow.contains(lookahead->termIndex)) {    // (constness)
         if (parsing && tracingSys("parse")) {
           trace("parse") << "state " << id
-                         << ", not reducing by " 
+                         << ", not reducing by "
                          << item->getProd()->toString(false /*printType*/)
                          << " because " << lookahead->toString()
                          << " is not in follow of "
@@ -686,7 +687,7 @@ void ItemSet::getPossibleReductions(ProductionList &reductions,
 
 
 bool ItemSet::mergeLookaheadsInto(ItemSet &dest) const
-{        
+{
   // will return true if any changes made
   bool changes = false;
 
@@ -705,7 +706,7 @@ bool ItemSet::mergeLookaheadsInto(ItemSet &dest) const
     if (destItem.laMerge(srcItem)) {
       changes = true;
     }
-    
+
     srcIter.adv();
     destIter.adv();
   }
@@ -797,7 +798,7 @@ void ItemSet::changedItems()
 void ItemSet::computeKernelCRC(GrowArray<DottedProduction const*> &array)
 {
   int numKernelItems = kernelItems.count();
-  
+
   // expand as necessary, but don't get smaller
   array.ensureAtLeast(numKernelItems);
 
@@ -815,7 +816,7 @@ void ItemSet::computeKernelCRC(GrowArray<DottedProduction const*> &array)
 }
 
 
-void ItemSet::print(ostream &os, GrammarAnalysis const &g, 
+void ItemSet::print(ostream &os, GrammarAnalysis const &g,
                     bool nonkernel) const
 {
   os << "ItemSet " << id << ":\n";
@@ -824,7 +825,7 @@ void ItemSet::print(ostream &os, GrammarAnalysis const &g,
   SObjList<LRItem> items;     // (constness) don't use 'item' to modify elements
   getAllItems(items, nonkernel);
 
-  // for each item  
+  // for each item
   SFOREACH_OBJLIST(LRItem, items, itemIter) {
     LRItem const *item = itemIter.data();
 
@@ -852,18 +853,18 @@ void ItemSet::print(ostream &os, GrammarAnalysis const &g,
   // away items sometimes
   for (int t=0; t<terms; t++) {
     if (termTransition[t]) {
-      os << "  on terminal " << g.getTerminal(t)->name 
+      os << "  on terminal " << g.getTerminal(t)->name
          << " go to " << termTransition[t]->id << endl;
     }
   }
 
   for (int n=0; n<nonterms; n++) {
     if (nontermTransition[n]) {
-      os << "  on nonterminal " << g.getNonterminal(n)->name 
+      os << "  on nonterminal " << g.getNonterminal(n)->name
          << " go to " << nontermTransition[n]->id << endl;
     }
   }
-  
+
   for (int p=0; p<numDotsAtEnd; p++) {
     os << "  can reduce by " << dotsAtEnd[p]->getProd()->toString() << endl;
   }
@@ -1013,7 +1014,7 @@ void GrammarAnalysis::xfer(Flatten &flat)
 
   // don't bother xferring 'symOfInterest', since it's
   // only used for debugging
-    
+
   // 7/27/03: tables are no longer xferrable
   //xferOwnerPtr(flat, tables);
 
@@ -1191,13 +1192,13 @@ bool GrammarAnalysis::followIncludes(Nonterminal const *NT, Terminal const *term
 {
   return NT->follow.contains(term->termIndex);
 }
- 
+
 #if 0
 // returns true if Follow(NT) is changed by adding 'term' to it
 bool GrammarAnalysis::addFollow(Nonterminal *NT, Terminal *term)
 {
   return NT->follow.prependUnique(term);
-}    
+}
 #endif // 0
 
 
@@ -1259,7 +1260,7 @@ void GrammarAnalysis::computeProductionsByLHS()
 {
   // map: nonterminal -> productions with that nonterm on LHS
   productionsByLHS = new SObjList<Production> [numNonterms];
-  
+
   // map: prodIndex -> production
   numProds = productions.count();
   indexedProds = new Production* [numProds];
@@ -1274,7 +1275,7 @@ void GrammarAnalysis::computeProductionsByLHS()
       productionsByLHS[LHSindex].append(prod.data());
       indexedProds[prod.data()->prodIndex] = prod.data();
     }
-  }                                                      
+  }
 
   // verify we filled the 'prodIndex' map
   for (int id=0; id<numProds; id++) {
@@ -1457,7 +1458,7 @@ void GrammarAnalysis::computeWhatCanDeriveWhat()
 
             changes++;
 
-            trace("derivable") 
+            trace("derivable")
               << "discovered (by production): " << prod->left->name
               << " ->* " << rightNT.name << "\n";
           }
@@ -1501,7 +1502,7 @@ void GrammarAnalysis::computeWhatCanDeriveWhat()
           // add an edge (u,w), if there isn't one already
           if (addDerivable(u,w)) {
             changes++;
-            trace("derivable") 
+            trace("derivable")
               << "discovered (by closure step): "
               << indexedNonterms[u]->name << " ->* "
               << indexedNonterms[w]->name << "\n";
@@ -1537,7 +1538,7 @@ void GrammarAnalysis::computeSupersets()
     SFOREACH_OBJLIST_NC(Nonterminal, super->subsets, iter2) {
       Nonterminal *sub = iter2.data();
 
-      // for now, only handle 'super' as a partial function      
+      // for now, only handle 'super' as a partial function
       if (sub->superset != NULL) {
         xfailure(stringc << sub->name << " has more than one superset");
       }
@@ -1842,7 +1843,7 @@ STATICDEF DottedProduction const *LRItem::dataToKey(LRItem *it)
 
 // compare two dotted production keys for equality; since dotted
 // productions are shared, pointer equality suffices
-STATICDEF bool LRItem::dpEqual(DottedProduction const *key1, 
+STATICDEF bool LRItem::dpEqual(DottedProduction const *key1,
                                DottedProduction const *key2)
 {
   return key1 == key2;
@@ -1868,7 +1869,7 @@ void GrammarAnalysis::itemSetClosure(ItemSet &itemSet)
     &LRItem::hash,
     &LRItem::dpEqual, 13);
   #endif // 0
-  
+
   // every 'item' on the worklist has item->dprod->backPointer == item;
   // every 'dprod' not associated has dprod->backPointer == NULL
   ArrayStack<LRItem*> worklist;
@@ -2036,7 +2037,7 @@ void GrammarAnalysis
     bool inDoneList = true;
     LRItem *already = newDP->backPointer;   // workhash.lookup(newDP);
     if (already) {
-      inDoneList = false;  
+      inDoneList = false;
     }
     else {
       already = finished.get(newDP);
@@ -2108,7 +2109,7 @@ void GrammarAnalysis
 // -------------- START of construct LR item sets -------------------
 ItemSet *GrammarAnalysis::makeItemSet()
 {
-  return new ItemSet((StateId)(nextItemSetId++), 
+  return new ItemSet((StateId)(nextItemSetId++),
                      numTerminals(), numNonterminals());
 }
 
@@ -2296,7 +2297,7 @@ void GrammarAnalysis::constructLRItemSets()
     startState = is;
     LRItem *firstDP
       = new LRItem(numTerms, getDProd(productions.first(), 0 /*dot at left*/));
-    
+
     // don't add this to the lookahead; we assume EOF is actually
     // mentioned in the production already, and we won't contemplate
     // executing this reduction within the normal parser core
@@ -2526,7 +2527,7 @@ void GrammarAnalysis::constructLRItemSets()
 
   if (tracingSys("itemset-graph")) {
     // write this info to a graph applet file
-    ofstream out("lrsets.g");
+    ofstreamTS out("lrsets.g");
     if (!out) {
       xsyserror("ofstream open");
     }
@@ -2584,7 +2585,7 @@ void GrammarAnalysis::computeReachable()
   MUTATE_EACH_NONTERMINAL(nonterminals, iter) {
     iter.data()->reachable = false;
   }
-  
+
   // do a DFS on the grammar, marking things reachable as
   // they're encountered
   computeReachableDFS(startSymbol);
@@ -2631,7 +2632,7 @@ void GrammarAnalysis::handleShiftReduceConflict(
     << sym->name << " with production " << *prod << endl;
 
   // look at scannerless directives
-  { 
+  {
     // is this nonterm or any of its declared supersets maximal?
     Nonterminal const *super = prod->left;
     bool maximal = super->maximal;
@@ -2639,7 +2640,7 @@ void GrammarAnalysis::handleShiftReduceConflict(
       super = super->superset;
       maximal = super->maximal;
     }
-    
+
     if (maximal) {
       // see if this reduction can be removed due to a 'maximal' spec;
       // in particular, is the shift going to extend 'super'?
@@ -2839,17 +2840,17 @@ void GrammarAnalysis::resolveConflicts(
     int highestPrec = 0;
     SFOREACH_PRODUCTION(reductions, iter) {
       int p = iter.data()->precedence;
-      
+
       if (p && p>highestPrec) {
         highestPrec = p;
       }
     }
-    
+
     // remove any productions that are lower than 'highestPrec'
     SObjListMutator<Production> mut(reductions);
     while (!mut.isDone()) {
       int p = mut.data()->precedence;
-      
+
       if (p && p<highestPrec) {
         trace("prec")
           << "in state " << state->id << ", R/R conflict on token "
@@ -2863,7 +2864,7 @@ void GrammarAnalysis::resolveConflicts(
       }
     }
   }
-                                                      
+
   // additional R/R resolution using subset directives
   if (reductions.count() > 1) {
     actions -= subsetDirectiveResolution(state, sym, reductions);
@@ -3013,7 +3014,7 @@ int GrammarAnalysis::subsetDirectiveResolution(
 
     continue_outer_loop:;
   }
-  
+
   return removed;
 }
 
@@ -3029,7 +3030,7 @@ bool isAmbiguousNonterminal(Symbol const *sym)
   return false;
 }
 
-  
+
 // The purpose of this function is to number the states (which have up
 // to this point been numbered arbitrarily) in such a way that all
 // states that have a given symbol on incoming arcs will be numbered
@@ -3065,7 +3066,7 @@ STATICDEF int GrammarAnalysis::renumberStatesDiff
 
   // if for some reason I'm ever asked to compare a state to
   // itself..
-  if (left == right) { 
+  if (left == right) {
     return 0;
   }
 
@@ -3126,7 +3127,7 @@ STATICDEF int GrammarAnalysis::renumberStatesDiff
       }
     }
   }
-                                                            
+
   // I suspect this will never be reached, since usually the
   // transition function will be sufficient
   // update: it happens often enough.. even in the arith grammar
@@ -3167,7 +3168,7 @@ STATICDEF int GrammarAnalysis::arbitraryProductionOrder
   // compare LHS
   int ret = left->left->ntIndex - right->left->ntIndex;
   if (ret) return ret;
-  
+
   // RHS elts one at a time
   return left->right.compareAsLists(right->right,
     &GrammarAnalysis::arbitraryRHSEltOrder);
@@ -3178,7 +3179,7 @@ STATICDEF int GrammarAnalysis::arbitraryRHSEltOrder
 {
   int ret = (int)left->sym->isTerminal() - (int)right->sym->isTerminal();
   if (ret) return ret;
-  
+
   return left->sym->getTermOrNontermIndex() - right->sym->getTermOrNontermIndex();
 }
 
@@ -3269,7 +3270,7 @@ void GrammarAnalysis::computeParseTables(bool allowAmbig)
         }
         SFOREACH_PRODUCTION(reductions, prodIter) {
           set.push(tables->encodeReduce(prodIter.data()->prodIndex, state->id));
-        }                                
+        }
         xassert(set.length() == actions);
 
         cellAction = tables->encodeAmbig(set, state->id);
@@ -3360,18 +3361,18 @@ void GrammarAnalysis::computeParseTables(bool allowAmbig)
     Production const *prod = getProduction(p);
     tables->setProdInfo(p, prod->rhsLength(), prod->left->ntIndex);
   }
-  
+
   // use the derivability relation to compute a total order
-  // on nonterminals                    
+  // on nonterminals
   BitArray seen(numNonterms);
   int nextOrdinal = numNonterms-1;
-  for (int nt=0; nt < numNonterms; nt++) {               
+  for (int nt=0; nt < numNonterms; nt++) {
     // expand from 'nt' in case it's disconnected; this will be
     // a no-op if we've already 'seen' it
     topologicalSort(tables->getWritableNontermOrder(), nextOrdinal, nt, seen);
   }
   xassert(nextOrdinal == -1);    // should have used them all
-  
+
   if (ENABLE_EEF_COMPRESSION) {
     tables->computeErrorBits();
   }
@@ -3436,12 +3437,12 @@ SymbolId encodeSymbolId(Symbol const *sym)
   }
   else /*nonterminal*/ {
     ret = - sym->asNonterminalC().ntIndex - 1;
-    
+
     // verify encoding of nonterminals is sufficiently wide
     int idx = sym->asNonterminalC().ntIndex;
     xassert((NtIndex)idx == idx);
-  }      
-  
+  }
+
   // verify encoding is lossless
   SymbolId ret2 = (SymbolId)ret;
   xassert((int)ret2 == ret);
@@ -3519,7 +3520,7 @@ string GrammarAnalysis::sampleInput(ItemSet const *state) const
   if (!rewriteAsTerminals(terminals, symbols)) {
     return string("(failed to reduce!!)");
   }
-  
+
   // convert to a string
   return terminalSequenceToString(terminals);
 }
@@ -3589,11 +3590,11 @@ bool GrammarAnalysis::
 // fewer RHS symbols altogether; overriding all of this, if one
 // production's RHS contains a symbol already expanded, and the other
 // does not, then prefer the RHS which hasn't already been expanded
-int compareProductionsForRewriting(Production const *p1, Production const *p2, 
+int compareProductionsForRewriting(Production const *p1, Production const *p2,
                                    void *extra)
-{                                             
+{
   ProductionList *reductionStack = (ProductionList*)extra;
-   
+
   bool p1RHSSeen=false, p2RHSSeen=false;
   SFOREACH_PRODUCTION(*reductionStack, iter) {
     if (p1->rhsHasSymbol( iter.data()->left )) {
@@ -3602,9 +3603,9 @@ int compareProductionsForRewriting(Production const *p1, Production const *p2,
     if (p2->rhsHasSymbol( iter.data()->left )) {
       p2RHSSeen = true;
     }
-  }                                     
-  
-  if (p1RHSSeen != p2RHSSeen) {  
+  }
+
+  if (p1RHSSeen != p2RHSSeen) {
     // e.g.: p1RHSSeen=true, so p2 is preferred; this will yield +1,
     // meaning p1>p2, so p2 comes first in an increasing order sort
     return (int)p1RHSSeen - (int)p2RHSSeen;
@@ -3865,7 +3866,7 @@ void GrammarAnalysis::addTreebuildingActions()
     // build up the code
     stringBuilder code;
     code << "return new PTreeNode(\"" << p->left->name << " -> "
-         << encodeWithEscapes(p->rhsString(false /*printTags*/, 
+         << encodeWithEscapes(p->rhsString(false /*printTags*/,
                                            true /*quoteAliases*/))
          << "\"";
 
@@ -3885,8 +3886,8 @@ void GrammarAnalysis::addTreebuildingActions()
 
     code << ");";
 
-    // insert the code into the production    
-    p->action = LocString(SL_UNKNOWN, 
+    // insert the code into the production
+    p->action = LocString(SL_UNKNOWN,
                           grammarStringTable.add(code));
   }
 
@@ -3933,7 +3934,7 @@ void GrammarAnalysis::exampleGrammar()
 
 
 void GrammarAnalysis::runAnalyses(char const *setsFname)
-{            
+{
   // prepare for symbol of interest
   {
     char const *name = getenv("SYM_OF_INTEREST");
@@ -3998,7 +3999,7 @@ void GrammarAnalysis::runAnalyses(char const *setsFname)
     cout << "Closure of: ";
     kernel->print(cout);
     cout << endl;
-                 
+
     SFOREACH_OBJLIST(LRItem, itemSet, dprod) {
       cout << "  ";
       dprod.data()->print(cout);
@@ -4046,7 +4047,7 @@ void GrammarAnalysis::runAnalyses(char const *setsFname)
   }
 
   // count the number of unreachable nonterminals & terminals
-  {                   
+  {
     if (setsOutput) {
       *setsOutput << "unreachable nonterminals:\n";
     }
@@ -4189,7 +4190,7 @@ void emitActionCode(GrammarAnalysis const &g, rostring hFname,
                          ".", "_"),
                          "/", "_"),
                          "-", "_");
-      
+
   // prologue
   dcl << "// " << hFname << "\n"
       << "// *** DO NOT EDIT BY HAND ***\n"
@@ -4321,7 +4322,7 @@ void emitUserCode(EmitCode &out, LocString const &code, bool braces)
   if (code.validLoc()) {
     out << lineDirective(code.loc);
   }
-  
+
   // 7/27/03: swapped so that braces are inside the line directive
   if (braces) {
     out << "{";
@@ -4441,7 +4442,7 @@ void emitDescriptions(GrammarAnalysis const &g, EmitCode &out)
       << "\n"
       << "\n"
       ;
-      
+
   // emit functions to get access to the static maps
   out << "char const *" << g.actionClassName
       << "::terminalName(int termId)\n"
@@ -4675,7 +4676,7 @@ void emitDupDelMerge(GrammarAnalysis const &g, EmitCode &out, EmitCode &dcl)
     4 /*classifyCode*/,
     "      return ths->classify_$symName(($symType)sval);\n",
     NULL);
-    
+
   // and the virtual method which returns the classifier
   out << "UserActions::ReclassifyFunc " << g.actionClassName << "::getReclassifier()\n"
       << "{\n"
@@ -4876,7 +4877,7 @@ int inner_entry(int argc, char **argv)
 
   // true to use ML, false to use C
   bool useML = false;
-  
+
   // when true, if there is an error, do not leave partially-written
   // output files
   bool leavePartialOutputs = false;
@@ -4911,6 +4912,10 @@ int inner_entry(int argc, char **argv)
       SHIFT;
       leavePartialOutputs = true;
     }
+    else if (0==strcmp(op, "help") || 0==strcmp(op, "-help")) {
+      SHIFT;
+      goto printUsage;
+    }
     else {
       cout << "unknown option: " << argv[0] << endl;
       exit(2);
@@ -4918,6 +4923,7 @@ int inner_entry(int argc, char **argv)
   }
 
   if (!argv[0]) {
+  printUsage:
     cout << "usage: " << progName << " [options] filename.gr [extension.gr [...]]\n"
             "  Generates parse tables to parse with the given grammar.\n"
             "  The optional extension modules can add rules, etc.\n"
@@ -4927,6 +4933,7 @@ int inner_entry(int argc, char **argv)
             "      conflict    : print LALR(1) conflicts\n"
             "      prec        : show how prec/assoc are used to resolve conflicts\n"
             "      lrtable     : print LR parsing tables to <prefix>.out\n"
+            "                    (which also includes info about unreachable symbols)\n"
             "      nonkernel   : include non-kernel items in <prefix>.out\n"
             "      treebuild   : replace given actions with treebuilding actions\n"
             "      grammar     : echo grammar to stdout (after merging modules)\n"
@@ -5033,7 +5040,7 @@ int inner_entry(int argc, char **argv)
   if (tracingSys("bison")) {
     string bisonFname = stringc << prefix << ".y";
     traceProgress() << "writing bison-compatible grammar to " << bisonFname << endl;
-    ofstream out(bisonFname.c_str());
+    ofstreamTS out(bisonFname.c_str());
     g.printAsBison(out);
   }
 

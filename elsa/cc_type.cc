@@ -31,7 +31,6 @@
 #include <stdlib.h>     // getenv
 
 
-// FIX: for debugging only; remove
 bool global_mayUseTypeAndVarToCString = true;
 
 // 2005-08-10: the anon things are kind of ugly..
@@ -185,7 +184,7 @@ void AtomicType::gdb() const
 
 string AtomicType::toString() const
 {
-  if (!global_mayUseTypeAndVarToCString) xfailure("suspended during TypePrinterC::print");
+  if (!global_mayUseTypeAndVarToCString) xfailure("suspended during CTypePrinter::print");
   if (CType::printAsML) {
     return toMLString();
   }
@@ -195,7 +194,7 @@ string AtomicType::toString() const
 }
 
 
-bool AtomicType::isNamedAtomicType() const 
+bool AtomicType::isNamedAtomicType() const
 {
   // default to false; NamedAtomicType overrides
   return false;
@@ -261,7 +260,7 @@ SimpleType SimpleType::fixed[NUM_SIMPLE_TYPES] = {
   SimpleType(ST_ANY_OBJ_TYPE),
   SimpleType(ST_ANY_NON_VOID),
   SimpleType(ST_ANY_TYPE),
-  
+
   SimpleType(ST_PRET_STRIP_REF),
   SimpleType(ST_PRET_PTM),
   SimpleType(ST_PRET_ARITH_CONV),
@@ -273,7 +272,7 @@ SimpleType SimpleType::fixed[NUM_SIMPLE_TYPES] = {
 
 string SimpleType::toCString() const
 {
-  if (!global_mayUseTypeAndVarToCString) xfailure("suspended during TypePrinterC::print");
+  if (!global_mayUseTypeAndVarToCString) xfailure("suspended during CTypePrinter::print");
   return simpleTypeName(type);
 }
 
@@ -352,7 +351,7 @@ NamedAtomicType::~NamedAtomicType()
 }
 
 
-bool NamedAtomicType::isNamedAtomicType() const 
+bool NamedAtomicType::isNamedAtomicType() const
 {
   return true;
 }
@@ -506,6 +505,7 @@ CompoundType::CompoundType(Keyword k, StringRef n)
   : NamedAtomicType(n),
     Scope(SK_CLASS, 0 /*changeCount*/, SL_UNKNOWN /*dummy loc*/),
     forward(true),
+    isTransparentUnion(false),
     keyword(k),
     virtualBases(),
     subobj(BaseClassSubobj(this, AK_PUBLIC, false /*isVirtual*/)),
@@ -608,9 +608,9 @@ bool CompoundType::hasVirtualFns() const
 
 string CompoundType::toCString() const
 {
-  if (!global_mayUseTypeAndVarToCString) xfailure("suspended during TypePrinterC::print");
+  if (!global_mayUseTypeAndVarToCString) xfailure("suspended during CTypePrinter::print");
   stringBuilder sb;
-                                                          
+
   // typedefVar might be NULL if this object is in the middle
   // of being built, but I want it to be printable at all times
   TemplateInfo *tinfo = typedefVar? templateInfo() : NULL;
@@ -620,7 +620,7 @@ string CompoundType::toCString() const
     sb << tinfo->paramsToCString() << " ";
   }
 
-  if (!tinfo || hasParams) {   
+  if (!tinfo || hasParams) {
     // only say 'class' if this is like a class definition, or
     // if we're not a template, since template instantiations
     // usually don't include the keyword 'class' (this isn't perfect..
@@ -630,9 +630,9 @@ string CompoundType::toCString() const
 
   //sb << (instName? instName : "/*anonymous*/");
   if (typedefVar) {
-    sb << typedefVar->fullyQualifiedName();
+    sb << typedefVar->fullyQualifiedName0();
   }
-  else {                                 
+  else {
     // only reachable during object construction
     sb << (name? name : "/*anon*/");
   }
@@ -675,7 +675,7 @@ int CompoundType::reprSize() const
   // parameterization, but for now it's just a best effort driven by
   // specific pieces of code that know how big their own structures
   // are supposed to be.
-  //        
+  //
   // Were I to try to do a better job, a good starting point would be
   // to research any published ABIs I could find for C and C++, as
   // they would have to specify a layout algorithm.  Presumably, if I
@@ -707,7 +707,7 @@ int CompoundType::reprSize() const
 
       int membBits = v->getBitfieldSize();
       bits += membBits;
-      
+
       // increase alignment to accomodate this member
       while (membBits > align*8 && align < 4) {
         align *= 2;
@@ -777,9 +777,9 @@ void CompoundType::traverse(TypeVisitor &vis)
 
   // traverse the superclass
   Scope::traverse_internal(vis);
-    
+
   // 2005-07-28: Disabled because (1) I don't remember why I wanted
-  // it and it is a little weird (why not traverse the params too?), 
+  // it and it is a little weird (why not traverse the params too?),
   // and (2) it would interfere with XML serialization.
   //
   //if (isTemplate()) {
@@ -835,6 +835,24 @@ int CompoundType::getDataMemberPosition(StringRef name) const
     index++;
   }
   return -1;     // not found
+}
+
+
+// TODO: Does this handle members of base classes correctly?  What
+// about virtual inheritance?
+int CompoundType::getDataMemberOffset(Variable *dataMember) const
+{
+  int offset = 0;
+  SFOREACH_OBJLIST(Variable, dataMembers, iter) {
+    if (iter.data() == dataMember) {
+      return offset;
+    }
+    offset += iter.data()->type->reprSize();
+  }
+
+  xfailure(stringc << "getDataMemberOffset: no such member: "
+                   << dataMember->name);
+  return 0;  // silence warning
 }
 
 
@@ -912,7 +930,7 @@ BaseClassSubobj const *CompoundType::findVirtualSubobjectC
   return NULL;   // not found
 }
 
-  
+
 // fundamentally, this takes advantage of the ownership scheme,
 // where nonvirtual bases form a tree, and the 'virtualBases' list
 // gives us additional trees of internally nonvirtual bases
@@ -931,7 +949,7 @@ STATICDEF void CompoundType::clearVisited_helper
   (BaseClassSubobj const *subobj)
 {
   subobj->visited = false;
-  
+
   // recursively clear flags in the *nonvirtual* bases
   SFOREACH_OBJLIST(BaseClassSubobj, subobj->parents, iter) {
     if (!iter.data()->isVirtual) {
@@ -997,7 +1015,7 @@ string CompoundType::renderSubobjHierarchy() const
     SFOREACH_OBJLIST(BaseClassSubobj, obj->parents, iter) {
       BaseClassSubobj const *parent = iter.data();
 
-      sb << "  \"" << parent->canonName() << "\" -> \"" 
+      sb << "  \"" << parent->canonName() << "\" -> \""
                    << obj->canonName() << "\" [\n";
       if (parent->isVirtual) {
         sb << "    style = dashed\n";    // virtual inheritance: dashed link
@@ -1023,7 +1041,7 @@ int CompoundType::countBaseClassSubobjects(CompoundType const *ct) const
 {
   SObjList<BaseClassSubobj const> objs;
   getSubobjects(objs);
-    
+
   int count = 0;
   SFOREACH_OBJLIST(BaseClassSubobj const, objs, iter) {
     if (iter.data()->ct == ct) {
@@ -1034,7 +1052,7 @@ int CompoundType::countBaseClassSubobjects(CompoundType const *ct) const
   return count;
 }
 
-  
+
 // simple recursive computation
 void getBaseClasses(SObjSet<CompoundType*> &bases, CompoundType *ct)
 {
@@ -1144,7 +1162,7 @@ void CompoundType::addLocalConversionOp(Variable *op)
       }
     }
   }
-  
+
   // add 'op'
   conversionOperators.append(op);
 }
@@ -1153,7 +1171,7 @@ void CompoundType::addLocalConversionOp(Variable *op)
 // return false if the presence of 'v' in a CompoundType
 // prevents that compound from being "aggregate"
 static bool isAggregate_one(Variable const *v)
-{                    
+{
   // typedef and static members are irrelevant
   if (v->isType() || v->hasFlag(DF_STATIC)) {
     return true;
@@ -1393,7 +1411,7 @@ EnumType::~EnumType()
 
 string EnumType::toCString() const
 {
-  if (!global_mayUseTypeAndVarToCString) xfailure("suspended during TypePrinterC::print");
+  if (!global_mayUseTypeAndVarToCString) xfailure("suspended during CTypePrinter::print");
   return stringc << "enum " << (name? name : "/*anonymous*/");
 }
 
@@ -1420,12 +1438,16 @@ EnumType::Value *EnumType::addValue(StringRef name, int value, Variable *decl)
 
   Value *v = new Value(name, this, value, decl);
   valueIndex.add(name, v);
-  
+
   // 7/22/04: At one point I was also maintaining a linked list of
   // the Value objects.  Daniel pointed out this was quadratic b/c
   // I was using 'append()'.  Since I never used the list anyway,
   // I just dropped it in favor of the dictionary (only).
-  
+
+  if (value < 0) {
+    hasNegativeValues = true;
+  }
+
   return v;
 }
 
@@ -1433,7 +1455,7 @@ EnumType::Value *EnumType::addValue(StringRef name, int value, Variable *decl)
 EnumType::Value const *EnumType::getValue(StringRef name) const
 {
   Value const *v;
-  if (valueIndex.queryC(name, v)) { 
+  if (valueIndex.queryC(name, v)) {
     return v;
   }
   else {
@@ -1574,7 +1596,7 @@ DOWNCAST_IMPL(BaseType, PointerToMemberType)
 bool BaseType::equals(BaseType const *obj, MatchFlags flags) const
 {
   MType mtype;
-  
+
   // oy.. I think it's a fair assumption that the only direct subclass
   // of BaseType is CType ...; in fact, I just made BaseType's ctor
   // private to ensure this
@@ -1582,14 +1604,13 @@ bool BaseType::equals(BaseType const *obj, MatchFlags flags) const
                          static_cast<CType const*>(obj), flags);
 }
 
-
 unsigned BaseType::hashValue() const
 {
   unsigned h = innerHashValue();
-  
+
   // 'h' now has quite a few bits of entropy, but they're mostly
   // in the high bits.  push it through a PRNG to mix it better.
-  return lcprngTwoSteps(h);
+  return lcprngTwoSteps_inline(h);
 }
 
 
@@ -1609,9 +1630,9 @@ void BaseType::gdb() const
   cout << toString() << endl;
 }
 
-string BaseType::toString() const 
+string BaseType::toString() const
 {
-  if (!global_mayUseTypeAndVarToCString) xfailure("suspended during TypePrinterC::print");
+  if (!global_mayUseTypeAndVarToCString) xfailure("suspended during CTypePrinter::print");
   if (printAsML) {
     return toMLString();
   }
@@ -1623,7 +1644,7 @@ string BaseType::toString() const
 
 string BaseType::toCString() const
 {
-  if (!global_mayUseTypeAndVarToCString) xfailure("suspended during TypePrinterC::print");
+  if (!global_mayUseTypeAndVarToCString) xfailure("suspended during CTypePrinter::print");
   if (isCVAtomicType()) {
     // special case a single atomic type, so as to avoid
     // printing an extra space
@@ -1641,7 +1662,7 @@ string BaseType::toCString() const
 
 string BaseType::toCString(char const *name) const
 {
-  if (!global_mayUseTypeAndVarToCString) xfailure("suspended during TypePrinterC::print");
+  if (!global_mayUseTypeAndVarToCString) xfailure("suspended during CTypePrinter::print");
   // print the inner parentheses if the name is omitted
   bool innerParen = (name && name[0])? false : true;
 
@@ -1668,12 +1689,12 @@ string BaseType::toCString(char const *name) const
 // this is only used by CVAtomicType.. all others override it
 string BaseType::rightString(bool /*innerParen*/) const
 {
-  if (!global_mayUseTypeAndVarToCString) xfailure("suspended during TypePrinterC::print");
+  if (!global_mayUseTypeAndVarToCString) xfailure("suspended during CTypePrinter::print");
   return "";
 }
 
 
-bool BaseType::anyCtorSatisfiesF(TypePredFunc f) const 
+bool BaseType::anyCtorSatisfiesF(TypePredFunc f) const
 {
   StatelessTypePred stp(f);
   return anyCtorSatisfies(stp);
@@ -1708,6 +1729,15 @@ bool BaseType::isSimple(SimpleTypeId id) const
          asSimpleTypeC()->type == id;
 }
 
+bool BaseType::isSomeKindOfCharType() const
+{
+  return
+    isSimple(ST_CHAR)          ||
+    isSimple(ST_UNSIGNED_CHAR) ||
+    isSimple(ST_SIGNED_CHAR)   ||
+    isSimple(ST_WCHAR_T);
+}
+
 bool BaseType::isStringType() const
 {
   return isArrayType() &&
@@ -1729,7 +1759,7 @@ bool BaseType::isEnumType() const
 }
 
 
-bool BaseType::isDependent() const 
+bool BaseType::isDependent() const
 {
   // 14.6.2.1: type variables (template parameters) are the base case
   // for dependent types
@@ -1978,7 +2008,7 @@ bool ContainsVariablesPred::atomicTypeHasVariable(AtomicType const *t)
            nameContainsVariables(dqt->rest);
   }
 
-  if (t->isCompoundType() && 
+  if (t->isCompoundType() &&
       t->asCompoundTypeC()->isTemplate(true /*considerInherited*/)) {
     return true;
 
@@ -2030,7 +2060,7 @@ bool BaseType::containsVariables(MType *map) const
 
 string toString(CType *t)
 {
-  if (!global_mayUseTypeAndVarToCString) xfailure("suspended during TypePrinterC::print");
+  if (!global_mayUseTypeAndVarToCString) xfailure("suspended during CTypePrinter::print");
   return t->toString();
 }
 
@@ -2045,7 +2075,7 @@ inline unsigned cvHash(CVFlags cv)
 unsigned CVAtomicType::innerHashValue() const
 {
   // underlying atomic is pointer-based equality
-  return (unsigned)atomic + 
+  return (unsigned)atomic +
          cvHash(cv);
          // T_ATOMIC is zero anyway
 }
@@ -2053,7 +2083,7 @@ unsigned CVAtomicType::innerHashValue() const
 
 string CVAtomicType::leftString(bool /*innerParen*/) const
 {
-  if (!global_mayUseTypeAndVarToCString) xfailure("suspended during TypePrinterC::print");
+  if (!global_mayUseTypeAndVarToCString) xfailure("suspended during CTypePrinter::print");
   stringBuilder s;
   s << atomic->toCString();
   s << cvToString(cv);
@@ -2188,7 +2218,7 @@ unsigned PointerType::innerHashValue() const
 
 string PointerType::leftString(bool /*innerParen*/) const
 {
-  if (!global_mayUseTypeAndVarToCString) xfailure("suspended during TypePrinterC::print");
+  if (!global_mayUseTypeAndVarToCString) xfailure("suspended during CTypePrinter::print");
   stringBuilder s;
   s << atType->leftString(false /*innerParen*/);
   if (atType->isFunctionType() ||
@@ -2205,7 +2235,7 @@ string PointerType::leftString(bool /*innerParen*/) const
 
 string PointerType::rightString(bool /*innerParen*/) const
 {
-  if (!global_mayUseTypeAndVarToCString) xfailure("suspended during TypePrinterC::print");
+  if (!global_mayUseTypeAndVarToCString) xfailure("suspended during CTypePrinter::print");
   stringBuilder s;
   if (atType->isFunctionType() ||
       atType->isArrayType()) {
@@ -2318,7 +2348,7 @@ unsigned ReferenceType::innerHashValue() const
 
 string ReferenceType::leftString(bool /*innerParen*/) const
 {
-  if (!global_mayUseTypeAndVarToCString) xfailure("suspended during TypePrinterC::print");
+  if (!global_mayUseTypeAndVarToCString) xfailure("suspended during CTypePrinter::print");
   stringBuilder s;
   s << atType->leftString(false /*innerParen*/);
   if (atType->isFunctionType() ||
@@ -2331,7 +2361,7 @@ string ReferenceType::leftString(bool /*innerParen*/) const
 
 string ReferenceType::rightString(bool /*innerParen*/) const
 {
-  if (!global_mayUseTypeAndVarToCString) xfailure("suspended during TypePrinterC::print");
+  if (!global_mayUseTypeAndVarToCString) xfailure("suspended during CTypePrinter::print");
   stringBuilder s;
   if (atType->isFunctionType() ||
       atType->isArrayType()) {
@@ -2418,7 +2448,7 @@ void ReferenceType::detachOcaml() {
 
 // -------------------- FunctionType::ExnSpec --------------
 FunctionType::ExnSpec::ExnSpec(ExnSpec const &obj)
-{                                   
+{
   // copy list contents
   types = obj.types;
 }
@@ -2491,24 +2521,24 @@ unsigned FunctionType::innerHashValue() const
   unsigned val = retType->innerHashValue() * HASH_KICK +
                  params.count() +
                  T_FUNCTION * TAG_KICK;
-                 
+
   // now factor in the parameter types
   int ct = 1;
-  SFOREACH_OBJLIST(Variable, params, iter) { 
+  SFOREACH_OBJLIST(Variable, params, iter) {
     // similar to return value
     unsigned p = iter.data()->type->innerHashValue() * HASH_KICK +
                  (ct + T_FUNCTION) * TAG_KICK;
-                 
+
     // multiply with existing hash, sort of like each parameter
     // is another dimension and we're constructing a tuple in
     // some space
     val *= p;
-  }          
-  
+  }
+
   // don't consider exnSpec or templateInfo; I don't think I'll be
   // encountering situations where I want the hash to be sensitive to
   // those
-  
+
   // the 'flags' information is mostly redundant with the parameter
   // list, so don't bother folding that in
 
@@ -2566,7 +2596,7 @@ NamedAtomicType *FunctionType::getNATOfMember()
 
 string FunctionType::leftString(bool innerParen) const
 {
-  if (!global_mayUseTypeAndVarToCString) xfailure("suspended during TypePrinterC::print");
+  if (!global_mayUseTypeAndVarToCString) xfailure("suspended during CTypePrinter::print");
   stringBuilder sb;
 
   // FIX: FUNC TEMPLATE LOSS
@@ -2596,7 +2626,7 @@ string FunctionType::leftString(bool innerParen) const
 
 string FunctionType::rightString(bool innerParen) const
 {
-  if (!global_mayUseTypeAndVarToCString) xfailure("suspended during TypePrinterC::print");
+  if (!global_mayUseTypeAndVarToCString) xfailure("suspended during CTypePrinter::print");
   // I split this into two pieces because the Cqual++ concrete
   // syntax puts $tainted into the middle of my rightString,
   // since it's following the placement of 'const' and 'volatile'
@@ -2608,7 +2638,7 @@ string FunctionType::rightString(bool innerParen) const
 
 string FunctionType::rightStringUpToQualifiers(bool innerParen) const
 {
-  if (!global_mayUseTypeAndVarToCString) xfailure("suspended during TypePrinterC::print");
+  if (!global_mayUseTypeAndVarToCString) xfailure("suspended during CTypePrinter::print");
   // finish enclosing type
   stringBuilder sb;
   if (innerParen) {
@@ -2646,7 +2676,7 @@ string FunctionType::rightStringUpToQualifiers(bool innerParen) const
 
 STATICDEF string FunctionType::rightStringQualifiers(CVFlags cv)
 {
-  if (!global_mayUseTypeAndVarToCString) xfailure("suspended during TypePrinterC::print");
+  if (!global_mayUseTypeAndVarToCString) xfailure("suspended during CTypePrinter::print");
   if (cv) {
     return stringc << " " << ::toString(cv);
   }
@@ -2657,7 +2687,7 @@ STATICDEF string FunctionType::rightStringQualifiers(CVFlags cv)
 
 string FunctionType::rightStringAfterQualifiers() const
 {
-  if (!global_mayUseTypeAndVarToCString) xfailure("suspended during TypePrinterC::print");
+  if (!global_mayUseTypeAndVarToCString) xfailure("suspended during CTypePrinter::print");
   stringBuilder sb;
 
   // exception specs
@@ -2684,13 +2714,13 @@ string FunctionType::rightStringAfterQualifiers() const
 
 void FunctionType::extraRightmostSyntax(stringBuilder &) const
 {
-  if (!global_mayUseTypeAndVarToCString) xfailure("suspended during TypePrinterC::print");
+  if (!global_mayUseTypeAndVarToCString) xfailure("suspended during CTypePrinter::print");
 }
 
 
 string FunctionType::toString_withCV(CVFlags cv) const
 {
-  if (!global_mayUseTypeAndVarToCString) xfailure("suspended during TypePrinterC::print");
+  if (!global_mayUseTypeAndVarToCString) xfailure("suspended during CTypePrinter::print");
   return stringc
     << leftString(true /*innerParen*/)
     << rightStringUpToQualifiers(true /*innerParen*/)
@@ -2767,7 +2797,7 @@ void FunctionType::traverse(TypeVisitor &vis)
   //
   // dsw: if you ever put them in, we have to take them out of the xml
   // rendering or they will get rendered twice; in
-  // TypeToXml::visitType() see this case statement
+  // XmlTypeWriter::visitType() see this case statement
   //   case CType::T_FUNCTION:
 
   vis.postvisitType(this);
@@ -2871,13 +2901,13 @@ unsigned ArrayType::innerHashValue() const
 
 string ArrayType::leftString(bool /*innerParen*/) const
 {
-  if (!global_mayUseTypeAndVarToCString) xfailure("suspended during TypePrinterC::print");
+  if (!global_mayUseTypeAndVarToCString) xfailure("suspended during CTypePrinter::print");
   return eltType->leftString();
 }
 
 string ArrayType::rightString(bool /*innerParen*/) const
 {
-  if (!global_mayUseTypeAndVarToCString) xfailure("suspended during TypePrinterC::print");
+  if (!global_mayUseTypeAndVarToCString) xfailure("suspended during CTypePrinter::print");
   stringBuilder sb;
 
   if (hasSize()) {
@@ -3013,7 +3043,7 @@ PointerToMemberType::PointerToMemberType(NamedAtomicType *inClassNAT0, CVFlags c
 
   // cannot have pointer to reference type
   xassert(!a->isReference());
-  
+
   // there are some other semantic restrictions, but I let the
   // type checker enforce them
 }
@@ -3039,7 +3069,7 @@ unsigned PointerToMemberType::innerHashValue() const
 
 string PointerToMemberType::leftString(bool /*innerParen*/) const
 {
-  if (!global_mayUseTypeAndVarToCString) xfailure("suspended during TypePrinterC::print");
+  if (!global_mayUseTypeAndVarToCString) xfailure("suspended during CTypePrinter::print");
   stringBuilder s;
   s << atType->leftString(false /*innerParen*/);
   s << " ";
@@ -3054,7 +3084,7 @@ string PointerToMemberType::leftString(bool /*innerParen*/) const
 
 string PointerToMemberType::rightString(bool /*innerParen*/) const
 {
-  if (!global_mayUseTypeAndVarToCString) xfailure("suspended during TypePrinterC::print");
+  if (!global_mayUseTypeAndVarToCString) xfailure("suspended during CTypePrinter::print");
   stringBuilder s;
   if (atType->isFunctionType() ||
       atType->isArrayType()) {
@@ -3159,7 +3189,7 @@ string SimpleType::toMLString() const
 string CompoundType::toMLString() const
 {
   stringBuilder sb;
-      
+
 //    bool hasParams = templateInfo && templateInfo->params.isNotEmpty();
 //    if (hasParams) {
   TemplateInfo *tinfo = templateInfo();
@@ -3167,7 +3197,7 @@ string CompoundType::toMLString() const
     sb << tinfo->paramsToMLString();
   }
 
-//    if (!templateInfo || hasParams) {   
+//    if (!templateInfo || hasParams) {
     // only say 'class' if this is like a class definition, or
     // if we're not a template, since template instantiations
     // usually don't include the keyword 'class' (this isn't perfect..
@@ -3185,7 +3215,7 @@ string CompoundType::toMLString() const
   //if (templateInfo && templateInfo->specialArguments) {
   //  sb << "<" << templateInfo->specialArgumentsRepr << ">";
   //}
-   
+
   return sb;
 }
 
@@ -3218,7 +3248,7 @@ string PseudoInstantiation::toMLString() const
 void BaseType::putSerialNo(stringBuilder &sb) const
 {
   #if USE_SERIAL_NUMBERS
-    sb << printSerialNo("t", serialNumber, "-");
+    printSerialNo(sb, "t", serialNumber, "-");
   #endif
 }
 
@@ -3459,12 +3489,17 @@ CType *TypeFactory::applyCVToType(SourceLoc loc, CVFlags cv, CType *baseType,
   }
 
   CVFlags now = baseType->getCVFlags();
-  if (now | cv == now) {
+  if (wantsQualifiedTypeReuseOptimization() &&
+      now | cv == now) {
     // no change, 'cv' already contained in the existing flags
     return baseType;
   }
   else if (baseType->isArrayType()) {
     // 8.3.4 para 1: apply cv to the element type
+    //
+    // Note: This clones the ArrayType object every time, if someone
+    // is adding const or volatile to an array (possible via typedef).
+    // This is probably a bug.
     ArrayType *at = baseType->asArrayType();
     return makeArrayType(applyCVToType(loc, cv, at->eltType, NULL /*syntax*/),
                          at->size);
@@ -3474,6 +3509,12 @@ CType *TypeFactory::applyCVToType(SourceLoc loc, CVFlags cv, CType *baseType,
     // inappropriate application (e.g. 'const' to a reference)
     return setQualifiers(loc, now | cv, baseType, syntax);
   }
+}
+
+
+bool TypeFactory::wantsQualifiedTypeReuseOptimization()
+{
+  return true;
 }
 
 
@@ -3515,7 +3556,7 @@ CType *TypeFactory::makeTypeOf_receiver(SourceLoc loc,
 FunctionType *TypeFactory::makeSimilarFunctionType(SourceLoc loc,
   CType *retType, FunctionType *similar)
 {
-  FunctionType *ret = 
+  FunctionType *ret =
     makeFunctionType(retType);
   ret->flags = similar->flags & ~FF_METHOD;     // isMethod is like a parameter
   if (similar->exnSpec) {
@@ -3582,7 +3623,7 @@ CVAtomicType BasicTypeFactory::unqualifiedSimple[NUM_SIMPLE_TYPES] = {
   CVAT(ST_ANY_OBJ_TYPE)
   CVAT(ST_ANY_NON_VOID)
   CVAT(ST_ANY_TYPE)
-  
+
   CVAT(ST_PRET_STRIP_REF)
   CVAT(ST_PRET_PTM)
   CVAT(ST_PRET_ARITH_CONV)
@@ -3650,7 +3691,7 @@ PointerToMemberType *BasicTypeFactory::makePointerToMemberType
 
 
 Variable *BasicTypeFactory::makeVariable(
-  SourceLoc L, StringRef n, CType *t, DeclFlags f, TranslationUnit *)
+  SourceLoc L, StringRef n, CType *t, DeclFlags f)
 {
   // I will turn this on from time to time as a way to check that
   // Types are always capable of printing themselves.  It should never

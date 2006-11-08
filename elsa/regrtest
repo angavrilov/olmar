@@ -868,6 +868,16 @@ testparse t0575.cc
 testparse t0576.cc
 failparse t0577.cc "flawed abstract enumerator value processing"
 # t0578.cc is arguably valid code, but nobody can handle it
+failparse t0579.cc "tricky rules about enumerator types"
+failparse t0580.cc "use of enumerator in template-id for explicit specializiation"
+failparse t0581.cc "simpler dependent array bound problem"
+failparse t0582.cc "template array bound problem leads to crash"
+testparse t0583.cc
+testparse t0584.cc
+failparse t0585.cc "explicit invocation of dtor of template class"
+testparse t0586.cc
+failparse t0587.cc "conversion of static method of template to func ptr"
+testparse t0588.cc
 
 # another set of tests, generally isolated by Daniel
 testparse d0001.cc
@@ -985,6 +995,14 @@ testparse_special ansi d0121.cc
 # sm: this is invalid C++
 #failparse d0123.cc "from the kernel; works in C mode but in C++ mode can't convert void* to function pointer"
 testparse d0124.cc
+testparse d0125.cc # __builtin_va_copy
+testparse d0126.cc
+testparse_special treeCheck dk0127.cc #"a non-tree AST results: default param arg in template class inner class"
+
+# if the elaborateImplicitConversionArgToParam() check is turned on
+# for declarator initializers have to screen out types that
+# containsGeneralizedDependent()
+testparse d0128.cc
 
 testparse k0001.cc #"left side of .* must be a class or reference to a class"
 testparse k0002.cc #"template function declared in another class (as a friend)"
@@ -997,6 +1015,7 @@ testparse k0007.cc
 # renamed k0008.cc to gnu/g0022.cc because it is a GNU feature
 testparse k0009.cc #"clash between function and instantiated template parameter member"
 testparse_special only_works_on_32bit k0010.cc
+failparse_special only_works_on_32bit k0010a.cc "compile-time type size checking - long long"
 testparse k0011.cc
 testparse k0012.cc
 testparse k0013.cc #"cannot convert argument type `float (*)[4]' to parameter 1 type `float const (*)[4]'"
@@ -1061,8 +1080,75 @@ testparse k0055.cc #"using 'class' instead of 'typename' for template-class type
 testparse k0056.cc #"template friend function"
 testparse k0057.cc #"template friend function (2)"
 testparse k0058.cc #"converting to types from parameter templates"
+failparse k0059.cc "implicit type conversion in operator delete"
+failparse k0060.cc "disambiguated from multiple base class subobjects"
+failparse k0061.cc "multiple base classes instantiated from the same template class"
+# quarl 2006-05-28 k0062.cc passes on my machine, but not on Scott's ?!
+#failparse k0062.cc "template class with subclass whose member function with default argument is defined outside class"
+testparse k0063.cc #"class friend main"
+failparse k0064.cc "functions overloaded by number of template parameters"
+testparse k0065.cc "using incomplete class as default template argument"
+failparse k0066.cc "nested template class"
+failparse k0067.cc "constructor using volatile reference"
+failparse k0068.cc "explicitly named constructor"
+failparse k0008.cc "template parameterized by function pointer"
+failparse k0069.cc "friend class as template parameter"
+testparse k0070.cc #"scoping via template instantiation with all parameters defaulted"
+failparse k0071.cc "compound initializer for struct which was earlier forward-declared as class"
+failparse k0072.cc "template <class T> void foo(S1<T> s1, const typename T::T2 t2) {}"
+failparse k0073.cc "compound initializer for instantiated template struct"
+failparse k0074.cc "template unions"
+failparse k0075.cc "overloaded function involving function pointer in presence of template"
+failparse k0076.cc "attribute unused on struct parameter"
+failparse k0077.cc "template constructor instantiated using function type"
+failparse k0078.cc "array of function pointers initialized with template functions"
+failparse k0078a.cc "array of function pointers initialized with template functions (single item)"
+failparse k0079.cc "reference to reference used in inner class of template class"
+failparse k0080.cc "already implicitly instantiated"
+failparse k0081.cc "template instantiated through inferred type instantiating another template with default parameter depending on first template parameter"
+failparse k0082.cc "const register function parameter"
+failparse k0083.cc "friend template class declaration"
+failparse k0084.cc "complex literals"
+failparse k0085.cc "complex double * int"
+failparse k0086.cc "enable_if: template argument expressions"
+failparse k0087.cc "implicit conversion to "bool const &" via "bool" via "operator bool""
+failparse k0088.cc "inferring const member function template parameter type"
+failparse k0089.cc "specialization of template function member"
+failparse k0090.cc "template specialization of array"
+failparse k0090a.cc "template specialization of array"
+failparse k0091.cc "template specialization with all default parameters"
+failparse k0092.cc "template-parameter-instantiated template class without 'typename' in constructor initializer"
+failparse k0093.cc "tertiary operator implicitly casting one pointer operand to bool"
+# This is a warning now instead of an error:
+#testparse k0094.cc #declared non-static, cannot re-declare as static
+failparse k0095.cc "templatized enum parameter"
+testparse k0096.cc "statement expression returning struct"
+testparse k0097.cc "function pointer template"
+failparse k0098.cc "ambiguous operator cast"
+failparse k0099.cc "partial specialization lookup"
+failparse k0100.cc "templatized template parameter list"
+testparse k0101.cc "typename ParameterDeclaration in TemplateParameterList"
+failparse k0102.cc "template parameter template-instantiated on another template parameter"
+failparse k0103.cc "'duplicate definition' from 'using' declaration"
+testparse k0104.cc #"restrict reference"
+failparse k0105.cc "function pointer dependent type"
+failparse k0106.cc "anonymous struct in anonymous union"
+failparse k0107.cc "inline explicit instantiation"
+failparse k0108.cc "explicit instantiation of constructor"
+failparse k0109.cc "instantiating template member function"
+failparse k0110.cc "calling template dtor with template arguments"
+failparse k0111.cc "duplicate template specialization/definition of static data"
+testparse k0112.cc #"template instantiation with all default args"
+failparse k0113.cc "calling templatized operator-overloaded function"
+failparse k0114.cc "template parameterized on function (not function pointer)"
+failparse k0115.cc "using own member function"
+failparse k0116.cc "template parameter default instantiating template class"
+failparse k0117.cc "class templatized on int, copy constructor"
+testparse k0118.cc "typedef struct { } *foo"
 
 ### </quarl-testcases-c++>
+
+failparse u0001.cc "template array size"
 
 # Simon sfg@cs
 testparse sg0001.cc # invoke dtor on const object
@@ -1199,6 +1285,12 @@ if $use_gnu; then
   testparse gnu/k0003.cc #"gcc 3.4 __builtin_* math functions"
   testparse gnu/k0004.cc #"operator <?"
   testparse gnu/k0005.cc #"comparing long long to enum value"
+  testparse gnu/k0006.cc #"__offsetof__"
+  testparse gnu/k0006a.cc #"__builtin_offsetof"
+  failparse gnu/k0007.cc "__builtin_frame_address"
+  failparse gnu/k0008.c "declared extern inline, defined extern inline, defined non-extern-inline"
+  failparse gnu/k0009.cc "namespace attribute strong"
+  failparse gnu/k0010.c "nested K&R function"
 
 else # tests that only pass when not in gnu mode
   testparse t0228b.cc
@@ -1285,6 +1377,7 @@ failCparse c/t0023.c "unhandled KandRSimpleDeclaration ambiguity"
 testCparse c/t0024.c
 testCparse c/t0025.c
 testCparse c/t0026.c
+testCparse c/t0027.c
 
 testCparse gnu/d0096.c
 testCparse c/dC0010.c #"f(u8 register) doesn't parse"
@@ -1306,7 +1399,7 @@ testCparse c/dC0022.c # sizeof dynamically-sized multidimensional array
 
 testCparse c/dC0023.c # "in gcc, in C mode, a foo and a struct foo are unrelated"
 
-# this is invalid code                                              
+# this is invalid code
 #
 # 2005-08-04: but if people keep feeding me this bug, I guess I will
 # shut up and accept it
@@ -1336,6 +1429,11 @@ testCparse c/k0007.c #"duplicate modifiers in C as warning, not error (?)"
 testCparse c/k0008.c #"function call vs type-cast ambiguity"
 testCparse c/k0009.c #"func returning array of function pointers with old-style parm list"
 testCparse c/k0010.c #"'and' keyword"
+testCparse c/k0012.c #return struct by value
+testCparse c/k0013.c #"enum variable declared earlier as int"
+testCparse c/k0014.c #"offsetof cannot be assumed to be 0 (evaluated e.g. in case labels)"
+testCparse c/k0015.c #"variable-sized character buffer in function-local struct using same name for size as a member variable and another variable in outside scope"
+testCparse c/k0016.c #"expression in compound initializer array index"
 
 ### </quarl-testcases-c>
 
@@ -1381,6 +1479,22 @@ if $use_gnu; then
   testCparse gnu/dC0014.c # "'u32 long off' doesn't parse"
   testCparse gnu/dC0015.c # function scope structs can contain arrays of dynamic size
   testCparse gnu/dC0016.c
+
+  # transparent unions
+  testCparse gnu/t0133.c
+  testCparse gnu/t0134.c
+
+  # These work, but for the wrong reason.  The transparent union attribute
+  # is dropped on the floor (bad) but then no argument checking is done
+  # so we don't notice the problem (double bad).  Oink would notice because
+  # the lack of normalization will cause problems.
+  testCparse gnu/t0135.c
+  testCparse gnu/t0136.c
+
+  # This is here just to document that Elsa does not diagnose something that
+  # gcc does.  However, it's so esoteric that I don't want to consider this
+  # even a "known bug" in Elsa, so it is commented out.
+  #failCparse gnu/t0137.c
 
   # attribute tests
   testCparse gnu/attr01.c
@@ -1429,7 +1543,7 @@ if $use_gnu; then
   testcil structattr2.i
   testcil structattr3.i
   testcil transpunion.i
-  failcil typeof1.i "ambiguous E_sizeofType"
+  testcil typeof1.i #"ambiguous E_sizeofType"
   testcil warnings-noreturn.i
 fi
 
@@ -1488,3 +1602,65 @@ if [ $contin = 1 ]; then
   fi
 fi
 
+
+######################################################################
+##
+## Top bugs affecting Debian packages
+##     See also:
+##       http://www.quarl.org/~quarl/debsec/output/status/elsa_1.errors
+##
+## 1. [k0105.cc] internal error: found dependent type `(dependent)' in non-template
+##   Seen 3466 times
+##   299 affected packages
+##   289 source packages
+##
+## 2. [k0059.cc] can only delete pointers, not `QGuardedPtr<class QPopupMenu /*anon*/>'
+##   Seen 149 times
+##   137 affected packages
+##   9 source packages
+##
+## 3. [k0075.cc] Assertion failed: argType != NULL && "52291632-1792-4e5c-b5b8-9e6240b75a91", file template.cc line 1346
+##   Seen 912 times
+##   70 affected packages
+##   32 source packages
+##
+## 4. [k0060.cc] field `KInetSocketAddress::d' ambiguously refers to elements of multiple base class subobjects
+##   Seen 69 times
+##   69 affected packages
+##   1 source packages
+##
+## 5. [k0064.cc] duplicate definition for `kRestoreMainWindows' of type `void ()()'; previous at [INPUT]
+##   Seen 1023 times
+##   59 affected packages
+##   55 source packages
+##
+## 6. [k0072.cc] Assertion failed: e != NULL && "ceae1527-94a7-480d-9134-5dbd8cbfb2aa", file cc.gr line 1240
+##   Seen 78 times
+##   16 affected packages
+##   5 source packages
+##
+## 7. [k0081.cc] could not evaluate default argument `iterator_traits<In /*anon*/>::value_type': attempt to extract member `value_type' from non-class `iterator_traits<In /*anon*/>'
+##   Seen 1101 times
+##   16 affected packages
+##   14 source packages
+##
+## 8. [k0086.cc] unimplemented: template.cc:4029: applyArgumentMap: dep-expr is not E_variable
+##   Seen 121 times
+##   15 affected packages
+##   16 source packages
+##
+## 9. [k0087.cc] no viable candidate for function call; arguments:
+##   Seen 153 times
+##   15 affected packages
+##   16 source packages
+##
+## 10. [gnu/k0006.cc] there is no function called `__offsetof__'
+##   Seen 364 times
+##   14 affected packages
+##   14 source packages
+##
+## 11. [k0100.cc] Assertion failed: unimplemented: templatized template parameter list (25eb7000-851c-4028-b762-4e365a5b10bf), file cc.gr line 2399
+##   Seen 402 times
+##   13 affected packages
+##   17 source packages
+##

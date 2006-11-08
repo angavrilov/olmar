@@ -18,11 +18,13 @@ ssh-add.c
 /*
  * $Id$
  * $Log$
- * Revision 1.3  2006/06/19 14:32:51  tews
- * * remove the space again
+ * Revision 1.4  2006/11/08 12:44:42  tews
+ * * completed merge with changes from
+ *   smbase-484-ast-278-elkhound-1036-elsa-2439, a few issues are
+ *   delayed/ignored for a while, see TODO
  *
- * Revision 1.1.1.1  2006/04/11 14:33:50  tews
- * import elsa 2005.08.22b
+ * Revision 1.1.1.3  2006/11/03 16:26:43  tews
+ * snapshot 3.11.06 smbase 484 ast 278 elkhound 1036 elsa 2439
  *
  * Revision 1.1  2002/08/11 00:17:28  scott
  * removed some obsolete files, moved more input to in/

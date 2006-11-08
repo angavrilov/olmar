@@ -193,6 +193,8 @@ and 'a sTemplateArgument =
   | STA_ATOMIC of 'a * 'a atomicType
 
 
+(***************************** Scope ******************************************)
 
+and scope = unit
 
 }

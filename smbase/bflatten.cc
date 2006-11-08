@@ -70,10 +70,10 @@ void BFlatten::noteOwner(void *ownerPtr)
 }
 
 
-void BFlatten::xferSerf(void *&serfPtr, bool nullable)
+void BFlatten::xferSerf(void *&serfPtr, bool isNullable)
 {
   if (writing()) {
-    xassert(nullable || serfPtr!=NULL);
+    xassert(isNullable || serfPtr!=NULL);
                                        
     if (serfPtr == NULL) {
       // encode as 0; the names start with 1
@@ -95,7 +95,7 @@ void BFlatten::xferSerf(void *&serfPtr, bool nullable)
     int name = readInt();
 
     if (name == 0) {      // null
-      xassert(nullable);
+      xassert(isNullable);
       serfPtr = NULL;
     }
     else {
