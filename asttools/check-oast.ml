@@ -473,10 +473,13 @@ and sTemplateArgument_fun ta =
 	unindent()
 
 
+and scope_fun scope =
+  ignore(check_fails "scope node" scope [^ annotated scope ^] "scope")
+
 (***************** generated ast nodes ****************)
 
 and translationUnit_fun 
-    ((annot, topForm_list) as x : annotated translationUnit_type) =
+    ((annot, topForm_list, scope_opt) as x : annotated translationUnit_type) =
   if not (visited annot) &&
     node_check_fails annot x [^ annotated translationUnit_type ^] 
     "translationUnit_type"
@@ -485,6 +488,7 @@ and translationUnit_fun
     annotation_fun annot;
     list_iter topForm_fun topForm_list
       [^ annotated topForm_type list ^] "topForm_type";
+    opt_iter scope_fun scope_opt [^ annotated scope option ^] "scope";
 
     unindent()
   end
@@ -1230,7 +1234,8 @@ and expression_fun x =
 	       string_fun stringRef;
 	       float_fun double
 
-	   | E_stringLit(annot, type_opt, stringRef, e_stringLit_opt) -> 
+	   | E_stringLit(annot, type_opt, stringRef, 
+			 e_stringLit_opt, stringRef_opt) -> 
 	       assert(match e_stringLit_opt with 
 			| Some(E_stringLit _) -> true 
 			| None -> true
@@ -1240,6 +1245,7 @@ and expression_fun x =
 	       string_fun stringRef;
 	       opt_iter expression_fun e_stringLit_opt 
 		 [^ annotated expression_type option ^] "expression_type";
+	       opt_iter string_fun stringRef_opt [^ string option ^] "string"
 
 	   | E_charLit(annot, type_opt, stringRef, int32) -> 
 	       annotation_fun annot;

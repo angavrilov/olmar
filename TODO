@@ -2,6 +2,8 @@ BEFORE NEXT RELEASE
 
 * check licence.txt file list
 
+* rename Type -> CType in elsa/doc/*fig
+
 GENERAL   
 
 
@@ -20,8 +22,6 @@ GENERAL
 * check enum support in astgen, especially wrt DeclaratorContext
   for which astgen generates toXml and fromXml functions
   might move DeclaratorContext back into the cc_tcheck.ast
-
-* rename Type -> CType in elsa/doc/*fig
 
 * SubscriptDesignator.idx_computed2 is INT_MIN
 

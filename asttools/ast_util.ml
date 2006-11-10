@@ -64,7 +64,7 @@ let sTemplateArgument_annotation = function
   | STA_ATOMIC(annot, _) ->
       annot
 
-let translationUnit_annotation ((annot, _) : 'a translationUnit_type) =
+let translationUnit_annotation ((annot, _, _) : 'a translationUnit_type) =
   annot
 
 let topForm_annotation = function
@@ -180,7 +180,7 @@ let expression_annotation = function
   | E_boolLit(annot, _, _)
   | E_intLit(annot, _, _, _)
   | E_floatLit(annot, _, _, _)
-  | E_stringLit(annot, _, _, _)
+  | E_stringLit(annot, _, _, _, _)
   | E_charLit(annot, _, _, _)
   | E_this (annot, _, _)
   | E_variable(annot, _, _, _, _)
@@ -423,7 +423,7 @@ let expression_type = function
   | E_boolLit(_, ex_type, _)
   | E_intLit(_, ex_type, _, _)
   | E_floatLit(_, ex_type, _, _)
-  | E_stringLit(_, ex_type, _, _)
+  | E_stringLit(_, ex_type, _, _, _)
   | E_charLit(_, ex_type, _, _)
   | E_this (_, ex_type, _)
   | E_variable(_, ex_type, _, _, _)

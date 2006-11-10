@@ -195,6 +195,6 @@ and 'a sTemplateArgument =
 
 (***************************** Scope ******************************************)
 
-and scope = unit
+and 'a scope = unit
 
 }

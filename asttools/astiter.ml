@@ -300,16 +300,20 @@ and sTemplateArgument_fun ta =
 	    atomicType_fun atomicType
 
 
+(* scopes are not in Ocaml yet *)
+and scope_fun () = ()
+
 
 (***************** generated ast nodes ****************)
 
 and translationUnit_fun 
-    ((annot, topForm_list) as x : annotated translationUnit_type) =
+    ((annot, topForm_list, scope_opt) as x : annotated translationUnit_type) =
   if visited annot then ()
   else begin
     visit annot;
     annotation_fun annot;
-    List.iter topForm_fun topForm_list
+    List.iter topForm_fun topForm_list;
+    opt_iter scope_fun scope_opt      
   end
 
 
@@ -946,7 +950,8 @@ and expression_fun x =
 	    string_fun stringRef;
 	    float_fun double
 
-	| E_stringLit(annot, type_opt, stringRef, e_stringLit_opt) -> 
+	| E_stringLit(annot, type_opt, stringRef, 
+		      e_stringLit_opt, stringRef_opt) -> 
 	    assert(match e_stringLit_opt with 
 		     | Some(E_stringLit _) -> true 
 		     | None -> true
@@ -954,7 +959,8 @@ and expression_fun x =
 	    annotation_fun annot;
 	    opt_iter cType_fun type_opt;
 	    string_fun stringRef;
-	    opt_iter expression_fun e_stringLit_opt
+	    opt_iter expression_fun e_stringLit_opt;
+	    opt_iter string_fun stringRef_opt
 
 	| E_charLit(annot, type_opt, stringRef, int32) -> 
 	    annotation_fun annot;

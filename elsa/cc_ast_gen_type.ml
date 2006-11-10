@@ -15,7 +15,7 @@
   open Ml_ctype;;
 (* ocaml type verbatim end *)
 
-type 'a translationUnit_type = 'a * 'a topForm_type list * scope option 
+type 'a translationUnit_type = 'a * 'a topForm_type list * 'a scope option 
 
 and 'a topForm_type = 
   | TF_decl of 'a * sourceLoc * 'a declaration_type 
@@ -385,7 +385,7 @@ and 'a sTemplateArgument =
 
 (***************************** Scope ******************************************)
 
-and scope = unit
+and 'a scope = unit
 
 (* ocaml type verbatim end *)
 

@@ -413,8 +413,9 @@ and sTemplateArgument_fun ta =
 
 (***************** generated ast nodes ****************)
 
+(* Hendrik: treat scope *)
 and translationUnit_fun 
-               ((annot, topForm_list) : annotated translationUnit_type) =
+          ((annot, topForm_list, _scope_opt) : annotated translationUnit_type) =
   if visited annot then retval annot
   else begin
     visit annot;
@@ -1057,12 +1058,15 @@ and expression_fun ex =
 	       ("d", string_of_float double)]
 	      []
 
-	| E_stringLit(_annot, _type_opt, stringRef, e_stringLit_opt) -> 
+	| E_stringLit(_annot, _type_opt, stringRef, 
+		      e_stringLit_opt, stringRef_opt) -> 
 	    assert(match e_stringLit_opt with 
 		     | Some(E_stringLit _) -> true 
 		     | None -> true
 		     | _ -> false);
-	    exnode_1d "E_stringLit" "text" stringRef
+	    exnode "E_stringLit" 
+	      [("text", stringRef);
+	       ("fullTextNQ", string_opt stringRef_opt)]
 	      (opt_child expression_fun "continuation" e_stringLit_opt)
 
 	| E_charLit(_annot, _type_opt, stringRef, int32) -> 

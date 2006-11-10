@@ -60,6 +60,7 @@ option pointerType StringRef;
 // yet another newest feature: add a 'a argument to all ocaml types
 option polymorphicOcamlAST Variable CType FunctionType CompoundType;
 option polymorphicOcamlAST STemplateArgument NamedAtomicType EnumType;
+option polymorphicOcamlAST Scope;
 // use a new astgen feature: make a visitor!
 option visitor ASTVisitor;
 option dvisitor DelegatorASTVisitor;
@@ -144,7 +145,7 @@ class Function (
 
   FakeList<MemberInit> *inits,  // (for ctors only) member initialization list
 
-  // HT: body is NULL in regtest 982 (in/big/nsAtomTable.i)
+  // HT: body is NULL in regtest 527 in/t0524.cc
   nullable /*nonnull*/ S_compound body,              // body of function
 
   FakeList<Handler> *handlers   // handlers for ctor "try" block
@@ -555,6 +556,7 @@ class Expression {
 
   -> E_delete(bool colonColon,                     // true if "::" preceeds "delete"
               bool array,                          // true if "[]" follows "delete"
+	      // expr is NULL in regrtest 1074 in in/big/nsAtomTable.i
               nullable /*nonnull*/ Expression expr); // address of obj to deallocate
 
   -> E_throw(nullable Expression expr);
@@ -581,6 +583,7 @@ class Expression {
 
 // maximal expressions: the parent is not an expression
 // (cppstd 1.9 para 12)
+// expr is NULL in regrtest 20 in in/t0020.cc
 class FullExpression (nullable /*nonnull*/ Expression expr) {
   // We do not make lists of FullExpressions.
 
@@ -635,7 +638,7 @@ class Initializer (SourceLoc loc) {
   public Initializer *next = NULL;       // FakeList link
 
   // simple initializer, like "int x = 3"
-  // e is NULL in in/big/iostream-4.2.1.i
+  // e is NULL in in/big/iostream-4.1.2.i
   -> IN_expr(nullable Expression e);
 
   // compound initializer, like "int x[4] = { 1,2,3,4 };
@@ -2713,7 +2716,7 @@ and 'a sTemplateArgument =
 
 (***************************** Scope ******************************************)
 
-and scope = unit
+and 'a scope = unit
 
 }
 //=========================== end  of  ml_ctype.ast
