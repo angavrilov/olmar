@@ -1022,6 +1022,8 @@ public:
       active(disOnly) {
     if (active) {
       prev = e.setDisambiguateOnly(true);
+    } else {
+      prev = false;      // initialize to squelch compiler warning
     }
   }
 
