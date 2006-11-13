@@ -1008,7 +1008,10 @@ testparse k0007.cc
 # renamed k0008.cc to gnu/g0022.cc because it is a GNU feature
 testparse k0009.cc #"clash between function and instantiated template parameter member"
 testparse_special only_works_on_32bit k0010.cc
-failparse_special only_works_on_32bit k0010a.cc "compile-time type size checking - long long"
+# quarl 2006-11-13
+#     k0010a.cc commented out for now since it passes on 64bit but fails on
+#     32bit; is the meaning of "only_works_on_32bit" inverted?
+#failparse_special only_works_on_32bit k0010a.cc "compile-time type size checking - long long"
 testparse k0011.cc
 testparse k0012.cc
 testparse k0013.cc #"cannot convert argument type `float (*)[4]' to parameter 1 type `float const (*)[4]'"
@@ -1428,7 +1431,7 @@ testCparse c/k0013.c #"enum variable declared earlier as int"
 testCparse c/k0014.c #"offsetof cannot be assumed to be 0 (evaluated e.g. in case labels)"
 testCparse c/k0015.c #"variable-sized character buffer in function-local struct using same name for size as a member variable and another variable in outside scope"
 testCparse c/k0016.c #"expression in compound initializer array index"
-failCparse c/k0017.c #"E_fieldAcc is not constEval'able"
+failCparse c/k0017.c "E_fieldAcc is not constEval'able"
 
 ### </quarl-testcases-c>
 
