@@ -134,17 +134,26 @@ and compound_info_fun info =
   in
     if visited annot then ()
     else begin
-	visit annot;
+      visit annot;
+      assert(match !(info.syntax) with
+	       | None
+	       | Some(TS_classSpec _) -> true
+	       | _ -> false);
       annotation_fun info.compound_info_poly;
       opt_iter string_fun info.compound_name;
       variable_fun info.typedef_var;
       accessKeyword_fun info.ci_access;
+      scope_fun info.compound_scope;
       bool_fun info.is_forward_decl;
+      bool_fun info.is_transparent_union;
       compoundType_Keyword_fun info.keyword;
       List.iter variable_fun info.data_members;
       List.iter baseClass_fun info.bases;
       List.iter variable_fun info.conversion_operators;
       List.iter variable_fun info.friends;
+      opt_iter typeSpecifier_fun !(info.syntax);
+
+      (* POSSIBLY CIRCULAR *)
       opt_iter string_fun info.inst_name;
 
       (* POSSIBLY CIRCULAR *)
@@ -180,7 +189,7 @@ and atomicType_fun x =
 	  List.iter sTemplateArgument_fun sTemplateArgument_list
 
       | EnumType(annot, string, variable, accessKeyword, 
-		 string_nativeint_list) ->
+		 string_nativeint_list, has_negatives) ->
 	  visit annot;
 	  annotation_fun annot;
 	  opt_iter string_fun string;
@@ -188,7 +197,8 @@ and atomicType_fun x =
 	  accessKeyword_fun accessKeyword;
 	  List.iter (fun (string, nativeint) -> 
 		       (string_fun string; nativeint_fun nativeint))
-	    string_nativeint_list
+	    string_nativeint_list;
+	  bool_fun has_negatives
 
       | TypeVariable(annot, string, variable, accessKeyword) ->
 	  visit annot;

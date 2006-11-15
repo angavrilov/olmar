@@ -16,16 +16,11 @@ GENERAL
 * check whether IDeclarator.kAndR_params should be nullable
    (kandr.ast)
 
-* serialize Variable.virtuallyOverride
-   CompoundType.isTransparentUnion EnumType.hasNegativeValues
-
 * check enum support in astgen, especially wrt DeclaratorContext
   for which astgen generates toXml and fromXml functions
   might move DeclaratorContext back into the cc_tcheck.ast
 
 * SubscriptDesignator.idx_computed2 is INT_MIN
-
-* add compound_info.syntax
 
 * update readme.txt   
 

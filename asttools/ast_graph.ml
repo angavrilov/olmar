@@ -215,29 +215,36 @@ and compound_info_fun info =
   if visited info.compound_info_poly then retval info.compound_info_poly 
   else begin
     visit info.compound_info_poly;
+    assert(match !(info.syntax) with
+	     | None
+	     | Some(TS_classSpec _) -> true
+	     | _ -> false);
     ast_node color_Compound_info info.compound_info_poly "CompoundType" 
       [("name", string_opt info.compound_name);
        ("access", string_of_accessKeyword info.ci_access);
        ("forward", string_of_bool info.is_forward_decl);
+       ("transparantUnion", string_of_bool info.is_transparent_union);
        ("keyword", string_of_compoundType_Keyword info.keyword);
        ("instName", string_opt info.inst_name)
       ]
       (let x1 = variable_fun info.typedef_var, "typedefVar" in
-       let l2 = 
+       let x2 = scope_fun info.compound_scope, "inherited scope" in
+       let l3 = 
 	 count_rev "dataMembers"
 	   (List.rev_map variable_fun info.data_members) in
-       let l3 =
+       let l4 =
 	 count_rev "virtualBases"
 	   (List.rev_map baseClass_fun info.bases) in
-       let l4 = 
+       let l5 = 
 	 count_rev "conversionOperators"
 	   (List.rev_map variable_fun info.conversion_operators) in
-       let l5 = 
+       let l6 = opt_child typeSpecifier_fun "syntax" !(info.syntax) in
+       let l7 = 
 	 count_rev "friends"
 	   (List.rev_map variable_fun info.friends) in
-       let l6 = opt_child cType_fun "selfType" !(info.self_type)
+       let l8 = opt_child cType_fun "selfType" !(info.self_type)
        in
-	 x1 :: l2 @ l3 @ l4 @ l5 @ l6)
+	 x1 :: x2 :: l3 @ l4 @ l5 @ l6 @ l7 @ l8)
   end
 
 
@@ -282,11 +289,12 @@ and atomicType_fun at =
 		 l1 @ l2 @ l3)
 
 	| EnumType(annot, string, variable, accessKeyword, 
-		   string_nativeint_list) ->
+		   string_nativeint_list, has_negatives) ->
 	    visit annot;
 	    atnode "EnumType" 
 	      [("name", string_opt string);
-	       ("access", string_of_accessKeyword accessKeyword)]
+	       ("access", string_of_accessKeyword accessKeyword);
+	       ("has_negatives", string_of_bool has_negatives)]
 	      (let l1 = opt_child variable_fun "typedefVar" variable in
 	       let l2 = 
 		 count_rev "values"

@@ -415,7 +415,7 @@ generated (shifted to the right to fit into an Ocaml int).
 
 The abstract syntax tree is circular. A naive iteration over the
 tree will therefore in general not terminate. Currently there are
-four fields that might make the tree circular:
+six fields that might make the tree circular:
 <UL>
 <LI>var_type in type variable
 </LI>
@@ -424,6 +424,8 @@ four fields that might make the tree circular:
 <LI>funcDefn in type variable
 </LI>
 <LI>self_type in compound_info
+</LI>
+<LI>syntax in compound_info
 </LI>
 <LI>overload in variable
 </LI>

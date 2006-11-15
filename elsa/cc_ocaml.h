@@ -32,6 +32,7 @@ enum CircularAstType {
   CA_CType,
   CA_Function,
   CA_Expression,
+  CA_TypeSpecifier,
   CA_OverloadSet
 };
 
@@ -43,6 +44,7 @@ class CircularAstPart {
     CType * type; 		/* tagged CA_CType */
     Function * func;		/* tagged CA_Function */
     Expression * expression;	/* tagged CA_Expression */
+    TypeSpecifier * typeSpecifier; /* tagged CA_TypeSpecifier */
     OverloadSet * overload;	/* tagged CA_OverloadSet */
   } ast;
   value val;			/* the reference cell to be updated */
@@ -73,13 +75,14 @@ value ref_constr(value elem, ToOcamlData * data);
  * ocaml data (in which the deferred circularity is enqued) they also takes
  * the reference cell to be updated and the ast node that is to 
  * be serialized later.
- * The first three functions (ie. CType, Function, Expression) update
- * an option ref, for them the value val passed must be ref None.
+ * The first four functions (ie. CType, Function, Expression, TypeSpecifier) 
+ * update an option ref, for them the value val passed must be ref None.
  * The OverloadSet function updates an list ref. For it val must be ref [].
  */
 void postpone_circular_CType(ToOcamlData * data, value val, CType * type);
 void postpone_circular_Function(ToOcamlData * data, value val, Function * func);
 void postpone_circular_Expression(ToOcamlData *, value, Expression *);
+void postpone_circular_TypeSpecifier(ToOcamlData *, value, TypeSpecifier *);
 void postpone_circular_OverloadSet(ToOcamlData *, value, OverloadSet *);
 
 // serialize all the deferred circularities enqued in data

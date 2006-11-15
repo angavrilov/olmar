@@ -1237,7 +1237,7 @@ bool CompoundType::isAggregate() const
 // hand written ocaml serialization function
 value CompoundType::toCompoundInfo(ToOcamlData *data){
   CAMLparam0();
-  CAMLlocalN(info, 12);
+  CAMLlocalN(info, 15);
   CAMLlocal5(elem, tmp, dataMembers_result, bases_result, conv_result);
   CAMLlocal1(friends_result);
 
@@ -1267,8 +1267,10 @@ value CompoundType::toCompoundInfo(ToOcamlData *data){
   }
   info[2] = typedefVar->toOcaml(data);
   info[3] = ocaml_from_AccessKeyword(access, data);
-  info[4] = ocaml_from_bool(forward, data);
-  info[5] = ocaml_from_CompoundType_Keyword(keyword, data);
+  info[4] = dynamic_cast<Scope *>(this)->toOcaml(data);
+  info[5] = ocaml_from_bool(forward, data);
+  info[6] = ocaml_from_bool(isTransparentUnion, data);
+  info[7] = ocaml_from_CompoundType_Keyword(keyword, data);
   
   dataMembers_result = Val_emptylist;
   SFOREACH_OBJLIST_NC(Variable, dataMembers, iter) {
@@ -1278,7 +1280,7 @@ value CompoundType::toCompoundInfo(ToOcamlData *data){
     Store_field(tmp, 1, dataMembers_result);    // store cdr
     dataMembers_result = tmp;
   }
-  info[6] = ocaml_list_rev(dataMembers_result);
+  info[8] = ocaml_list_rev(dataMembers_result);
 
   bases_result = Val_emptylist;
   FOREACH_OBJLIST_NC(BaseClass, bases, iter) {
@@ -1288,7 +1290,7 @@ value CompoundType::toCompoundInfo(ToOcamlData *data){
     Store_field(tmp, 1, bases_result);    // store cdr
     bases_result = tmp;
   }
-  info[7] = ocaml_list_rev(bases_result);
+  info[9] = ocaml_list_rev(bases_result);
   
   conv_result = Val_emptylist;
   SFOREACH_OBJLIST_NC(Variable, conversionOperators, iter) {
@@ -1298,7 +1300,7 @@ value CompoundType::toCompoundInfo(ToOcamlData *data){
     Store_field(tmp, 1, conv_result);    // store cdr
     conv_result = tmp;
   }
-  info[8] = ocaml_list_rev(conv_result);
+  info[10] = ocaml_list_rev(conv_result);
   
   friends_result = Val_emptylist;
   SFOREACH_OBJLIST_NC(Variable, friends, iter) {
@@ -1308,23 +1310,29 @@ value CompoundType::toCompoundInfo(ToOcamlData *data){
     Store_field(tmp, 1, friends_result);    // store cdr
     friends_result = tmp;
   }
-  info[9] = ocaml_list_rev(friends_result);
+  info[11] = ocaml_list_rev(friends_result);
   
   if(instName) {
-    info[10] = option_some_constr(ocaml_from_string(instName, data));
+    info[12] = option_some_constr(ocaml_from_string(instName, data));
   }
   else {
-    info[10] = Val_None;
+    info[12] = Val_None;
   }
 
-  // circular: info[11] = selfType->toOcaml(data);
-  info[11] = ref_constr(Val_None, data);
+  // circular
+  // info[13] = syntax->toOcaml(data);
+  info[13] = ref_constr(Val_None, data);
+  if(syntax)
+    postpone_circular_TypeSpecifier(data, info[13], syntax);
+
+  // circular: info[14] = selfType->toOcaml(data);
+  info[14] = ref_constr(Val_None, data);
   if(selfType)
-    postpone_circular_CType(data, info[11], selfType);
+    postpone_circular_CType(data, info[14], selfType);
 
   caml_register_global_root(&ocaml_info);
   ocaml_info = caml_callbackN(*create_compound_info_constructor_closure,
-                             12, info);
+                             15, info);
   xassert(IS_OCAML_AST_VALUE(ocaml_info));
 
   data->stack.remove(reinterpret_cast<char *>(this) +8);
@@ -1376,7 +1384,9 @@ void CompoundType::detachOcamlInfo() {
   detach_ocaml_StringRef(name);
   typedefVar->detachOcaml();
   detach_ocaml_AccessKeyword(access);
+  dynamic_cast<Scope *>(this)->detachOcaml();
   detach_ocaml_bool(forward);
+  detach_ocaml_bool(isTransparentUnion);
   detach_ocaml_CompoundType_Keyword(keyword);
   
   SFOREACH_OBJLIST_NC(Variable, dataMembers, iter)
@@ -1388,6 +1398,8 @@ void CompoundType::detachOcamlInfo() {
   SFOREACH_OBJLIST_NC(Variable, friends, iter)
     iter.data()->detachOcaml();
   detach_ocaml_StringRef(instName);
+  if(syntax)
+    syntax->detachOcaml();
   if(selfType)
     selfType->detachOcaml();
 }
@@ -1467,8 +1479,8 @@ EnumType::Value const *EnumType::getValue(StringRef name) const
 // hand written ocaml serialization function
 value EnumType::toOcaml(ToOcamlData *data){
   CAMLparam0();
-  CAMLlocal4(val_name, val_val, tuple, tmp);
-  CAMLlocalN(childs, 5);
+  CAMLlocal5(val_name, val_val, tuple, tmp, const_list);
+  CAMLlocalN(childs, 6);
   if(ocaml_val) {
     // cerr << "shared ocaml value found in EnumType\n" << flush;
     CAMLreturn(ocaml_val);
@@ -1501,7 +1513,7 @@ value EnumType::toOcaml(ToOcamlData *data){
   }
   childs[3] = ocaml_from_AccessKeyword(access, data);
 
-  childs[4] = Val_emptylist;
+  const_list = Val_emptylist;
 
   // can't use StringObjDict::foreach, because we need to 
   // share state between the iterations
@@ -1517,15 +1529,17 @@ value EnumType::toOcaml(ToOcamlData *data){
 
     tmp = caml_alloc(2, Tag_cons); // allocate a cons cell
     Store_field(tmp, 0, tuple);	// store car
-    Store_field(tmp, 1, childs[4]); // store cdr
-    childs[4] = tmp;
+    Store_field(tmp, 1, const_list); // store cdr
+    const_list = tmp;
   }
 
-  childs[4] = ocaml_list_rev(childs[4]);
+  childs[4] = ocaml_list_rev(const_list);
+
+  childs[5] = ocaml_from_bool(hasNegativeValues, data);
 
   caml_register_global_root(&ocaml_val);
   ocaml_val = caml_callbackN(*create_atomic_EnumType_constructor_closure,
-			    5, childs);
+			    6, childs);
   xassert(IS_OCAML_AST_VALUE(ocaml_val));
 
   data->stack.remove(this);

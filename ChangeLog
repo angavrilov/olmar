@@ -1,5 +1,8 @@
 2006-11-15  Hendrik Tews  <tews@tandem.cs.ru.nl>
 
+	* added has_negative_values in EnumType
+	* added in compound_info: compound_scope, is_transparent_union, syntax
+
 	* redesigned postpone_circular_* functions: they work on the
 	reference now and don't take the field anymore
 

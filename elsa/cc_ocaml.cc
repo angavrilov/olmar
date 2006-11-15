@@ -101,8 +101,8 @@ void postpone_circular_CType(ToOcamlData * data, value val, CType * type) {
   part->ast.type = type;
 # ifdef DEBUG_CIRCULARITIES
   cerr << "postpone (" << data->postponed_count
-       << ") type " << type << " in field " << field
-       << " of " << hex << "0x" << val << dec << "\n";
+       << ") type " << type << " in cell " 
+       << hex << "0x" << val << dec << "\n";
 # endif // DEBUG_CIRCULARITIES
 }
 
@@ -117,8 +117,8 @@ void postpone_circular_Function(ToOcamlData * data, value val,
   part->ast.func = func;
 # ifdef DEBUG_CIRCULARITIES
   cerr << "postpone (" << data->postponed_count
-       << ") Function " << func << " in field " << field
-       << " of " << hex << "0x" << val << dec << "\n";
+       << ") Function " << func << " in cell " 
+       << hex << "0x" << val << dec << "\n";
 # endif // DEBUG_CIRCULARITIES
 }
 
@@ -134,8 +134,24 @@ void postpone_circular_Expression(ToOcamlData * data, value val,
   part->ast.expression = ex;
 # ifdef DEBUG_CIRCULARITIES
   cerr << "postpone (" << data->postponed_count
-       << ") Expression " << ex << " in field " << field
-       << " of " << hex << "0x" << val << dec << "\n";
+       << ") Expression " << ex << " in cell " 
+       << hex << "0x" << val << dec << "\n";
+# endif // DEBUG_CIRCULARITIES
+}
+
+
+// hand written ocaml serialization function
+// not relly a serialization function, but handwritten ;-)
+void postpone_circular_TypeSpecifier(ToOcamlData * data, value val,
+				     TypeSpecifier * ts) {
+  // no need to register val as long as we don't allocate here
+  xassert(ts != NULL);
+  CircularAstPart * part = init_ca_part(data, val, CA_TypeSpecifier);
+  part->ast.typeSpecifier = ts;
+# ifdef DEBUG_CIRCULARITIES
+  cerr << "postpone (" << data->postponed_count
+       << ") TypeSpecifier " << ts << " in cell " 
+       << hex << "0x" << val << dec << "\n";
 # endif // DEBUG_CIRCULARITIES
 }
 
@@ -151,8 +167,8 @@ void postpone_circular_OverloadSet(ToOcamlData * data, value val,
   part->ast.overload = os;
 # ifdef DEBUG_CIRCULARITIES
   cerr << "postpone (" << data->postponed_count
-       << ") OverloadSet " << os << " in field " << field
-       << " of " << hex << "0x" << val << dec << "\n";
+       << ") OverloadSet " << os << " in cell " 
+       << hex << "0x" << val << dec << "\n";
 # endif // DEBUG_CIRCULARITIES
 }
 
@@ -203,6 +219,13 @@ void finish_circular_pointers(ToOcamlData * data) {
       val = part->ast.expression->toOcaml(data);
       break;
 
+    case CA_TypeSpecifier:
+#     ifdef DEBUG_CIRCULARITIES
+      cerr << " (TypeSpecifier)\n";
+#     endif // DEBUG_CIRCULARITIES
+      val = part->ast.typeSpecifier->toOcaml(data);
+      break;
+
     case CA_OverloadSet:
 #     ifdef DEBUG_CIRCULARITIES
       cerr << " (OverloadSet)\n";
@@ -219,6 +242,7 @@ void finish_circular_pointers(ToOcamlData * data) {
     case CA_CType:
     case CA_Function:
     case CA_Expression:
+    case CA_TypeSpecifier:
       // update an option ref
       // check that cell contains None
       xassert(Is_long(Field(cell, 0)) && 

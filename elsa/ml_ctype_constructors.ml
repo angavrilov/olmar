@@ -90,19 +90,23 @@ let create_baseClass_constructor poly compound access is_virtual =
 (* type compound_info *)
 
 let create_compound_info_constructor 
-    poly name typedef_var access is_forward_decl keyword data_members bases 
-    conversion_operators friends inst_name self_type =
+    poly name typedef_var access scope is_forward_decl is_transparent_union
+    keyword data_members bases conversion_operators friends inst_name 
+    syntax_opt self_type =
   { compound_info_poly = poly;
     compound_name = name;
     typedef_var = typedef_var;
     ci_access = access;
+    compound_scope = scope;
     is_forward_decl = is_forward_decl;
+    is_transparent_union = is_transparent_union;
     keyword = keyword;
     data_members = data_members;
     bases = bases;
     conversion_operators = conversion_operators;
     friends = friends;
     inst_name = inst_name;
+    syntax = syntax_opt;
     self_type = self_type
   }
 
@@ -114,8 +118,9 @@ let create_atomic_CompoundType_constructor ci = CompoundType ci
 let create_atomic_PseudoInstantiation_constructor poly name var key 
     template_info args =
   PseudoInstantiation(poly, name, var, key, template_info, args)
-let create_atomic_EnumType_constructor poly nameopt variable key enum_list =
-  EnumType(poly, nameopt, variable, key, enum_list)
+let create_atomic_EnumType_constructor 
+    poly nameopt variable key enum_list has_negatives =
+  EnumType(poly, nameopt, variable, key, enum_list, has_negatives)
 let create_atomic_TypeVariable_constructor poly name variable key =
   TypeVariable(poly, name, variable, key)
 let create_atomic_DependentQType_constructor 

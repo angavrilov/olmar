@@ -79,10 +79,14 @@ and 'a compound_info = {
   typedef_var : 'a variable;		(* implicit typdef variable ???? *)
   ci_access : accessKeyword;		(* accessibility in wider context *)
 
+  (* superclass Scope *)
+  compound_scope : 'a scope;
+
   (* fields of CompoundType itself:
    *     the stuff in comments is currently ommitted
    *)
   is_forward_decl : bool;
+  is_transparent_union : bool;
   keyword : compoundType_Keyword; 	(* keyword used for this compound *)
   data_members : 'a variable list;		(* nonstatic data members *)
   bases : 'a baseClass list;		(* base classes *)
@@ -93,8 +97,12 @@ and 'a compound_info = {
   friends : 'a variable list;
   inst_name : string option;	        (* name for debugging purposes *)
 
-  (* mutable syntax : typeSpecifier_type = TS_classSpec list;  * ast node *)
-  (* scope : Scope *)
+  (* syntax is circular eg in in/t0009.cc
+   * nullable as well, so it might stay None
+   *)
+  syntax : 'a tS_classSpec_type (* = typeSpecifier_type *)  option ref; 
+
+  (* ignore parameterizingScope : Scope; only used when on the scope stack *)
 
   (* self_type is circular for compounds like in t0009.cc 
    * might stay None after resolving circularities because the 
@@ -102,6 +110,9 @@ and 'a compound_info = {
    *)
   self_type : 'a cType option ref;	(* type of the compound *)
 }
+
+(* tS_classSpec_type is a typeSpecifier_type built with TS_classSpec *)
+and 'a tS_classSpec_type = 'a typeSpecifier_type
 
 and 'a atomicType = 
     (* the subtype NamedAtomicType contains the following constructors:
@@ -126,11 +137,12 @@ and 'a atomicType =
   | PseudoInstantiation of 'a * string * 'a variable option * accessKeyword * 
       'a compound_info * 'a sTemplateArgument list
 
-      (* EnumType( user given name, ?, public/protected, constants)
-       *    ignore the next valye field 
+      (* EnumType( user given name, ?, public/protected, 
+	             constants, has_negatives)
+       *    ignore the next value field 
        *)
   | EnumType of 'a * string option * 'a variable option * accessKeyword * 
-      (string * nativeint) list
+      (string * nativeint) list * bool
 
       (* TypeVariable( user given name, ?, public/protected)  *)
   | TypeVariable of 'a * string * 'a variable * accessKeyword

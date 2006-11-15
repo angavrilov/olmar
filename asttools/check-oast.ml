@@ -295,7 +295,9 @@ and compound_info_fun info =
       opt_iter string_fun info.compound_name [^ string option ^] "string";
       variable_fun info.typedef_var;
       accessKeyword_fun info.ci_access;
+      scope_fun info.compound_scope;
       bool_fun info.is_forward_decl;
+      bool_fun info.is_transparent_union;
       compoundType_Keyword_fun info.keyword;
       list_iter variable_fun info.data_members 
 	[^ annotated variable list ^] "variable";
@@ -307,6 +309,15 @@ and compound_info_fun info =
       list_iter variable_fun info.friends
        [^ annotated variable list ^] "variable";
       opt_iter string_fun info.inst_name [^ string option ^] "string";
+
+      (* POSSIBLY CIRCULAR *)
+      ref_opt_iter typeSpecifier_fun info.syntax
+	[^ annotated typeSpecifier_type option ref ^] 
+	[^ annotated typeSpecifier_type option ^] "typeSpecifier_type";
+      assert(match !(info.syntax) with
+	       | None
+	       | Some(TS_classSpec _) -> true
+	       | _ -> false);
 
       (* POSSIBLY CIRCULAR *)
       ref_opt_iter cType_fun info.self_type
@@ -349,7 +360,7 @@ and atomicType_fun x =
 	    [^ annotated sTemplateArgument list ^] "sTemplateArgument";
 
       | EnumType(annot, string, variable, accessKeyword, 
-		 string_nativeint_list) ->
+		 string_nativeint_list, has_negatives) ->
 	  visit annot;
 	  annotation_fun annot;
 	  opt_iter string_fun string [^ string option ^] "string";
@@ -363,7 +374,8 @@ and atomicType_fun x =
 	      x [^ string * nativeint ^] [^ 'a * 'b ^] 
 	      "(string, nativeint)" "pair")
 	    string_nativeint_list
-	    [^ (string * nativeint) list ^] "(string * nativeint) list"
+	    [^ (string * nativeint) list ^] "(string * nativeint) list";
+	  bool_fun has_negatives
 
       | TypeVariable(annot, string, variable, accessKeyword) ->
 	  visit annot;
@@ -427,6 +439,8 @@ and cType_fun x =
 
 	   | PointerToMemberType(annot, atomicType (* = NamedAtomicType *), 
 				 cVFlags, cType) ->
+	       annotation_fun annot;
+	       atomicType_fun atomicType;
 	       assert(match atomicType with 
 			| SimpleType _ -> false
 			| CompoundType _
@@ -434,8 +448,6 @@ and cType_fun x =
 			| EnumType _
 			| TypeVariable _ 
 			| DependentQType _ -> true);
-	       annotation_fun annot;
-	       atomicType_fun atomicType;
 	       cVFlags_fun cVFlags;
 	       cType_fun cType
 	);
@@ -556,12 +568,12 @@ and topForm_fun x =
 	       topForm_fun topForm
 
 	   | TF_asm(annot, sourceLoc, e_stringLit) -> 
-	       assert(match e_stringLit with 
-			| E_stringLit _ -> true 
-			| _ -> false);
 	       annotation_fun annot;
 	       sourceLoc_fun sourceLoc;
-	       expression_fun e_stringLit
+	       expression_fun e_stringLit;
+	       assert(match e_stringLit with 
+			| E_stringLit _ -> true 
+			| _ -> false)
 
 	   | TF_namespaceDefn(annot, sourceLoc, stringRef_opt, topForm_list) -> 
 	       annotation_fun annot;
@@ -623,10 +635,6 @@ and memberInit_fun((annot, pQName, argExpression_list,
   if not (visited annot) &&
     node_check_fails annot x [^ annotated memberInit_type ^] "memberInit_type"
   then begin
-      assert(match compound_opt with
-	| None
-	| Some(CompoundType _) -> true
-	| _ -> false);
     visit annot; indent();
     annotation_fun annot;
     pQName_fun pQName;
@@ -636,7 +644,12 @@ and memberInit_fun((annot, pQName, argExpression_list,
       "variable";
     opt_iter atomicType_fun compound_opt [^ annotated atomicType option ^] 
       "atomicType";
-    opt_iter variable_fun variable_opt_2 [^ annotated variable option ^] "variable";
+    assert(match compound_opt with
+	     | None
+	     | Some(CompoundType _) -> true
+	     | _ -> false);
+    opt_iter variable_fun variable_opt_2 [^ annotated variable option ^]
+      "variable";
     fullExpressionAnnot_fun full_expr_annot;
     opt_iter statement_fun statement_opt 
       [^ annotated statement_type option ^] "statement_type";
@@ -756,9 +769,6 @@ and typeSpecifier_fun x =
 
 	   | TS_elaborated(annot, sourceLoc, cVFlags, typeIntr, 
 			   pQName, namedAtomicType_opt) -> 
-	       assert(match namedAtomicType_opt with
-			| Some(SimpleType _) -> false
-			| _ -> true);
 	       annotation_fun annot;
 	       sourceLoc_fun sourceLoc;
 	       cVFlags_fun cVFlags;
@@ -766,12 +776,12 @@ and typeSpecifier_fun x =
 	       pQName_fun pQName;
 	       opt_iter atomicType_fun namedAtomicType_opt 
 		 [^ annotated atomicType option ^] "atomicType";
+	       assert(match namedAtomicType_opt with
+			| Some(SimpleType _) -> false
+			| _ -> true)
 
 	   | TS_classSpec(annot, sourceLoc, cVFlags, typeIntr, pQName_opt, 
 			  baseClassSpec_list, memberList, compoundType) -> 
-	       assert(match compoundType with
-			| CompoundType _ -> true
-			| _ -> false);
 	       annotation_fun annot;
 	       sourceLoc_fun sourceLoc;
 	       cVFlags_fun cVFlags;
@@ -781,20 +791,23 @@ and typeSpecifier_fun x =
 	       list_iter baseClassSpec_fun baseClassSpec_list
 		 [^ annotated baseClassSpec_type list ^] "baseClassSpec_type";
 	       memberList_fun memberList;
-	       atomicType_fun compoundType
+	       atomicType_fun compoundType;
+	       assert(match compoundType with
+			| CompoundType _ -> true
+			| _ -> false);
 
 	   | TS_enumSpec(annot, sourceLoc, cVFlags, 
 			 stringRef_opt, enumerator_list, enumType) -> 
-	       assert(match enumType with 
-			| EnumType _ -> true
-			| _ -> false);
 	       annotation_fun annot;
 	       sourceLoc_fun sourceLoc;
 	       cVFlags_fun cVFlags;
 	       opt_iter string_fun stringRef_opt [^ string option ^] "string";
 	       list_iter enumerator_fun enumerator_list
 		 [^ annotated enumerator_type list ^] "enumerator_type";
-	       atomicType_fun enumType
+	       atomicType_fun enumType;
+	       assert(match enumType with 
+			| EnumType _ -> true
+			| _ -> false);
 
 	   | TS_type(annot, sourceLoc, cVFlags, cType) -> 
 	       annotation_fun annot;
@@ -815,9 +828,6 @@ and baseClassSpec_fun
   if not (visited annot) &&
     node_check_fails annot x [^ annotated baseClassSpec_type ^] "baseClassSpec_type"
   then begin
-      assert(match compoundType_opt with
-	| Some(CompoundType _ ) -> true
-	| _ -> false);
     visit annot; indent();
     annotation_fun annot;
     bool_fun bool;
@@ -825,6 +835,9 @@ and baseClassSpec_fun
     pQName_fun pQName;
     opt_iter atomicType_fun compoundType_opt 
       [^ annotated atomicType option ^] "atomicType";
+    assert(match compoundType_opt with
+	     | Some(CompoundType _ ) -> true
+	     | _ -> false);
 
     unindent()
   end
@@ -886,10 +899,12 @@ and member_fun x =
 	       accessKeyword_fun accessKeyword
 
 	   | MR_usingDecl(annot, sourceLoc, nd_usingDecl) -> 
-	       assert(match nd_usingDecl with ND_usingDecl _ -> true | _ -> false);
 	       annotation_fun annot;
 	       sourceLoc_fun sourceLoc;
-	       namespaceDecl_fun nd_usingDecl
+	       namespaceDecl_fun nd_usingDecl;
+	       assert(match nd_usingDecl with 
+			| ND_usingDecl _ -> true 
+			| _ -> false);
 
 	   | MR_template(annot, sourceLoc, templateDeclaration) -> 
 	       annotation_fun annot;
@@ -951,8 +966,6 @@ and iDeclarator_fun x =
 
 	   | D_func(annot, sourceLoc, iDeclarator, aSTTypeId_list, cVFlags, 
 		    exceptionSpec_opt, pq_name_list, bool) -> 
-	       assert(List.for_all (function | PQ_name _ -> true | _ -> false) 
-			pq_name_list);
 	       annotation_fun annot;
 	       sourceLoc_fun sourceLoc;
 	       iDeclarator_fun iDeclarator;
@@ -963,6 +976,8 @@ and iDeclarator_fun x =
 		 [^ annotated exceptionSpec_type option ^] "exceptionSpec_type";
 	       list_iter pQName_fun pq_name_list
 		 [^ annotated pQName_type list ^] "pQName_type";
+	       assert(List.for_all (function | PQ_name _ -> true | _ -> false) 
+			pq_name_list);
 	       bool_fun bool
 
 	   | D_array(annot, sourceLoc, iDeclarator, expression_opt, bool) -> 
@@ -1153,10 +1168,12 @@ and statement_fun x =
 		 [^ annotated handler_type list ^] "handler_type";
 
 	   | S_asm(annot, sourceLoc, e_stringLit) -> 
-	       assert(match e_stringLit with | E_stringLit _ -> true | _ -> false);
 	       annotation_fun annot;
 	       sourceLoc_fun sourceLoc;
-	       expression_fun e_stringLit
+	       expression_fun e_stringLit;
+	       assert(match e_stringLit with 
+			| E_stringLit _ -> true 
+			| _ -> false);
 
 	   | S_namespaceDecl(annot, sourceLoc, namespaceDecl) -> 
 	       annotation_fun annot;
@@ -1255,15 +1272,15 @@ and expression_fun x =
 
 	   | E_stringLit(annot, type_opt, stringRef, 
 			 e_stringLit_opt, stringRef_opt) -> 
-	       assert(match e_stringLit_opt with 
-			| Some(E_stringLit _) -> true 
-			| None -> true
-			| _ -> false);
 	       annotation_fun annot;
 	       opt_iter cType_fun type_opt [^ annotated cType option ^] "cType";
 	       string_fun stringRef;
 	       opt_iter expression_fun e_stringLit_opt 
 		 [^ annotated expression_type option ^] "expression_type";
+	       assert(match e_stringLit_opt with 
+			| Some(E_stringLit _) -> true 
+			| None -> true
+			| _ -> false);
 	       opt_iter string_fun stringRef_opt [^ string option ^] "string"
 
 	   | E_charLit(annot, type_opt, stringRef, int32) -> 
@@ -1451,17 +1468,21 @@ and expression_fun x =
 	       pQName_fun pQName
 
 	   | E_statement(annot, type_opt, s_compound) -> 
-	       assert(match s_compound with | S_compound _ -> true | _ -> false);
 	       annotation_fun annot;
 	       opt_iter cType_fun type_opt [^ annotated cType option ^] "cType";
-	       statement_fun s_compound
+	       statement_fun s_compound;
+	       assert(match s_compound with 
+			| S_compound _ -> true
+			| _ -> false);
 
 	   | E_compoundLit(annot, type_opt, aSTTypeId, in_compound) -> 
-	       assert(match in_compound with | IN_compound _ -> true | _ -> false);
 	       annotation_fun annot;
 	       opt_iter cType_fun type_opt [^ annotated cType option ^] "cType";
 	       aSTTypeId_fun aSTTypeId;
-	       init_fun in_compound
+	       init_fun in_compound;
+	       assert(match in_compound with
+			| IN_compound _ -> true
+			| _ -> false)
 
 	   | E___builtin_constant_p(annot, type_opt, sourceLoc, expression) -> 
 	       annotation_fun annot;

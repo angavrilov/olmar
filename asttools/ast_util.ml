@@ -36,7 +36,7 @@ let compound_info_annotation info = info.compound_info_poly
 let atomicType_annotation = function
   | SimpleType(annot, _)
   | PseudoInstantiation(annot, _, _, _, _, _)
-  | EnumType(annot, _, _, _, _)
+  | EnumType(annot, _, _, _, _, _)
   | TypeVariable(annot, _, _, _)
   | DependentQType(annot, _, _, _, _, _)
     -> annot
