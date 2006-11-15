@@ -811,7 +811,8 @@ void Variable::traverse(TypeVisitor &vis) {
 // hand written ocaml serialization function
 value Variable::toOcaml(ToOcamlData *data){
   CAMLparam0();
-  CAMLlocalN(var, 8);
+  CAMLlocal3(elem, list, tmp);
+  CAMLlocalN(var, 11);
   
   if(ocaml_val) {
     // cerr << "shared ocaml value in Variable\n" << flush;
@@ -841,7 +842,11 @@ value Variable::toOcaml(ToOcamlData *data){
 
   // circular
   // var[3] = type->toOcaml(data);
-  var[3] = ref_None_constr(data);
+  var[3] = ref_constr(Val_None, data);
+  xassert((type == NULL) == ((flags & DF_NAMESPACE) != 0));
+  if(!(flags & DF_NAMESPACE))
+    postpone_circular_CType(data, var[3], type);
+
   var[4] = ocaml_from_DeclFlags(flags, data);
 
   // circular
@@ -851,7 +856,10 @@ value Variable::toOcaml(ToOcamlData *data){
   // }
   // else
   //   var[5] = Val_None;
-  var[5] = ref_None_constr(data);
+  var[5] = ref_constr(Val_None, data);
+  if(varValue)
+    postpone_circular_Expression(data, var[5], varValue);
+
 
   if(defaultParamType) {
     var[6] = defaultParamType->toOcaml(data);
@@ -862,24 +870,48 @@ value Variable::toOcaml(ToOcamlData *data){
 
   // circular
   // var[7] = funcDefn->toOcaml(data);
-  var[7] = ref_None_constr(data);
+  var[7] = ref_constr(Val_None, data);
+  if(funcDefn)
+    postpone_circular_Function(data, var[7], funcDefn);
+
+  // circular (contains itself)
+  // var[8] = overload->toOcaml(data);
+  // initialize with an empty list, 
+  var[8] = ref_constr(Val_emptylist, data);
+  if(overload)
+    postpone_circular_OverloadSet(data, var[8], overload);
+
+  // virtuallyOverride
+  list = Val_emptylist;
+  if(virtuallyOverride) {
+    SObjSetIter<Variable *> iter(*virtuallyOverride);
+    while(!iter.isDone()) {
+      elem = iter.data()->toOcaml(data);
+      iter.adv();
+      tmp = caml_alloc(2, Tag_cons);
+      Store_field(tmp, 0, elem);
+      Store_field(tmp, 1, list);
+      list = tmp;
+    }
+  }
+  var[9] = list;
+
+  // scope
+  if(scope) {
+    var[10] = scope->toOcaml(data);
+    var[10] = option_some_constr(var[10]);
+  }
+  else {
+    var[10] = Val_None;
+  }    
 
   caml_register_global_root(&ocaml_val);
   ocaml_val = caml_callbackN(*create_variable_constructor_closure,
-                             8, var);
+                             11, var);
   xassert(IS_OCAML_AST_VALUE(ocaml_val));
-
-  xassert((type == NULL) == ((flags & DF_NAMESPACE) != 0));
-  if(!(flags & DF_NAMESPACE))
-    postpone_circular_CType(data, ocaml_val, 3, type);
-  if(varValue)
-    postpone_circular_Expression(data, ocaml_val, 5, varValue);
-  if(funcDefn)
-    postpone_circular_Function(data, ocaml_val, 7, funcDefn);
 
   data->stack.remove(this);
   CAMLreturn(ocaml_val);
-
 }
 
 // hand written ocaml serialization cleanup
@@ -900,12 +932,23 @@ void Variable::detachOcaml() {
     defaultParamType->detachOcaml();
   if(funcDefn)
     funcDefn->detachOcaml();
+  if(overload)
+    overload->detachOcaml();
+  if(virtuallyOverride) {
+    SObjSetIter<Variable *> iter(*virtuallyOverride);
+    while(!iter.isDone()) {
+      iter.data()->detachOcaml();
+      iter.adv();
+    }
+  }
+  if(scope)
+    scope->detachOcaml();
 }
 
 
 // --------------------- OverloadSet -------------------
 OverloadSet::OverloadSet()
-  : set()
+  : set(), ocaml_val(0)
 {}
 
 OverloadSet::~OverloadSet()
@@ -951,6 +994,56 @@ Variable *OverloadSet::findByType(FunctionType const *ft) {
   return findByType(ft, ft->getReceiverCV());
 }
 #endif // obsolete; see Env::findInOverloadSet
+
+
+// ocaml serialization method for OverloadSet
+// hand written ocaml serialization function
+value OverloadSet::toOcaml(ToOcamlData *data) {
+  CAMLparam0();
+  CAMLlocal3(elem, list, tmp);
+  
+  if(ocaml_val) {
+    // cerr << "shared ocaml value in OverloadSet\n" << flush;
+    CAMLreturn(ocaml_val);
+  }
+
+  if(data->stack.contains(this)) {
+    cerr << "cyclic ast detected during ocaml serialization\n";
+    xassert(false);
+  } else {
+    data->stack.add(this);
+  }
+
+  // treat the overload set as list
+  list = Val_emptylist;
+  SFOREACH_OBJLIST_NC(Variable, set, iter) {
+    elem = iter.data()->toOcaml(data);
+    tmp = caml_alloc(2, Tag_cons);
+    Store_field(tmp, 0, elem);
+    Store_field(tmp, 1, list);
+    list = tmp;
+  }
+  caml_register_global_root(&ocaml_val);
+  ocaml_val = list;
+  xassert(IS_OCAML_AST_VALUE(ocaml_val));
+
+  data->stack.remove(this);
+  CAMLreturn(ocaml_val);
+}
+
+// hand written ocaml serialization cleanup
+void OverloadSet::detachOcaml() {
+  if(ocaml_val == 0) return;
+  caml_remove_global_root(&ocaml_val);
+  ocaml_val = 0;
+
+  SFOREACH_OBJLIST_NC(Variable, set, iter) {
+    iter.data()->detachOcaml();
+  }
+}
+
+
+
 
 
 // EOF

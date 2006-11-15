@@ -65,11 +65,11 @@ ToOcamlData::~ToOcamlData() {
 
 
 // hand written ocaml serialization function
-value ref_None_constr(ToOcamlData * data){
-  CAMLparam0();
+value ref_constr(value elem, ToOcamlData * data) {
+  CAMLparam1(elem);
   CAMLlocal1(result);
-  result = caml_alloc(1, 0);  // the reference cell
-  Store_field(result, 0, Val_None);
+  result = caml_alloc(1, 0); // the reference cell
+  Store_field(result, 0, elem);
   xassert(IS_OCAML_AST_VALUE(result));
   CAMLreturn(result);
 }
@@ -77,14 +77,13 @@ value ref_None_constr(ToOcamlData * data){
 
 // hand written ocaml serialization function
 // not really serialization, but closely related
-CircularAstPart * init_ca_part(ToOcamlData * data, value val, 
-			       unsigned field, CircularAstType type) {
+CircularAstPart * init_ca_part(ToOcamlData * data, value val,
+			       CircularAstType type) {
 
   // no need to register val as long as we don't allocate here
   CircularAstPart * part = new CircularAstPart;
   part->ca_type = type;
   part->val = val;
-  part->field = field;
   part->next = data->postponed_circles;
   data->postponed_circles = part;
   data->postponed_count++;
@@ -94,12 +93,11 @@ CircularAstPart * init_ca_part(ToOcamlData * data, value val,
 
 // hand written ocaml serialization function
 // not relly a serialization function, but handwritten ;-)
-void postpone_circular_CType(ToOcamlData * data, value val, 
-			     unsigned field, CType * type) {
+void postpone_circular_CType(ToOcamlData * data, value val, CType * type) {
 
   // no need to register val as long as we don't allocate here
   xassert(type != NULL);
-  CircularAstPart * part = init_ca_part(data, val, field, CA_CType);
+  CircularAstPart * part = init_ca_part(data, val, CA_CType);
   part->ast.type = type;
 # ifdef DEBUG_CIRCULARITIES
   cerr << "postpone (" << data->postponed_count
@@ -110,12 +108,12 @@ void postpone_circular_CType(ToOcamlData * data, value val,
 
 // hand written ocaml serialization function
 // not relly a serialization function, but handwritten ;-)
-void postpone_circular_Function(ToOcamlData * data, value val, 
-				unsigned field, Function * func) {
+void postpone_circular_Function(ToOcamlData * data, value val,
+				Function * func) {
 
   // no need to register val as long as we don't allocate here
   xassert(func != NULL);
-  CircularAstPart * part = init_ca_part(data, val, field, CA_Function);
+  CircularAstPart * part = init_ca_part(data, val, CA_Function);
   part->ast.func = func;
 # ifdef DEBUG_CIRCULARITIES
   cerr << "postpone (" << data->postponed_count
@@ -127,12 +125,12 @@ void postpone_circular_Function(ToOcamlData * data, value val,
 
 // hand written ocaml serialization function
 // not relly a serialization function, but handwritten ;-)
-void postpone_circular_Expression(ToOcamlData * data, value val, 
-				unsigned field, Expression * ex) {
+void postpone_circular_Expression(ToOcamlData * data, value val,
+				  Expression * ex) {
 
   // no need to register val as long as we don't allocate here
   xassert(ex != NULL);
-  CircularAstPart * part = init_ca_part(data, val, field, CA_Expression);
+  CircularAstPart * part = init_ca_part(data, val, CA_Expression);
   part->ast.expression = ex;
 # ifdef DEBUG_CIRCULARITIES
   cerr << "postpone (" << data->postponed_count
@@ -144,9 +142,26 @@ void postpone_circular_Expression(ToOcamlData * data, value val,
 
 // hand written ocaml serialization function
 // not relly a serialization function, but handwritten ;-)
+void postpone_circular_OverloadSet(ToOcamlData * data, value val,
+				   OverloadSet * os) {
+
+  // no need to register val as long as we don't allocate here
+  xassert(os != NULL);
+  CircularAstPart * part = init_ca_part(data, val, CA_OverloadSet);
+  part->ast.overload = os;
+# ifdef DEBUG_CIRCULARITIES
+  cerr << "postpone (" << data->postponed_count
+       << ") OverloadSet " << os << " in field " << field
+       << " of " << hex << "0x" << val << dec << "\n";
+# endif // DEBUG_CIRCULARITIES
+}
+
+
+// hand written ocaml serialization function
+// not relly a serialization function, but handwritten ;-)
 void finish_circular_pointers(ToOcamlData * data) {
   CAMLparam0();
-  CAMLlocal3(val, some_val, cell);
+  CAMLlocal2(val, cell);
   CircularAstPart * part;
 
   while(data->postponed_circles != NULL) {
@@ -154,10 +169,15 @@ void finish_circular_pointers(ToOcamlData * data) {
     data->postponed_circles = data->postponed_circles->next;
 #   ifdef DEBUG_CIRCULARITIES
     cerr << "dispatch (" << data->postponed_count 
-    	 << ") in field " << part->field
-    	 << " of " << hex << "0x" << part->val << dec;
+    	 << ") cell " << hex << "0x" << part->val << dec;
 #   endif // DEBUG_CIRCULARITIES
     data->postponed_count--;
+
+    // check that part->val is a reference cell
+    cell = part->val;
+    xassert(Is_block(cell) && 	      // it's a block
+	    (Tag_val(cell) == 0) &&   // it's an array/tuple/record
+	    (Wosize_val(cell) == 1)); // with one cell
 
     xassert(data->stack.size() == 0);
   
@@ -183,34 +203,43 @@ void finish_circular_pointers(ToOcamlData * data) {
       val = part->ast.expression->toOcaml(data);
       break;
 
+    case CA_OverloadSet:
+#     ifdef DEBUG_CIRCULARITIES
+      cerr << " (OverloadSet)\n";
+#     endif // DEBUG_CIRCULARITIES
+      val = part->ast.overload->toOcaml(data);
+      break;
+
     case CA_Empty:
     default:
       xassert(false);
     }
 
-    // check that the field in part->val is ref None
-    xassert(Is_block(part->val));
-    cell = Field(part->val, part->field);
+    switch(part->ca_type) {
+    case CA_CType:
+    case CA_Function:
+    case CA_Expression:
+      // update an option ref
+      // check that cell contains None
+      xassert(Is_long(Field(cell, 0)) && 
+	      (Long_val(Field(cell, 0)) == 0));
 
-    // xassert(Is_block(cell) && 	// it's a block
-    // 	    (Tag_val(cell) == 0) && // it's an array/tuple/record
-    // 	    (Wosize_val(cell) == 1) && // with one cell
-    // 	    Is_long(Field(cell, 0)) && // containing None
-    // 	    (Long_val(Field(cell, 0)) == 0));
+      // construct Some val
+      val = option_some_constr(val);
+      break;
 
-    xassert(Is_block(cell));
-    xassert(Tag_val(cell) == 0);
-    xassert(Wosize_val(cell) == 1);
-    xassert(Is_long(Field(cell, 0)));
-    // cerr << hex << "Field " << Field(cell, 0) 
-    // 	 << " long " << Long_val(Field(cell, 0)) << dec << endl;
-    xassert(Long_val(Field(cell, 0)) == 0);
+    case CA_OverloadSet:
+      // update an list ref
+      // check that cell contain the empty list
+      xassert(Field(cell, 0) == Val_emptylist);
+      break;
+	      
+    default:
+      xassert(false);
+    }
 
-
-    // construct Some val
-    some_val = option_some_constr(val);
-    // assign into reference cell
-    Store_field(cell, 0, some_val);
+    // assign the reference cell
+    Store_field(cell, 0, val);
 
     delete(part);
   }

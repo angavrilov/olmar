@@ -62,7 +62,8 @@ let create_K_UNION_constructor () = K_UNION
 (* type variable *)
 
 let create_variable_constructor 
-    poly loc name var_type flags value defparam funcdef =
+    poly loc name var_type flags value 
+    defparam funcdef overload_ref virt_ride scope_opt =
   { poly_var = poly;
     loc = loc;
     var_name = name;
@@ -71,6 +72,9 @@ let create_variable_constructor
     value = value;
     defaultParam = defparam;
     funcDefn = funcdef;
+    overload = overload_ref;
+    virtuallyOverride = virt_ride;
+    scope = scope_opt;
   }
 
 

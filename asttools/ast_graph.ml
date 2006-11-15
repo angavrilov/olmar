@@ -185,9 +185,17 @@ let rec variable_fun (v : annotated variable) =
       (let l1 = opt_child cType_fun "type" !(v.var_type) in
        let l2 = opt_child expression_fun "varValue" !(v.value) in
        let l3 = opt_child cType_fun "defaultParamType" v.defaultParam in
-       let l4 = opt_child func_fun "funcDefn" !(v.funcDefn)
+       let l4 = opt_child func_fun "funcDefn" !(v.funcDefn) in 
+       let l5 = 
+	 count_rev "overload"
+	   (List.rev_map variable_fun !(v.overload)) in
+       let l6 =
+	 count_rev "virtuallyOverride"
+	   (List.rev_map variable_fun v.virtuallyOverride) in
+       let l7 = opt_child scope_fun "scope" v.scope
        in
-	 l1 @ l2 @ l3 @ l4)
+	 l1 @ l2 @ l3 @ l4 @ l5 @ l6 @ l7)
+(* add overload *)
   end
 
 
@@ -409,18 +417,20 @@ and sTemplateArgument_fun ta =
 	    tanode_1c "STA_ATOMIC" "sta_value.at" (atomicType_fun atomicType)
 
 
-
+and scope_fun _scope = -1000
 
 (***************** generated ast nodes ****************)
 
-(* Hendrik: treat scope *)
 and translationUnit_fun 
-          ((annot, topForm_list, _scope_opt) : annotated translationUnit_type) =
+          ((annot, topForm_list, scope_opt) : annotated translationUnit_type) =
   if visited annot then retval annot
   else begin
     visit annot;
     ast_node color_TranslationUnit annot "TranslationUnit" []
-      (count_rev "topForms" (List.rev_map topForm_fun topForm_list))
+      (let l1 = count_rev "topForms" (List.rev_map topForm_fun topForm_list) in
+       let l2 = opt_child scope_fun "scope" scope_opt
+       in
+	 l1 @ l2)
   end
 
 and topForm_fun tf =

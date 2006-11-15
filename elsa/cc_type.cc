@@ -1318,15 +1318,14 @@ value CompoundType::toCompoundInfo(ToOcamlData *data){
   }
 
   // circular: info[11] = selfType->toOcaml(data);
-  info[11] = ref_None_constr(data);
-  
+  info[11] = ref_constr(Val_None, data);
+  if(selfType)
+    postpone_circular_CType(data, info[11], selfType);
+
   caml_register_global_root(&ocaml_info);
   ocaml_info = caml_callbackN(*create_compound_info_constructor_closure,
                              12, info);
   xassert(IS_OCAML_AST_VALUE(ocaml_info));
-
-  if(selfType)
-    postpone_circular_CType(data, ocaml_info, 11, selfType);
 
   data->stack.remove(reinterpret_cast<char *>(this) +8);
   CAMLreturn(ocaml_info);

@@ -402,6 +402,13 @@ public:
   // not be linker visible anyway.
   Variable *findByType(FunctionType const *ft, CVFlags receiverCV);
   Variable *findByType(FunctionType const *ft);
+
+protected:  // data
+  value ocaml_val;       // cache ocaml serialization result
+
+public:  // ocaml serialization methods
+  value toOcaml(ToOcamlData *);
+  void detachOcaml();
 };
 
 

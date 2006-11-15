@@ -244,8 +244,13 @@ and 'a variable = {
    * after resolving circularities
    *)
   funcDefn : 'a function_type option ref;
-  (* overload : overloadSet *)
-  (* scope : Scope; *)
+  (* overload is circurlar, it might contain this variable *)
+  overload : 'a variable list ref;
+  virtuallyOverride : 'a variable list;
+  (* scope contains different things, depending on flag DF_NAMESPACE, 
+   * see comments in variable.h
+   *)
+  scope : 'a scope option;
 }
 
 (***************************** CType **********************************)

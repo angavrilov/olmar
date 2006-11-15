@@ -126,7 +126,11 @@ let rec variable_fun(v : annotated variable) =
       opt_iter cType_fun v.defaultParam;
 
       (* POSSIBLY CIRCULAR *)
-      opt_iter func_fun !(v.funcDefn)
+      opt_iter func_fun !(v.funcDefn);
+      (* POSSIBLY CIRCULAR *)
+      (List.iter variable_fun) !(v.overload);
+      List.iter variable_fun v.virtuallyOverride;
+      opt_iter scope_fun v.scope
     end
 
 (***************** cType ******************************)

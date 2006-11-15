@@ -136,6 +136,16 @@ let ref_opt_iter f (x : 'a option ref) (full_type : 'a option ref tyrepr)
 let list_iter f (x : 'a list) (ty : 'a list tyrepr) type_name =
   indirect_iter (List.iter f) x ty [^ 'a list ^] type_name "list"
     
+let ref_list_iter f (x : 'a list ref) (full_type : 'a list ref tyrepr)
+    (list_type : 'a list tyrepr) inner_type_name =
+  indirect_iter
+    (fun x -> list_iter f !x list_type inner_type_name)
+    x
+    full_type
+    [^ 'a ref ^]
+    (inner_type_name ^ " list")
+    "ref"
+
 
 let bool_fun (b : bool) =
   ignore(check_fails "bool" b [^ bool ^] "bool")
@@ -242,8 +252,17 @@ let rec variable_fun(v : annotated variable) =
       opt_iter cType_fun v.defaultParam [^ annotated cType option ^] "ctype";
 
       (* POSSIBLY CIRCULAR *)
-      opt_iter func_fun !(v.funcDefn) [^ annotated function_type option ^] 
-	"function_type";
+      ref_opt_iter func_fun v.funcDefn 
+	[^ annotated function_type option ref ^] 
+	[^ annotated function_type option ^] "function_type";
+
+      (* POSSIBLY CIRCULAR *)
+      ref_list_iter variable_fun v.overload
+	[^ annotated variable list ref ^] 
+	[^ annotated variable list ^] "variable";
+      list_iter variable_fun v.virtuallyOverride 
+	[^ annotated variable list ^] "variable";
+      opt_iter scope_fun v.scope [^ annotated scope option ^] "scope";
 
       unindent()
     end

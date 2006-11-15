@@ -1,3 +1,13 @@
+2006-11-15  Hendrik Tews  <tews@tandem.cs.ru.nl>
+
+	* redesigned postpone_circular_* functions: they work on the
+	reference now and don't take the field anymore
+
+2006-11-14  Hendrik Tews  <tews@tandem.cs.ru.nl>
+
+	* added overload, virtuallyOverride, scope in Variable
+	* new circularity Variable.overload
+
 2006-11-10  Hendrik Tews  <tews@tandem.cs.ru.nl>
 
 	* asttools adopted 
