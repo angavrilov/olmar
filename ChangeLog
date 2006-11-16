@@ -1,3 +1,11 @@
+2006-11-16  Hendrik Tews  <tews@tandem.cs.ru.nl>
+
+	* added Scope, ScopeKind serialization
+	* new circularities: Scope.variables, Scope.typeTags; they
+	required a bit of refactoring in the postpone_circularity code
+	* new nullable Scope.parentScope, Scope.namespaceVar, 
+	Scope.parameterizedEntity
+
 2006-11-15  Hendrik Tews  <tews@tandem.cs.ru.nl>
 
 	* added has_negative_values in EnumType
@@ -130,6 +138,9 @@
 	  Declarator.type
 	  TranslationUnit.globalScope
 	  E_stringLit.fullTextNQ
+	  Scope.parentScope
+	  Scope.namespaceVar, 
+	  Scope.parameterizedEntity	
 	
 	  - fields without nullable comment, that happen to be null in at
 	  elast one regression test

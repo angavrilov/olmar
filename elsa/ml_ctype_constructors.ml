@@ -160,6 +160,22 @@ let create_STA_ATOMIC_constructor poly atomic_type =
   STA_ATOMIC(poly, atomic_type)
 
 
+(* type scope *)
+let create_scope_constructor 
+    poly variable_hash type_tags_hash parent_scope_opt scope_kind
+    namespace_var_opt template_params parameterized_entity_opt =
+  {
+    poly_scope = poly;
+    variables = variable_hash;
+    type_tags = type_tags_hash;
+    parent_scope = parent_scope_opt;
+    scope_kind = scope_kind;
+    namespace_var = namespace_var_opt;
+    template_params = template_params;
+    parameterized_entity = parameterized_entity_opt;
+  }
+
+
 (******************************************************************************
  *
  * D_attribute hack
@@ -246,6 +262,17 @@ let register_ml_ctype_constructor_callbacks () =
     create_STA_TEMPLATE_constructor;
   Callback.register "create_STA_ATOMIC_constructor"
     create_STA_ATOMIC_constructor;
+
+  (* scope *)
+  Callback.register "create_scope_constructor" create_scope_constructor;
+  (* scope serialization builds hashtables, therefore register some 
+   * hashtable functions here
+   *)
+  Callback.register "scope_hashtbl_create" 
+    (Hashtbl.create : int -> (string, 'a variable) Hashtbl.t);
+  Callback.register "scope_hashtbl_add"
+    (Hashtbl.add : (string, 'a variable) Hashtbl.t -> 
+      string -> 'a variable -> unit);
 
   (* D_attribute hack *)
   Callback.register "create_D_attribute_constructor" 

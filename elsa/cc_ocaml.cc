@@ -175,9 +175,26 @@ void postpone_circular_OverloadSet(ToOcamlData * data, value val,
 
 // hand written ocaml serialization function
 // not relly a serialization function, but handwritten ;-)
+void postpone_circular_StringRefMapVariable(ToOcamlData * data, value val,
+					    StringRefMap<Variable> * map) {
+
+  // no need to register val as long as we don't allocate here
+  xassert(map != NULL);
+  CircularAstPart * part = init_ca_part(data, val, CA_StringRefMapVariable);
+  part->ast.string_var_map = map;
+# ifdef DEBUG_CIRCULARITIES
+  cerr << "postpone (" << data->postponed_count
+       << ") StringRefMap<Variable> " << map << " in cell " 
+       << hex << "0x" << val << dec << "\n";
+# endif // DEBUG_CIRCULARITIES
+}
+
+
+// hand written ocaml serialization function
+// not relly a serialization function, but handwritten ;-)
 void finish_circular_pointers(ToOcamlData * data) {
   CAMLparam0();
-  CAMLlocal2(val, cell);
+  CAMLlocal4(val, cell, key, var);
   CircularAstPart * part;
 
   while(data->postponed_circles != NULL) {
@@ -189,12 +206,7 @@ void finish_circular_pointers(ToOcamlData * data) {
 #   endif // DEBUG_CIRCULARITIES
     data->postponed_count--;
 
-    // check that part->val is a reference cell
     cell = part->val;
-    xassert(Is_block(cell) && 	      // it's a block
-	    (Tag_val(cell) == 0) &&   // it's an array/tuple/record
-	    (Wosize_val(cell) == 1)); // with one cell
-
     xassert(data->stack.size() == 0);
   
     switch(part->ca_type) {
@@ -233,6 +245,57 @@ void finish_circular_pointers(ToOcamlData * data) {
       val = part->ast.overload->toOcaml(data);
       break;
 
+    case CA_StringRefMapVariable:
+      { // start a block to make some variables local to this case
+
+#       ifdef DEBUG_CIRCULARITIES
+	cerr << " (OverloadSet)\n";
+#       endif // DEBUG_CIRCULARITIES
+
+	static value * scope_hashtbl_add_closure = NULL;
+	if(scope_hashtbl_add_closure == NULL)
+	  scope_hashtbl_add_closure = caml_named_value("scope_hashtbl_add");
+	xassert(scope_hashtbl_add_closure);
+
+	// xassert(Is_block(cell));
+	// xassert((Tag_val(cell) == 0));
+	// xassert((Wosize_val(cell) == 2));
+	// xassert(Is_long(Field(cell, 0)));
+	// xassert((Long_val(Field(cell, 0)) == 0));
+	// xassert(Is_block(Field(cell, 1)));
+	// xassert((Tag_val(Field(cell, 1)) == 0));
+
+	xassert(Is_block(cell) &&	// it's a block
+		(Tag_val(cell) == 0) && // it's a record
+		(Wosize_val(cell) == 2) && // with two fields
+		Is_long(Field(cell, 0)) && // field 0 (size) is an int
+		(Long_val(Field(cell, 0)) == 0) && // which is zero
+		Is_block(Field(cell, 1)) && // field 1 (data) is a block
+		(Tag_val(Field(cell, 1)) == 0)); // data is an array
+
+#       if !defined(NDEBUG_NO_ASSERTIONS)
+	// HT: the following is probably not 64 bit clean: for i/check_size 
+	// I need a type which can hold the maximal ocaml array size
+	unsigned check_size = Wosize_val(Field(cell, 1));
+	// don't allocate -- no need to register
+	value check_array = Field(cell, 1); 
+	for(unsigned i = 0; i < check_size; i++) {
+	  xassert(Is_long(Field(check_array, i)) && // the array contains Empty
+		  (Long_val(Field(check_array, i)) == 0));
+	}
+#       endif // NDEBUG_NO_ASSERTIONS
+
+	StringRefMap<Variable>::Iter var_iter(*(part->ast.string_var_map));
+	while(!var_iter.isDone()) {
+	  key = ocaml_from_cstring(var_iter.key(), data);
+	  var = var_iter.value()->toOcaml(data);
+	  val = caml_callback3(*scope_hashtbl_add_closure, cell, key, var);
+	  xassert(val == Val_unit);
+	  var_iter.adv();
+	}
+      }
+      break;
+
     case CA_Empty:
     default:
       xassert(false);
@@ -244,26 +307,38 @@ void finish_circular_pointers(ToOcamlData * data) {
     case CA_Expression:
     case CA_TypeSpecifier:
       // update an option ref
-      // check that cell contains None
-      xassert(Is_long(Field(cell, 0)) && 
+      // check that cell is ref None
+      xassert(Is_block(cell) && 	      // it's a block
+	      (Tag_val(cell) == 0) &&         // it's an array/tuple/record
+	      (Wosize_val(cell) == 1) &&      // with one cell
+	      Is_long(Field(cell, 0)) &&      // containing None
 	      (Long_val(Field(cell, 0)) == 0));
 
       // construct Some val
       val = option_some_constr(val);
+      // assign the reference cell
+      Store_field(cell, 0, val);
       break;
 
     case CA_OverloadSet:
       // update an list ref
-      // check that cell contain the empty list
-      xassert(Field(cell, 0) == Val_emptylist);
+      // check that cell is ref []
+      xassert(Is_block(cell) && 	          // it's a block
+	      (Tag_val(cell) == 0) &&             // it's an array/tuple/record
+	      (Wosize_val(cell) == 1) &&          // with one cell
+	      (Field(cell, 0) == Val_emptylist)); // containing []
+
+      // assign the reference cell
+      Store_field(cell, 0, val);
+      break;
+
+    case CA_StringRefMapVariable:
+      // checked already above that cell is an empty hashtable
       break;
 	      
     default:
       xassert(false);
     }
-
-    // assign the reference cell
-    Store_field(cell, 0, val);
 
     delete(part);
   }
@@ -416,7 +491,7 @@ value ocaml_from_DeclFlags(const DeclFlags &f, ToOcamlData *d){
 
 // hand written ocaml serialization function
 value ocaml_from_SimpleTypeId(const SimpleTypeId &id, ToOcamlData *d){
-  // don't allocate here, so don;t need the CAMLparam stuff
+  // don't allocate here, so don't need the CAMLparam stuff
 
   static value * create_ST_CHAR_constructor_closure = NULL;
   static value * create_ST_UNSIGNED_CHAR_constructor_closure = NULL;
@@ -932,7 +1007,7 @@ value ocaml_from_function_flags(const FunctionFlags &f, ToOcamlData *d){
 
 // hand written ocaml serialization function
 value ocaml_from_TypeIntr(const TypeIntr &id, ToOcamlData *d){
-  // don't allocate here, so don;t need the CAMLparam stuff
+  // don't allocate here, so don't need the CAMLparam stuff
 
   static value * create_TI_STRUCT_constructor_closure = NULL;
   static value * create_TI_CLASS_constructor_closure = NULL;
@@ -992,7 +1067,7 @@ value ocaml_from_TypeIntr(const TypeIntr &id, ToOcamlData *d){
 
 // hand written ocaml serialization function
 value ocaml_from_AccessKeyword(const AccessKeyword &id, ToOcamlData *d){
-  // don't allocate here, so don;t need the CAMLparam stuff
+  // don't allocate here, so don't need the CAMLparam stuff
 
   static value * create_AK_PUBLIC_constructor_closure = NULL;
   static value * create_AK_PROTECTED_constructor_closure = NULL;
@@ -1052,7 +1127,7 @@ value ocaml_from_AccessKeyword(const AccessKeyword &id, ToOcamlData *d){
 
 // hand written ocaml serialization function
 value ocaml_from_OverloadableOp(const OverloadableOp &id, ToOcamlData *d){
-  // don't allocate here, so don;t need the CAMLparam stuff
+  // don't allocate here, so don't need the CAMLparam stuff
 
   static value * create_OP_NOT_constructor_closure = NULL;
   static value * create_OP_BITNOT_constructor_closure = NULL;
@@ -1481,7 +1556,7 @@ value ocaml_from_OverloadableOp(const OverloadableOp &id, ToOcamlData *d){
 
 // hand written ocaml serialization function
 value ocaml_from_UnaryOp(const UnaryOp &id, ToOcamlData *d){
-  // don't allocate here, so don;t need the CAMLparam stuff
+  // don't allocate here, so don't need the CAMLparam stuff
 
   static value * create_UNY_PLUS_constructor_closure = NULL;
   static value * create_UNY_MINUS_constructor_closure = NULL;
@@ -1540,7 +1615,7 @@ value ocaml_from_UnaryOp(const UnaryOp &id, ToOcamlData *d){
 
 // hand written ocaml serialization function
 value ocaml_from_EffectOp(const EffectOp &id, ToOcamlData *d){
-  // don't allocate here, so don;t need the CAMLparam stuff
+  // don't allocate here, so don't need the CAMLparam stuff
 
   static value * create_EFF_POSTINC_constructor_closure = NULL;
   static value * create_EFF_POSTDEC_constructor_closure = NULL;
@@ -1599,7 +1674,7 @@ value ocaml_from_EffectOp(const EffectOp &id, ToOcamlData *d){
 
 // hand written ocaml serialization function
 value ocaml_from_BinaryOp(const BinaryOp &id, ToOcamlData *d){
-  // don't allocate here, so don;t need the CAMLparam stuff
+  // don't allocate here, so don't need the CAMLparam stuff
 
   static value * create_BIN_EQUAL_constructor_closure = NULL;
   static value * create_BIN_NOTEQUAL_constructor_closure = NULL;
@@ -1888,7 +1963,7 @@ value ocaml_from_BinaryOp(const BinaryOp &id, ToOcamlData *d){
 
 // hand written ocaml serialization function
 value ocaml_from_CastKeyword(const CastKeyword &id, ToOcamlData *d){
-  // don't allocate here, so don;t need the CAMLparam stuff
+  // don't allocate here, so don't need the CAMLparam stuff
 
   static value * create_CK_DYNAMIC_constructor_closure = NULL;
   static value * create_CK_STATIC_constructor_closure = NULL;
@@ -1949,7 +2024,7 @@ value ocaml_from_CastKeyword(const CastKeyword &id, ToOcamlData *d){
 // hand written ocaml serialization function
 value ocaml_from_CompoundType_Keyword(const CompoundType::Keyword &id, 
 				      ToOcamlData *d){
-  // don't allocate here, so don;t need the CAMLparam stuff
+  // don't allocate here, so don't need the CAMLparam stuff
 
   static value * create_K_STRUCT_constructor_closure = NULL;
   static value * create_K_CLASS_constructor_closure = NULL;
@@ -1990,7 +2065,7 @@ value ocaml_from_CompoundType_Keyword(const CompoundType::Keyword &id,
 
 // hand written ocaml serialization function
 value ocaml_from_DeclaratorContext(const DeclaratorContext &id, ToOcamlData *d){
-  // don't allocate here, so don;t need the CAMLparam stuff
+  // don't allocate here, so don't need the CAMLparam stuff
 
   static value * create_DC_UNKNOWN_constructor_closure = NULL;
   static value * create_DC_FUNCTION_constructor_closure = NULL;
@@ -2272,6 +2347,107 @@ value ocaml_from_double(const double &f, ToOcamlData *) {
 }
 
 
+// hand written ocaml serialization function
+value ocaml_from_ScopeKind(const ScopeKind &id, ToOcamlData *d){
+  // don't allocate here, so don't need the CAMLparam stuff
+
+  static value * create_SK_UNKNOWN_constructor_closure = NULL;
+  static value * create_SK_GLOBAL_constructor_closure = NULL;
+  static value * create_SK_PARAMETER_constructor_closure = NULL;
+  static value * create_SK_FUNCTION_constructor_closure = NULL;
+  static value * create_SK_CLASS_constructor_closure = NULL;
+  static value * create_SK_TEMPLATE_PARAMS_constructor_closure = NULL;
+  static value * create_SK_TEMPLATE_ARGS_constructor_closure = NULL;
+  static value * create_SK_NAMESPACE_constructor_closure = NULL;
+
+  value result;
+
+  switch(id){
+
+  case SK_UNKNOWN:
+    xassert(false);
+    if(create_SK_UNKNOWN_constructor_closure == NULL)
+      create_SK_UNKNOWN_constructor_closure = 
+        caml_named_value("create_SK_UNKNOWN_constructor");
+    xassert(create_SK_UNKNOWN_constructor_closure);
+    result = caml_callback(*create_SK_UNKNOWN_constructor_closure, Val_unit);
+    xassert(IS_OCAML_AST_VALUE(result));
+    return result;
+
+  case SK_GLOBAL:
+    if(create_SK_GLOBAL_constructor_closure == NULL)
+      create_SK_GLOBAL_constructor_closure = 
+        caml_named_value("create_SK_GLOBAL_constructor");
+    xassert(create_SK_GLOBAL_constructor_closure);
+    result = caml_callback(*create_SK_GLOBAL_constructor_closure, Val_unit);
+    xassert(IS_OCAML_AST_VALUE(result));
+    return result;
+
+  case SK_PARAMETER:
+    if(create_SK_PARAMETER_constructor_closure == NULL)
+      create_SK_PARAMETER_constructor_closure = 
+        caml_named_value("create_SK_PARAMETER_constructor");
+    xassert(create_SK_PARAMETER_constructor_closure);
+    result = caml_callback(*create_SK_PARAMETER_constructor_closure, Val_unit);
+    xassert(IS_OCAML_AST_VALUE(result));
+    return result;
+
+  case SK_FUNCTION:
+    if(create_SK_FUNCTION_constructor_closure == NULL)
+      create_SK_FUNCTION_constructor_closure = 
+        caml_named_value("create_SK_FUNCTION_constructor");
+    xassert(create_SK_FUNCTION_constructor_closure);
+    result = caml_callback(*create_SK_FUNCTION_constructor_closure, Val_unit);
+    xassert(IS_OCAML_AST_VALUE(result));
+    return result;
+
+  case SK_CLASS:
+    if(create_SK_CLASS_constructor_closure == NULL)
+      create_SK_CLASS_constructor_closure = 
+        caml_named_value("create_SK_CLASS_constructor");
+    xassert(create_SK_CLASS_constructor_closure);
+    result = caml_callback(*create_SK_CLASS_constructor_closure, Val_unit);
+    xassert(IS_OCAML_AST_VALUE(result));
+    return result;
+
+  case SK_TEMPLATE_PARAMS:
+    if(create_SK_TEMPLATE_PARAMS_constructor_closure == NULL)
+      create_SK_TEMPLATE_PARAMS_constructor_closure = 
+        caml_named_value("create_SK_TEMPLATE_PARAMS_constructor");
+    xassert(create_SK_TEMPLATE_PARAMS_constructor_closure);
+    result = caml_callback(*create_SK_TEMPLATE_PARAMS_constructor_closure, Val_unit);
+    xassert(IS_OCAML_AST_VALUE(result));
+    return result;
+
+  case SK_TEMPLATE_ARGS:
+    if(create_SK_TEMPLATE_ARGS_constructor_closure == NULL)
+      create_SK_TEMPLATE_ARGS_constructor_closure = 
+        caml_named_value("create_SK_TEMPLATE_ARGS_constructor");
+    xassert(create_SK_TEMPLATE_ARGS_constructor_closure);
+    result = caml_callback(*create_SK_TEMPLATE_ARGS_constructor_closure, Val_unit);
+    xassert(IS_OCAML_AST_VALUE(result));
+    return result;
+
+  case SK_NAMESPACE:
+    if(create_SK_NAMESPACE_constructor_closure == NULL)
+      create_SK_NAMESPACE_constructor_closure = 
+        caml_named_value("create_SK_NAMESPACE_constructor");
+    xassert(create_SK_NAMESPACE_constructor_closure);
+    result = caml_callback(*create_SK_NAMESPACE_constructor_closure, Val_unit);
+    xassert(IS_OCAML_AST_VALUE(result));
+    return result;
+
+  default:
+    xassert(false);
+    break;
+  }
+
+  // not reached, the above assertion takes us out before
+  xassert(false);
+}
+
+
+
 //**************************************************************************
 //******************************* debug caml roots *************************
 
@@ -2329,6 +2505,7 @@ void check_caml_root_status() {
 
 to create the bodies for the enums:
  - take the ocaml variant type def
+ - delete the type name (only constructors remain)
  - strip constructor args off if any (these funs only treat pure enums)
  - apply enum-constructor
  - there should be just the constructors, each on their own line
@@ -2355,7 +2532,7 @@ to create the bodies for the enums:
   (beginning-of-buffer)
   (kill-ring-save (point-min) (point-max))
   (replace-regexp "\\(.*\\)" "  static value * create_\\1_constructor_closure = NULL;" nil nil nil)
-  (insert "\n\n  switch(id){\n\n")
+  (insert "\n\n  value result;\n\n  switch(id){\n\n")
   (yank)
   (goto-char (mark))
   (replace-regexp "\\(.+\\)" "  case \\1:
@@ -2363,7 +2540,9 @@ to create the bodies for the enums:
       create_\\1_constructor_closure = 
         caml_named_value(\"create_\\1_constructor\");
     xassert(create_\\1_constructor_closure);
-    return caml_callback(*create_\\1_constructor_closure, Val_unit);
+    result = caml_callback(*create_\\1_constructor_closure, Val_unit);
+    xassert(IS_OCAML_AST_VALUE(result));
+    return result;
 " )
   (widen))
 

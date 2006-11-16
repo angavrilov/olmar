@@ -212,6 +212,15 @@ and 'a sTemplateArgument =
 
 (***************************** Scope ******************************************)
 
-and 'a scope = unit
+and 'a scope = {
+  poly_scope : 'a;
+  variables : (string, 'a variable) Hashtbl.t;
+  type_tags : (string, 'a variable) Hashtbl.t;
+  parent_scope : 'a scope option;
+  scope_kind : scopeKind;
+  namespace_var : 'a variable option;
+  template_params : 'a variable list;
+  parameterized_entity : 'a variable option;
+}
 
 }

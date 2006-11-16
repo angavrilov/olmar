@@ -815,6 +815,46 @@ let register_DC_callbacks () =
   ()
 
 
+(* ScopeKind from cc_flags.h *)
+
+let create_SK_UNKNOWN_constructor () = SK_UNKNOWN
+let create_SK_GLOBAL_constructor () = SK_GLOBAL
+let create_SK_PARAMETER_constructor () = SK_PARAMETER
+let create_SK_FUNCTION_constructor () = SK_FUNCTION
+let create_SK_CLASS_constructor () = SK_CLASS
+let create_SK_TEMPLATE_PARAMS_constructor () = SK_TEMPLATE_PARAMS
+let create_SK_TEMPLATE_ARGS_constructor () = SK_TEMPLATE_ARGS
+let create_SK_NAMESPACE_constructor () = SK_NAMESPACE
+
+let register_SK_callbacks () =
+  Callback.register 
+    "create_SK_UNKNOWN_constructor"
+    create_SK_UNKNOWN_constructor;
+  Callback.register 
+    "create_SK_GLOBAL_constructor"
+    create_SK_GLOBAL_constructor;
+  Callback.register 
+    "create_SK_PARAMETER_constructor"
+    create_SK_PARAMETER_constructor;
+  Callback.register 
+    "create_SK_FUNCTION_constructor"
+    create_SK_FUNCTION_constructor;
+  Callback.register 
+    "create_SK_CLASS_constructor"
+    create_SK_CLASS_constructor;
+  Callback.register 
+    "create_SK_TEMPLATE_PARAMS_constructor"
+    create_SK_TEMPLATE_PARAMS_constructor;
+  Callback.register 
+    "create_SK_TEMPLATE_ARGS_constructor"
+    create_SK_TEMPLATE_ARGS_constructor;
+  Callback.register 
+    "create_SK_NAMESPACE_constructor"
+    create_SK_NAMESPACE_constructor;
+  ()
+
+
+
 (* register all callbacks in this file *)
 
 let register_cc_ml_constructor_callbacks () =
@@ -830,6 +870,7 @@ let register_cc_ml_constructor_callbacks () =
   register_BIN_callbacks();
   register_CK_callbacks();
   register_DC_callbacks();
+  register_SK_callbacks();
   ()
 
 
@@ -840,6 +881,10 @@ let register_cc_ml_constructor_callbacks () =
 (*
 
 to create enum constructors and their callbacks:
+- copy the ocaml type def
+- delete the typename so that only the constructors remain (comments possible)
+- apply ml-of-enum
+- put the callback in the last function
 
 (defun ml-of-enum ()
   (interactive)

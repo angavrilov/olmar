@@ -75,6 +75,12 @@ private:     // data
   // ever on the scope stack twice
   bool onScopeStack;
 
+protected:  // data
+  // HT: I consider scope independent of CompoundType, although 
+  // CompoundType inherits from Scope. Therefore use
+  // scope_ocaml_val here to avoid a clash with CompoundType.ocaml_val
+  value scope_ocaml_val;       // cache ocaml serialization result
+
 public:      // data
   // when this is set to false, the environment knows it should not
   // put new names into this scope, but rather go further down into
@@ -350,17 +356,21 @@ public:      // funcs
   string desc() const;
   void gdb() const;
 
-  // ocaml serialization method
-  value toOcaml(ToOcamlData *);
-  virtual void detachOcaml();
+  // ocaml serialization methods
+  // HT: I consider scope independent of CompoundType, although 
+  // CompoundType inherits from Scope. CompoundType needs to have
+  // virtual toOcaml/detachOcaml. Therefore use different names here 
+  // to avoid clashes.
+  value scopeToOcaml(ToOcamlData *);
+  void scopeDetachOcaml();
 };
 
 inline value ocaml_from_Scope(Scope &s, ToOcamlData *d) {
-  return s.toOcaml(d);
+  return s.scopeToOcaml(d);
 }
 
 inline void detach_ocaml_Scope(Scope &s) {
-  s.detachOcaml();
+  s.scopeDetachOcaml();
 }
 
 

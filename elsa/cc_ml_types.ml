@@ -687,3 +687,28 @@ let string_of_declaratorContext = function
   | DC_E_COMPOUNDLIT    -> "DC_E_COMPOUNDLIT"
   | DC_E_ALIGNOFTYPE    -> "DC_E_ALIGNOFTYPE"
   | DC_E_BUILTIN_VA_ARG -> "DC_E_BUILTIN_VA_ARG"
+
+
+
+(* from cc_flags.h *)
+
+type scopeKind =
+  | SK_UNKNOWN         (* hasn't been registered in a scope yet *)
+  | SK_GLOBAL          (* toplevel names *)
+  | SK_PARAMETER       (* parameter list *)
+  | SK_FUNCTION        (* includes local variables *)
+  | SK_CLASS           (* class member scope *)
+  | SK_TEMPLATE_PARAMS (* template paramter list (inside the '<' and '>') *)
+  | SK_TEMPLATE_ARGS   (* bound template arguments, during instantiation *)
+  | SK_NAMESPACE       (* namespace *)
+
+
+let string_of_scopeKind = function
+  | SK_UNKNOWN        -> "SK_UNKNOWN"
+  | SK_GLOBAL         -> "SK_GLOBAL"
+  | SK_PARAMETER      -> "SK_PARAMETER"
+  | SK_FUNCTION       -> "SK_FUNCTION"
+  | SK_CLASS          -> "SK_CLASS"
+  | SK_TEMPLATE_PARAMS-> "SK_TEMPLATE_PARAMS"
+  | SK_TEMPLATE_ARGS  -> "SK_TEMPLATE_ARGS"
+  | SK_NAMESPACE      -> "SK_NAMESPACE"

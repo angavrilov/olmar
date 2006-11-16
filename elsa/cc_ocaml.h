@@ -33,7 +33,8 @@ enum CircularAstType {
   CA_Function,
   CA_Expression,
   CA_TypeSpecifier,
-  CA_OverloadSet
+  CA_OverloadSet,
+  CA_StringRefMapVariable
 };
 
 
@@ -46,8 +47,15 @@ class CircularAstPart {
     Expression * expression;	/* tagged CA_Expression */
     TypeSpecifier * typeSpecifier; /* tagged CA_TypeSpecifier */
     OverloadSet * overload;	/* tagged CA_OverloadSet */
+    StringRefMap<Variable> * string_var_map; /* tagged CA_StringRefMapVariable*/
   } ast;
-  value val;			/* the reference cell to be updated */
+  
+  // val contains the thing which gets updated later.
+  // It is a option reference cell, which must be ref None
+  // except for CA_OverloadSet it is list ref, which must be []; and
+  // except for CA_StringRefMapVariable it is 
+  // a (string, annotated variable) Hashtbl, which must be empty.
+  value val;
   CircularAstPart * next;	/* single linked list */
 
   CircularAstPart();		/* (de-)register val as ocaml root */
@@ -70,20 +78,25 @@ public:
 value ref_constr(value elem, ToOcamlData * data);
 
 /* 
- * The postpone_* functions register an update of an reference cell 
+ * The postpone_* functions register an update of some value 
+ * through (legal ocaml) side effects
  * to be performed later, in order to avoid circularities. Bisides the 
- * ocaml data (in which the deferred circularity is enqued) they also takes
- * the reference cell to be updated and the ast node that is to 
+ * ocaml data (in which the deferred circularity is enqued) they also take
+ * the value to be updated and the ast node that is to 
  * be serialized later.
  * The first four functions (ie. CType, Function, Expression, TypeSpecifier) 
  * update an option ref, for them the value val passed must be ref None.
  * The OverloadSet function updates an list ref. For it val must be ref [].
+ * StringRefMapVariable updates a (string, annotated variable) Hashtabl.t,
+ * which must be empty.
  */
 void postpone_circular_CType(ToOcamlData * data, value val, CType * type);
 void postpone_circular_Function(ToOcamlData * data, value val, Function * func);
 void postpone_circular_Expression(ToOcamlData *, value, Expression *);
 void postpone_circular_TypeSpecifier(ToOcamlData *, value, TypeSpecifier *);
 void postpone_circular_OverloadSet(ToOcamlData *, value, OverloadSet *);
+void postpone_circular_StringRefMapVariable(ToOcamlData *, value, 
+					    StringRefMap<Variable> *);
 
 // serialize all the deferred circularities enqued in data
 void finish_circular_pointers(ToOcamlData * data);
@@ -113,6 +126,7 @@ value ocaml_from_CastKeyword(const CastKeyword &, ToOcamlData *);
 value ocaml_from_CompoundType_Keyword(const CompoundType::Keyword &, 
 				      ToOcamlData *);
 value ocaml_from_DeclaratorContext(const DeclaratorContext &, ToOcamlData *);
+value ocaml_from_ScopeKind(const ScopeKind &, ToOcamlData *);
 
 // for other types
 value ocaml_from_unsigned_long(const unsigned long &, ToOcamlData *);
@@ -142,6 +156,7 @@ inline void detach_ocaml_EffectOp(const EffectOp &) {}
 inline void detach_ocaml_BinaryOp(const BinaryOp &) {}
 inline void detach_ocaml_CastKeyword(const CastKeyword &) {}
 inline void detach_ocaml_CompoundType_Keyword(const CompoundType::Keyword &) {}
+inline void detach_ocaml_ScopeKind(const ScopeKind) {}
 inline void detach_ocaml_unsigned_long(const unsigned long &) {}
 inline void detach_ocaml_double(const double &) {}
 inline void detach_ocaml_unsigned_int(const unsigned int &) {}

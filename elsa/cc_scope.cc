@@ -9,12 +9,14 @@
 #include "mangle.h"       // mangle
 #include "exc.h"          // unwinding
 
+#include <iomanip.h>
 
 Scope::Scope(ScopeKind sk, int cc, SourceLoc initLoc)
   : variables(),
     typeTags(),
     changeCount(cc),
     onScopeStack(false),
+    scope_ocaml_val(0),
     canAcceptNames(true),
     parentScope(),
     scopeKind(sk),
@@ -39,6 +41,7 @@ Scope::Scope(XmlReader&)
     typeTags(),
     changeCount(0),
     onScopeStack(false),
+    scope_ocaml_val(0),
     canAcceptNames(true),
     parentScope(),
     scopeKind(SK_UNKNOWN),
@@ -1371,16 +1374,127 @@ void Scope::traverse_internal(TypeVisitor &vis)
   }
 }
 
+
 // ocaml serialization method for Variable
 // hand written ocaml serialization function
-value Scope::toOcaml(ToOcamlData *data){
-  // scopes are not yet in ocaml 
-  return Val_unit;
+value Scope::scopeToOcaml(ToOcamlData *data){
+  CAMLparam0();
+  CAMLlocalN(child, 8);
+  CAMLlocal5(hash, hash_size, list, elem, tmp);
+
+  if(scope_ocaml_val) {
+    // cerr << "shared ocaml value in Scope\n" << flush;
+    CAMLreturn(scope_ocaml_val);
+  }
+  static value * create_scope_constructor_closure = NULL;
+  static value * scope_hashtbl_create_closure = NULL;
+  static value * scope_hashtbl_add_closure = NULL;
+  if(create_scope_constructor_closure == NULL)
+    create_scope_constructor_closure =
+      caml_named_value("create_scope_constructor");
+  xassert(create_scope_constructor_closure);
+  if(scope_hashtbl_create_closure == NULL)
+    scope_hashtbl_create_closure = caml_named_value("scope_hashtbl_create");
+  xassert(scope_hashtbl_create_closure);
+  if(scope_hashtbl_add_closure == NULL)
+    scope_hashtbl_add_closure = caml_named_value("scope_hashtbl_add");
+  xassert(scope_hashtbl_add_closure);
+
+  if(data->stack.contains(this)) {
+    cerr << "cyclic ast detected during ocaml serialization\n";
+    xassert(false);
+  } else {
+    data->stack.add(this);
+  }
+  child[0] = ocaml_ast_annotation(this, data);
+
+  xassert(variables.getNumEntries() <= Max_long && 
+	  Min_long <= variables.getNumEntries());
+  hash_size = Val_int(variables.getNumEntries());
+  xassert(IS_OCAML_AST_VALUE(hash_size));
+  hash = caml_callback(*scope_hashtbl_create_closure, hash_size);
+  xassert(IS_OCAML_AST_VALUE(hash));
+  postpone_circular_StringRefMapVariable(data, hash, &variables);
+  child[1] = hash;
+
+  xassert(typeTags.getNumEntries() <= Max_long && 
+	  Min_long <= typeTags.getNumEntries());
+  hash_size = Val_int(typeTags.getNumEntries());
+  xassert(IS_OCAML_AST_VALUE(hash_size));
+  hash = caml_callback(*scope_hashtbl_create_closure, hash_size);
+  xassert(IS_OCAML_AST_VALUE(hash));
+  postpone_circular_StringRefMapVariable(data, hash, &typeTags);
+  child[2] = hash;
+
+  if(parentScope) 
+    child[3] = option_some_constr(parentScope->scopeToOcaml(data));
+  else
+    child[3] = Val_None;
+
+  child[4] = ocaml_from_ScopeKind(scopeKind, data);
+
+  if(namespaceVar)
+    child[5] = option_some_constr(namespaceVar->toOcaml(data));
+  else
+    child[5] = Val_None;
+
+  list = Val_emptylist;
+  SFOREACH_OBJLIST_NC(Variable, templateParams, list_iter) {
+    elem = list_iter.data()->toOcaml(data);
+    tmp = caml_alloc(2, Tag_cons); // allocate a cons cell
+    Store_field(tmp, 0, elem);	// store car
+    Store_field(tmp, 1, list);	// store cdr
+    list = tmp;
+  }
+  child[6] = ocaml_list_rev(list);
+
+  if(parameterizedEntity)
+    child[7] = option_some_constr(parameterizedEntity->toOcaml(data));
+  else
+    child[7] = Val_None;
+
+  caml_register_global_root(&scope_ocaml_val);
+  scope_ocaml_val = caml_callbackN(*create_scope_constructor_closure,
+				   8, child);
+  xassert(IS_OCAML_AST_VALUE(scope_ocaml_val));
+
+  data->stack.remove(this);
+  CAMLreturn(scope_ocaml_val);    
 }
 
+
 // hand written ocaml serialization cleanup
-void Scope::detachOcaml() {
-  // don't do anything yet
+void Scope::scopeDetachOcaml() {
+  if(scope_ocaml_val == 0) return;
+  caml_remove_global_root(&scope_ocaml_val);
+  scope_ocaml_val = 0;
+
+  StringRefMap<Variable>::Iter var_iter(variables);
+  while(!var_iter.isDone()) {
+    detach_ocaml_cstring(var_iter.key());
+    var_iter.value()->detachOcaml();
+    var_iter.adv();
+  }
+
+  StringRefMap<Variable>::Iter typ_iter(typeTags);
+  while(!typ_iter.isDone()) {
+    detach_ocaml_cstring(typ_iter.key());
+    typ_iter.value()->detachOcaml();
+    typ_iter.adv();
+  }
+
+  if(parentScope)
+    parentScope->scopeDetachOcaml();
+  detach_ocaml_ScopeKind(scopeKind);
+  if(namespaceVar)
+    namespaceVar->detachOcaml();
+
+  SFOREACH_OBJLIST_NC(Variable, templateParams, list_iter) {
+    list_iter.data()->detachOcaml();
+  }
+
+  if(parameterizedEntity)
+    parameterizedEntity->detachOcaml();
 }
 
 

@@ -1267,7 +1267,7 @@ value CompoundType::toCompoundInfo(ToOcamlData *data){
   }
   info[2] = typedefVar->toOcaml(data);
   info[3] = ocaml_from_AccessKeyword(access, data);
-  info[4] = dynamic_cast<Scope *>(this)->toOcaml(data);
+  info[4] = dynamic_cast<Scope *>(this)->scopeToOcaml(data);
   info[5] = ocaml_from_bool(forward, data);
   info[6] = ocaml_from_bool(isTransparentUnion, data);
   info[7] = ocaml_from_CompoundType_Keyword(keyword, data);
@@ -1380,11 +1380,10 @@ void CompoundType::detachOcamlInfo() {
   if(ocaml_info == 0) return;
   caml_remove_global_root(&ocaml_info);
   ocaml_info = 0;
-  
-  detach_ocaml_StringRef(name);
-  typedefVar->detachOcaml();
-  detach_ocaml_AccessKeyword(access);
-  dynamic_cast<Scope *>(this)->detachOcaml();
+
+  NamedAtomicType::detachOcaml();
+
+  dynamic_cast<Scope *>(this)->scopeDetachOcaml();
   detach_ocaml_bool(forward);
   detach_ocaml_bool(isTransparentUnion);
   detach_ocaml_CompoundType_Keyword(keyword);
@@ -1409,9 +1408,7 @@ void CompoundType::detachOcamlInfo() {
 // hand written ocaml serialization function
 void CompoundType::detachOcaml() {
   if(ocaml_val == 0) return;
-  NamedAtomicType::detachOcaml();
-  detachOcamlInfo();		// children from NamedAtomicType get detached
-				// twice now, but this is harmless
+  detachOcamlInfo();
 }
 
 

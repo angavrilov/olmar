@@ -79,8 +79,10 @@ value ocaml_from_bool(const bool &b, ToOcamlData *d){
 inline
 value ocaml_from_int(const int &i, ToOcamlData *d){
   // don't allocate
-  if(!(i <= Max_long && Min_long <= i))
-    xassert(false);
+  /* 
+   * if(!(i <= Max_long && Min_long <= i))
+   *   xassert(false);
+   */
   xassert(i <= Max_long && Min_long <= i);
   return(Val_int(i));
 }
@@ -117,7 +119,7 @@ value ocaml_from_string(const string &s, ToOcamlData *d){
 // all these functions are empty, 
 // however, defining them here empty is better than another hack in astgen
 // hand written ocaml serialization cleanup
-inline void detach_ocaml_cstring(const char &) {}
+inline void detach_ocaml_cstring(const char *) {}
 inline void detach_ocaml_bool(const bool &) {}
 inline void detach_ocaml_int(const int &) {}
 inline void detach_ocaml_int32(const int &) {}
