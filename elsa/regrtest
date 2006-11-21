@@ -1339,11 +1339,15 @@ list=`echo " \
     t0023.cc
     t0024.cc
     t0026.cc
+    t0028.cc
     t0029.cc
     t0030a.cc
     t0030b.cc
     t0031.cc
     t0032.cc
+    t0033.cc
+    t0035.cc
+    t0036.cc
     t0037.cc
     t0038.cc
     t0039.cc
@@ -1351,6 +1355,7 @@ list=`echo " \
     t0041.cc
     t0042.cc
     t0043.cc
+    t0093.cc
     t0100.cc
     t0101.cc
     t0102.cc
