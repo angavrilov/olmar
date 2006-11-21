@@ -965,10 +965,23 @@ void Declaration::print(PrintEnv &env)
     spec->asTS_enumSpec()->print(env);
     *env.out << ";\n";
   }
+  else if(spec->isTS_elaborated() && decllist == NULL) {
+    // see Cubewano Trac ticket #112
 
-  // TODO: this does not print "friend class Foo;" declarations
-  // because the type specifier is TS_elaborated and there are no
-  // declarators
+    // eed 2006-11-21
+    //     template declarations (template <typename T> class C;)
+    //     and friend classes both have a declaration with a spec
+    //     TS_elaborated and a null decllist. I haven't found
+    //     anything else that satisfies those conditions.
+
+    if(dflags & DF_FRIEND) {
+      *env.out << "friend ";
+    }
+
+    spec->asTS_elaborated()->print(env);
+    *env.out << ";\n";
+  }
+
 
   FAKELIST_FOREACH_NC(Declarator, decllist, iter) {
     // if there are decl flags that didn't get put into the
