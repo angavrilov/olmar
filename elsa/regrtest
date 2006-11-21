@@ -1313,17 +1313,50 @@ fi   # end of 'if $use_gnu; then'
 # printed which is not idempotent
 
 list=`echo " \
-  t0001.cc   t0002.cc  t0003.cc  t0004.cc   t0005.cc   t0006.cc  t0007.cc
-  t0008.cc   t0009.cc  t0010.cc  t0011.cc   t0012.cc   t0013.cc  t0014.cc
-  t0014a.cc  t0015.cc  t0016.cc  t0017.cc   t0018.cc   t0019.cc  t0020.cc
-  t0021.cc   t0022.cc  t0023.cc  t0024.cc              t0026.cc
-             t0029.cc            t0030a.cc  t0030b.cc  t0031.cc  t0032.cc
-                                            t0037.cc   t0038.cc  t0039.cc
-  t0040.cc   t0041.cc  t0042.cc  t0043.cc
-                                            t0100.cc   t0101.cc  t0102.cc
-                                 t0106.cc
-                                                                 t0123.cc \
-  " | fmt -1 | sed 's|^[ 	]*|in/|'`
+    t0001.cc
+    t0002.cc
+    t0003.cc
+    t0004.cc
+    t0005.cc
+    t0006.cc
+    t0007.cc
+    t0008.cc
+    t0009.cc
+    t0010.cc
+    t0011.cc
+    t0012.cc
+    t0013.cc
+    t0014.cc
+    t0014a.cc
+    t0015.cc
+    t0016.cc
+    t0017.cc
+    t0018.cc
+    t0019.cc
+    t0020.cc
+    t0021.cc
+    t0022.cc
+    t0023.cc
+    t0024.cc
+    t0026.cc
+    t0029.cc
+    t0030a.cc
+    t0030b.cc
+    t0031.cc
+    t0032.cc
+    t0037.cc
+    t0038.cc
+    t0039.cc
+    t0040.cc
+    t0041.cc
+    t0042.cc
+    t0043.cc
+    t0100.cc
+    t0101.cc
+    t0102.cc
+    t0106.cc
+    t0123.cc
+  " | fmt -1 | grep . | sed 's|^[ 	]*|in/|'`
 
 runTest perl ./idemcheck -d outdir $list
 
