@@ -253,7 +253,17 @@ string CTypePrinter::print(CompoundType const *cpdType)
     sb << CompoundType::keywordName(cpdType->keyword) << ' ';
   }
 
-  sb << (cpdType->instName? cpdType->instName : "/*anonymous*/");
+  // sb << (cpdType->instName? cpdType->instName : "/*anonymous*/");
+
+  // from cc_print.cc, CompoundType::toCString
+  if (cpdType->typedefVar) {
+    sb << cpdType->typedefVar->fullyQualifiedName0();
+  }
+  else {
+    // only reachable during object construction
+    xfailure("80501256-bad6-4d2c-b7d0-8310f5fd9194");
+  }
+
 
   // template arguments are now in the name
   // 4/22/04: they were removed from the name a long time ago;
