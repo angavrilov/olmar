@@ -1357,6 +1357,7 @@ list=`echo " \
     t0041.cc
     t0042.cc
     t0043.cc
+    t0056.cc
     t0093.cc
     t0100.cc
     t0101.cc

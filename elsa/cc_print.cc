@@ -327,7 +327,7 @@ string CTypePrinter::print(DependentQType const *depType)
   PrintEnv env(*this, &codeOut); // Yuck!
   // FIX: what about the env.loc?
 
-  codeOut << print(depType->first) << ':' << ':';
+  codeOut << "typename " << print(depType->first) << ':' << ':';
   depType->rest->print(env);
 
   codeOut.finish();
