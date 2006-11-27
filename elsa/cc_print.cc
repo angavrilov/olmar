@@ -323,7 +323,7 @@ string CTypePrinter::print(PseudoInstantiation const *pseudoInst)
     }
     printSTemplateArgument(env, iter.data());
   }
-  codeOut << '>';
+  codeOut << " > ";
 
   codeOut.finish();
   return sb0;
@@ -714,7 +714,7 @@ string printDeclaration_makeName
       }
       printSTemplateArgument(env, iter.data());
     }
-    codeOut0 << '>';
+    codeOut0 << " > ";
   }
 
   codeOut0 << var->namePrintSuffix();    // hook for verifier
@@ -1077,7 +1077,7 @@ void PQ_qualifier::print(PrintEnv &env)
     if (templArgs/*isNotEmpty*/) {
       *env.out << '<';
       printTemplateArgumentList(env, templArgs);
-      *env.out << '>';
+      *env.out << " > ";
     }
   }
   *env.out << ':' << ':';
@@ -1103,7 +1103,7 @@ void PQ_template::print(PrintEnv &env)
 
   *env.out << name << '<';
   printTemplateArgumentList(env, templArgs);
-  *env.out << '>';
+  *env.out << " > ";
 }
 
 
@@ -1667,7 +1667,7 @@ void printTemplateArgs(PrintEnv &env, Variable *var)
     }
     printSTemplateArgument(env, iter.data());
   }
-  *env.out << '>';
+  *env.out << " > ";
 }
 
 void E_variable::iprint(PrintEnv &env)
@@ -1939,7 +1939,7 @@ void E_keywordCast::iprint(PrintEnv &env)
   TreeWalkDebug treeDebug("E_keywordCast::iprint");
   *env.out << toString(key);
   {
-    PairDelim pair(*env.out, "", "<", ">");
+    PairDelim pair(*env.out, "", "<", " > ");
     ctype->print(env);
   }
   PairDelim pair(*env.out, "", "(", ")");
@@ -2028,7 +2028,7 @@ void TemplateDeclaration::print(PrintEnv &env)
     }
     iter->print(env);
   }
-  *env.out << ">\n";
+  *env.out << " >\n";
 
   iprint(env);
 }

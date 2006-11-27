@@ -1367,6 +1367,7 @@ list=`echo "
     t0103.cc
     t0106.cc
     t0123.cc
+    k0121.cc
   " | xargs -n 1 | sed 's|^|in/|'`
 
 runTest perl ./idemcheck -d outdir $list
