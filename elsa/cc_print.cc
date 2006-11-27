@@ -441,16 +441,32 @@ string CTypePrinter::printRight(CVAtomicType const *type, bool /*innerParen*/)
 string CTypePrinter::printLeft(PointerType const *type, bool /*innerParen*/)
 {
   stringBuilder s;
-  s << printLeft(type->atType, false /*innerParen*/);
-  if (type->atType->isFunctionType() ||
-      type->atType->isArrayType()) {
-    s << '(';
+
+  // eed 2006-11-22
+  //     special case for __builtin_va_list
+  //     print out any type that is a pointer to "..."
+  //     as __builtin_va_list. This is probably safe...
+  //     [ticket:113]
+  if(type->atType->isCVAtomicType() &&
+     type->atType->asCVAtomicType()->atomic->isSimpleType() &&
+     type->atType->asCVAtomicType()->atomic->asSimpleType()->type == ST_ELLIPSIS)
+  {
+    s << "__builtin_va_list ";
   }
-  s << '*';
-  if (type->cv) {
-    // 1/03/03: added this space so "Foo * const arf" prints right (t0012.cc)
-    s << cvToString(type->cv) << ' ';
+  else {
+    s << printLeft(type->atType, false /*innerParen*/);
+    if (type->atType->isFunctionType() ||
+        type->atType->isArrayType()) {
+      s << '(';
+    }
+    s << '*';
+    if (type->cv) {
+      // scott 2003-01-03
+      //     added this space so "Foo * const arf" prints right (t0012.cc)
+      s << cvToString(type->cv) << ' ';
+    }
   }
+
   return s;
 }
 
