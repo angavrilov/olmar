@@ -1104,7 +1104,7 @@ EnumType::~EnumType()
 string EnumType::toCString() const
 {
   if (!global_mayUseTypeAndVarToCString) xfailure("suspended during CTypePrinter::print");
-  return stringc << "enum " << (name? name : "/*anonymous*/");
+  return stringc << "enum " << (typedefVar->fullyQualifiedName0());
 }
 
 

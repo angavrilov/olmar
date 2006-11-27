@@ -279,7 +279,7 @@ string CTypePrinter::print(CompoundType const *cpdType)
 
 string CTypePrinter::print(EnumType const *enumType)
 {
-  return stringc << "enum " << (enumType->name? enumType->name : "/*anonymous*/");
+  return stringc << "enum " << (enumType->typedefVar->fullyQualifiedName0());
 }
 
 string CTypePrinter::print(TypeVariable const *typeVar)
