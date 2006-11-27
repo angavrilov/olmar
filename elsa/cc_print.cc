@@ -792,6 +792,11 @@ void printDeclaration
   // left is the flags that were present in the source
   dflags = (DeclFlags)(dflags & DF_SOURCEFLAGS);
   if (dflags) {
+    // eed 2006-11-22
+    //     Kludgy fix for ticket:124.
+    if ((dflags & (DF_EXTERN | DF_INLINE)) == (DF_EXTERN | DF_INLINE)) {
+      dflags &= ~DF_STATIC;
+    }
     *env.out << toString(dflags) << " ";
   }
 
