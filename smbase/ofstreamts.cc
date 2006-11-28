@@ -5,6 +5,9 @@
 #include "ofstreamts.h"
 #include "exc.h"
 
+#include <stdio.h>
+#include <unistd.h>
+
 size_t getFileSize(istream &i)
 {
   // use 'streampos' instead of 'istream::pos_type' for gcc-2.95
