@@ -20,7 +20,7 @@
 #   2b. Make copies of two yyFlexLexer methods and rename them to
 #   be methods of the derived lexer class, as these methods are
 #   different in each generated lexer.  (This is optional.)
-# 
+#
 # 3. Redhat's flex-2.5.4a-29 (actually somewhere between -20 and -23)
 # includes a "fix" so its generated output file includes the line:
 #
@@ -35,6 +35,8 @@
 #
 # and that solves the problem nicely, as Flex does not use any
 # library classes other than those two.
+#
+# 4. Emit proper #line directives for merged extensions.
 
 # Given that I make so many changes, and they are so dependent on
 # the details of the generated file, it might seem easier to just
@@ -50,6 +52,7 @@ use strict 'subs';
 $nobackup = 0;           # if true, require the scanner to be backup-free
 $makeMethodCopies = 0;   # if true, do step 2b above
 $outputFile = "";        # name of eventual output file
+$inputFile = "";         # name if input file
 @flexArgs = ("flex");    # arguments to pass to flex
 
 if (@ARGV == 0) {
@@ -75,7 +78,7 @@ for (; @ARGV; shift @ARGV) {
     push @flexArgs, ("-b");
     next;
   }
-  
+
   if ($ARGV[0] eq "-copies") {
     $makeMethodCopies = 1;
     next;
@@ -87,7 +90,14 @@ for (; @ARGV; shift @ARGV) {
     $outputFile = $s;
   }
 
+  my ($if) = ($ARGV[0] =~ m/([^-].+)/);
+  $inputFile = $if if defined($if);
+
   push @flexArgs, ($ARGV[0]);
+}
+
+if (!$inputFile) {
+  die("please specify an input file\n");
 }
 
 if (!$outputFile) {
@@ -139,6 +149,14 @@ $derivedClassName = "";
 # additional lines to move past the end of the methodCopies
 @movedLines = ();
 
+# within extension
+my $extfilename;
+my $extlineno = -1;
+
+# filename as specified by last #line directive (including quotes)
+my $linefile = "\"$outputFile\"";
+my $lineno = 0;       # current line number of processed output
+
 # begin translating the generated file, making the changes outlined above
 for ($i=0; $i < @lines; $i++) {
   $line = $lines[$i];
@@ -152,13 +170,16 @@ for ($i=0; $i < @lines; $i++) {
   # this is stateless because it does not occur in the cygwin
   # flex output (they have a different fix)
   if ($line =~ m/class istream;/) {
+    $lineno++;
     print OUT ("#include <iostream.h>      // class istream\n");
     next;
   }
 
   # also stateless for similar reasons
   if ($line =~ m/using namespace std;/) {
+    $lineno++;
     print OUT ("using std::istream;\n");
+    $lineno++;
     print OUT ("using std::ostream;\n");
     next;
   }
@@ -172,9 +193,41 @@ for ($i=0; $i < @lines; $i++) {
     next;
   }
 
+  # this is stateless because I don't understand the state stuff
+  # start of lexical extension
+  if ($line =~ /\/\* start of (?:extension|base) ([^(]*)\((\d+)\) \*\//) {
+    $extfilename = $1;
+    $extlineno = $2;
+    next;
+  }
+
+  # this is stateless because I don't understand the state stuff
+  # adjust #line directives for proper pointing into extensions
+  if ($extlineno != -1 && $line =~ /#line (\d+)\s+("[^"]*"|)/) {
+    $linefile = $2 unless $2 eq "";
+    my $filename = $linefile;
+    my $number = $lineno + 1;
+    if ($filename eq "\"$inputFile\"") {
+      $filename = "\"$extfilename\"";
+      $number = $1 - $extlineno;
+    } elsif ($filename ne "\"$outputFile\"") {
+      # if not output file, consider it preprocessed and leave as is
+      $number = $1;
+    }
+    $line = "#line $number $filename\n";
+  }
+
+  # this is stateless because I don't understand the state stuff
+  # end of lexical extension
+  if ($line =~ /\/\* end of extension (.*) \*\//) {
+    $extlineno = -1;
+    next;
+  }
+
   if ($state == 1) {
     if ($lines[$i+1] =~ m/^(static )?void \*(yy_flex_alloc|yyalloc)/) {
       $state++;
+      $lineno++;
       print OUT ("#ifndef NO_YYFLEXLEXER_METHODS\n");
       next;
     }
@@ -184,6 +237,8 @@ for ($i=0; $i < @lines; $i++) {
     if ($line =~ m/^(static )?void (yy_flex_free|yyfree)/) {
       $state++;
       $i++;
+      $lineno++;
+      $lineno++;
       print OUT ($line .
                  "#endif // yyflexlexer methods\n");
       next;
@@ -193,6 +248,7 @@ for ($i=0; $i < @lines; $i++) {
   elsif ($state == 3) {
     if ($line =~ m/^\#include <FlexLexer.h>/) {
       $state++;
+      $lineno++;
       print OUT ("#include \"sm_flexlexer.h\"\n");
       next;
     }
@@ -203,6 +259,7 @@ for ($i=0; $i < @lines; $i++) {
       $state++;
       $i++;       # skip the '{' line, to keep #line numbers in sync
       chomp($line);
+      $lineno += 3;
       print OUT ("#ifndef NO_YYFLEXLEXER_METHODS\n" .
                  $line . " {\n");
       next;
@@ -213,6 +270,8 @@ for ($i=0; $i < @lines; $i++) {
     if ($line =~ m/^\s*\}\s*$/) {
       $state++;
       $i++;       # skip subsequent blank line
+      $lineno++;
+      $lineno++;
       print OUT ($line .
                  "#endif // yyflexlexer methods\n");
       next;
@@ -222,6 +281,7 @@ for ($i=0; $i < @lines; $i++) {
   elsif ($state == 6) {
     if ($lines[$i+1] =~ m/^yyFlexLexer::yyFlexLexer/) {
       $state++;
+      $lineno++;
       print OUT ("#ifndef NO_YYFLEXLEXER_METHODS\n");
       next;
     }
@@ -262,6 +322,7 @@ for ($i=0; $i < @lines; $i++) {
       # that is appropriate for section 3.  I never use yynext in
       # section 3 (in fact I rarely use section 3 at all), but if
       # someone does then this will need to be adjusted.
+      $lineno++;
       print OUT ("#endif // yyflexlexer methods\n");
 
       if ($makeMethodCopies) {
@@ -271,13 +332,17 @@ for ($i=0; $i < @lines; $i++) {
           die("$0: did not see a derived lexer class name\n");
         }
 
+        $lineno++;
         print OUT ("// BEGIN method copies for $derivedClassName\n");
         foreach $copyLine (@methodCopies) {
           $copyLine =~ s/yyFlexLexer/$derivedClassName/;
+          $lineno++;
           print OUT ($copyLine);
         }
+        $lineno++;
         print OUT ("// END method copies for $derivedClassName\n");
-        
+
+        $lineno += $#movedLines + 1;
         print OUT (@movedLines);
       }
     }
@@ -291,11 +356,13 @@ for ($i=0; $i < @lines; $i++) {
     }
   }
 
+  $lineno++;
   print OUT ($line);
 }
 
 $lastState = 11;
 if ($state != $lastState) {
+  $lineno++;
   print OUT ("#error please rebuild $outputFile\n");    # in case not deleted
   close(OUT);    # flush
   die("failed to reach state $lastState; got stuck in state " . $state);
