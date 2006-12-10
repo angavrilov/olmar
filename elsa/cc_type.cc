@@ -1104,7 +1104,16 @@ EnumType::~EnumType()
 string EnumType::toCString() const
 {
   if (!global_mayUseTypeAndVarToCString) xfailure("suspended during CTypePrinter::print");
-  return stringc << "enum " << (typedefVar->fullyQualifiedName0());
+
+  if (typedefVar) {
+    // include full scoping info (debatable ...)
+    return stringc << "enum " << (typedefVar->fullyQualifiedName0());
+  }
+  else {
+    // NULL typedefVar should only happen for anonymous types
+    xassert(!name);
+    return stringc << "enum /*anonymous*/";
+  }
 }
 
 
