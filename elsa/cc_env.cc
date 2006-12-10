@@ -2825,8 +2825,7 @@ Variable *Env::makeUsingAliasFor(SourceLoc loc, Variable *origVar)
   // (in/d0109.cc) (in/t0289.cc) (in/t0161.cc) (in/std/7.3.3f.cc)
   // (in/t0547.cc); this is probably not right..
   if (prior &&
-      (prior->getUsingAlias() == origVar ||                     // in/t0289.cc
-       prior->getUsingAlias() == origVar->getUsingAlias()) &&   // in/t0547.cc
+      prior->skipAliasC() == origVar->skipAliasC() &&
       (scope->isGlobalScope() || scope->isNamespace())) {
     return NULL;
   }
