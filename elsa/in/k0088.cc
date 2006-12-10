@@ -1,5 +1,7 @@
 // inferring const member function template parameter type
 
+// see also simplified version: t0590.cc
+
 // originally found in package 'fluxbox_0.9.11-1sarge0'
 
 // b.ii:18:3: error: ambiguous overload; arguments:

@@ -867,6 +867,9 @@ failparse t0585.cc "explicit invocation of dtor of template class"
 testparse t0586.cc
 failparse t0587.cc "conversion of static method of template to func ptr"
 testparse t0588.cc
+testparse t0589.cc
+testparse t0590.cc
+testparse t0591.cc
 
 # another set of tests, generally isolated by Daniel
 testparse d0001.cc
@@ -1107,8 +1110,8 @@ failparse k0083.cc "friend template class declaration"
 failparse k0084.cc "complex literals"
 failparse k0085.cc "complex double * int"
 failparse k0086.cc "enable_if: template argument expressions"
-failparse k0087.cc "implicit conversion to "bool const &" via "bool" via "operator bool""
-failparse k0088.cc "inferring const member function template parameter type"
+failparse k0087.cc 'implicit conversion to "bool const &" via "bool" via "operator bool"'
+testparse k0088.cc #"inferring const member function template parameter type"
 failparse k0089.cc "specialization of template function member"
 failparse k0090.cc "template specialization of array"
 failparse k0090a.cc "template specialization of array"
