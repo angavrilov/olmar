@@ -2,6 +2,8 @@
 
 #include "id_obj_dict.h"
 
+#include <cctype>
+
 // TODO: It would simplify deserialization a lot of we got rid of the id
 // prefixes.  One way to solve the embedded member problem might be to add
 // {1,2,3} to embedded member pointers before checking the hash table.
