@@ -1,5 +1,7 @@
 2006-12-13  Hendrik Tews  <tews@tandem.cs.ru.nl>
 
+	* deleted old check-oast
+
 	* use the new dynamic type checking to check scopes: Everything
 	fine
 	

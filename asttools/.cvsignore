@@ -4,7 +4,6 @@
 Makefile
 ast_graph
 ast_graph.native
-check-oast
 check_oast
 check_oast_byte
 config.status
