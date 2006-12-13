@@ -146,6 +146,20 @@ let ref_list_iter f (x : 'a list ref) (full_type : 'a list ref tyrepr)
     (inner_type_name ^ " list")
     "ref"
 
+let hash_iter key_f val_f (x : ('a, 'b) Hashtbl.t) 
+    (ty : ('a, 'b) Hashtbl.t tyrepr) type_name =
+  indirect_iter 
+    (Hashtbl.iter 
+       (fun k v ->
+	  Printf.printf "%shash entry\n%!" (indent_string());
+	  indent();
+	  key_f k;
+	  val_f v;
+	  unindent();
+       ))
+    x ty 
+    [^ ('a, 'b) Hashtbl.t ^] 
+    type_name "hashtbl"
 
 let bool_fun (b : bool) =
   ignore(check_fails "bool" b [^ bool ^] "bool")
@@ -208,6 +222,8 @@ let declaratorContext_fun(context : declaratorContext) =
     check_fails "declaratorContext" context 
       [^ declaratorContext ^] "declaratorContext")
 
+let scopeKind_fun(sk : scopeKind) =
+  ignore(check_fails "scopeKind" sk [^ scopeKind ^] "scopeKind")
 
 let array_size_fun x =
   if check_fails "array_size" x [^ array_size ^] "array_size"
@@ -504,8 +520,34 @@ and sTemplateArgument_fun ta =
 	unindent()
 
 
-and scope_fun scope =
-  ignore(check_fails "scope node" scope [^ annotated scope ^] "scope")
+and scope_fun (s : annotated scope) =
+  let annot = scope_annotation s
+  in
+    if not (visited annot) &&
+      node_check_fails annot s [^ annotated scope ^] "scope"
+    then begin
+      visit annot; indent();
+
+      annotation_fun s.poly_scope;
+      hash_iter string_fun variable_fun s.variables 
+	[^ (string, annotated variable) Hashtbl.t ^]
+	"(string, annotated variable)";
+
+      hash_iter string_fun variable_fun s.type_tags
+	[^ (string, annotated variable) Hashtbl.t ^]
+	"(string, variable)";
+
+      opt_iter scope_fun s.parent_scope [^ annotated scope option ^] "scope";
+      scopeKind_fun s.scope_kind;
+      opt_iter variable_fun s.namespace_var [^ annotated variable option ^] 
+	"variable";
+      list_iter variable_fun s.template_params [^ annotated variable list ^]
+	"variable";
+      opt_iter variable_fun s.parameterized_entity
+	[^ annotated variable option ^] "variable";
+      
+      unindent()
+    end
 
 (***************** generated ast nodes ****************)
 

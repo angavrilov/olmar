@@ -65,7 +65,7 @@ for f in $ast_files ; do
 	echo "[$count] test $f "
 	size=$(ls -l $f | awk '{print $5;}')
 	TIMEFORMAT="user time %U s size $size"
-	time ./check-oast $f
+	time ./check_oast $f
 	result=$?
 	if [ ! $result -eq 0 ] ; then
 	    echo check-oast exit $result on $f >&2

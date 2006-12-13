@@ -9,6 +9,8 @@ OCAML_OBJ_EXT := @OCAML_OBJ_EXT@
 
 # use the first goal for development, for release put it in comment and use all
 
+#first: check_oast_byte
+first: check_oast
 #first: astiter.cmo
 #first: astiternodes.cmo
 #first: count-ast
@@ -29,15 +31,19 @@ all: ast_graph count-ast astiter.$(OCAML_OBJ_EXT) \
 SMBASE   := @SMBASE@
 AST      := @AST@
 ELSA     := @ELSA@
+HEAPCHECK:= ../../ocaml_ty_check
+
 
 # external tools
 OCAMLC   := @OCAMLC@
 OCAMLOPT := @OCAMLOPT@
 OCAMLCC  := @OCAMLCC@
+CAMLP4O  := camlp4o
 
 OCAML_OBJ_EXT := @OCAML_OBJ_EXT@
 OCAML_LIB_EXT := @OCAML_LIB_EXT@
 OCAML_FLAGS := -w Ae
+OCAML_BYTE_FLAGS := -g
 
 # list of files to clean in 'clean' (etc.) targets
 # (these get added to below)
@@ -91,6 +97,71 @@ HASHLOC_ML=\
 TOCLEAN += hashloc
 hashloc: $(HASHLOC_ML:.ml=.$(OCAML_OBJ_EXT))
 	$(OCAMLCC) $(OCAML_FLAGS) -o $@ $^
+
+
+
+ELSA_AST_TYPE_DEF=\
+	/usr/local/lib/ocaml/hashtbl.ml \
+	$(ELSA)/cc_ml_types.ml \
+	$(ELSA)/ml_ctype.ml \
+	$(ELSA)/ast_annotation.ml \
+	$(ELSA)/cc_ast_gen_type.ml
+
+ELSA_AST_TYPE_DESCR=\
+	elsa_ast_type_descr_header.ml\
+	$(HEAPCHECK)/generate_type_descr.cmo
+
+TOCLEAN += elsa_ast_type_descr.ml
+elsa_ast_type_descr.ml: $(ELSA_AST_TYPE_DEF) $(ELSA_AST_TYPE_DESCR) Makefile
+	cat elsa_ast_type_descr_header.ml > $@
+	for f in $(ELSA_AST_TYPE_DEF) ; do \
+		$(CAMLP4O) $(HEAPCHECK)/generate_type_descr.cmo $$f >> $@; \
+	done
+
+elsa_ast_type_descr.cmo: elsa_ast_type_descr.ml
+	$(OCAMLC) $(OCAML_BYTE_FLAGS) $(OCAML_FLAGS) -I $(HEAPCHECK) -c $<
+
+elsa_ast_type_descr.cmx: elsa_ast_type_descr.ml
+	$(OCAMLOPT) $(OCAML_FLAGS) -I $(HEAPCHECK) -c $<
+
+
+#	$(HEAPCHECK)/myhashtbl.ml \
+
+CHECKTREE_ML=\
+	$(HEAPCHECK)/heapcheck.ml \
+	elsa_ast_type_descr.ml \
+	check_oast.ml
+
+check_oast.cmo: check_oast.ml elsa_ast_type_descr.cmo
+	$(OCAMLC) $(OCAML_BYTE_FLAGS) $(OCAML_FLAGS) \
+		-I $(ELSA) -I $(HEAPCHECK) -c $<
+
+check_oast.cmx: check_oast.ml elsa_ast_type_descr.cmx
+	$(OCAMLOPT) $(OCAML_FLAGS) -I $(ELSA) -I $(HEAPCHECK) -c $<
+
+TOCLEAN += check_oast
+check_oast: $(CHECKTREE_ML:.ml=.$(OCAML_OBJ_EXT))
+	$(OCAMLCC) $(OCAML_FLAGS) -o $@ -I $(ELSA) -I $(HEAPCHECK) unix.cmxa $^
+
+TOCLEAN += check_oast_byte
+check_oast_byte: $(CHECKTREE_ML:.ml=.cmo)
+	$(OCAMLC) $(OCAML_BYTE_FLAGS) $(OCAML_FLAGS) -o $@ \
+		-I $(ELSA) -I $(HEAPCHECK) unix.cma $^
+
+
+.PHONY: $(HEAPCHECK)/generate_type_descr.cmo $(HEAPCHECK)/heapcheck.cmo
+.PHONY: $(HEAPCHECK)/heapcheck.cmx
+
+$(HEAPCHECK)/generate_type_descr.cmo:
+	$(MAKE) -C $(HEAPCHECK) all
+
+$(HEAPCHECK)/heapcheck.cmo:
+	$(MAKE) -C $(HEAPCHECK) all
+
+$(HEAPCHECK)/heapcheck.cmx:
+	$(MAKE) -C $(HEAPCHECK) all
+
+
 
 # check-oast depends the safeUnmarshal library, 
 # see http://www.pps.jussieu.fr/~henry/marshal/
@@ -165,13 +236,13 @@ distclean: clean
 TOCLEAN += *.cmo
 
 astiter.cmo: astiter.ml
-	$(OCAMLC) $(OCAML_FLAGS) -w zy -I $(ELSA) -c $<
+	$(OCAMLC) $(OCAML_BYTE_FLAGS) $(OCAML_FLAGS) -w zy -I $(ELSA) -c $<
 
 astmap.cmo: astmap.ml
-	$(OCAMLC) $(OCAML_FLAGS) -w zy -I $(ELSA) -c $<
+	$(OCAMLC) $(OCAML_BYTE_FLAGS) $(OCAML_FLAGS) -w zy -I $(ELSA) -c $<
 
 astiternodes.cmo: astiternodes.ml
-	$(OCAMLC) $(OCAML_FLAGS) -w zy -I $(ELSA) -c $<
+	$(OCAMLC) $(OCAML_BYTE_FLAGS) $(OCAML_FLAGS) -w zy -I $(ELSA) -c $<
 
 astiter.cmx: astiter.ml
 	$(OCAMLOPT) $(OCAML_FLAGS) -w zy -I $(ELSA) -c $<
@@ -184,7 +255,7 @@ astiternodes.cmx: astiternodes.ml
 
 
 %.cmo: %.ml
-	$(OCAMLC) $(OCAML_FLAGS) -I $(ELSA) -c $<
+	$(OCAMLC) $(OCAML_BYTE_FLAGS) $(OCAML_FLAGS) -I $(ELSA) -c $<
 
 TOCLEAN += *.cmx *.o
 %.cmx: %.ml
