@@ -10,7 +10,7 @@ OCAML_OBJ_EXT := @OCAML_OBJ_EXT@
 # use the first goal for development, for release put it in comment and use all
 
 #first: check_oast_byte
-first: check_oast
+#first: check_oast
 #first: astiter.cmo
 #first: astiternodes.cmo
 #first: count-ast

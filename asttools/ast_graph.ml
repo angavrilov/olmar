@@ -46,9 +46,6 @@ let visit (annot : annotated) =
   DS.add (id_annotation annot) visited_nodes
 
 
-let not_implemented () =
-  if 1 = 0 then 0 else assert false
-
 let dot_escape s =
   let b = Buffer.create (max 31 (String.length s))
   in
@@ -103,6 +100,15 @@ let opt_child child_fun field_name opt =
   match opt with
     | None -> []
     | Some c -> [(child_fun c, field_name)]
+
+let string_hash_child child_fun field_name hash =
+  Hashtbl.fold 
+    (fun string_key value res ->
+       (child_fun value,
+	Printf.sprintf "%s{%s}" field_name string_key) :: res)
+    hash
+    []
+
 
 let caddr_label caddr =
   ("caddr", Printf.sprintf "0x%lx" (Int32.shift_left (Int32.of_int caddr) 1))
@@ -171,6 +177,7 @@ let color_STemplateArgument = "maroon"
 let color_NamespaceDecl = "grey50"
 let color_Designator = "LemonChiffon"
 let color_Attribute = "orchid1"
+let color_Scope = "grey"
 
 (***************** variable ***************************)
 
@@ -425,7 +432,25 @@ and sTemplateArgument_fun ta =
 	    tanode_1c "STA_ATOMIC" "sta_value.at" (atomicType_fun atomicType)
 
 
-and scope_fun _scope = -1000
+and scope_fun scope =
+  if visited scope.poly_scope then retval scope.poly_scope
+  else begin
+    visit scope.poly_scope;
+    ast_node color_Scope scope.poly_scope "Scope"
+      [("scopeKind", string_of_scopeKind scope.scope_kind)]
+      (let l1 = string_hash_child variable_fun "variables" scope.variables in
+       let l2 = string_hash_child variable_fun "typeTags" scope.type_tags in
+       let l3 = opt_child scope_fun "parentScope" scope.parent_scope in
+       let l4 = opt_child variable_fun "namespaceVar" scope.namespace_var in
+       let l5 = 
+	 count_rev "templateParams"
+	   (List.rev_map variable_fun scope.template_params) in
+       let l6 = opt_child variable_fun "parameterizedEntity" 
+	 scope.parameterized_entity
+       in
+	 l1 @ l2 @ l3 @ l4 @ l5 @ l6)
+  end
+
 
 (***************** generated ast nodes ****************)
 

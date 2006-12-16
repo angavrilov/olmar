@@ -228,8 +228,24 @@ and sTemplateArgument_fun ta =
 	    atomicType_fun atomicType
 
 
-(* scopes are not in Ocaml yet *)
-and scope_fun () = ()
+and scope_fun scope = 
+  let annot = scope_annotation scope
+  in
+    if visited annot then ()
+    else begin
+      visit annot;
+      Hashtbl.iter 
+	(fun str var -> variable_fun var)
+	scope.variables;
+      Hashtbl.iter
+	(fun str var -> variable_fun var)
+	scope.type_tags;
+      opt_iter scope_fun scope.parent_scope;
+      opt_iter variable_fun scope.namespace_var;
+      List.iter variable_fun scope.template_params;
+      opt_iter variable_fun scope.parameterized_entity;
+    end
+
 
 
 (***************** generated ast nodes ****************)
