@@ -1,3 +1,7 @@
+2006-12-18  Hendrik Tews  <tews@tandem.cs.ru.nl>
+
+	* added hash sizes in scope ast nodes in ast_graph
+
 2006-12-17  Hendrik Tews  <tews@tandem.cs.ru.nl>
 
 	* scope added in all asttool code

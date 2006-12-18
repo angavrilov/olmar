@@ -437,7 +437,10 @@ and scope_fun scope =
   else begin
     visit scope.poly_scope;
     ast_node color_Scope scope.poly_scope "Scope"
-      [("scopeKind", string_of_scopeKind scope.scope_kind)]
+      [("variable hash", string_of_int (Hashtbl.length scope.variables));
+       ("type tags hash", string_of_int (Hashtbl.length scope.type_tags));
+       ("scopeKind", string_of_scopeKind scope.scope_kind)
+      ]
       (let l1 = string_hash_child variable_fun "variables" scope.variables in
        let l2 = string_hash_child variable_fun "typeTags" scope.type_tags in
        let l3 = opt_child scope_fun "parentScope" scope.parent_scope in
