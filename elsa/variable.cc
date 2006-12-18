@@ -897,7 +897,7 @@ value Variable::toOcaml(ToOcamlData *data){
   var[9] = list;
 
   // scope
-  // HT: solve circularity for flags == DF_NAMESPACE
+  // HT: XXX solve circularity for flags == DF_NAMESPACE
   if(scope && ((flags & DF_NAMESPACE) == 0)) {
     var[10] = option_some_constr(scope->scopeToOcaml(data));
   }

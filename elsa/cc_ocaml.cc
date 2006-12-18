@@ -274,7 +274,7 @@ void finish_circular_pointers(ToOcamlData * data) {
 		(Tag_val(Field(cell, 1)) == 0)); // data is an array
 
 #       if !defined(NDEBUG_NO_ASSERTIONS)
-	// HT: the following is probably not 64 bit clean: for i/check_size 
+	// HT: XXX the following is probably not 64 bit clean: for i/check_size 
 	// I need a type which can hold the maximal ocaml array size
 	unsigned check_size = Wosize_val(Field(cell, 1));
 	// don't allocate -- no need to register

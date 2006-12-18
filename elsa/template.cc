@@ -1322,7 +1322,7 @@ value STemplateArgument::toOcaml(ToOcamlData * data){
     break;
 
   case STA_ATOMIC:
-    // HT: deal with the atomic const problem if we arrive here
+    // HT: XXX deal with the atomic const problem if we arrive here
     xassert(false);
     if(create_STA_ATOMIC_constructor_closure == NULL)
       create_STA_ATOMIC_constructor_closure = 
@@ -1392,7 +1392,7 @@ void STemplateArgument::detachOcaml() {
     break;
 
   case STA_ATOMIC:
-    // HT: deal with the atomic const problem if we arrive here
+    // HT: XXX deal with the atomic const problem if we arrive here
     xassert(false);
     // arg = sta_value.at->detachOcaml();
     break;

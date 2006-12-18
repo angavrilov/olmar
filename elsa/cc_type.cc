@@ -488,13 +488,13 @@ void BaseClassSubobj::traverse(TypeVisitor &vis)
 // ocaml serialization method
 // hand written ocaml serialization function
 value BaseClassSubobj::toOcaml(ToOcamlData *){
-  // Hendrik
+  // HT: XXX
   cerr << "BaseClassSubobj::toOcaml not implemented" << endl;
   xassert(false);
 }
 
 void BaseClassSubobj::detachOcaml(){
-  // Hendrik
+  // HT: XXX
   cerr << "BaseClassSubobj::detachOcaml not implemented" << endl;
   xassert(false);
 }

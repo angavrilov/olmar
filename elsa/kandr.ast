@@ -21,6 +21,6 @@ class IDeclarator {
   // retrieve the innermost D_func constructor
   pure_virtual D_func *getD_func();
 
-  // HT: shouldn't this be nullable??
+  // HT: XXX shouldn't this be nullable??
   -> D_func(FakeList<PQ_name> *kAndR_params = NULL); // params if a K&R function
 }

@@ -1,5 +1,9 @@
 2006-12-18  Hendrik Tews  <tews@tandem.cs.ru.nl>
 
+	* rebuild all.ast
+	* cleaned comments: ``HT: XXX'' is consistently used for places
+	  that need some fix
+
 	* added hash sizes in scope ast nodes in ast_graph
 
 2006-12-17  Hendrik Tews  <tews@tandem.cs.ru.nl>
