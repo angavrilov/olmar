@@ -1,3 +1,9 @@
+2006-12-19  Hendrik Tews  <tews@tandem.cs.ru.nl>
+
+	* XXX solved circularity for flags == DF_NAMESPACE: 
+	* new circularity scope.namespace_var
+	* regrtest pass
+
 2006-12-18  Hendrik Tews  <tews@tandem.cs.ru.nl>
 
 	* rebuild all.ast

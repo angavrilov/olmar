@@ -330,7 +330,7 @@ and scope_fun scope =
 	scope.type_tags;
       opt_iter scope_fun scope.parent_scope;
       scopeKind_fun scope.scope_kind;
-      opt_iter variable_fun scope.namespace_var;
+      opt_iter variable_fun !(scope.namespace_var);
       List.iter variable_fun scope.template_params;
       opt_iter variable_fun scope.parameterized_entity;
     end

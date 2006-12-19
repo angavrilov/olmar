@@ -218,7 +218,13 @@ and 'a scope = {
   type_tags : (string, 'a variable) Hashtbl.t;
   parent_scope : 'a scope option;
   scope_kind : scopeKind;
-  namespace_var : 'a variable option;
+  (* namespace_var is circular:
+   * if namespace_var points to a Variable with DF_NAMESPACE 
+   * then the scope field of this variable might point back here
+   * (might also be always the case).
+   * namespace_var is also nullable, it might therefore stay None.
+   *)
+  namespace_var : 'a variable option ref;
   template_params : 'a variable list;
   parameterized_entity : 'a variable option;
 }

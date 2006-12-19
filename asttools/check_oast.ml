@@ -10,8 +10,17 @@ let file_set = ref false
 
 let verbose_flags = 
   [Heapcheck.Channel stdout; Heapcheck.Verbose_blocks; 
+   Heapcheck.Verbose_statistics; Heapcheck.Start_indent 2]
+
+let verbose_type_flags = 
+  [Heapcheck.Channel stdout; Heapcheck.Verbose_blocks; 
    Heapcheck.Verbose_statistics; Heapcheck.Verbose_types; 
    Heapcheck.Start_indent 2]
+
+let trace_flags = 
+  [Heapcheck.Channel stdout; Heapcheck.Verbose_statistics; 
+   Heapcheck.Verbose_spinner; Heapcheck.Verbose_trace;
+   Heapcheck.Start_indent 0]
 
 let check_flags = 
   ref [Heapcheck.Channel stdout; Heapcheck.Verbose_statistics; 
@@ -20,9 +29,15 @@ let check_flags =
 
 let arguments = Arg.align
   [
+    ("-trace",
+     Arg.Unit (fun () -> check_flags := trace_flags),
+     " print trace to error");
     ("-v",
      Arg.Unit (fun () -> check_flags := verbose_flags),
      " verbose");
+    ("-vt",
+     Arg.Unit (fun () -> check_flags := verbose_type_flags),
+     " verbose (including type applications)");
     ("-q",
      Arg.Unit (fun () -> check_flags := []),
      " quiet");

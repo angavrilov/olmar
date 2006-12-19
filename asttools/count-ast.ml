@@ -316,7 +316,7 @@ and scope_fun scope =
 	(fun str var -> string_fun str; variable_fun var)
 	scope.type_tags;
       opt_iter scope_fun scope.parent_scope;
-      opt_iter variable_fun scope.namespace_var;
+      opt_iter variable_fun !(scope.namespace_var);
       List.iter variable_fun scope.template_params;
       opt_iter variable_fun scope.parameterized_entity;
     end

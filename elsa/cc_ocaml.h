@@ -33,6 +33,7 @@ enum CircularAstType {
   CA_Function,
   CA_Expression,
   CA_TypeSpecifier,
+  CA_Variable,
   CA_OverloadSet,
   CA_StringRefMapVariable
 };
@@ -46,6 +47,7 @@ class CircularAstPart {
     Function * func;		/* tagged CA_Function */
     Expression * expression;	/* tagged CA_Expression */
     TypeSpecifier * typeSpecifier; /* tagged CA_TypeSpecifier */
+    Variable * variable;	/* tagged CA_Variable */
     OverloadSet * overload;	/* tagged CA_OverloadSet */
     StringRefMap<Variable> * string_var_map; /* tagged CA_StringRefMapVariable*/
   } ast;
@@ -80,11 +82,12 @@ value ref_constr(value elem, ToOcamlData * data);
 /* 
  * The postpone_* functions register an update of some value 
  * through (legal ocaml) side effects
- * to be performed later, in order to avoid circularities. Bisides the 
+ * to be performed later, in order to avoid circularities. Besides the 
  * ocaml data (in which the deferred circularity is enqued) they also take
  * the value to be updated and the ast node that is to 
  * be serialized later.
- * The first four functions (ie. CType, Function, Expression, TypeSpecifier) 
+ * The first five functions (ie. CType, Function, Expression, TypeSpecifier, 
+ * Variable) 
  * update an option ref, for them the value val passed must be ref None.
  * The OverloadSet function updates an list ref. For it val must be ref [].
  * StringRefMapVariable updates a (string, annotated variable) Hashtabl.t,
@@ -94,6 +97,7 @@ void postpone_circular_CType(ToOcamlData * data, value val, CType * type);
 void postpone_circular_Function(ToOcamlData * data, value val, Function * func);
 void postpone_circular_Expression(ToOcamlData *, value, Expression *);
 void postpone_circular_TypeSpecifier(ToOcamlData *, value, TypeSpecifier *);
+void postpone_circular_Variable(ToOcamlData *, value, Variable *);
 void postpone_circular_OverloadSet(ToOcamlData *, value, OverloadSet *);
 void postpone_circular_StringRefMapVariable(ToOcamlData *, value, 
 					    StringRefMap<Variable> *);

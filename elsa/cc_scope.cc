@@ -1433,10 +1433,14 @@ value Scope::scopeToOcaml(ToOcamlData *data){
 
   child[4] = ocaml_from_ScopeKind(scopeKind, data);
 
+  // circular
+  // if(namespaceVar)
+  //   child[5] = option_some_constr(namespaceVar->toOcaml(data));
+  // else
+  //   child[5] = Val_None;
+  child[5] = ref_constr(Val_None, data);
   if(namespaceVar)
-    child[5] = option_some_constr(namespaceVar->toOcaml(data));
-  else
-    child[5] = Val_None;
+    postpone_circular_Variable(data, child[5], namespaceVar);
 
   list = Val_emptylist;
   SFOREACH_OBJLIST_NC(Variable, templateParams, list_iter) {

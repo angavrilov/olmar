@@ -444,7 +444,7 @@ and scope_fun scope =
       (let l1 = string_hash_child variable_fun "variables" scope.variables in
        let l2 = string_hash_child variable_fun "typeTags" scope.type_tags in
        let l3 = opt_child scope_fun "parentScope" scope.parent_scope in
-       let l4 = opt_child variable_fun "namespaceVar" scope.namespace_var in
+       let l4 = opt_child variable_fun "namespaceVar" !(scope.namespace_var) in
        let l5 = 
 	 count_rev "templateParams"
 	   (List.rev_map variable_fun scope.template_params) in

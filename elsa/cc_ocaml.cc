@@ -10,9 +10,13 @@ extern "C" {
 #include <caml/fail.h>
 }
 #include "cc.ast.gen.h"		// Function->toOcaml
-#include <iomanip.h>
 
 // #define DEBUG_CIRCULARITIES
+
+#if defined(DEBUG_CIRCULARITIES) || defined(DEBUG_CAML_GLOBAL_ROOTS)
+#include <iomanip.h>
+#endif
+
 
 CircularAstPart::CircularAstPart() : 
   ca_type(CA_Empty), 
@@ -158,6 +162,21 @@ void postpone_circular_TypeSpecifier(ToOcamlData * data, value val,
 
 // hand written ocaml serialization function
 // not relly a serialization function, but handwritten ;-)
+void postpone_circular_Variable(ToOcamlData * data, value val, Variable * var) {
+  // no need to register val as long as we don't allocate here
+  xassert(var != NULL);
+  CircularAstPart * part = init_ca_part(data, val, CA_Variable);
+  part->ast.variable = var;
+# ifdef DEBUG_CIRCULARITIES
+  cerr << "postpone (" << data->postponed_count
+       << ") Variable " << var << " in cell " 
+       << hex << "0x" << val << dec << "\n";
+# endif // DEBUG_CIRCULARITIES
+}
+
+
+// hand written ocaml serialization function
+// not relly a serialization function, but handwritten ;-)
 void postpone_circular_OverloadSet(ToOcamlData * data, value val,
 				   OverloadSet * os) {
 
@@ -238,6 +257,13 @@ void finish_circular_pointers(ToOcamlData * data) {
       val = part->ast.typeSpecifier->toOcaml(data);
       break;
 
+    case CA_Variable:
+#     ifdef DEBUG_CIRCULARITIES
+      cerr << " (Variable)\n";
+#     endif // DEBUG_CIRCULARITIES
+      val = part->ast.variable->toOcaml(data);
+      break;
+
     case CA_OverloadSet:
 #     ifdef DEBUG_CIRCULARITIES
       cerr << " (OverloadSet)\n";
@@ -306,6 +332,7 @@ void finish_circular_pointers(ToOcamlData * data) {
     case CA_Function:
     case CA_Expression:
     case CA_TypeSpecifier:
+    case CA_Variable:
       // update an option ref
       // check that cell is ref None
       xassert(Is_block(cell) && 	      // it's a block
