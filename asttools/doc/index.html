@@ -415,7 +415,7 @@ generated (shifted to the right to fit into an Ocaml int).
 
 The abstract syntax tree is circular. A naive iteration over the
 tree will therefore in general not terminate. Currently there are
-six fields that might make the tree circular:
+nine fields that might make the tree circular:
 <UL>
 <LI>var_type in type variable
 </LI>
@@ -427,12 +427,21 @@ six fields that might make the tree circular:
 </LI>
 <LI>syntax in compound_info
 </LI>
+<LI>namespace_var in scope
+</LI>
 <LI>overload in variable
+</LI>
+<LI>variables in scope
+</LI>
+<LI>typeTags in scope
 </LI>
 </UL>
 
-All these fields have a (hopefully hinting) option ref type,
-except for variable.overload, which is of type list ref. An
+The first six of these fields have a (hopefully hinting) option
+ref type. variables.overload has type list ref and the fields
+variables and typeTags in scope have type (string, variable)
+Hashtabl.t.
+An
 iteration over the abstract syntax tree will terminate, if you do
 not recurse into these fields. However, there might be some
 tree nodes only reachable via one of these fields.
@@ -503,7 +512,7 @@ that triggers these assertions.
 
 <HR><FONT SIZE="-2">
 last changed on
-<!-- hhmts start -->15 Nov 2006
+<!-- hhmts start -->19 Dec 2006
 <!-- hhmts end -->
 by <A HREF="http://www.cs.ru.nl/~tews">Hendrik</A>
 </FONT></BODY> </HTML>
