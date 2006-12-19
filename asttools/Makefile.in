@@ -32,7 +32,7 @@ all: check_oast \
 SMBASE   := @SMBASE@
 AST      := @AST@
 ELSA     := @ELSA@
-HEAPCHECK:= ../../ocaml_ty_check
+MEMCHECK:= ../../memcheck
 
 
 # external tools
@@ -110,57 +110,57 @@ ELSA_AST_TYPE_DEF=\
 
 ELSA_AST_TYPE_DESCR=\
 	elsa_ast_type_descr_header.ml\
-	$(HEAPCHECK)/generate_type_descr.cmo
+	$(MEMCHECK)/generate_type_descr.cmo
 
 TOCLEAN += elsa_ast_type_descr.ml
 elsa_ast_type_descr.ml: $(ELSA_AST_TYPE_DEF) $(ELSA_AST_TYPE_DESCR) Makefile
 	cat elsa_ast_type_descr_header.ml > $@
 	for f in $(ELSA_AST_TYPE_DEF) ; do \
-		$(CAMLP4O) $(HEAPCHECK)/generate_type_descr.cmo $$f >> $@; \
+		$(CAMLP4O) $(MEMCHECK)/generate_type_descr.cmo $$f >> $@; \
 	done
 
 elsa_ast_type_descr.cmo: elsa_ast_type_descr.ml
-	$(OCAMLC) $(OCAML_BYTE_FLAGS) $(OCAML_FLAGS) -I $(HEAPCHECK) -c $<
+	$(OCAMLC) $(OCAML_BYTE_FLAGS) $(OCAML_FLAGS) -I $(MEMCHECK) -c $<
 
 elsa_ast_type_descr.cmx: elsa_ast_type_descr.ml
-	$(OCAMLOPT) $(OCAML_FLAGS) -I $(HEAPCHECK) -c $<
+	$(OCAMLOPT) $(OCAML_FLAGS) -I $(MEMCHECK) -c $<
 
 
-#	$(HEAPCHECK)/myhashtbl.ml \
+#	$(MEMCHECK)/myhashtbl.ml \
 
 CHECKTREE_ML=\
-	$(HEAPCHECK)/heapcheck.ml \
+	$(MEMCHECK)/memcheck.ml \
 	elsa_ast_type_descr.ml \
 	check_oast.ml
 
 check_oast.cmo: check_oast.ml elsa_ast_type_descr.cmo
 	$(OCAMLC) $(OCAML_BYTE_FLAGS) $(OCAML_FLAGS) \
-		-I $(ELSA) -I $(HEAPCHECK) -c $<
+		-I $(ELSA) -I $(MEMCHECK) -c $<
 
 check_oast.cmx: check_oast.ml elsa_ast_type_descr.cmx
-	$(OCAMLOPT) $(OCAML_FLAGS) -I $(ELSA) -I $(HEAPCHECK) -c $<
+	$(OCAMLOPT) $(OCAML_FLAGS) -I $(ELSA) -I $(MEMCHECK) -c $<
 
 TOCLEAN += check_oast
 check_oast: $(CHECKTREE_ML:.ml=.$(OCAML_OBJ_EXT))
-	$(OCAMLCC) $(OCAML_FLAGS) -o $@ -I $(ELSA) -I $(HEAPCHECK) unix.cmxa $^
+	$(OCAMLCC) $(OCAML_FLAGS) -o $@ -I $(ELSA) -I $(MEMCHECK) unix.cmxa $^
 
 TOCLEAN += check_oast_byte
 check_oast_byte: $(CHECKTREE_ML:.ml=.cmo)
 	$(OCAMLC) $(OCAML_BYTE_FLAGS) $(OCAML_FLAGS) -o $@ \
-		-I $(ELSA) -I $(HEAPCHECK) unix.cma $^
+		-I $(ELSA) -I $(MEMCHECK) unix.cma $^
 
 
-.PHONY: $(HEAPCHECK)/generate_type_descr.cmo $(HEAPCHECK)/heapcheck.cmo
-.PHONY: $(HEAPCHECK)/heapcheck.cmx
+#.PHONY: $(MEMCHECK)/generate_type_descr.cmo $(MEMCHECK)/memcheck.cmo
+#.PHONY: $(MEMCHECK)/memcheck.cmx
 
-$(HEAPCHECK)/generate_type_descr.cmo:
-	$(MAKE) -C $(HEAPCHECK) all
+$(MEMCHECK)/generate_type_descr.cmo:
+	$(MAKE) -C $(MEMCHECK) all
 
-$(HEAPCHECK)/heapcheck.cmo:
-	$(MAKE) -C $(HEAPCHECK) all
+$(MEMCHECK)/memcheck.cmo:
+	$(MAKE) -C $(MEMCHECK) all
 
-$(HEAPCHECK)/heapcheck.cmx:
-	$(MAKE) -C $(HEAPCHECK) all
+$(MEMCHECK)/memcheck.cmx:
+	$(MAKE) -C $(MEMCHECK) all
 
 
 

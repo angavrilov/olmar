@@ -9,22 +9,22 @@ let file = ref ""
 let file_set = ref false
 
 let verbose_flags = 
-  [Heapcheck.Channel stdout; Heapcheck.Verbose_blocks; 
-   Heapcheck.Verbose_statistics; Heapcheck.Start_indent 2]
+  [Memcheck.Channel stdout; Memcheck.Verbose_blocks; 
+   Memcheck.Verbose_statistics; Memcheck.Start_indent 2]
 
 let verbose_type_flags = 
-  [Heapcheck.Channel stdout; Heapcheck.Verbose_blocks; 
-   Heapcheck.Verbose_statistics; Heapcheck.Verbose_types; 
-   Heapcheck.Start_indent 2]
+  [Memcheck.Channel stdout; Memcheck.Verbose_blocks; 
+   Memcheck.Verbose_statistics; Memcheck.Verbose_types; 
+   Memcheck.Start_indent 2]
 
 let trace_flags = 
-  [Heapcheck.Channel stdout; Heapcheck.Verbose_statistics; 
-   Heapcheck.Verbose_spinner; Heapcheck.Verbose_trace;
-   Heapcheck.Start_indent 0]
+  [Memcheck.Channel stdout; Memcheck.Verbose_statistics; 
+   Memcheck.Verbose_spinner; Memcheck.Verbose_trace;
+   Memcheck.Start_indent 0]
 
 let check_flags = 
-  ref [Heapcheck.Channel stdout; Heapcheck.Verbose_statistics; 
-       Heapcheck.Verbose_spinner; Heapcheck.Start_indent 0]
+  ref [Memcheck.Channel stdout; Memcheck.Verbose_statistics; 
+       Memcheck.Verbose_spinner; Memcheck.Start_indent 0]
 
 
 let arguments = Arg.align
@@ -72,7 +72,7 @@ let main () =
   let ic = open_in !file in
   let ast = (Marshal.from_channel ic : annotated translationUnit_type) in
   let res = 
-    Heapcheck.check !check_flags ast 
+    Memcheck.check !check_flags ast 
       (translationUnit_type_type_descr annotated_type_descr)
   in
     exit (if res then 0 else 1)
