@@ -46,7 +46,7 @@ public:     // funcs
   virtual ~AtomicType();
 
   // stand-in if I'm not really using ids..
-  int getId() const { return (int)this; }
+  long getId() const { return (long)this; }
 
   virtual Tag getTag() const = 0;
   bool isSimpleType() const { return getTag() == T_SIMPLE; }
@@ -118,8 +118,8 @@ public:
 
 // C++ class member access modes
 enum AccessMode {
-  AM_PUBLIC, 
-  AM_PROTECTED, 
+  AM_PUBLIC,
+  AM_PROTECTED,
   AM_PRIVATE,
   NUM_ACCESS_MODES
 };
@@ -180,7 +180,7 @@ public:      // funcs
   Field const *getNthField(int index) const;         // must exist
   Field const *getNamedField(StringRef name) const;  // returns NULL if doesn't exist
 
-  Field *addField(StringRef name, Type const *type, 
+  Field *addField(StringRef name, Type const *type,
                   /*nullable*/ Variable *d);
 };
 
@@ -235,7 +235,7 @@ public:     // funcs
   Type();
   virtual ~Type();
 
-  int getId() const { return (int)this; }
+  long getId() const { return (long)this; }
 
   virtual Tag getTag() const = 0;
   bool isCVAtomicType() const { return getTag() == T_ATOMIC; }

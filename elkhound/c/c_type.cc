@@ -226,7 +226,7 @@ NamedAtomicType::~NamedAtomicType()
 string NamedAtomicType::uniqueName() const
 {
   // 'a' for atomic
-  return stringc << "a" << (int)this /*id*/ << "_" << name;
+  return stringc << "a" << (long)this /*id*/ << "_" << name;
 }
 
 
@@ -251,7 +251,7 @@ MLValue NamedAtomicType::toMLValue(int depth, CVFlags cv) const
     // full info
     return toMLContentsValue(depth, cv);
   }
-}    
+}
 #endif // 0
 
 
@@ -275,7 +275,7 @@ void CompoundType::makeComplete(Env *parentEnv, TypeEnv *te,
 {
   xassert(!env);     // shouldn't have already made one yet
   env = new Env(parentEnv, te, ve);
-}    
+}
 #endif // 0
 
 
@@ -292,7 +292,7 @@ STATICDEF char const *CompoundType::keywordName(Keyword k)
 
 string CompoundType::toCString() const
 {
-  return stringc << keywordName(keyword) << " " 
+  return stringc << keywordName(keyword) << " "
                  << (name? name : "(anonymous)");
 }
 
@@ -381,7 +381,7 @@ MLValue CompoundType::toMLContentsValue(int depth, CVFlags cv) const
                   fields,
                   mlInt(id),
                   att);
-}    
+}
 #endif // 0
 
 
@@ -484,7 +484,7 @@ EnumType::Value *EnumType::addValue(StringRef name, int value, Variable *decl)
   Value *v = new Value(name, this, value, decl);
   values.append(v);
   valueIndex.add(name, v);
-  
+
   return v;
 }
 
@@ -492,7 +492,7 @@ EnumType::Value *EnumType::addValue(StringRef name, int value, Variable *decl)
 EnumType::Value const *EnumType::getValue(StringRef name) const
 {
   Value *v;
-  if (valueIndex.query(name, v)) { 
+  if (valueIndex.query(name, v)) {
     return v;
   }
   else {
@@ -580,7 +580,7 @@ string Type::rightString() const
 
 string Type::toString(int depth) const
 {
-  return toCString();  
+  return toCString();
   //return stringc << recurseCilString(this, depth+1)
   //               << " /""* " << toCString() << " */";
 }
@@ -728,7 +728,7 @@ string CVAtomicType::toCilString(int depth) const
 MLValue CVAtomicType::toMLValue(int depth) const
 {
   return atomic->toMLValue(depth, cv);
-}    
+}
 #endif // 0
 
 
@@ -740,7 +740,7 @@ int CVAtomicType::reprSize() const
 
 // ------------------- PointerType ---------------
 PointerType::PointerType(PtrOper o, CVFlags c, Type const *a)
-  : op(o), cv(c), atType(a) 
+  : op(o), cv(c), atType(a)
 {
   // since references are always immutable, it makes no sense to
   // apply const or volatile to them
@@ -1047,7 +1047,7 @@ int ArrayType::reprSize() const
 
 // ------------------ test -----------------
 void cc_type_checker()
-{                                    
+{
   #ifndef NDEBUG
   // verify the fixed[] arrays
   // it turns out this is probably redundant, since the compiler will

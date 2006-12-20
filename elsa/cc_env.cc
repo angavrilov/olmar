@@ -2825,8 +2825,7 @@ Variable *Env::makeUsingAliasFor(SourceLoc loc, Variable *origVar)
   // (in/d0109.cc) (in/t0289.cc) (in/t0161.cc) (in/std/7.3.3f.cc)
   // (in/t0547.cc); this is probably not right..
   if (prior &&
-      (prior->getUsingAlias() == origVar ||                     // in/t0289.cc
-       prior->getUsingAlias() == origVar->getUsingAlias()) &&   // in/t0547.cc
+      prior->skipAliasC() == origVar->skipAliasC() &&
       (scope->isGlobalScope() || scope->isNamespace())) {
     return NULL;
   }
@@ -2921,7 +2920,16 @@ Variable *Env::findInOverloadSet(OverloadSet *oset,
     FunctionType *iterft = iter.data()->type->asFunctionType();
 
     // check the parameters other than '__receiver'
-    MatchFlags mflags = MF_STAT_EQ_NONSTAT | MF_IGNORE_IMPLICIT;
+    //
+    // We also ignore the cv-flags on the function type, even though
+    // we probably should not, because they are represented by
+    // attaching to the __receiver, which has not been created in 'ft'
+    // yet (for the same reasons we're ignoring them in this
+    // comparison; we don't have enough info to build them
+    // completely).
+    //
+    MatchFlags mflags = MF_STAT_EQ_NONSTAT | MF_IGNORE_IMPLICIT |
+                        MF_IGNORE_FUNC_CV;
 
     if (inUninstTemplate()) {
       // do not check the return types; we can diagnose a mismatch

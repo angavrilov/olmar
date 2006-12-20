@@ -1104,7 +1104,16 @@ EnumType::~EnumType()
 string EnumType::toCString() const
 {
   if (!global_mayUseTypeAndVarToCString) xfailure("suspended during CTypePrinter::print");
-  return stringc << "enum " << (name? name : "/*anonymous*/");
+
+  if (typedefVar) {
+    // include full scoping info (debatable ...)
+    return stringc << "enum " << (typedefVar->fullyQualifiedName0());
+  }
+  else {
+    // NULL typedefVar should only happen for anonymous types
+    xassert(!name);
+    return stringc << "enum /*anonymous*/";
+  }
 }
 
 
@@ -1670,7 +1679,7 @@ inline unsigned cvHash(CVFlags cv)
 unsigned CVAtomicType::innerHashValue() const
 {
   // underlying atomic is pointer-based equality
-  return (unsigned)atomic +
+  return (unsigned long)atomic +
          cvHash(cv);
          // T_ATOMIC is zero anyway
 }
@@ -2365,7 +2374,7 @@ unsigned PointerToMemberType::innerHashValue() const
   return atType->innerHashValue() * HASH_KICK +
          cvHash(cv) +
          T_POINTERTOMEMBER * TAG_KICK +
-         (unsigned)inClass();   // we'll see...
+         (unsigned long)inClass();   // we'll see...
 }
 
 

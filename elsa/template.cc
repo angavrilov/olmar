@@ -3854,10 +3854,21 @@ Type *Env::applyArgumentMapToType(MType &map, Type *origSrc)
       FunctionType *rft = tfac.makeFunctionType(applyArgumentMapToType(map, sft->retType));
 
       // copy parameters
+      int ct=0;
       SFOREACH_OBJLIST(Variable, sft->params, iter) {
+        ct++;
         Variable const *sp = iter.data();
-        Variable *rp = makeVariable(sp->loc, sp->name,
-          applyArgumentMapToType(map, sp->type), sp->flags);
+
+        // result parameter type
+        Type *rpt;
+        if (sft->isMethod() && ct==1) {
+          rpt = applyArgumentMapToReceiverType(map, sp->type);
+        }
+        else {
+          rpt = applyArgumentMapToType(map, sp->type);
+        }
+
+        Variable *rp = makeVariable(sp->loc, sp->name, rpt, sp->flags);
 
         if (sp->value) {
           // TODO: I should be substituting the template parameters
@@ -4017,6 +4028,73 @@ Type *Env::applyArgumentMap_applyCV(CVFlags cv, Type *type)
   else {
     return ret;     // good to go
   }
+}
+
+// Apply 'map' to 'origSrc', where 'origSrc' is playing the role of a
+// receiver object parameter type.
+//
+// This is a special case because Elsa represents the cv-flags on a
+// function type by applying them to the receiver object type.
+// However, when template arguments are supplied, if I'm not careful,
+// then the cv-flags might be affected by applying the binding.  But
+// that would be wrong; C++ does not provide any mechanism to abstract
+// the cv-flags of function types.
+//
+// Example (in/t0589.cc):
+//
+//   template <class T>
+//   int f(int (T::*)(T &));
+//
+// The correct type of f<S const> is:
+// 
+//   int ()(int (S::*)(S const &))
+//
+// but blind substitution in the Elsa representation would yield:
+//
+//   int ()(int (S::*)(S const &) const)
+//                                ^^^^^ oops
+//
+// So, what we're going to do in this function is apply the map, but
+// force the final cv-flags under the reference to be unchanged.
+//
+// The underlying reason for these shenanigans is that Elsa (as a
+// general architectural principle) moves from syntactic to semantic
+// representations of types as early as possible (that is also the
+// reason it boils away typedefs early, though that decision may need
+// to be revisited).  Since cv-flags on functions have the effect of
+// cv-qualifying the receiver, Elsa puts them there, hence analyses do
+// not need to handle them specially.  But because application of
+// template arguments is specified in the C++ standard in terms of
+// type syntax, I need to (in this one instance) pull them off to
+// treat them specially.
+//
+Type *Env::applyArgumentMapToReceiverType(MType &map, Type *origSrc)
+{             
+  Type const *src = origSrc;
+                                  
+  // The receiver object type is always a reference
+  xassert(src->isReferenceType());
+  
+  // Get the cv-flags on the type under the reference; these are
+  // actually the cv-flags for the function type this parameter is
+  // contained in (or at least, that is how they would be rendered
+  // syntactically).
+  Type *srcAtType = src->asReferenceTypeC()->atType;
+  CVFlags origCVFlags = srcAtType->getCVFlags();
+  
+  // Now apply the map as usual.
+  Type *destAtType = applyArgumentMapToType(map, srcAtType);
+  if (destAtType == srcAtType) {
+    return origSrc;     // no changes at all
+  }
+  
+  // Now get a version of 'destAtType' whose cv-qualifiers are the
+  // same as 'origCVFlags'.
+  destAtType = tfac.setQualifiers(SL_UNKNOWN, origCVFlags, destAtType,
+                                  NULL /*syntax*/);
+
+  // Finally, package it up as a ReferenceType again
+  return tfac.makeReferenceType(destAtType);
 }
 
 

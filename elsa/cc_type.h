@@ -265,7 +265,7 @@ public:     // funcs
 class NamedAtomicType : public AtomicType {
 public:     // data
   StringRef name;          // (nullable) user-assigned name of this struct or enum
-  Variable *typedefVar;    // (owner) implicit typedef variable
+  Variable *typedefVar;    // (nullable owner) implicit typedef variable; NULL if anonymous type
   AccessKeyword access;    // accessibility of this type in its declaration context
 
 public:

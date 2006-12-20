@@ -7,6 +7,8 @@
 // error: a.ii:11:3: internal error: found dependent type `(dependent)' in
 // non-template (0a257264-c6ec-4983-95d0-fcd6aa48a6ce)
 
+// NOTE: "cout << endl" hits this bug.
+
 template <typename T>
 struct S {
   void bar(void (*pf)(S<T>&)) {}

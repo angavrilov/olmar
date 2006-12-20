@@ -253,7 +253,17 @@ string CTypePrinter::print(CompoundType const *cpdType)
     sb << CompoundType::keywordName(cpdType->keyword) << ' ';
   }
 
-  sb << (cpdType->instName? cpdType->instName : "/*anonymous*/");
+  // sb << (cpdType->instName? cpdType->instName : "/*anonymous*/");
+
+  // from cc_print.cc, CompoundType::toCString
+  if (cpdType->typedefVar) {
+    sb << cpdType->typedefVar->fullyQualifiedName0();
+  }
+  else {
+    // only reachable during object construction
+    xfailure("80501256-bad6-4d2c-b7d0-8310f5fd9194");
+  }
+
 
   // template arguments are now in the name
   // 4/22/04: they were removed from the name a long time ago;
@@ -269,7 +279,7 @@ string CTypePrinter::print(CompoundType const *cpdType)
 
 string CTypePrinter::print(EnumType const *enumType)
 {
-  return stringc << "enum " << (enumType->name? enumType->name : "/*anonymous*/");
+  return stringc << "enum " << (enumType->typedefVar->fullyQualifiedName0());
 }
 
 string CTypePrinter::print(TypeVariable const *typeVar)
@@ -313,7 +323,7 @@ string CTypePrinter::print(PseudoInstantiation const *pseudoInst)
     }
     printSTemplateArgument(env, iter.data());
   }
-  codeOut << '>';
+  codeOut << " > ";
 
   codeOut.finish();
   return sb0;
@@ -327,7 +337,7 @@ string CTypePrinter::print(DependentQType const *depType)
   PrintEnv env(*this, &codeOut); // Yuck!
   // FIX: what about the env.loc?
 
-  codeOut << print(depType->first) << ':' << ':';
+  codeOut << "typename " << print(depType->first) << ':' << ':';
   depType->rest->print(env);
 
   codeOut.finish();
@@ -431,16 +441,32 @@ string CTypePrinter::printRight(CVAtomicType const *type, bool /*innerParen*/)
 string CTypePrinter::printLeft(PointerType const *type, bool /*innerParen*/)
 {
   stringBuilder s;
-  s << printLeft(type->atType, false /*innerParen*/);
-  if (type->atType->isFunctionType() ||
-      type->atType->isArrayType()) {
-    s << '(';
+
+  // eed 2006-11-22
+  //     special case for __builtin_va_list
+  //     print out any type that is a pointer to "..."
+  //     as __builtin_va_list. This is probably safe...
+  //     [ticket:113]
+  if(type->atType->isCVAtomicType() &&
+     type->atType->asCVAtomicType()->atomic->isSimpleType() &&
+     type->atType->asCVAtomicType()->atomic->asSimpleType()->type == ST_ELLIPSIS)
+  {
+    s << "__builtin_va_list ";
   }
-  s << '*';
-  if (type->cv) {
-    // 1/03/03: added this space so "Foo * const arf" prints right (t0012.cc)
-    s << cvToString(type->cv) << ' ';
+  else {
+    s << printLeft(type->atType, false /*innerParen*/);
+    if (type->atType->isFunctionType() ||
+        type->atType->isArrayType()) {
+      s << '(';
+    }
+    s << '*';
+    if (type->cv) {
+      // scott 2003-01-03
+      //     added this space so "Foo * const arf" prints right (t0012.cc)
+      s << cvToString(type->cv) << ' ';
+    }
   }
+
   return s;
 }
 
@@ -704,7 +730,7 @@ string printDeclaration_makeName
       }
       printSTemplateArgument(env, iter.data());
     }
-    codeOut0 << '>';
+    codeOut0 << " > ";
   }
 
   codeOut0 << var->namePrintSuffix();    // hook for verifier
@@ -766,6 +792,11 @@ void printDeclaration
   // left is the flags that were present in the source
   dflags = (DeclFlags)(dflags & DF_SOURCEFLAGS);
   if (dflags) {
+    // eed 2006-11-22
+    //     Kludgy fix for ticket:124.
+    if ((dflags & (DF_EXTERN | DF_INLINE)) == (DF_EXTERN | DF_INLINE)) {
+      dflags &= ~DF_STATIC;
+    }
     *env.out << toString(dflags) << " ";
   }
 
@@ -879,7 +910,7 @@ void TF_asm::print(PrintEnv &env)
 {
   TreeWalkDebug treeDebug("TF_asm");
   env.loc = loc;
-  *env.out << "asm(" << text << ");\n";
+  *env.out << "asm(" << text->text << ");\n";
 }
 
 void TF_namespaceDefn::print(PrintEnv &env)
@@ -965,10 +996,23 @@ void Declaration::print(PrintEnv &env)
     spec->asTS_enumSpec()->print(env);
     *env.out << ";\n";
   }
+  else if(spec->isTS_elaborated() && decllist == NULL) {
+    // see Cubewano Trac ticket #112
 
-  // TODO: this does not print "friend class Foo;" declarations
-  // because the type specifier is TS_elaborated and there are no
-  // declarators
+    // eed 2006-11-21
+    //     template declarations (template <typename T> class C;)
+    //     and friend classes both have a declaration with a spec
+    //     TS_elaborated and a null decllist. I haven't found
+    //     anything else that satisfies those conditions.
+
+    if(dflags & DF_FRIEND) {
+      *env.out << "friend ";
+    }
+
+    spec->asTS_elaborated()->print(env);
+    *env.out << ";\n";
+  }
+
 
   FAKELIST_FOREACH_NC(Declarator, decllist, iter) {
     // if there are decl flags that didn't get put into the
@@ -1054,7 +1098,7 @@ void PQ_qualifier::print(PrintEnv &env)
     if (templArgs/*isNotEmpty*/) {
       *env.out << '<';
       printTemplateArgumentList(env, templArgs);
-      *env.out << '>';
+      *env.out << " > ";
     }
   }
   *env.out << ':' << ':';
@@ -1080,7 +1124,7 @@ void PQ_template::print(PrintEnv &env)
 
   *env.out << name << '<';
   printTemplateArgumentList(env, templArgs);
-  *env.out << '>';
+  *env.out << " > ";
 }
 
 
@@ -1391,7 +1435,7 @@ void S_try::iprint(PrintEnv &env)
 void S_asm::iprint(PrintEnv &env)
 {
   TreeWalkDebug treeDebug("S_asm::iprint");
-  *env.out << "asm(" << text << ");\n";
+  *env.out << "asm(" << text->text << ");\n";
 }
 
 void S_namespaceDecl::iprint(PrintEnv &env)
@@ -1644,7 +1688,7 @@ void printTemplateArgs(PrintEnv &env, Variable *var)
     }
     printSTemplateArgument(env, iter.data());
   }
-  *env.out << '>';
+  *env.out << " > ";
 }
 
 void E_variable::iprint(PrintEnv &env)
@@ -1916,7 +1960,7 @@ void E_keywordCast::iprint(PrintEnv &env)
   TreeWalkDebug treeDebug("E_keywordCast::iprint");
   *env.out << toString(key);
   {
-    PairDelim pair(*env.out, "", "<", ">");
+    PairDelim pair(*env.out, "", "<", " > ");
     ctype->print(env);
   }
   PairDelim pair(*env.out, "", "(", ")");
@@ -2005,7 +2049,7 @@ void TemplateDeclaration::print(PrintEnv &env)
     }
     iter->print(env);
   }
-  *env.out << ">\n";
+  *env.out << " >\n";
 
   iprint(env);
 }

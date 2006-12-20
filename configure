@@ -5,7 +5,7 @@
 # in each of the subdirs; users can then go customize
 # as desired
 
-(cd smbase && ./configure "$@") || exit
-(cd ast && ./configure "$@") || exit
-(cd elkhound && ./configure "$@") || exit
-(cd elsa && ./configure "$@") || exit
+(cd smbase && ./configure "$@") || exit 1
+(cd ast && ./configure "$@") || exit 1
+(cd elkhound && ./configure "$@") || exit 1
+(cd elsa && ./configure "$@") || exit 1
