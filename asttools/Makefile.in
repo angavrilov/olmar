@@ -22,10 +22,10 @@ OCAML_OBJ_EXT := @OCAML_OBJ_EXT@
 # eventually add astmap.$(OCAML_OBJ_EXT)  to all again
 # eventually add hashloc to all
 
-all: check_oast \
-	ast_graph count-ast astiter.$(OCAML_OBJ_EXT) \
+all: 	ast_graph count-ast astiter.$(OCAML_OBJ_EXT) \
 	astiternodes.$(OCAML_OBJ_EXT) \
-	dumpast 
+	dumpast \
+	check_oast
 
 
 # directories of other software; 
