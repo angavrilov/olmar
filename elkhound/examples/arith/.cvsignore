@@ -1,6 +1,9 @@
-arith
 *.bin
 *.gen.*
-arithyy.cc
-gmon.out
 .gdbinit
+Makefile
+arith
+arithyy.cc
+config.status
+config.summary
+gmon.out

@@ -41,7 +41,10 @@ if (+@ARGV==0) {
     if ($arg=~/^-d/) {
         $outdir = shift @ARGV;
         die "No argument to -d\n" unless defined $outdir;
-        die "No such dir: $outdir\n" unless -d $outdir;
+        # die "No such dir: $outdir\n" unless -d $outdir;
+        if (!-d $outdir) {
+            mkdir $outdir or die "mkdir $outdir: $!\n";
+        }
     } else {
         push @names, $arg;
     }

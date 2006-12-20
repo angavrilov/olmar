@@ -57,6 +57,7 @@ $AST = "../ast";
 
 # arguments to pass to sub-configures
 @c_args = ();
+@arith_args = ();
 
 
 # copy from %flags to individual global variables
@@ -127,11 +128,13 @@ foreach $optionAndValue (@ARGV) {
   elsif ($arg eq "prof") {
     push @CCFLAGS, "-pg";
     push @c_args, $arg;
+    push @arith_args, $arg;
   }
 
   elsif ($arg eq "devel") {
     push @CCFLAGS, "-Werror";
     push @c_args, $arg;
+    push @arith_args, $arg;
   }
 
   elsif ($arg eq "loc") {
@@ -168,9 +171,11 @@ foreach $optionAndValue (@ARGV) {
     $AST = getOptArg();
     if ($AST !~ m|^/|) {
       push @c_args, "-ast=../$AST";
+      push @arith_args, "-ast=../../$AST";
     }
     else {
       push @c_args, "-ast=$AST";
+      push @arith_args, "-ast=$AST";
     }
   }
 
@@ -319,6 +324,12 @@ if ($subconfigure) {
   print("Invoking $tmp in 'c' directory..\n");
   run("./configure", @c_args);
   chdir("..") or die;
+
+  chdir("examples/arith") or die;
+  $tmp = join(' ', ("./configure", @arith_args));
+  print("Invoking $tmp in 'examples/arith' directory..\n");
+  run("./configure", @arith_args);
+  chdir("../..") or die;
 }
 
 # run the output file generator

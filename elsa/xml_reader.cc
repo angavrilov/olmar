@@ -636,8 +636,9 @@ void XmlReaderManager::xmlUserFatalError(char const *msg) {
 
 UnsatLink *XmlReaderManager::getUnsatLink(char const *id0)
 {
-  if (parseStack.length() <= 1)
+  if (parseStack.length() <= 1) {
     return NULL;
+  }
 
   ASTList<UnsatLink> &parentUnsatLinks = parseStack.nth(1).ulinks;
   for (ASTListMutator<UnsatLink> mut(parentUnsatLinks); !mut.isDone(); mut.adv()) {

@@ -27,7 +27,7 @@ enum MatchFlags {
 
   // when comparing function types, only compare the explicit
   // (non-receiver) parameters; this does *not* imply
-  // MF_STAT_EQ_NONSTAT
+  // MF_STAT_EQ_NONSTAT, nor MF_IGNORE_FUNC_CV
   MF_IGNORE_IMPLICIT = 0x0004,
 
   // In the C++ type system, cv qualifiers on parameters are not part
@@ -85,12 +85,15 @@ enum MatchFlags {
   // is used to compare two templatized signatures for equivalence
   MF_ISOMORPHIC      = 0x2000,
 
+  // ignore the cv-flags on function types
+  MF_IGNORE_FUNC_CV  = 0x4000,
+
   // ----- combined behaviors -----
   // all flags set to 1
-  MF_ALL             = 0x3FFF,
+  MF_ALL             = 0x7FFF,
 
   // number of 1 bits in MF_ALL
-  MF_NUM_FLAGS       = 14,
+  MF_NUM_FLAGS       = 15,
 
   // signature equivalence for the purpose of detecting whether
   // two declarations refer to the same entity (as opposed to two

@@ -1,3 +1,10 @@
+2006-12-20  Hendrik Tews  <tews@tandem.cs.ru.nl>
+
+	* merged upstream, versions:
+	elsa-stack: 9  smbase: 490  ast: 280  elkhound: 1044  elsa: 2470
+
+	* remove files that come from the upstream import
+
 2006-12-19  Hendrik Tews  <tews@tandem.cs.ru.nl>
 
 	* memcheck renaming

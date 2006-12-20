@@ -14,13 +14,14 @@ sub get_sm_config_version {
   $main::CC = getEnvOrDefault("CC", "gcc");
   $main::CXX = getEnvOrDefault("CXX", "g++");
   @main::CCFLAGS = ("-g", "-Wall", "-Wno-deprecated", "-D__UNIX__");
+  $main::CC_SYSINC_PATH = "";
   $main::debug = 0;
   $main::target = 0;
   $main::no_dash_g = 0;
   $main::no_dash_O2 = 0;
   $main::exe = "";
 
-  return 1.04;
+  return 1.05;
 
   # 1.01: first version
   #
@@ -95,11 +96,11 @@ sub handleStandardOption {
   elsif ($arg eq "smbase") {
     $main::SMBASE = getOptArg();
   }
-  
+
   elsif ($arg eq "no-dash-g") {
     $main::no_dash_g = 1;
   }
-  
+
   elsif ($arg eq "no-dash-O2") {
     $main::no_dash_O2 = 1;
   }
@@ -127,9 +128,11 @@ sub finishedOptionProcessing {
     chomp($os);
     if ($os eq "Linux") {
       push @main::CCFLAGS, "-D__LINUX__";
+    } elsif ($os =~ /CYGWIN/) {
+      push @main::CCFLAGS, "-D__CYGWIN__";
     }
   }
-  
+
   if ($main::no_dash_g) {
     @main::CCFLAGS = grep { $_ ne "-g" } @main::CCFLAGS;
   }
@@ -174,7 +177,7 @@ sub get_smbase_compile_flags {
     my ($name, $value) = ($line =~ m/^\s*(\S+)\s*:\s*(\S.*)$/);
                                  #       name    :   value
     if (!defined($value)) { next; }
-    
+
     if ($name eq "CC") {
       $main::CC = $value;
     }
@@ -226,7 +229,7 @@ sub getPerlEnvPrefix {
   # depending on the mount charactersics of the file's location.
   #
   # It is also important that the file be opened by the shell
-  # instead of perl; when perl opens the file itself, things 
+  # instead of perl; when perl opens the file itself, things
   # work differently.
   if (0!=system("perl -e 'print(\"a\\n\")' >tmp.txt")) {
     die;
@@ -256,7 +259,7 @@ sub getPerlEnvPrefix {
     # reading was raw, so if we wrote again then we'd have
     # CRCRLF; this is the condition that "PERLIO=crlf" fixes
     #print("(case 3) ");
-    
+
     # make this the default for *this* perl session too;
     # but it does not work ...
     #use open OUT => ":crlf";
@@ -494,7 +497,7 @@ EOF
 
 sub writeConfigSummary {
   my ($summary) = @_;
-  
+
   open (OUT, ">config.summary") or die("cannot write config.summary: $!\n");
 
   print OUT ($summary);

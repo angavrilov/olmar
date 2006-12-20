@@ -3,9 +3,11 @@
 
 # -------- external tools and libraries --------
 # paths to the relevant subsystems
-SMBASE        := ../../../smbase
-AST           := ../../../ast
-ELKHOUND      := ../..
+SMBASE        := @SMBASE@
+AST           := @AST@
+ELKHOUND      := @ELKHOUND@
+
+CXX := @CXX@
 
 # Elkhound runtime support library
 LIBELKHOUND := $(ELKHOUND)/libelkhound.a
@@ -15,10 +17,7 @@ LIBELKHOUND := $(ELKHOUND)/libelkhound.a
 # preprocessing flags
 CPPFLAGS := -I$(ELKHOUND) -I$(AST) -I$(SMBASE)
 
-# C++ compilation flags; hijack from $(SMBASE) to find out
-# whether I should supply -Wno-deprecatead
-#CCFLAGS := -g -Wall -Wno-deprecated
-CCFLAGS := $(shell $(SMBASE)/config.summary | grep CCFLAGS | sed 's/^.*: *//')
+CCFLAGS := @CCFLAGS@ -I$(ELKHOUND) -I$(AST) -I$(SMBASE)
 
 # linking flags
 LDFLAGS := $(LIBELKHOUND) $(SMBASE)/libsmbase.a
@@ -42,12 +41,12 @@ arithyy.cc: arith.lex
 
 # compile a C++ source file
 %.o: %.cc
-	g++ -c $(CCFLAGS) $(CPPFLAGS) $*.cc
+	$(CXX) -c $(CCFLAGS) $(CPPFLAGS) $*.cc
 
 # link the driver code with the generated parser and lexer;
 # also run it with a test input
 arith: arith.o arithyy.o arith.gr.gen.o
-	g++ -o $@ -g $^ $(LDFLAGS)
+	$(CXX) -o $@ -g $^ $(LDFLAGS)
 	echo "3 + 4 * 5" | ./arith 
 	echo "3 + 4 * 5" | ./arith printTree
 

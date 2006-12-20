@@ -32,7 +32,7 @@ all: check_oast \
 SMBASE   := @SMBASE@
 AST      := @AST@
 ELSA     := @ELSA@
-MEMCHECK:= ../../memcheck
+MEMCHECK:= $(HOME)/src/memcheck
 
 
 # external tools

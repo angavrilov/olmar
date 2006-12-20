@@ -676,6 +676,11 @@ nonterm(Declarator*) MemberDeclarator {
                                NULL /*init*/); }
 }
 
+// dsw: from Taras Glek <tglek@mozilla.com>
+nonterm(DeclFlags) CDtorModifier {
+ -> /*DROPPED*/AttributeSpecifier      { return DF_NONE; }
+}
+
 // -- attributes themselves --
 // http://gcc.gnu.org/onlinedocs/gcc-3.2.2/gcc/Attribute-Syntax.html
 

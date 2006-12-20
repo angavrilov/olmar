@@ -32,6 +32,7 @@ string toString(MatchFlags flags)
     "MF_MATCH",
     "MF_NO_NEW_BINDINGS",
     "MF_ISOMORPHIC",
+    "MF_IGNORE_FUNC_CV",
   };
   STATIC_ASSERT(TABLESIZE(map) == MF_NUM_FLAGS);
   return bitmapString(flags, map, MF_NUM_FLAGS, " ");
@@ -869,14 +870,56 @@ bool IMType::imatchParameterLists(FunctionType const *conc, FunctionType const *
   // but the other does not (can arise if MF_STAT_EQ_NONSTAT has
   // been specified)
   {
-    bool cm = conc->isMethod();
-    bool pm = pat->isMethod();
     bool ignore = flags & MF_IGNORE_IMPLICIT;
-    if (cm && (!pm || ignore)) {
-      concIter.adv();
+
+    bool cm = conc->isMethod();
+    CVFlags ccv = CV_NONE;
+
+    bool pm = pat->isMethod();
+    CVFlags pcv = CV_NONE;
+
+    if (cm) {
+      ccv = concIter.data()->type->asReferenceType()->atType->getCVFlags();
+      if (!pm || ignore) {
+        concIter.adv();
+      }
     }
-    if (pm && (!cm || ignore)) {
-      patIter.adv();
+
+    if (pm) {
+      pcv = patIter.data()->type->asReferenceType()->atType->getCVFlags();
+      if (!cm || ignore) {
+        patIter.adv();
+      }
+    }
+
+    if (flags & MF_IGNORE_FUNC_CV) {
+      // Ignore cv-flags.
+    }
+    else if ((flags & MF_STAT_EQ_NONSTAT) && (cm != pm)) {
+      // The functions differ in their staticness, and that is a
+      // difference that we have explicitly ignored.  In such a case,
+      // looking at the cv-flags would again expose the difference in
+      // staticness, so we don't.
+      //
+      // TODO: This feels wrong.  It seems like we should let the
+      // differing cv-flags imply disequality.  But the mechanism for
+      // determining signature equivalence when validating members of
+      // an overload set currently requires it; see in/t0121.cc for
+      // some examples of what this validation entails.  Probably if I
+      // rewrite that code (which was written before function cv-flag
+      // checking was separable from receiver object checking), then
+      // this ugly exception to an otherwise straightforward rule
+      // could be elimintated.
+    }
+    else {
+      // Note that if we didn't skip the receivers, their cv-flags will
+      // be compared again, below, but that should be harmless.
+      //
+      // Example of requiring cv-flag sensitivity: in/t0591.cc
+      //
+      if (ccv != pcv) {
+        return false;
+      }
     }
   }
 

@@ -280,10 +280,7 @@ public:     // data
   // HT: name is NULL in in/t0030.cc inside EnumType
   // also in in/t0032.cc inside CompoundType
   StringRef name;          // (nullable) user-assigned name of this struct or enum
-  // HT: typedefVar is NULL in regtest 568 (t0566.cc) ??
-  // also in in/t0030.cc inside EnumType
-  // also in regrtest 27 in in/t0027.cc inside PseudoInstantiation
-  Variable *typedefVar;    // (owner) implicit typedef variable
+  Variable *typedefVar;    // (nullable owner) implicit typedef variable; NULL if anonymous type
   AccessKeyword access;    // accessibility of this type in its declaration context
 
 public:

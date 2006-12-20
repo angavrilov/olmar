@@ -878,6 +878,9 @@ failparse t0585.cc "explicit invocation of dtor of template class"
 testparse t0586.cc
 failparse t0587.cc "conversion of static method of template to func ptr"
 testparse t0588.cc
+testparse t0589.cc
+testparse t0590.cc
+testparse t0591.cc
 
 # another set of tests, generally isolated by Daniel
 testparse d0001.cc
@@ -1004,6 +1007,10 @@ testparse_special treeCheck dk0127.cc #"a non-tree AST results: default param ar
 # containsGeneralizedDependent()
 testparse d0128.cc
 
+# The implicit conversion of 0 to Foo(0) was not happennig in '?:'
+# expressions: "? Foo() : 0"
+testparse d0129.cc
+
 testparse k0001.cc #"left side of .* must be a class or reference to a class"
 testparse k0002.cc #"template function declared in another class (as a friend)"
 testparse k0003.cc #"template argument from static const member of template class"
@@ -1015,7 +1022,10 @@ testparse k0007.cc
 # renamed k0008.cc to gnu/g0022.cc because it is a GNU feature
 testparse k0009.cc #"clash between function and instantiated template parameter member"
 testparse_special only_works_on_32bit k0010.cc
-failparse_special only_works_on_32bit k0010a.cc "compile-time type size checking - long long"
+# quarl 2006-11-13
+#     k0010a.cc commented out for now since it passes on 64bit but fails on
+#     32bit; is the meaning of "only_works_on_32bit" inverted?
+#failparse_special only_works_on_32bit k0010a.cc "compile-time type size checking - long long"
 testparse k0011.cc
 testparse k0012.cc
 testparse k0013.cc #"cannot convert argument type `float (*)[4]' to parameter 1 type `float const (*)[4]'"
@@ -1111,8 +1121,8 @@ failparse k0083.cc "friend template class declaration"
 failparse k0084.cc "complex literals"
 failparse k0085.cc "complex double * int"
 failparse k0086.cc "enable_if: template argument expressions"
-failparse k0087.cc "implicit conversion to "bool const &" via "bool" via "operator bool""
-failparse k0088.cc "inferring const member function template parameter type"
+failparse k0087.cc 'implicit conversion to "bool const &" via "bool" via "operator bool"'
+testparse k0088.cc #"inferring const member function template parameter type"
 failparse k0089.cc "specialization of template function member"
 failparse k0090.cc "template specialization of array"
 failparse k0090a.cc "template specialization of array"
@@ -1129,7 +1139,7 @@ failparse k0099.cc "partial specialization lookup"
 failparse k0100.cc "templatized template parameter list"
 testparse k0101.cc "typename ParameterDeclaration in TemplateParameterList"
 failparse k0102.cc "template parameter template-instantiated on another template parameter"
-failparse k0103.cc "'duplicate definition' from 'using' declaration"
+testparse k0103.cc #"'duplicate definition' from 'using' declaration"
 testparse k0104.cc #"restrict reference"
 failparse k0105.cc "function pointer dependent type"
 failparse k0106.cc "anonymous struct in anonymous union"
@@ -1145,6 +1155,8 @@ failparse k0115.cc "using own member function"
 failparse k0116.cc "template parameter default instantiating template class"
 failparse k0117.cc "class templatized on int, copy constructor"
 testparse k0118.cc "typedef struct { } *foo"
+testparse k0119.cc "64-bit stuff"
+failparse k0120.cc "confusion between function template decl and return type"
 
 ### </quarl-testcases-c++>
 
@@ -1291,6 +1303,7 @@ if $use_gnu; then
   failparse gnu/k0008.c "declared extern inline, defined extern inline, defined non-extern-inline"
   failparse gnu/k0009.cc "namespace attribute strong"
   failparse gnu/k0010.c "nested K&R function"
+  testparse gnu/d0130.cc #"attributes on ctors and dtors"
 
 else # tests that only pass when not in gnu mode
   testparse t0228b.cc
@@ -1298,7 +1311,6 @@ else # tests that only pass when not in gnu mode
 fi   # end of 'if $use_gnu; then'
 
 # idempotency checks; known problems:
-#   25: Scope operator not being printed before using type.
 #   27, 28: Templates not being printed correctly when the template
 #           arguments are used within the template.
 #   30: scope not printing.
@@ -1314,18 +1326,65 @@ fi   # end of 'if $use_gnu; then'
 # UPDATE: seems to work now except that the instantiated function gets
 # printed which is not idempotent
 
-list=`echo " \
-  t0001.cc   t0002.cc  t0003.cc  t0004.cc   t0005.cc   t0006.cc  t0007.cc
-  t0008.cc   t0009.cc  t0010.cc  t0011.cc   t0012.cc   t0013.cc  t0014.cc
-  t0014a.cc  t0015.cc  t0016.cc  t0017.cc   t0018.cc   t0019.cc  t0020.cc
-  t0021.cc   t0022.cc  t0023.cc  t0024.cc              t0026.cc
-             t0029.cc            t0030a.cc  t0030b.cc  t0031.cc  t0032.cc
-                                            t0037.cc   t0038.cc  t0039.cc
-  t0040.cc   t0041.cc  t0042.cc  t0043.cc
-                                            t0100.cc   t0101.cc  t0102.cc
-                                 t0106.cc
-                                                                 t0123.cc \
-  " | fmt -1 | sed 's|^[ 	]*|in/|'`
+list=`echo "
+    t0001.cc
+    t0002.cc
+    t0003.cc
+    t0004.cc
+    t0005.cc
+    t0006.cc
+    t0007.cc
+    t0008.cc
+    t0009.cc
+    t0010.cc
+    t0011.cc
+    t0012.cc
+    t0013.cc
+    t0014.cc
+    t0014a.cc
+    t0015.cc
+    t0016.cc
+    t0017.cc
+    t0018.cc
+    t0019.cc
+    t0020.cc
+    t0021.cc
+    t0022.cc
+    t0023.cc
+    t0024.cc
+    t0025.cc
+    t0026.cc
+    t0027.cc
+    t0028.cc
+    t0029.cc
+    t0030.cc
+    t0030a.cc
+    t0030b.cc
+    t0031.cc
+    t0032.cc
+    t0033.cc
+    t0034.cc
+    t0035.cc
+    t0036.cc
+    t0037.cc
+    t0038.cc
+    t0039.cc
+    t0040.cc
+    t0041.cc
+    t0042.cc
+    t0043.cc
+    t0056.cc
+    t0093.cc
+    t0097.cc
+    t0100.cc
+    t0101.cc
+    t0102.cc
+    t0103.cc
+    t0106.cc
+    t0123.cc
+    k0121.cc
+    d0125.cc
+  " | xargs -n 1 | sed 's|^|in/|'`
 
 runTest perl ./idemcheck -d outdir $list
 
@@ -1434,6 +1493,7 @@ testCparse c/k0013.c #"enum variable declared earlier as int"
 testCparse c/k0014.c #"offsetof cannot be assumed to be 0 (evaluated e.g. in case labels)"
 testCparse c/k0015.c #"variable-sized character buffer in function-local struct using same name for size as a member variable and another variable in outside scope"
 testCparse c/k0016.c #"expression in compound initializer array index"
+failCparse c/k0017.c "E_fieldAcc is not constEval'able"
 
 ### </quarl-testcases-c>
 

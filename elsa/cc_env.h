@@ -956,6 +956,7 @@ public:      // template funcs
   CType *applyArgumentMapToAtomicType
     (MType &map, AtomicType *origSrc, CVFlags srcCV);
   CType *applyArgumentMap_applyCV(CVFlags cv, CType *type);
+  CType *applyArgumentMapToReceiverType(MType &map, CType *origSrc);
   void applyArgumentMapToTemplateArgs
     (MType &map, ObjList<STemplateArgument> &dest,
                                  ObjList<STemplateArgument> const &srcArgs);
@@ -1022,6 +1023,8 @@ public:
       active(disOnly) {
     if (active) {
       prev = e.setDisambiguateOnly(true);
+    } else {
+      prev = false;      // initialize to squelch compiler warning
     }
   }
 

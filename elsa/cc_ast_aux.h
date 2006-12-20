@@ -82,7 +82,7 @@ private:     // data
   // thing to have here as DelegatorASTVisitor also has one.  This one
   // is just used to avoid visiting templatized AST twice, which I
   // think can really legitimately otherwise occur given our template
-  // represntation even if the AST is a tree.  The subclasses here
+  // representation even if the AST is a tree.  The subclasses here
   // should intercept that duplication and return without calling the
   // overridden method of superclass which would otherwise fire an
   // assertion failure.
