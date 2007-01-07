@@ -161,6 +161,11 @@ doc: gendoc gendoc/configure.txt gendoc/demo.h
 
 
 # ------------------------ misc ---------------------
+
+# for now, check-full is just check
+.PHONY: check-full
+check-full: check
+
 check: ccsstr
 	./ccsstr
 
