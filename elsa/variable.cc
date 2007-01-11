@@ -134,6 +134,34 @@ void Variable::setFlagsTo(DeclFlags f)
   const_cast<DeclFlags&>(flags) = f;
 }
 
+bool Variable::isSemanticallyGlobal() const {
+  switch(getScopeKind()) {
+  case NUM_SCOPEKINDS:
+    xfailure("can't happen");
+    break;                      // silly gcc warning
+  case SK_UNKNOWN:              // not yet registered in a scope
+    // FIX: the global scope has ScopeKind SK_UNKNOWN
+//     xfailure("got SK_UNKNOWN on a real variable");
+    break;
+  case SK_GLOBAL:               // toplevel names
+    return true;
+    break;
+  case SK_FUNCTION:             // includes local variables
+    if (hasFlag(DF_STATIC)) {
+      return true;
+    }
+    break;
+  case SK_CLASS:                // class member scope
+    if (hasFlag(DF_STATIC)) {
+      return true;
+    }
+    break;
+  default:
+    break;
+  }
+  return false;
+}
+
 bool Variable::inGlobalOrNamespaceScope() const {
   return scope && (scope->isGlobalScope() || scope->isNamespace());
 }
