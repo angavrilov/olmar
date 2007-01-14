@@ -102,6 +102,8 @@ public:      // funcs
   {}
   virtual ~LoweredASTVisitor() {}
 
+  SourceLoc getLoc() {return loc;}
+
   // maintain source loc; those commented out occur also below and so
   // their body is folded in there
   virtual bool visitTopForm(TopForm *obj);
