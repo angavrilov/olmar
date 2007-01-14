@@ -143,6 +143,55 @@ bool LoweredASTVisitorHelper::visitFunction(Function *func)
 
 // ---------------------- LoweredASTVisitor ----------------------
 
+// **** maintain source location
+
+bool LoweredASTVisitor::visitTopForm(TopForm *obj) {
+  loc = obj->loc;
+  return DelegatorASTVisitor::visitTopForm(obj);
+}
+
+bool LoweredASTVisitor::visitPQName(PQName *obj) {
+  loc = obj->loc;
+  return DelegatorASTVisitor::visitPQName(obj);
+}
+
+// bool LoweredASTVisitor::visitTypeSpecifier(TypeSpecifier *obj) {
+//   loc = obj->loc;
+//   return DelegatorASTVisitor::visitTypeSpecifier(obj);
+// }
+
+bool LoweredASTVisitor::visitEnumerator(Enumerator *obj) {
+  loc = obj->loc;
+  return DelegatorASTVisitor::visitEnumerator(obj);
+}
+
+bool LoweredASTVisitor::visitMember(Member *obj) {
+  loc = obj->loc;
+  return DelegatorASTVisitor::visitMember(obj);
+}
+
+bool LoweredASTVisitor::visitIDeclarator(IDeclarator *obj) {
+  loc = obj->loc;
+  return DelegatorASTVisitor::visitIDeclarator(obj);
+}
+
+// bool LoweredASTVisitor::visitStatement(Statement *obj) {
+//   loc = obj->loc;
+//   return DelegatorASTVisitor::visitStatement(obj);
+// }
+
+// bool LoweredASTVisitor::visitInitializer(Initializer *obj) {
+//   loc = obj->loc;
+//   return DelegatorASTVisitor::visitInitializer(obj);
+// }
+
+bool LoweredASTVisitor::visitTemplateParameter(TemplateParameter *obj) {
+  loc = obj->loc;
+  return DelegatorASTVisitor::visitTemplateParameter(obj);
+}
+
+// ****
+
 bool LoweredASTVisitor::visitFullExpressionAnnot(FullExpressionAnnot *fea)
 {
   if (!DelegatorASTVisitor::visitFullExpressionAnnot(fea)) return false;
@@ -178,6 +227,8 @@ bool LoweredASTVisitor::visitDeclarator(Declarator *decltor)
 // class templates
 bool LoweredASTVisitor::visitTypeSpecifier(TypeSpecifier *spec)
 {
+  loc = spec->loc;
+
   if (spec->isTS_classSpec()) {
     return subvisitTS_classSpec(spec->asTS_classSpec());
   }
@@ -262,6 +313,8 @@ bool LoweredASTVisitor::visitMemberInit(MemberInit *mInit)
 
 bool LoweredASTVisitor::visitStatement(Statement *stmt)
 {
+  loc = stmt->loc;
+
   if (!DelegatorASTVisitor::visitStatement(stmt)) return false;
 
   if (visitElaboratedAST) {
@@ -342,6 +395,8 @@ bool LoweredASTVisitor::visitFullExpression(FullExpression *fexpr)
 
 bool LoweredASTVisitor::visitInitializer(Initializer *initializer)
 {
+  loc = initializer->loc;
+
   if (!DelegatorASTVisitor::visitInitializer(initializer)) return false;
 
   if (initializer->hasAnnot()) {

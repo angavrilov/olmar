@@ -74,6 +74,10 @@ class LoweredASTVisitor : public DelegatorASTVisitor {
 private:     // data
   LoweredASTVisitorHelper helper;
 
+  // track the current source location for the benefit of client
+  // analyses
+  SourceLoc loc;
+
   // visit elaborated AST fields such as ctorStatement, etc., but
   // other than instantiated templates
   bool visitElaboratedAST;
@@ -93,9 +97,22 @@ public:      // funcs
                     VisitorFlags flags0 = VF_CHECK_IS_TREE | VF_VISIT_ELAB)
     : DelegatorASTVisitor(client0, flags0 & VF_CHECK_IS_TREE)
     , helper(*this, flags0 & VF_VISIT_PRIM_AND_PARTIALS)
+    , loc(SL_UNKNOWN)
     , visitElaboratedAST(flags0 & VF_VISIT_ELAB)
   {}
   virtual ~LoweredASTVisitor() {}
+
+  // maintain source loc; those commented out occur also below and so
+  // their body is folded in there
+  virtual bool visitTopForm(TopForm *obj);
+  virtual bool visitPQName(PQName *obj);
+  // virtual bool visitTypeSpecifier(TypeSpecifier *obj);
+  virtual bool visitEnumerator(Enumerator *obj);
+  virtual bool visitMember(Member *obj);
+  virtual bool visitIDeclarator(IDeclarator *obj);
+  // virtual bool visitStatement(Statement *obj);
+  // virtual bool visitInitializer(Initializer *obj);
+  virtual bool visitTemplateParameter(TemplateParameter *obj);
 
   virtual bool visitFullExpressionAnnot(FullExpressionAnnot *fea);
   virtual bool visitDeclarator(Declarator *decltor);
