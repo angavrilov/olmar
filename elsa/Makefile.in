@@ -321,8 +321,17 @@ CCPARSE_ML := \
   cc_ast_gen.ml \
   ml_ctype_constructors.ml \
   ast_annotation.ml \
+  oast_header_version.ml \
+  oast_header.ml \
   ast_marshal.ml \
   caml_callbacks.ml
+
+# List of cmo files that appear in ocamldep created dependencies 
+# for native compilation. This happens for dependencies of cmi files
+# that do not have a mli, for instance cc_ast_gen_type.
+ML_NATIVE_CMO_DEPS := \
+  cc_ast_gen_type.cmo
+
 
 -include mldeps.mk
 
@@ -334,10 +343,17 @@ mldeps:
 	ocamldep $(CCPARSE_ML) > mldeps.mk
 
 # have two entries to facilitate compiling all ml files
-elsa_ml_objects: $(CCPARSE_ML:.ml=.$(OCAML_OBJ_EXT)) 
+elsa_ml_objects: $(CCPARSE_ML:.ml=.$(OCAML_OBJ_EXT)) $(ML_NATIVE_CMO_DEPS)
 
 ml_object.o: $(CCPARSE_ML:.ml=.$(OCAML_OBJ_EXT)) 
 	$(OCAMLCC) -output-obj -o $@ $^	
+
+oast_header_version.ml: all.ast	
+	rm -f oast_header_version.ml
+	echo -n "let oast_header_version = " > oast_header_version.ml
+	head -1 all.ast | tr "." " " | (read -a aa; echo -n $${aa[5]}) >> \
+		oast_header_version.ml
+
 
 
 $(AST)/ocamlhelp.o: $(AST)/ocamlhelp.cc $(AST)/ocamlhelp.h
@@ -497,10 +513,12 @@ TAGS:
 			egrep -v $(DISCARDPATTERN)`
 
 
-.PHONY: all.ast
 all.ast: $(CC_AST_MODS) 
-	rm -f all.ast
-	echo "// all.ast \$$Revision$$" >> all.ast
+	if [ -f all.ast ] ; then \
+		line1=$$(head -1 all.ast); echo $$line1 > all.ast; \
+	else \
+		echo "// all.ast \$$Revision$$" >> all.ast; \
+	fi
 	for f in $^ ; do \
 		echo "//=========================== start of $$f" >> all.ast; \
 		cat $$f >> all.ast; \

@@ -1,3 +1,13 @@
+2007-04-12  Hendrik Tews  <tews@tandem.cs.ru.nl>
+
+        * fixed revision keyword in all.ast
+        * add header with version number to all oast files (use all.ast
+          revision as oast file version number, see module elsa/oast_header) 
+        * new module asttools/superast that creates an ast_array
+        * new blueprint astmatch.ml for walking over ast_array 
+        * rewrote count-ast with ast_array as count-ast-new
+        * fixed some count-ast bugs
+
 2007-04-11  Hendrik Tews  <tews@tandem.cs.ru.nl>
 
         * add revision cvs keyword to all.ast

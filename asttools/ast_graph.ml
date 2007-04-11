@@ -1677,6 +1677,7 @@ let main () =
     else "nodes.dot"
   in
   let _ = oc := open_out (ofile) in
+  let _ = Oast_header.read_header ic in
   let ast = (Marshal.from_channel ic : annotated translationUnit_type)
   in
     start_file !file;

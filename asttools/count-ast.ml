@@ -33,6 +33,7 @@ let visited (annot : annotated) =
   DS.mem (id_annotation annot) visited_nodes
 
 let visit (annot : annotated) =
+  (* Printf.eprintf "visit node %d\n%!" (id_annotation annot); *)
   DS.add (id_annotation annot) visited_nodes;
   incr count_nodes;
   if id_annotation annot > !max_node_id then
@@ -56,17 +57,22 @@ let count_bool = ref 0
 let bool_fun (_b : bool) = incr count_bool
 
 let count_int = ref 0
-let int_fun (_i : int) = incr count_int
+let int_fun (_i : int) = 
+  (* Printf.eprintf "COUNT_INT\n%!"; *)
+  incr count_int
 
 let count_nativeint = ref 0
 let nativeint_fun (_i : nativeint) = incr count_nativeint
 
 let count_string = ref 0
-let string_fun (_s : string) = incr count_nativeint
+let string_fun (_s : string) = 
+  (* Printf.eprintf "STRING\n%!"; *)
+  incr count_string
 
 let count_sourceLoc = ref 0
 let sourceLoc_fun((_file : string), (_line : int), (_char : int)) = 
   incr count_sourceLoc;
+  (* Printf.eprintf "STRING\n%!"; *)
   incr count_string;
   incr count_int;
   incr count_int
@@ -399,7 +405,6 @@ and func_fun((annot, _declFlags, typeSpecifier, declarator, memberInit_list,
     assert(match func with 
       | FunctionType _ -> true
       | _ -> false);
-    cType_fun func;
     visit annot;
     typeSpecifier_fun typeSpecifier;
     declarator_fun declarator;
@@ -1272,7 +1277,7 @@ let file = ref ""
 let file_set = ref false
 
 
-let print_stats () =
+let print_stats o_max_node =
   let missing_ids = ref []
   in
     Printf.printf "%s contains %d ast nodes with in total:\n" 
@@ -1288,7 +1293,8 @@ let print_stats () =
       !count_int
       !count_nativeint
       !count_string;
-    Printf.printf "maximal node id: %d\n" !max_node_id;
+    Printf.printf "maximal node id: %d (oast header %d)\n" 
+      !max_node_id o_max_node;
     for i = 1 to !max_node_id do
       if not (DS.mem i visited_nodes) then
 	missing_ids := i :: !missing_ids
@@ -1302,7 +1308,9 @@ let print_stats () =
 	  (fun i -> Printf.printf ", %d" i)
 	  (List.tl !missing_ids);
 	print_endline "";
-      end
+    end;
+    if o_max_node <> !count_nodes or o_max_node <> !max_node_id then
+      print_endline "node counts differ!"
 
 
 
@@ -1337,10 +1345,11 @@ let main () =
   if not !file_set then
     usage();				(* does not return *)
   let ic = open_in !file in
+  let o_max_node = Oast_header.read_header ic in
   let ast = (Marshal.from_channel ic : annotated translationUnit_type)
   in
     translationUnit_fun ast;
-    print_stats()
+    print_stats o_max_node
 ;;
 
 

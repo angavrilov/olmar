@@ -5,15 +5,14 @@
 # Makefile.in
 # this is the Makefile for the ocaml ast tools
 
-OCAML_OBJ_EXT := @OCAML_OBJ_EXT@
-
 # use the first goal for development, for release put it in comment and use all
 
+#first: astmatch.cmo
 #first: check_oast_byte
 #first: check_oast
 #first: astiter.cmo
 #first: astiternodes.cmo
-#first: count-ast
+#first: count-ast-new count-ast
 #first: ast_graph
 #first: hashloc
 #first: test_ast
@@ -21,12 +20,6 @@ OCAML_OBJ_EXT := @OCAML_OBJ_EXT@
 
 # eventually add astmap.$(OCAML_OBJ_EXT)  to all again
 # eventually add hashloc to all
-
-all: 	ast_graph count-ast astiter.$(OCAML_OBJ_EXT) \
-	astiternodes.$(OCAML_OBJ_EXT) \
-	dumpast \
-	check_oast
-
 
 # directories of other software; 
 SMBASE   := @SMBASE@
@@ -46,6 +39,15 @@ OCAML_LIB_EXT := @OCAML_LIB_EXT@
 OCAML_FLAGS := -w Ae
 OCAML_BYTE_FLAGS := -g
 
+.PHONY: all
+all: 	ast_graph count-ast count-ast-new \
+	astmatch.$(OCAML_OBJ_EXT) \
+	astiter.$(OCAML_OBJ_EXT) \
+	astiternodes.$(OCAML_OBJ_EXT) \
+	dumpast \
+	check_oast
+
+
 # list of files to clean in 'clean' (etc.) targets
 # (these get added to below)
 TOCLEAN =
@@ -63,10 +65,27 @@ config.status: configure.pl $(SMBASE)/sm_config.pm
 COUNTAST_ML=\
 	dense_set.ml \
 	$(ELSA)/ast_annotation.ml \
+	$(ELSA)/oast_header_version.ml \
+	$(ELSA)/oast_header.ml \
 	ast_util.ml \
 	count-ast.ml
 
+TOCLEAN += count-ast
 count-ast: $(COUNTAST_ML:.ml=.$(OCAML_OBJ_EXT))
+	$(OCAMLCC) $(OCAML_FLAGS) -o $@ $^
+
+
+COUNTASTNEW_ML=\
+	dense_set.ml \
+	$(ELSA)/ast_annotation.ml \
+	$(ELSA)/oast_header_version.ml \
+	$(ELSA)/oast_header.ml \
+	ast_util.ml \
+	superast.ml \
+	count-ast-new.ml
+
+TOCLEAN += count-ast-new
+count-ast-new: $(COUNTASTNEW_ML:.ml=.$(OCAML_OBJ_EXT))
 	$(OCAMLCC) $(OCAML_FLAGS) -o $@ $^
 
 
@@ -76,6 +95,8 @@ ASTGRAPH_ML=\
 	$(ELSA)/cc_ml_types.ml \
 	$(ELSA)/ml_ctype.ml \
 	$(ELSA)/ast_annotation.ml \
+	$(ELSA)/oast_header_version.ml \
+	$(ELSA)/oast_header.ml \
 	ast_util.ml \
 	ast_graph.ml
 
@@ -236,6 +257,9 @@ distclean: clean
 
 TOCLEAN += *.cmo
 
+astmatch.cmo: astmatch.ml
+	$(OCAMLC) $(OCAML_BYTE_FLAGS) $(OCAML_FLAGS) -w zy -I $(ELSA) -c $<
+
 astiter.cmo: astiter.ml
 	$(OCAMLC) $(OCAML_BYTE_FLAGS) $(OCAML_FLAGS) -w zy -I $(ELSA) -c $<
 
@@ -244,6 +268,9 @@ astmap.cmo: astmap.ml
 
 astiternodes.cmo: astiternodes.ml
 	$(OCAMLC) $(OCAML_BYTE_FLAGS) $(OCAML_FLAGS) -w zy -I $(ELSA) -c $<
+
+astmatch.cmx: astmatch.ml
+	$(OCAMLOPT) $(OCAML_FLAGS) -w zy -I $(ELSA) -c $<
 
 astiter.cmx: astiter.ml
 	$(OCAMLOPT) $(OCAML_FLAGS) -w zy -I $(ELSA) -c $<

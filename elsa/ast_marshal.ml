@@ -11,6 +11,7 @@ open Ast_annotation
 let marshal_translation_unit (u : annotated translationUnit_type) fname =
   let oc = open_out fname 
   in
+    Oast_header.output_header oc (max_annotation());
     Marshal.to_channel oc u [];
     close_out oc
     (* 

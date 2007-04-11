@@ -312,7 +312,6 @@ and func_fun((annot, declFlags, typeSpecifier, declarator, memberInit_list,
     assert(match func with 
       | FunctionType _ -> true
       | _ -> false);
-    cType_fun func;
     visit annot;
     typeSpecifier_fun typeSpecifier;
     declarator_fun declarator;
