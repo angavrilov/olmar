@@ -500,6 +500,7 @@ TAGS:
 .PHONY: all.ast
 all.ast: $(CC_AST_MODS) 
 	rm -f all.ast
+	echo "// all.ast \$$Revision$$" >> all.ast
 	for f in $^ ; do \
 		echo "//=========================== start of $$f" >> all.ast; \
 		cat $$f >> all.ast; \
