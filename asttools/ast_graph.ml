@@ -933,8 +933,8 @@ and statement_fun s =
 	| S_label(_annot, _loc, stringRef, statement) -> 
 	    snode_1d "S_label" "name" stringRef [(statement_fun statement, "s")]
 
-	| S_case(_annot, _loc, expression, statement, int) -> 
-	    snode_1d "S_case" "labelVal" (string_of_int int)
+	| S_case(_annot, _loc, expression, statement, int32) -> 
+	    snode_1d "S_case" "labelVal" (Int32.to_string int32)
 	      (let x1 = (expression_fun expression, "expr") in
 	       let x2 = (statement_fun statement, "s")
 	       in

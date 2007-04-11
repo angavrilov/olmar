@@ -726,11 +726,10 @@ and statement_fun x =
 	    string_fun stringRef;
 	    statement_fun statement
 
-	| S_case(_annot, sourceLoc, expression, statement, int) -> 
+	| S_case(_annot, sourceLoc, expression, statement, _int32) -> 
 	    sourceLoc_fun sourceLoc;
 	    expression_fun expression;
-	    statement_fun statement;
-	    int_fun int
+	    statement_fun statement
 
 	| S_default(_annot, sourceLoc, statement) -> 
 	    sourceLoc_fun sourceLoc;

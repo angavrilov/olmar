@@ -808,12 +808,12 @@ and statement_fun x =
 	    string_fun stringRef;
 	    statement_fun statement
 
-	| S_case(annot, sourceLoc, expression, statement, int) -> 
+	| S_case(annot, sourceLoc, expression, statement, int32) -> 
 	    annotation_fun annot;
 	    sourceLoc_fun sourceLoc;
 	    expression_fun expression;
 	    statement_fun statement;
-	    int_fun int
+	    int32_fun int32
 
 	| S_default(annot, sourceLoc, statement) -> 
 	    annotation_fun annot;

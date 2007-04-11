@@ -1,909 +1,913 @@
+2007-04-11  Hendrik Tews  <tews@tandem.cs.ru.nl>
+
+        * use int32 for case labels
+
 2006-12-20  Hendrik Tews  <tews@tandem.cs.ru.nl>
 
-	* move check_oast goal to protect against missing memcheck
+        * move check_oast goal to protect against missing memcheck
 
-	* merged upstream, versions:
-	elsa-stack: 9  smbase: 490  ast: 280  elkhound: 1044  elsa: 2470
+        * merged upstream, versions:
+        elsa-stack: 9  smbase: 490  ast: 280  elkhound: 1044  elsa: 2470
 
-	* remove files that come from the upstream import
+        * remove files that come from the upstream import
 
 2006-12-19  Hendrik Tews  <tews@tandem.cs.ru.nl>
 
-	* memcheck renaming
+        * memcheck renaming
 
-	* updated doc's
+        * updated doc's
 
-	* XXX solved circularity for flags == DF_NAMESPACE: 
-	* new circularity scope.namespace_var
-	* regrtest pass
+        * XXX solved circularity for flags == DF_NAMESPACE: 
+        * new circularity scope.namespace_var
+        * regrtest pass
 
 2006-12-18  Hendrik Tews  <tews@tandem.cs.ru.nl>
 
-	* rebuild all.ast
-	* cleaned comments: ``HT: XXX'' is consistently used for places
-	  that need some fix
+        * rebuild all.ast
+        * cleaned comments: ``HT: XXX'' is consistently used for places
+          that need some fix
 
-	* added hash sizes in scope ast nodes in ast_graph
+        * added hash sizes in scope ast nodes in ast_graph
 
 2006-12-17  Hendrik Tews  <tews@tandem.cs.ru.nl>
 
-	* scope added in all asttool code
-	* regression test run
+        * scope added in all asttool code
+        * regression test run
 
 2006-12-13  Hendrik Tews  <tews@tandem.cs.ru.nl>
 
-	* deleted old check-oast
+        * deleted old check-oast
 
-	* use the new dynamic type checking to check scopes: Everything
-	fine
-	
+        * use the new dynamic type checking to check scopes: Everything
+        fine
+        
 2006-11-16  Hendrik Tews  <tews@tandem.cs.ru.nl>
 
-	* added Scope, ScopeKind serialization
-	* new circularities: Scope.variables, Scope.typeTags; they
-	required a bit of refactoring in the postpone_circularity code
-	* new nullable Scope.parentScope, Scope.namespaceVar, 
-	Scope.parameterizedEntity
+        * added Scope, ScopeKind serialization
+        * new circularities: Scope.variables, Scope.typeTags; they
+        required a bit of refactoring in the postpone_circularity code
+        * new nullable Scope.parentScope, Scope.namespaceVar, 
+        Scope.parameterizedEntity
 
 2006-11-15  Hendrik Tews  <tews@tandem.cs.ru.nl>
 
-	* added has_negative_values in EnumType
-	* added in compound_info: compound_scope, is_transparent_union, syntax
+        * added has_negative_values in EnumType
+        * added in compound_info: compound_scope, is_transparent_union, syntax
 
-	* redesigned postpone_circular_* functions: they work on the
-	reference now and don't take the field anymore
+        * redesigned postpone_circular_* functions: they work on the
+        reference now and don't take the field anymore
 
 2006-11-14  Hendrik Tews  <tews@tandem.cs.ru.nl>
 
-	* added overload, virtuallyOverride, scope in Variable
-	* new circularity Variable.overload
+        * added overload, virtuallyOverride, scope in Variable
+        * new circularity Variable.overload
 
 2006-11-10  Hendrik Tews  <tews@tandem.cs.ru.nl>
 
-	* asttools adopted 
-	* regressions pass
+        * asttools adopted 
+        * regressions pass
 
 2006-11-08  Hendrik Tews  <tews@tandem.cs.ru.nl>
 
-	* completed merge with changes from
-	  smbase-484-ast-278-elkhound-1036-elsa-2439, a few issues are
-	  delayed/ignored for a while, see TODO
+        * completed merge with changes from
+          smbase-484-ast-278-elkhound-1036-elsa-2439, a few issues are
+          delayed/ignored for a while, see TODO
 
 2006-11-05  Hendrik Tews  <tews@localhost.localdomain>
 
-	* elsa compiles + non-ocaml regression tests
-	* new nullables:
-		TranslationUnit.globalScope
-		E_stringLit.fullTextNQ
-	* regression tests pass!
+        * elsa compiles + non-ocaml regression tests
+        * new nullables:
+                TranslationUnit.globalScope
+                E_stringLit.fullTextNQ
+        * regression tests pass!
 
 2006-11-04  Hendrik Tews  <tews@localhost.localdomain>
 
-	* smbase merged
-	* ast merged
-	* elkhound merged
-	* started merge
+        * smbase merged
+        * ast merged
+        * elkhound merged
+        * started merge
 
-	* vendor import from oink: smbase-484-ast-278-elkhound-1036-elsa-2439
-	* removed files from the vendor import
+        * vendor import from oink: smbase-484-ast-278-elkhound-1036-elsa-2439
+        * removed files from the vendor import
 
 2006-10-30  Hendrik Tews  <tews@tandem.cs.ru.nl>
 
-	* released version 0.2: elsa-2005.08.22b-olmar-2006.10.30 snapshot
+        * released version 0.2: elsa-2005.08.22b-olmar-2006.10.30 snapshot
 
-	* small release/snapshot fixes
+        * small release/snapshot fixes
 
-	* updated documentation
+        * updated documentation
 
 2006-10-27  Hendrik Tews  <tews@tandem.cs.ru.nl>
 
-	* fix ocaml -g 
-	* add docclean target
-	* prepare doc generation
+        * fix ocaml -g 
+        * add docclean target
+        * prepare doc generation
 
 2006-10-24  Hendrik Tews  <tews@tandem.cs.ru.nl>
 
-	* Taras Glek's bug fixed: iostream header yields a IN_expr with a
-	null expression (nullable IN_expr.e); seems to be a real elsa bug
+        * Taras Glek's bug fixed: iostream header yields a IN_expr with a
+        null expression (nullable IN_expr.e); seems to be a real elsa bug
 
 2006-10-23  Hendrik Tews  <tews@tandem.cs.ru.nl>
 
-	* use iterators for list serialization in hand written
-	serialization functions (obey left-to-right order)
+        * use iterators for list serialization in hand written
+        serialization functions (obey left-to-right order)
 
-	* fixed bug in ocaml serialization (FunctionType)
-	* added indentation in check-oast
+        * fixed bug in ocaml serialization (FunctionType)
+        * added indentation in check-oast
 
 2006-09-30  Hendrik Tews  <tews@tandem.cs.ru.nl>
 
-	* check-oast adopted; barfs on t0030.cc.oast
+        * check-oast adopted; barfs on t0030.cc.oast
 
 2006-09-30  Hendrik Tews  <tews@debian>
 
-	* ast_graph adopted
+        * ast_graph adopted
 
 2006-09-29  Hendrik Tews  <tews@debian>
 
-	* revert stupid ast_graph change
+        * revert stupid ast_graph change
 
 2006-09-29  Hendrik Tews  <tews@tandem.cs.ru.nl>
 
-	* adopted astiter, astiternodes, count-ast, ast_util, ast_graph
-	* ast_graph has some problem
+        * adopted astiter, astiternodes, count-ast, ast_util, ast_graph
+        * ast_graph has some problem
 
-	* regressiontests pass !!!
-	* changed Enumerator.enumValue to int32
-	* added int32 support to astgen
+        * regressiontests pass !!!
+        * changed Enumerator.enumValue to int32
+        * added int32 support to astgen
 
-	* changed default array designator value to -1; 
-	  add check for positive designators in check_designator_list
-	* more nullness stuff (results are added to the previous log entry)
-	
+        * changed default array designator value to -1; 
+          add check for positive designators in check_designator_list
+        * more nullness stuff (results are added to the previous log entry)
+        
 
 2006-09-27  Hendrik Tews  <tews@debian>
 
-	* regression test up to 857
-	
-	* nullable analysis for xml fields
-	  - fields with nullable assignment for which at least one
-	  regression test gives NULL
+        * regression test up to 857
+        
+        * nullable analysis for xml fields
+          - fields with nullable assignment for which at least one
+          regression test gives NULL
 
-	  TS_name.nondependentVar
-	  E_variable.nondependentVar
-	  Function.receiver
-	  Function.retVar
-	  E_throw.globalVar
-	  Handler.globalVar
-	  MemberInit.base
-	  MemberInit.ctorVar
-	  E_new.arraySize
-	  E_new.ctorVar
-	  E_new.heapVar
-	  MemberInit.member
-	  Variable.type	            IFF Variable.flags & DF_NAMESPACE
-	  E_constructor.ctorVar
-	  EnumType.name
-	  CompoundType.name
-	  CompoundType.instName
-	  BaseClassSpec.type
-	  E_variable.var
-	  PQ_qualifier.qualifierVar
-	  E_variable.type
-	  E_fieldAcc.field
-	  IN_ctor.ctorVar
-	  TS_name.var
-	  TS_elaborated.atype
-	  Declarator.var
-	  Declarator.type
-	  TranslationUnit.globalScope
-	  E_stringLit.fullTextNQ
-	  Scope.parentScope
-	  Scope.namespaceVar, 
-	  Scope.parameterizedEntity	
-	
-	  - fields without nullable comment, that happen to be null in at
-	  elast one regression test
+          TS_name.nondependentVar
+          E_variable.nondependentVar
+          Function.receiver
+          Function.retVar
+          E_throw.globalVar
+          Handler.globalVar
+          MemberInit.base
+          MemberInit.ctorVar
+          E_new.arraySize
+          E_new.ctorVar
+          E_new.heapVar
+          MemberInit.member
+          Variable.type             IFF Variable.flags & DF_NAMESPACE
+          E_constructor.ctorVar
+          EnumType.name
+          CompoundType.name
+          CompoundType.instName
+          BaseClassSpec.type
+          E_variable.var
+          PQ_qualifier.qualifierVar
+          E_variable.type
+          E_fieldAcc.field
+          IN_ctor.ctorVar
+          TS_name.var
+          TS_elaborated.atype
+          Declarator.var
+          Declarator.type
+          TranslationUnit.globalScope
+          E_stringLit.fullTextNQ
+          Scope.parentScope
+          Scope.namespaceVar, 
+          Scope.parameterizedEntity     
+        
+          - fields without nullable comment, that happen to be null in at
+          elast one regression test
 
-	  EnumType.typedefVar
-	  IN_expr.e
-	
-	* new circularity via
-	  Variable.varValue
-	
+          EnumType.typedefVar
+          IN_expr.e
+        
+        * new circularity via
+          Variable.varValue
+        
 
 2006-09-25  Hendrik Tews  <tews@tandem.cs.ru.nl>
 
-	AST
-	* added FF_PRIVAT flag for private fields that need to use an
-	accessor method; treat private fields in generated output
-	* added ObjList support into ListClass; however, ObjList's are not
-	collected into listClasses
-	* output generation for ObjList's in fields in three new CGen
-	methods: emitOcamlFromListOrComment, emitOcamlFromListsClass,
-	emitOcamlFromLists
-	* support unsigned_long and unsigned_int typdef's
+        AST
+        * added FF_PRIVAT flag for private fields that need to use an
+        accessor method; treat private fields in generated output
+        * added ObjList support into ListClass; however, ObjList's are not
+        collected into listClasses
+        * output generation for ObjList's in fields in three new CGen
+        methods: emitOcamlFromListOrComment, emitOcamlFromListsClass,
+        emitOcamlFromLists
+        * support unsigned_long and unsigned_int typdef's
 
-	ELSA
-	* enum DeclaratorContext moved from cc_tcheck.ast/gnu.ast into
-	cc_flags.h 
-	* use unsigned_long/int typedef in some xml fields
-	* added alias for cType/atomicType for fields that use a subclass;
-	this subtype information is lost in ocaml
+        ELSA
+        * enum DeclaratorContext moved from cc_tcheck.ast/gnu.ast into
+        cc_flags.h 
+        * use unsigned_long/int typedef in some xml fields
+        * added alias for cType/atomicType for fields that use a subclass;
+        this subtype information is lost in ocaml
 
 2006-09-19  Hendrik Tews  <tews@debian>
 
-	AST
-	* folded FieldOrCtorArg.{isOwner,nullable} into a flags field
-	* add xml* annotated fields in fields as well
-	* ocaml serialization takes xml* fields into account
+        AST
+        * folded FieldOrCtorArg.{isOwner,nullable} into a flags field
+        * add xml* annotated fields in fields as well
+        * ocaml serialization takes xml* fields into account
 
-	ELSA
-	* ocaml code is currently broken
+        ELSA
+        * ocaml code is currently broken
 
 2006-09-16  Hendrik Tews  <tews@debian>
 
-	* small documentation changes
+        * small documentation changes
 
 2006-09-14  Hendrik Tews  <tews@tandem.cs.ru.nl>
 
-	* added astgen generated ml files into cvs, tweak the tags
+        * added astgen generated ml files into cvs, tweak the tags
 
 2006-09-14  Hendrik Tews  <tews@debian>
 
-	* nullable analysis
-	  - fields with nullable comment (in original) for which at least
-	  one regression test gives NULL
+        * nullable analysis
+          - fields with nullable comment (in original) for which at least
+          one regression test gives NULL
 
-		TF_namespaceDefn.name
-		PQ_qualifier.qualifier
-		PQ_qualifier.templArgs
-		PQ_template.templArgs
-		TS_classSpec.name
-		TS_enumSpec.name
-		Enumerator.expr
-		S_return.expr
-		E_stringLit.continuation
-		E_new.ctorArgs
-		E_throw.expr
-		TemplateDeclaration.params
-		TemplateParameter.next
-		TP_type.defaultType
-		TemplateArgument.next
-		Declarator.init
-		D_name.name
-		D_func.exnSpec
-		D_array.size
-		D_bitfield.name
-		Function.dtorStatement
-		MemberInit.ctorStatement
-		Declarator.ctorStatement
-		Declarator.dtorStatement
-		Statement.ctorStatement
-		Handler.localArg
-		Handler.globalDtorStatement
-		E_funCall.retObj
-		E_constructor.retObj
-		E_new.ctorStatement
-		E_delete.dtorStatement
-		E_throw.globalCtorStatement
-		SubscriptDesignator.idx_expr2
-		Variable.name
-		Variable.value
-		Variable.defaultParamType
-		Variable.funcDefn
-		CompoundType.selfType
+                TF_namespaceDefn.name
+                PQ_qualifier.qualifier
+                PQ_qualifier.templArgs
+                PQ_template.templArgs
+                TS_classSpec.name
+                TS_enumSpec.name
+                Enumerator.expr
+                S_return.expr
+                E_stringLit.continuation
+                E_new.ctorArgs
+                E_throw.expr
+                TemplateDeclaration.params
+                TemplateParameter.next
+                TP_type.defaultType
+                TemplateArgument.next
+                Declarator.init
+                D_name.name
+                D_func.exnSpec
+                D_array.size
+                D_bitfield.name
+                Function.dtorStatement
+                MemberInit.ctorStatement
+                Declarator.ctorStatement
+                Declarator.dtorStatement
+                Statement.ctorStatement
+                Handler.localArg
+                Handler.globalDtorStatement
+                E_funCall.retObj
+                E_constructor.retObj
+                E_new.ctorStatement
+                E_delete.dtorStatement
+                E_throw.globalCtorStatement
+                SubscriptDesignator.idx_expr2
+                Variable.name
+                Variable.value
+                Variable.defaultParamType
+                Variable.funcDefn
+                CompoundType.selfType
 
-	- fields without nullable comment, that happen to be null in at
-	elast one regression test
+        - fields without nullable comment, that happen to be null in at
+        elast one regression test
 
-		Function.body
-		E_delete.expr         (reported to Scott on 6.6.2006)
-		FullExpression.expr   (reported to Scott on 6.6.2006)
-		NamedAtomicType.typedefVar (only inside PseudoInstantiation)
-
-
-	- fields that are always nonnull, 
-	  that that have a nullable comment, or should be null,
-
-		TP_type.name         (Scott 3.3.06: nonnull after typecheking)
-		D_func.kAndR_params
-		NamedAtomicType.name	
+                Function.body
+                E_delete.expr         (reported to Scott on 6.6.2006)
+                FullExpression.expr   (reported to Scott on 6.6.2006)
+                NamedAtomicType.typedefVar (only inside PseudoInstantiation)
 
 
-	* current circular pointers
-	
-		Variable.var_type
-		Variable.funcDefn
-		CompoundType.selfType	
+        - fields that are always nonnull, 
+          that that have a nullable comment, or should be null,
+
+                TP_type.name         (Scott 3.3.06: nonnull after typecheking)
+                D_func.kAndR_params
+                NamedAtomicType.name    
+
+
+        * current circular pointers
+        
+                Variable.var_type
+                Variable.funcDefn
+                CompoundType.selfType   
 
 
 
 2006-09-07  Hendrik Tews  <tews@tandem.cs.ru.nl>
 
-	* releast olmar-2006.09.07
+        * releast olmar-2006.09.07
 
-	* new ast_graph option -page
+        * new ast_graph option -page
 
-	* snapshot hackery
+        * snapshot hackery
 
 2006-09-07  Hendrik Tews  <tews@debian>
 
-	* minor_gc.html
+        * minor_gc.html
 
 2006-09-05  Hendrik Tews  <tews@tandem.cs.ru.nl>
 
-	* finshed index.html
+        * finshed index.html
 
 2006-09-04  Hendrik Tews  <tews@tandem.cs.ru.nl>
 
-	* snapshot devel
+        * snapshot devel
 
 2006-09-04  Hendrik Tews  <tews@debian>
 
-	* started asttools/doc/index.html
+        * started asttools/doc/index.html
 
 2006-09-04  Hendrik Tews  <tews@tandem.cs.ru.nl>
 
-	* added count-ast example
+        * added count-ast example
 
 2006-09-01  Hendrik Tews  <tews@tandem.cs.ru.nl>
 
-	* add license/copyright/comments
+        * add license/copyright/comments
 
-	* move semantic to asttools
+        * move semantic to asttools
 
-	* new option -inside for check-oast: descend into ast on error,
-	trying to locate the problem
+        * new option -inside for check-oast: descend into ast on error,
+        trying to locate the problem
 
 2006-08-29  Hendrik Tews  <tews@tandem.cs.ru.nl>
 
-	* rename ast/ast_util -> ast/astgen_util
+        * rename ast/ast_util -> ast/astgen_util
 
-	* bug hunting with ocaml-ty
+        * bug hunting with ocaml-ty
 
 2006-08-28  Hendrik Tews  <tews@tandem.cs.ru.nl>
 
-	* checked added/deleted files in the snapshot
+        * checked added/deleted files in the snapshot
 
 2006-08-24  Hendrik Tews  <tews@debian>
 
-	* develop snapshot script
+        * develop snapshot script
 
 2006-08-22  Hendrik Tews  <tews@debian>
 
-	* prepare for snapshot
+        * prepare for snapshot
 
 2006-08-22  Hendrik Tews  <tews@debian>
 
-	ELSA
-	* changed enum value field to nativeint
+        ELSA
+        * changed enum value field to nativeint
 
-	SEMANTIC
-	* fixed another dense set bug
-
-2006-08-21  Hendrik Tews  <tews@debian>
-
-	* configure/Makefile cleanup; use elsa configure system in
-	  semantic subdir
+        SEMANTIC
+        * fixed another dense set bug
 
 2006-08-21  Hendrik Tews  <tews@debian>
 
-	AST
-	* changed ocaml serialization to strict left-to-right order 
+        * configure/Makefile cleanup; use elsa configure system in
+          semantic subdir
 
-	SEMANTIC
-	* changed dot generation to strict left-to-right evaluation:
-	  graphs should be generated left-to-right
-	* added D_attribute case
+2006-08-21  Hendrik Tews  <tews@debian>
 
-2006-08-17  Hendrik Tews  <tews@debian>
+        AST
+        * changed ocaml serialization to strict left-to-right order 
 
-	ELSA
-	* D_attribute hack: gnu_attribute_hack.ast extends
-	  iDeclarator_type
-	* reordered classes in cc.ast Declarator/IDeclarator are at the
-	  end now
-	* D_attribute methods are in gnu.cc, callbacks are in
-	  ml_ctype_constructors 
-	
+        SEMANTIC
+        * changed dot generation to strict left-to-right evaluation:
+          graphs should be generated left-to-right
+        * added D_attribute case
 
 2006-08-17  Hendrik Tews  <tews@debian>
 
-	* changed to native ocaml compilation (still need to clean up
-	  Makefiles) 
+        ELSA
+        * D_attribute hack: gnu_attribute_hack.ast extends
+          iDeclarator_type
+        * reordered classes in cc.ast Declarator/IDeclarator are at the
+          end now
+        * D_attribute methods are in gnu.cc, callbacks are in
+          ml_ctype_constructors 
+        
 
-	ELSA
-	* fixed ocaml_val init in STemplateArgument
+2006-08-17  Hendrik Tews  <tews@debian>
 
-	Semantic
-	* ast_graph 36/40, regression tests finished
-	  the remaining 4 functions are not connected
+        * changed to native ocaml compilation (still need to clean up
+          Makefiles) 
 
-	* new regression test regtest-oast uses check-oast to typecheck
-	  the ocaml ast
-	* checked for all regression tests except big/*
+        ELSA
+        * fixed ocaml_val init in STemplateArgument
+
+        Semantic
+        * ast_graph 36/40, regression tests finished
+          the remaining 4 functions are not connected
+
+        * new regression test regtest-oast uses check-oast to typecheck
+          the ocaml ast
+        * checked for all regression tests except big/*
 
 2006-08-16  Hendrik Tews  <tews@debian>
 
-	ELSA
-	* ocaml_max_annotation for statistics
-	* added 'a to sTemplateArgument
+        ELSA
+        * ocaml_max_annotation for statistics
+        * added 'a to sTemplateArgument
 
-	SEMANTIC
-	* adoption and small fixes
-	
+        SEMANTIC
+        * adoption and small fixes
+        
 2006-08-16  Hendrik Tews  <tews@debian>
 
-	* ast_graph (32/40)
+        * ast_graph (32/40)
 
 2006-08-12  Hendrik Tews  <tews@debian>
 
-	* solved recursion problem with dense_set.ml
-	* ast_graph (24/40)
+        * solved recursion problem with dense_set.ml
+        * ast_graph (24/40)
 
 2006-08-11  Hendrik Tews  <tews@debian>
 
-	* ast_graph (21/40), hit recursion problem
+        * ast_graph (21/40), hit recursion problem
 
-	ELSA
-	* added string_of_ functions for some of the enums used in the ast
+        ELSA
+        * added string_of_ functions for some of the enums used in the ast
 
-	SEMANTIC
-	* ast_graph (20/40)
+        SEMANTIC
+        * ast_graph (20/40)
 
 2006-08-10  Hendrik Tews  <tews@debian>
 
-	ELSA
-	* accessor functions for annotation type
-	* string_of_declFlags
+        ELSA
+        * accessor functions for annotation type
+        * string_of_declFlags
 
-	SEMANTIC
-	* further ast_graph hacking (5/40)
+        SEMANTIC
+        * further ast_graph hacking (5/40)
 
 2006-08-09  Hendrik Tews  <tews@debian>
 
-	ELSA
-	* changed annotation type to int * int (id, addr >> 1)
-	
-	Semantic
-	* ast_graph started
+        ELSA
+        * changed annotation type to int * int (id, addr >> 1)
+        
+        Semantic
+        * ast_graph started
 
-	* adopted programs to changed ast
-	  dumpast : doesn't make sense for recursive asts
-	  hashloc : fails for cyclic ast's
+        * adopted programs to changed ast
+          dumpast : doesn't make sense for recursive asts
+          hashloc : fails for cyclic ast's
 
 2006-08-08  Hendrik Tews  <tews@debian>
 
-	ELSA
-	* 'a annotation finished, regression test passed
+        ELSA
+        * 'a annotation finished, regression test passed
 
 2006-08-08  Hendrik Tews  <tews@tandem.cs.ru.nl>
 
-	AST
-	* treat 'a in toOcaml
+        AST
+        * treat 'a in toOcaml
 
-	ELSA
-	* added annotation to some of the ctype/variable classes
+        ELSA
+        * added annotation to some of the ctype/variable classes
 
 2006-08-08  Hendrik Tews  <tews@debian>
 
-	AST
-	* added 'a to generated constructor callbacks
+        AST
+        * added 'a to generated constructor callbacks
 
-	ELSA
-	* fixed missing 'a for variable, cType and co
-	* started ast_annotation module
-
-2006-08-07  Hendrik Tews  <tews@debian>
-
-	AST
-	* make GrammarLexer backward compatible: elkhound can ignore
-	  second embedded processor
-	* ast option polymorphicOcamlAST takes options now: the list of
-	  types that need a 'a
+        ELSA
+        * fixed missing 'a for variable, cType and co
+        * started ast_annotation module
 
 2006-08-07  Hendrik Tews  <tews@debian>
 
-	* finished ocsstr processor
+        AST
+        * make GrammarLexer backward compatible: elkhound can ignore
+          second embedded processor
+        * ast option polymorphicOcamlAST takes options now: the list of
+          types that need a 'a
+
+2006-08-07  Hendrik Tews  <tews@debian>
+
+        * finished ocsstr processor
 
 2006-08-01  Hendrik Tews  <tews@debian>
 
-	AST
-	* support two embedded processors (for ocaml and c++) now
-	* start ocaml embedded processor in ocsstr.{h,cc}
+        AST
+        * support two embedded processors (for ocaml and c++) now
+        * start ocaml embedded processor in ocsstr.{h,cc}
 
 2006-07-31  Hendrik Tews  <tews@debian>
 
-	* started to implement/use polymorphic 'a in ast nodes before
-	hitting a more serious astgen lexing/parsing problem
-	
-	AST
-	* polymorphicOcamlAST option to add 'a in all ast nodes
+        * started to implement/use polymorphic 'a in ast nodes before
+        hitting a more serious astgen lexing/parsing problem
+        
+        AST
+        * polymorphicOcamlAST option to add 'a in all ast nodes
 
-	ESLA
-	* use polymorphicOcamlAST option 
+        ESLA
+        * use polymorphicOcamlAST option 
 
 2006-07-27  Hendrik Tews  <tews@debian>
 
-	ELSA
-	* finished caml roots debugging (regrtest passed)
+        ELSA
+        * finished caml roots debugging (regrtest passed)
 
 2006-07-27  Hendrik Tews  <tews@tandem.cs.ru.nl>
 
-	ELSA
-	* finished detach for CType and templates
-	* debug caml roots started
+        ELSA
+        * finished detach for CType and templates
+        * debug caml roots started
 
 2006-07-27  Hendrik Tews  <tews@debian>
 
-	AST:
-	* finished astgen detachOcaml generation
-	* added empty detach's for const types
+        AST:
+        * finished astgen detachOcaml generation
+        * added empty detach's for const types
 
-	ELSA
-	* added empty detach's for const types
-	* Variable::detachOcaml finished
-	* started detachOcaml in the CType hierarchy
+        ELSA
+        * added empty detach's for const types
+        * Variable::detachOcaml finished
+        * started detachOcaml in the CType hierarchy
 
 2006-07-26  Hendrik Tews  <tews@tandem.cs.ru.nl>
 
-	AST
-	* started detachOcaml
+        AST
+        * started detachOcaml
 
 2006-07-25  Hendrik Tews  <tews@debian>
 
-	ASTGEN
-	* moved ocaml_val into superclass (as protected)
-	
-	ELSA
-	* cleanup some debuging output
-	* the ocaml_val is only used in the following classes:
-	  CompoundType CVAtomicType CompoundType_info Function ReferenceType
-	  SimpleType Variable PointerType
-	* longgest circular list 5266 (in/big/nsHTMLEditRules.i regtest 985)
+        ASTGEN
+        * moved ocaml_val into superclass (as protected)
+        
+        ELSA
+        * cleanup some debuging output
+        * the ocaml_val is only used in the following classes:
+          CompoundType CVAtomicType CompoundType_info Function ReferenceType
+          SimpleType Variable PointerType
+        * longgest circular list 5266 (in/big/nsHTMLEditRules.i regtest 985)
 
 2006-07-25  Hendrik Tews  <tews@tandem.cs.ru.nl>
 
-	ELSA
-	* nullable Function.body (in/big/nsAtomTable.i)
-	* nullable NamedAtomicType.typedefVar (in/t0566.cc)
-	* serialize PseudoInstantiation, TypeVariable, STemplateArgument
-	* RENAMED STemplateArgument.value into sta_value
-	* regtests pass
+        ELSA
+        * nullable Function.body (in/big/nsAtomTable.i)
+        * nullable NamedAtomicType.typedefVar (in/t0566.cc)
+        * serialize PseudoInstantiation, TypeVariable, STemplateArgument
+        * RENAMED STemplateArgument.value into sta_value
+        * regtests pass
 
 2006-07-25  Hendrik Tews  <tews@debian>
 
-	ELSA
-	* variable.var_name might be void
-	* added EnumType::toOcaml
-	* regression tests up to 568
+        ELSA
+        * variable.var_name might be void
+        * added EnumType::toOcaml
+        * regression tests up to 568
 
 2006-07-24  Hendrik Tews  <tews@debian>
 
-	ELSA
-	* identified another circularity (containing Function*)
-	* regression tests up to 138
+        ELSA
+        * identified another circularity (containing Function*)
+        * regression tests up to 138
 
-	* started support for circular structures
-	  Potentially circular pointers get the ocaml type xxx option ref.
-	  First None is assigned and the pointer is enqueued in 
-	  postponed_circles in ToOcamlData. Later the pointer is
-	  serialized in finish_circular_pointers and the reference is
-	  updated with some Some x.
-	* identified two circurlar points until now (containing CType*)
+        * started support for circular structures
+          Potentially circular pointers get the ocaml type xxx option ref.
+          First None is assigned and the pointer is enqueued in 
+          postponed_circles in ToOcamlData. Later the pointer is
+          serialized in finish_circular_pointers and the reference is
+          updated with some Some x.
+        * identified two circurlar points until now (containing CType*)
 
 2006-07-20  Hendrik Tews  <tews@debian>
 
-	* remove new vendor files again
+        * remove new vendor files again
 
 2006-07-20  Hendrik Tews  <tews@localhost.localdomain>
 
-	ELSA
-	* rename Variable.value -> Variable.varValue (Variable.value
-	  clashes with ocaml value) 
-	* started ocaml serialization for Variable's
-	* hand translated variable type is mutually recursive with other
-	  astgen ast types. These recursive types are now in a separate
-	  ml_ctype.ast file, which is processed by astgen.
-	* some debugging changes to explore the backward pointer problem
-	  (will be undone later)	
+        ELSA
+        * rename Variable.value -> Variable.varValue (Variable.value
+          clashes with ocaml value) 
+        * started ocaml serialization for Variable's
+        * hand translated variable type is mutually recursive with other
+          astgen ast types. These recursive types are now in a separate
+          ml_ctype.ast file, which is processed by astgen.
+        * some debugging changes to explore the backward pointer problem
+          (will be undone later)        
 
 2006-06-21  Hendrik Tews  <tews@debian>
 
-	* fixed ocaml_val init bug
+        * fixed ocaml_val init bug
 
 2006-06-19  Hendrik Tews  <tews@tandem.cs.ru.nl>
 
-	AST
-	* remove elements from the ToOcamlData stack
+        AST
+        * remove elements from the ToOcamlData stack
 
-	ELSA
-	* ocaml serialization for CType's
-	* hand translation for the CType hierarchy
+        ELSA
+        * ocaml serialization for CType's
+        * hand translation for the CType hierarchy
 
-	* CompoundType::bases (which was of type const ObjList<BaseClass>)
-	  changed into non-const & protected
-	* use const ObjList<BaseClass> & get_bases() to access the bases
-	  list
+        * CompoundType::bases (which was of type const ObjList<BaseClass>)
+          changed into non-const & protected
+        * use const ObjList<BaseClass> & get_bases() to access the bases
+          list
 
-	* moved function calls out of caml_callback
-	* fixed init bug in Scope::Scope (from Scott)
-	
+        * moved function calls out of caml_callback
+        * fixed init bug in Scope::Scope (from Scott)
+        
 
 
 2006-05-15  Hendrik Tews  <tews@localhost.localdomain>
 
-	ELSA
-	* added non-closure assertions to hand written serialization funcs
+        ELSA
+        * added non-closure assertions to hand written serialization funcs
 
-	SEMANTIC
-	* adopted ml code to the changed ast
+        SEMANTIC
+        * adopted ml code to the changed ast
 
-	AST
-	* merged AnnotationField into CtorArg, renamed the latter into
-	FieldOrCtorArg
-	* added "field" marked fields to the ocaml ast
-	* added check in generated code that tests for the right number of
-	arguments for ocaml callbacks
-	* enabled nullable flag for fields
+        AST
+        * merged AnnotationField into CtorArg, renamed the latter into
+        FieldOrCtorArg
+        * added "field" marked fields to the ocaml ast
+        * added check in generated code that tests for the right number of
+        arguments for ocaml callbacks
+        * enabled nullable flag for fields
 
-	ELSA
-	* added nullable to all fields that might be NULL
+        ELSA
+        * added nullable to all fields that might be NULL
 
-	ALL
-	* added virtual destructors and other stuff to silence warning
+        ALL
+        * added virtual destructors and other stuff to silence warning
 
 2006-05-15  Hendrik Tews  <tews@debian>
 
-	AST
-	* new class AnnotationField in the ast.ast
-	* new field ASTClass.fields
-	* fields marked with the "field" modifier are cached in
-	ASTClass.fields, because we'll access them frequently in the ocaml
-	related code
-	* ASTClass.fields is initialized via the init_fields method, which
-	is called from within the parser (could also be done after
-	merging, but well ...), mergeClass merges the fields
+        AST
+        * new class AnnotationField in the ast.ast
+        * new field ASTClass.fields
+        * fields marked with the "field" modifier are cached in
+        ASTClass.fields, because we'll access them frequently in the ocaml
+        related code
+        * ASTClass.fields is initialized via the init_fields method, which
+        is called from within the parser (could also be done after
+        merging, but well ...), mergeClass merges the fields
 
 2006-05-12  Hendrik Tews  <tews@debian>
 
-	ELSA
-	* hashed sourcelocs finished
+        ELSA
+        * hashed sourcelocs finished
 
 2006-05-12  Hendrik Tews  <tews@localhost.localdomain>
 
-	AST:
-	* made ToOcamlData a forward decl in ocamlhelp.h; clients have to
-	define it
+        AST:
+        * made ToOcamlData a forward decl in ocamlhelp.h; clients have to
+        define it
 
-	ELSA:
-	* towards hashed sourceloc's; need to resolve caml init
+        ELSA:
+        * towards hashed sourceloc's; need to resolve caml init
 
 2006-05-11  Hendrik Tews  <tews@localhost.localdomain>
 
-	* finished astmap template
-	* finished hashloc utility
+        * finished astmap template
+        * finished hashloc utility
 
 2006-05-10  Hendrik Tews  <tews@localhost.localdomain>
 
-	* started astmap
+        * started astmap
 
-	* added ast iter template
-	* hashloc gives info about (non-) sharing of locations
+        * added ast iter template
+        * hashloc gives info about (non-) sharing of locations
 
 2006-05-10  Hendrik Tews  <tews@debian>
 
-	* added semantic dir and dumpast utility
+        * added semantic dir and dumpast utility
 
 2006-05-09  Hendrik Tews  <tews@debian>
 
-	ELSA:
-	* add -oc option to set file name for marshalled ocaml ast
-	* grepped all tracingSys's into doc/tracing-options.txt
+        ELSA:
+        * add -oc option to set file name for marshalled ocaml ast
+        * grepped all tracingSys's into doc/tracing-options.txt
 
 2006-05-09  Hendrik Tews  <tews@localhost.localdomain>
 
-	ELSA
-	* put callbacks for types from cc_flags into cc_ml_constructors.ml
-	* add a callback for marshalling (from ocaml into a file)
-	* marshal ocaml ast in x.ocaml-ast if -tr marshalOcaml
-	* rename marshall.... into marshal
+        ELSA
+        * put callbacks for types from cc_flags into cc_ml_constructors.ml
+        * add a callback for marshalling (from ocaml into a file)
+        * marshal ocaml ast in x.ocaml-ast if -tr marshalOcaml
+        * rename marshall.... into marshal
 
 2006-05-08  Hendrik Tews  <tews@debian>
 
-	AST:
-	* divide ocaml material into the type definition (goes into
-	xx_type.ml) and the other material (goes into xx.ml); adjust
-	Makefiles accordingly
+        AST:
+        * divide ocaml material into the type definition (goes into
+        xx_type.ml) and the other material (goes into xx.ml); adjust
+        Makefiles accordingly
 
 2006-05-04  Hendrik Tews  <tews@penguin.cs.kun.nl>
 
-	* timing and GC experiments
+        * timing and GC experiments
 
 2006-05-03  Hendrik Tews  <tews@debian>
 
-	* nullable comment that has not been triggered: TP_type.name
-	
-	* nullpointer exception without nullable comment:
-	PQ_qualifier.templArgs
-	PQ_template.templArgs
-	E_stringLit.continuation
-	E_delete.expr
-	FullExpression.expr
-	TemplateDeclaration.params
-	TemplateArgument.next
-	
+        * nullable comment that has not been triggered: TP_type.name
+        
+        * nullpointer exception without nullable comment:
+        PQ_qualifier.templArgs
+        PQ_template.templArgs
+        E_stringLit.continuation
+        E_delete.expr
+        FullExpression.expr
+        TemplateDeclaration.params
+        TemplateArgument.next
+        
 
 2006-05-03  Hendrik Tews  <tews@ithif59.inf.tu-dresden.de>
 
-	ELSA:
-	* use TRACE env var in regrtest 
-	* add another 13 nullable's
-	* regression test pass now with ocaml serialization !!
+        ELSA:
+        * use TRACE env var in regrtest 
+        * add another 13 nullable's
+        * regression test pass now with ocaml serialization !!
 
 2006-05-03  Hendrik Tews  <tews@debian>
 
-	AST:
-	* pointerType option to register nullable pointer types like
-	  StringRef; all these pointer types are stored in the 
-	  new global StringSet pointerTypes 
-	* configured OCAMLC to avoid perl warning
+        AST:
+        * pointerType option to register nullable pointer types like
+          StringRef; all these pointer types are stored in the 
+          new global StringSet pointerTypes 
+        * configured OCAMLC to avoid perl warning
 
-	ELSA:
-	* fixed null pointer problem in PQ_qualifier, FullExpression
-	
+        ELSA:
+        * fixed null pointer problem in PQ_qualifier, FullExpression
+        
 
 2006-05-02  Hendrik Tews  <tews@penguin.cs.kun.nl>
 
-	SMBASE:
-	* deleted to nullable define
-	
-	AST: 
-	* added nullable flag to contructor arguments
-	  + ast syntax: astclass(nullable ... )
-	  + checked for in parseCtorArg (together with owner)
-	* ocaml marshalling translates nullable into option types
-	* assertion checks for nullable fields in constructors are
-	  disabled for the moment (seems some fields are filled in later)
-	* astgen: new assertNonNullCtorArgs to emit assertion checks in
-	  constructors (not used at the moment)
-	* astgen: new ocaml_arg_list simplifies code for marshalling
-	  childs
-	* configure detects ocaml (for ocamlhelp.cc)
-	* added option_some_constr for (Some x) to ocamlhelp.{h,cc}
+        SMBASE:
+        * deleted to nullable define
+        
+        AST: 
+        * added nullable flag to contructor arguments
+          + ast syntax: astclass(nullable ... )
+          + checked for in parseCtorArg (together with owner)
+        * ocaml marshalling translates nullable into option types
+        * assertion checks for nullable fields in constructors are
+          disabled for the moment (seems some fields are filled in later)
+        * astgen: new assertNonNullCtorArgs to emit assertion checks in
+          constructors (not used at the moment)
+        * astgen: new ocaml_arg_list simplifies code for marshalling
+          childs
+        * configure detects ocaml (for ocamlhelp.cc)
+        * added option_some_constr for (Some x) to ocamlhelp.{h,cc}
 
-	ELSA:
-	* successfully run regression tests
-	* added -ocaml option to regrtest to run test with ocaml
-	  marshalling
-	* started nullable debugging with regrtest -ocaml (9 nullable
-	  added so far, one undocumented)
+        ELSA:
+        * successfully run regression tests
+        * added -ocaml option to regrtest to run test with ocaml
+          marshalling
+        * started nullable debugging with regrtest -ocaml (9 nullable
+          added so far, one undocumented)
 
 2006-05-01  Hendrik Tews  <tews@penguin.cs.kun.nl>
 
-	* renamed Type into CType
+        * renamed Type into CType
 
-	* fixed bug in elkhound grammar: Tok_ARROW for "->"
-	* astgen: generated ml does not register callbacks during module
-	init
-	* fixed caml include problem: extern "C"
-	* added ocaml things to configure/sm_config and elsa/Makefile.in
-	* invoke caml marshalling for sysTrace marshallToOcaml
-	* does segfault deep in the ast
+        * fixed bug in elkhound grammar: Tok_ARROW for "->"
+        * astgen: generated ml does not register callbacks during module
+        init
+        * fixed caml include problem: extern "C"
+        * added ocaml things to configure/sm_config and elsa/Makefile.in
+        * invoke caml marshalling for sysTrace marshallToOcaml
+        * does segfault deep in the ast
 
 2006-04-30  Hendrik Tews  <tews@debian>
 
-	* small fixes in astgen
-	* modified elsa ast for ocaml serialization
-	* started elsa configuration for ocaml
+        * small fixes in astgen
+        * modified elsa ast for ocaml serialization
+        * started elsa configuration for ocaml
 
-	* changed list allocation in ..._from_list functions, use
-	  caml_alloc and Store_field now
+        * changed list allocation in ..._from_list functions, use
+          caml_alloc and Store_field now
 
 2006-04-28  Hendrik Tews  <tews@debian>
 
-	* added ocaml_from_SourceLoc
+        * added ocaml_from_SourceLoc
 
 2006-04-28  Hendrik Tews  <tews@penguin.cs.kun.nl>
 
-	* ocaml serialization almost finished: only ocaml_from_SourceLoc
-	  is missing
-	* added getPtrBase to astgen.cc to extract pointer base type
-	* simplified ocaml_from_function
-	* treat FakeList pointers correcly
-	* new file ocamlhelp.cc as implementation of ocamlhelp.h
-	* new files cc_ocaml.* in test to support elsa's enum types
-	* added ocaml_from_ functions for all those enum types 
-	  (this includes lots of callbacks and huge switches)
+        * ocaml serialization almost finished: only ocaml_from_SourceLoc
+          is missing
+        * added getPtrBase to astgen.cc to extract pointer base type
+        * simplified ocaml_from_function
+        * treat FakeList pointers correcly
+        * new file ocamlhelp.cc as implementation of ocamlhelp.h
+        * new files cc_ocaml.* in test to support elsa's enum types
+        * added ocaml_from_ functions for all those enum types 
+          (this includes lots of callbacks and huge switches)
 
-	* finish the commit message less hack started on April 24:
-	  most of ocaml serialization is done, still missing: functions for
-	  basis types, list functions for non-class elements,
-	  serialization of enums.
-	* added TAGS goal to ast/Makefile.in
-	* permit ast files with ``-'' in the name
-	* restructured callback name generation in ocaml_node_callback
-	* simplified is_cyclic
-	* put ocaml helpers in separate file: ocamlhelp.h
-	* ocaml serialization (aka converting the ast into an ocaml
-	variant type)
-	  - all the changes describes in the following are only visible if
-	    the ast requests the ocamlVisitor (which switches wantOcaml
-	    on)
+        * finish the commit message less hack started on April 24:
+          most of ocaml serialization is done, still missing: functions for
+          basis types, list functions for non-class elements,
+          serialization of enums.
+        * added TAGS goal to ast/Makefile.in
+        * permit ast files with ``-'' in the name
+        * restructured callback name generation in ocaml_node_callback
+        * simplified is_cyclic
+        * put ocaml helpers in separate file: ocamlhelp.h
+        * ocaml serialization (aka converting the ast into an ocaml
+        variant type)
+          - all the changes describes in the following are only visible if
+            the ast requests the ocamlVisitor (which switches wantOcaml
+            on)
 
-	  - ocaml serialization can't be done with one of the visitors for
-	    two reasons:
-	    (1) all the visitors return void (instead of a template T)
-	    (2) the post visit methods do not have access to the return
-	    values of the post visit methods of the child nodes.
+          - ocaml serialization can't be done with one of the visitors for
+            two reasons:
+            (1) all the visitors return void (instead of a template T)
+            (2) the post visit methods do not have access to the return
+            values of the post visit methods of the child nodes.
 
-	    I therfore decided to add another tree traversal method
-	    "toOcaml" solely for the purpose of ocaml serialization. All
-	    toOcaml methods have a parameter ToOcamlData (which is passed
-	    down during traversal) that contains a SObjSet<const void *>
-	    of ast nodes to detect cycles in the ast.
-	    [ I plan to use the ToOcamlData for some statistics as well ]
+            I therfore decided to add another tree traversal method
+            "toOcaml" solely for the purpose of ocaml serialization. All
+            toOcaml methods have a parameter ToOcamlData (which is passed
+            down during traversal) that contains a SObjSet<const void *>
+            of ast nodes to detect cycles in the ast.
+            [ I plan to use the ToOcamlData for some statistics as well ]
 
-	    The general approach is as follows: first convert all direct
-	    childs into ocaml values, then take these and call a ocaml
-	    function that builds the right ocaml ast node. One could build
-	    the value without calling into ocaml, however, this requires
-	    to fiddle with the not-so-trivial encoding of ocaml
-	    constructors. For basic types like int's and strings I'll use
-	    extra utility functions.
+            The general approach is as follows: first convert all direct
+            childs into ocaml values, then take these and call a ocaml
+            function that builds the right ocaml ast node. One could build
+            the value without calling into ocaml, however, this requires
+            to fiddle with the not-so-trivial encoding of ocaml
+            constructors. For basic types like int's and strings I'll use
+            extra utility functions.
 
-	    The declaration of toOcaml is emited in emitCommonFuncs.
+            The declaration of toOcaml is emited in emitCommonFuncs.
 
-	    For classes with children toOcaml is virtual and pure in the
-	    super class.
+            For classes with children toOcaml is virtual and pure in the
+            super class.
 
-	    For list classes there is one function per element class name
-	    that converts such a list into an ocaml list. This function
-	    starts at the end of the list, converts its contents and
-	    builds up an ocaml list in parallel. Lists are not shared in
-	    the ast, so no provisions to reflect sharing is necessary.
-	
-	  - additional includes and common utility functions come from
-	    ocamlhelp.h (in the spirit of asthelp.h)
-	
-	  - to reflect sharing all ast nodes save their ocaml value in the
-	    private "ocaml_val", which of course must be properly
-	    initialized and recored as global root as soon it gets a
-	    non-zero value. The ocaml_val sits only in subclass nodes or
-	    in super classes that don't have children.
-	    [ If there is not much sharing in the C++ ast's I might remove
-	    this later. If it stays will eventually need a visitor
-	    clearing ocaml_val and unregistering as global root. ]
+            For list classes there is one function per element class name
+            that converts such a list into an ocaml list. This function
+            starts at the end of the list, converts its contents and
+            builds up an ocaml list in parallel. Lists are not shared in
+            the ast, so no provisions to reflect sharing is necessary.
+        
+          - additional includes and common utility functions come from
+            ocamlhelp.h (in the spirit of asthelp.h)
+        
+          - to reflect sharing all ast nodes save their ocaml value in the
+            private "ocaml_val", which of course must be properly
+            initialized and recored as global root as soon it gets a
+            non-zero value. The ocaml_val sits only in subclass nodes or
+            in super classes that don't have children.
+            [ If there is not much sharing in the C++ ast's I might remove
+            this later. If it stays will eventually need a visitor
+            clearing ocaml_val and unregistering as global root. ]
 
-	  - new methods emitToOcamlChilds, emitToOcaml, emitOcamlFromList
-	    in CGen to emit the serialisation code.
+          - new methods emitToOcamlChilds, emitToOcaml, emitOcamlFromList
+            in CGen to emit the serialisation code.
 
-	    emitToOcamlChilds converts a CtorArg list in to recursive
-	                      serialization calls
-	    emitToOcaml       emits the def of toOcaml
-	    emitOcamlFromList emits the serialization function for a list
-	                      class
+            emitToOcamlChilds converts a CtorArg list in to recursive
+                              serialization calls
+            emitToOcaml       emits the def of toOcaml
+            emitOcamlFromList emits the serialization function for a list
+                              class
 
-	  - list conversion function are put first into the cc file,
-	    because they are called from the toOcaml methods.
+          - list conversion function are put first into the cc file,
+            because they are called from the toOcaml methods.
 
-	  - toOcaml is emitted after clone.
-	
+          - toOcaml is emitted after clone.
+        
 2006-04-22  Hendrik Tews  <tews@debian>
 
-	* moved topicComment from OTGen to Gen
-	* added support for multiline comments
-	* declare a toOcaml traversal function in data classes
-	* add necessary ocaml includes and util types
-	* added simingly missing XMLPRINT_CSTRING
+        * moved topicComment from OTGen to Gen
+        * added support for multiline comments
+        * declare a toOcaml traversal function in data classes
+        * add necessary ocaml includes and util types
+        * added simingly missing XMLPRINT_CSTRING
 
 2006-04-14  Hendrik Tews  <tews@debian>
 
-	* use fixed translate
+        * use fixed translate
 
-	* fix strutil/translate bugs, add test frame test/translate.cc
+        * fix strutil/translate bugs, add test frame test/translate.cc
 
-	* added callback registration
+        * added callback registration
 
 2006-04-13  Hendrik Tews  <tews@debian>
 
-	* added constructor callback definitions
+        * added constructor callback definitions
 
 2006-04-11  Hendrik Tews  <tews@debian>
 
-	* fixed problem with cyclic classes like AttributeSpecifier and
-	  AttributeSpecifierList; I generate a variant type now instead of
-	  an type equation. 
+        * fixed problem with cyclic classes like AttributeSpecifier and
+          AttributeSpecifierList; I generate a variant type now instead of
+          an type equation. 
 
-	* generate ocaml type defs for ast's:
-	  - ast changes:
-	    + ocaml_type_verbatim section to be included in the ocaml type
-	      def file
-	    + option ocamlVisitor to request the generation of the ocaml
-	      interface 
-	  - new subclass TF_ocaml_type_verbatim for ocaml_type_verbatim
-	  - adopted parser/lexer for TF_ocaml_type_verbatim
-	  - factor out comment syntax in Gen, to produce ocaml comments 
-	  - new class OTGen to generate the ocaml code 
-	  - added one assertion to extractListType
+        * generate ocaml type defs for ast's:
+          - ast changes:
+            + ocaml_type_verbatim section to be included in the ocaml type
+              def file
+            + option ocamlVisitor to request the generation of the ocaml
+              interface 
+          - new subclass TF_ocaml_type_verbatim for ocaml_type_verbatim
+          - adopted parser/lexer for TF_ocaml_type_verbatim
+          - factor out comment syntax in Gen, to produce ocaml comments 
+          - new class OTGen to generate the ocaml code 
+          - added one assertion to extractListType
 

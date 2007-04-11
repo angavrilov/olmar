@@ -8,6 +8,7 @@ GENERAL
 
 * do without SK_UNKNOWN (post 9 dec 2006 by smcpeak on oink-devel)
 
+* do Variable::templateInfo, TemplateInfo
 
 * elsa merge plan:
   - renamings varValue, sta_value, CType

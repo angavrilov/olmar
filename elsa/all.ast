@@ -1386,7 +1386,7 @@ class Statement {
 
   -> S_case {
        // the case label must be an integer; this its value
-       public(xml) int labelVal = 0;
+       public(xml) int32 labelVal = 0;
      }
 }
 

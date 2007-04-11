@@ -75,7 +75,7 @@ and 'a operatorName_type =
 and 'a statement_type = 
   | S_skip of 'a * sourceLoc 
   | S_label of 'a * sourceLoc * stringRef * 'a statement_type 
-  | S_case of 'a * sourceLoc * 'a expression_type * 'a statement_type * int 
+  | S_case of 'a * sourceLoc * 'a expression_type * 'a statement_type * int32 
   | S_default of 'a * sourceLoc * 'a statement_type 
   | S_expr of 'a * sourceLoc * 'a fullExpression_type 
   | S_compound of 'a * sourceLoc * 'a statement_type list 
