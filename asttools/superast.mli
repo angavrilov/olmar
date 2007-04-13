@@ -55,4 +55,12 @@ type 'a super_ast =
 val into_array : 
   int -> annotated translationUnit_type -> annotated super_ast array
 
-val load_marshalled_ast : string -> annotated super_ast array
+val load_marshalled_ast : string -> int * annotated translationUnit_type
+
+val load_marshalled_ast_array : string -> annotated super_ast array
+
+val iter : 
+  (annotated super_ast -> unit) -> annotated super_ast array -> unit
+
+val iteri : 
+  (int -> annotated super_ast -> unit) -> annotated super_ast array -> unit

@@ -30,9 +30,14 @@ open Ast_util
    not done: 31, 34, 35,
  *)
 
+(* some global variables *)
 let oc = ref stdout;;
 
+let print_node = ref (Array.create 0 false)
+
 let print_caddr = ref false
+
+
 
 module DS = Dense_set
 
@@ -116,17 +121,22 @@ let caddr_label caddr =
 let ast_node color annot name (labels :(string*string) list) childs =
   let id = id_annotation annot
   in
-    start_label name color id;
-    List.iter any_label 
-      (if !print_caddr then
-	 labels @ [(caddr_label (caddr_annotation annot))]
-       else
-	 labels);
-    finish_label ();
-    child_edges id childs;
-    (* the return value must be the same as retval annot: *)
-    (* assert(id = retval annot); *)
-    id
+    if !print_node.(id) 
+    then begin
+      start_label name color id;
+      List.iter any_label 
+	(if !print_caddr then
+	   labels @ [(caddr_label (caddr_annotation annot))]
+	 else
+	   labels);
+      finish_label ();
+      child_edges id childs;
+      (* the return value must be the same as retval annot: *)
+      (* assert(id = retval annot); *)
+      id
+    end
+    else
+      id
 
 
 let retval annot = id_annotation annot
@@ -1610,8 +1620,19 @@ let size_flag = ref false
 
 let dot_page_attribute = ref ""
 
+let print_node_arg = ref None
+
+let diameter_arg = ref 10
+
+let set_print_node i = print_node_arg := Some i
+
+
 let arguments = Arg.align
   [
+    ("-node", Arg.Int set_print_node,
+     "node_id restrict output to node node_id");
+    ("-dia", Arg.Set_int diameter_arg,
+     "n set diameter around printed node");
     ("-o", Arg.Set_string out_file,
      "file set output file name [default nodes.dot]");
     ("-size", Arg.Set size_flag,
@@ -1645,6 +1666,38 @@ let anonfun fn =
       file_set := true
     end
 
+
+let print_this_node i = !print_node.(i) <- true
+
+let mark_all_nodes () =
+  for i = 0 to Array.length !print_node -1 do
+    print_this_node i
+  done
+
+
+
+
+let rec mark_node_diameter up down diameter i =
+  if not !print_node.(i) then begin
+    Printf.eprintf "mark %d%!\n" i;
+    print_this_node i;
+    if diameter > 0 then begin
+      List.iter (mark_node_diameter up down (diameter -1)) up.(i);
+      List.iter (mark_node_diameter up down (diameter -1)) down.(i)
+    end
+  end
+  else
+    Printf.eprintf "skip %d%!\n" i
+
+
+
+let mark_nodes up down =
+  match !print_node_arg with
+    | None -> mark_all_nodes ()
+    | Some i -> mark_node_diameter up down !diameter_arg i
+
+
+
 let start_file infile =
   output_string !oc "digraph ";
   Printf.fprintf !oc "\"%s\"" infile;
@@ -1670,16 +1723,19 @@ let main () =
   Arg.parse arguments anonfun usage_msg;
   if not !file_set then
     usage();				(* does not return *)
-  let ic = open_in !file in
   let ofile = 
     if !out_file <> "" 
     then !out_file
     else "nodes.dot"
   in
   let _ = oc := open_out (ofile) in
-  let _ = Oast_header.read_header ic in
-  let ast = (Marshal.from_channel ic : annotated translationUnit_type)
+  let (max_node, ast) = Superast.load_marshalled_ast !file in
+  let ast_array = Superast.into_array max_node ast in
+  let (up, down) = Uplinks.create ast_array in
+  let print_node_array = Array.create (max_node +1) false
   in
+    print_node := print_node_array;
+    mark_nodes up down;
     start_file !file;
     ignore(translationUnit_fun ast);
     finish_file ();

@@ -7,13 +7,14 @@
 
 # use the first goal for development, for release put it in comment and use all
 
+#first: uplinks.cmo
 #first: astmatch.cmo
 #first: check_oast_byte
 #first: check_oast
 #first: astiter.cmo
 #first: astiternodes.cmo
 #first: count-ast-new count-ast
-#first: ast_graph
+first: ast_graph
 #first: hashloc
 #first: test_ast
 #first: path_to_node.cmo
@@ -36,7 +37,7 @@ CAMLP4O  := camlp4o
 
 OCAML_OBJ_EXT := @OCAML_OBJ_EXT@
 OCAML_LIB_EXT := @OCAML_LIB_EXT@
-OCAML_FLAGS := -w Ae
+OCAML_FLAGS := -w Aez
 OCAML_BYTE_FLAGS := -g
 
 .PHONY: all
@@ -98,6 +99,8 @@ ASTGRAPH_ML=\
 	$(ELSA)/oast_header_version.ml \
 	$(ELSA)/oast_header.ml \
 	ast_util.ml \
+	superast.ml \
+	uplinks.ml \
 	ast_graph.ml
 
 TOCLEAN += ast_graph

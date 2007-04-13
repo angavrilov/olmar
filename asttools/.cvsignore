@@ -9,6 +9,7 @@ check_oast_byte
 config.status
 config.summary
 count-ast
+count-ast-new
 dumpast
 elsa_ast_type_descr.ml
 hashloc

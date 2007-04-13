@@ -1209,11 +1209,26 @@ let load_marshalled_ast file =
   in
     try
       let max_node = Oast_header.read_header ic in
-      let ast = (Marshal.from_channel ic : annotated translationUnit_type) in
-      let ast_array = into_array max_node ast
+      let ast = (Marshal.from_channel ic : annotated translationUnit_type)
       in
 	close_in ic;
-	ast_array
+	(max_node, ast)
     with
       | x -> close_in ic; raise x
     
+
+let load_marshalled_ast_array file =
+  let (max_node, ast) = load_marshalled_ast file
+  in
+    into_array max_node ast
+
+let iter f ast_array =
+  for i = 1 to (Array.length ast_array -1) do
+    f ast_array.(i)
+  done
+
+let iteri f ast_array =
+  for i = 1 to (Array.length ast_array -1) do
+    f i ast_array.(i)
+  done
+

@@ -1,0 +1,27 @@
+# this is a -*- sh -*- file
+
+ast_files_1_1=$(ls ../elsa/in/t*.oast)
+ast_files_1_2=$(ls ../elsa/in/d*.oast)
+ast_files_1_3=$(ls ../elsa/in/k*.oast)
+ast_files_1_4=$(ls ../elsa/in/s*.oast)
+ast_files_1="$ast_files_1_1 $ast_files_1_2 $ast_files_1_3 $ast_files_1_4"
+ast_files_2=$(ls ../elsa/in/c/t*.oast)
+ast_files_3=$(ls ../elsa/in/c/d*.oast)
+ast_files_4=$(ls ../elsa/in/c/k*.oast)
+ast_files_5=$(ls ../elsa/in/c99/*.oast)
+ast_files_6=$(ls ../elsa/in/gnu/bugs/*.oast)
+ast_files_7=$(ls ../elsa/in/gnu/cil/*.oast)
+ast_files_8_1=$(ls ../elsa/in/gnu/g*.oast)
+ast_files_8_2=$(ls ../elsa/in/gnu/a*.oast)
+ast_files_8_3=$(ls ../elsa/in/gnu/c*.oast)
+ast_files_8_4=$(ls ../elsa/in/gnu/d*.oast)
+ast_files_8_5=$(ls ../elsa/in/gnu/k*.oast)
+ast_files_8_6=$(ls ../elsa/in/gnu/t*.oast)
+ast_files_8="$ast_files_8_1 $ast_files_8_2 $ast_files_8_3 $ast_files_8_4 $ast_files_8_5 $ast_files_8_6"
+ast_files_10=$(ls ../elsa/in/kandr/*.oast)
+ast_files_11=$(ls ../elsa/in/msvc/*.oast)
+ast_files_12=$(ls ../elsa/in/std/*.oast)
+ast_files_13=$(ls ../elsa/in/big/*.oast)
+
+ast_files="$ast_files_1 $ast_files_2 $ast_files_3 $ast_files_4 $ast_files_5 $ast_files_6 $ast_files_7 $ast_files_8 $ast_files_9 $ast_files_10 $ast_files_11 $ast_files_12 $ast_files_13"
+

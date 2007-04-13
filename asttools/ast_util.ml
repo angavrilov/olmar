@@ -137,6 +137,9 @@ let iDeclarator_annotation = function
   | D_attribute(annot, _, _, _)
     -> annot
 
+let fullExpressionAnnot_annotation ((annot, _) : 'a fullExpressionAnnot_type) =
+  annot
+
 let exceptionSpec_annotation ((annot, _) : 'a exceptionSpec_type) = annot
 
 let operatorName_annotation = function

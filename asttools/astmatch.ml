@@ -209,6 +209,12 @@ let ast_node_fun = function
       annotation_fun annot;
 
   | Scope scope ->
+      Hashtbl.iter 
+	(fun str _var -> string_fun str)
+	scope.variables;
+      Hashtbl.iter
+	(fun str _var -> string_fun str)
+	scope.type_tags;
       scopeKind_fun scope.scope_kind
 
   | TranslationUnit_type((annot, topForm_list, scope_opt) 
