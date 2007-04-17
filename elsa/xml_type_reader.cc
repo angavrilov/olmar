@@ -613,7 +613,7 @@ void XmlTypeReader::registerAttr_EnumType_Value
   default: xmlUserFatalError("illegal attribute for a EnumType"); break;
   case XTOK_name: obj->name = manager->strTable(strValue); break;
   case XTOK_type: ul(type, XTOK_EnumType); break; // NOTE: 'type' here is actually an atomic type
-  case XTOK_varValue: fromXml_int(obj->value, strValue); break;
+  case XTOK_varValue: fromXml_int(obj->val_value, strValue); break;
   case XTOK_decl: ul(decl, XTOK_Variable); break;
   }
 }

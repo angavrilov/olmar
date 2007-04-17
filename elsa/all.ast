@@ -2636,6 +2636,8 @@ and 'a compound_info = {
 (* tS_classSpec_type is a typeSpecifier_type built with TS_classSpec *)
 and 'a tS_classSpec_type = 'a typeSpecifier_type
 
+and 'a enumType_Value_type = 'a * string * nativeint
+
 and 'a atomicType = 
     (* the subtype NamedAtomicType contains the following constructors:
      * CompoundType, PseudoInstantiation, EnumType, TypeVariable, 
@@ -2664,7 +2666,7 @@ and 'a atomicType =
        *    ignore the next value field 
        *)
   | EnumType of 'a * string option * 'a variable option * accessKeyword * 
-      (string * nativeint) list * bool
+      'a enumType_Value_type list * bool
 
       (* TypeVariable( user given name, ?, public/protected)  *)
   | TypeVariable of 'a * string * 'a variable * accessKeyword

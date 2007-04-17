@@ -110,6 +110,11 @@ let create_compound_info_constructor
     self_type = self_type
   }
 
+(* type enumType_Value *)
+let create_EnumType_Value_constructor poly name value = 
+  ((poly, name, value) : 'a enumType_Value_type)
+
+
 (* type atomicType *)
 
 let create_atomic_SimpleType_constructor poly sid = SimpleType(poly, sid)
@@ -207,6 +212,10 @@ let register_ml_ctype_constructor_callbacks () =
   (* from compound_info *)
   Callback.register "create_compound_info_constructor" 
     create_compound_info_constructor;
+
+  (* from enumType_Value *)
+  Callback.register "create_EnumType_Value_constructor" 
+    create_EnumType_Value_constructor;
 
   (* from atomicType *)
   Callback.register "create_atomic_SimpleType_constructor" 

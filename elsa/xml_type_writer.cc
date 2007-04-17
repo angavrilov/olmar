@@ -505,7 +505,7 @@ void XmlTypeWriter::toXml_EnumType_Value(void /*EnumType::Value*/ *eValue0) {
     // **** attributes
     printStrRef(name, eValue->name);
     printPtr(eValue, type);
-    printXml_int(value, eValue->value);
+    printXml_int(value, eValue->val_value);
 
     // quarl 2006-05-31
     //    'decl' might be pointing at a Variable A which we have linked with

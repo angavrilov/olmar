@@ -27,6 +27,8 @@ public:     // types
   typedef bool (*ForeachFn)(string const &key, T * /*serf*/ value, void *extra);
 
   // external iterator
+  // HT: Need a non-const iterator in ocaml reflection.
+  // For now I use Iter and cast the constness away later.
   class Iter {
   private:
     StringVoidDict::IterC iter;

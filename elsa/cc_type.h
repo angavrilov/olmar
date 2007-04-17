@@ -604,10 +604,13 @@ class EnumType : public NamedAtomicType {
 public:     // types
   // represent a single value in an enum
   class Value {
+  protected: // data
+    value ocaml_val;          // cache ocaml serialization result
+
   public:
     StringRef name;           // the thing whose name is being defined
     EnumType *type;           // enum in which it was declared
-    int value;                // value it's assigned to
+    int val_value;                // value it's assigned to
 
     // similar to fields, I keep a record of where this came from
     Variable *decl;           // (nullable serf)
@@ -615,6 +618,11 @@ public:     // types
   public:
     Value(StringRef n, EnumType *t, int v, Variable *d);
     ~Value();
+
+  public:  // funcs
+    // ocaml serialization method
+    value toOcaml(ToOcamlData *);
+    void detachOcaml();
   };
 
 public:     // data

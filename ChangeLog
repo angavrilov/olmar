@@ -1,3 +1,14 @@
+2007-04-17  Hendrik Tews  <tews@tandem.cs.ru.nl>
+
+        Elsa:
+        * make EnumType::Value a proper ast node with its own annotation
+        * added ocaml reflection code to EnumType::Value, adopt the code
+          for EnumType accordingly
+        * need a const_cast for the iteration over EnumType::Value,
+          because there is only a const StringObjDict iterator
+        * renamed EnumType::Value::value into val_value
+        * move functions to read and write the ast into oast_header
+
 2007-04-13  Hendrik Tews  <tews@tandem.cs.ru.nl>
 
         * new count-ast regression test in asttools

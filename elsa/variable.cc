@@ -761,7 +761,7 @@ int Variable::getEnumeratorValue() const
   EnumType *et = type->asCVAtomicType()->atomic->asEnumType();
   EnumType::Value const *val = et->getValue(name);
   xassert(val);    // otherwise the type information is wrong..
-  return val->value;
+  return val->val_value;
 }
 
 

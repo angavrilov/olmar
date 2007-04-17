@@ -7,26 +7,11 @@
 open Cc_ast_gen_type
 open Ml_ctype
 open Ast_annotation
-
-let marshal_translation_unit (u : annotated translationUnit_type) fname =
-  let oc = open_out fname 
-  in
-    Oast_header.output_header oc (max_annotation());
-    Marshal.to_channel oc u [];
-    close_out oc
-    (* 
-     * ;
-     * Gc.print_stat stdout;
-     * let c = Gc.get() 
-     * in
-     *   Printf.printf "minor heap size : %d\nmajor heap increment %d\n%!"
-     * 	c.Gc.minor_heap_size c.Gc.major_heap_increment
-     *)
-
+open Oast_header
 
 let marshal_translation_unit_callback u fname =
   try
-    marshal_translation_unit u fname
+    marshal_oast u fname
   with
     | x -> 
 	Printf.eprintf

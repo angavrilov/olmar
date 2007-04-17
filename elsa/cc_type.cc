@@ -1485,7 +1485,7 @@ EnumType::Value const *EnumType::getValue(StringRef name) const
 // hand written ocaml serialization function
 value EnumType::toOcaml(ToOcamlData *data){
   CAMLparam0();
-  CAMLlocal5(val_name, val_val, tuple, tmp, const_list);
+  CAMLlocal4(elem_val, tuple, tmp, const_list);
   CAMLlocalN(childs, 6);
   if(ocaml_val) {
     // cerr << "shared ocaml value found in EnumType\n" << flush;
@@ -1525,16 +1525,12 @@ value EnumType::toOcaml(ToOcamlData *data){
   // share state between the iterations
   StringObjDict<Value>::Iter iter(valueIndex);
   while(!iter.isDone()) {
-    Value const * elem = iter.value();
+    Value * elem = const_cast<Value *>(iter.value());
     iter.next();
-    val_name = ocaml_from_StringRef(elem->name, data);
-    val_val = caml_copy_nativeint(elem->value);
-    tuple = caml_alloc(2, 0); 	// allocate a tuple cell
-    Store_field(tuple, 0, val_name); // fill the tuple
-    Store_field(tuple, 1, val_val);
+    elem_val = elem->toOcaml(data);
 
-    tmp = caml_alloc(2, Tag_cons); // allocate a cons cell
-    Store_field(tmp, 0, tuple);	// store car
+    tmp = caml_alloc(2, Tag_cons);   // allocate a cons cell
+    Store_field(tmp, 0, elem_val);   // store car
     Store_field(tmp, 1, const_list); // store cdr
     const_list = tmp;
   }
@@ -1563,21 +1559,64 @@ void EnumType::detachOcaml() {
   // and I promise I will use it the day I get lambda abstraction in C++
   StringObjDict<Value>::Iter iter(valueIndex);
   while(!iter.isDone()) {
-    Value const * elem = iter.value();
+    const_cast<Value *>(iter.value())->detachOcaml();
     iter.next();
-    detach_ocaml_StringRef(elem->name);
-    // detach_ocaml_nativeint(elem->value);
   }
 }
 
 
 // ---------------- EnumType::Value --------------
 EnumType::Value::Value(StringRef n, EnumType *t, int v, Variable *d)
-  : name(n), type(t), value(v), decl(d)
+  : ocaml_val(0), name(n), type(t), val_value(v), decl(d)
 {}
 
 EnumType::Value::~Value()
 {}
+
+// ocaml serialization method
+// hand written ocaml serialization function
+value EnumType::Value::toOcaml(ToOcamlData *data){
+  CAMLparam0();
+  CAMLlocal3(annot, val_name, val_val);
+  if(ocaml_val) {
+    // cerr << "shared ocaml value found in EnumType::Value\n" << flush;
+    CAMLreturn(ocaml_val);
+  }
+  static value * create_EnumType_Value_constructor_closure = NULL;
+  if(create_EnumType_Value_constructor_closure == NULL)
+    create_EnumType_Value_constructor_closure =
+      caml_named_value("create_EnumType_Value_constructor");
+  xassert(create_EnumType_Value_constructor_closure);
+
+  if(data->stack.contains(this)) {
+    cerr << "cyclic ast detected during ocaml serialization\n";
+    xassert(false);
+  } else {
+    data->stack.add(this);
+  }
+
+  annot = ocaml_ast_annotation(this, data);
+  val_name = ocaml_from_StringRef(name, data);
+  val_val = caml_copy_nativeint(val_value);
+
+  caml_register_global_root(&ocaml_val);
+  ocaml_val = caml_callback3(*create_EnumType_Value_constructor_closure,
+			     annot, val_name, val_val);
+  xassert(IS_OCAML_AST_VALUE(ocaml_val));
+
+  data->stack.remove(this);
+  CAMLreturn(ocaml_val);
+}
+
+// ocaml serialization, cleanup ocaml_val
+// hand written ocaml serialization function
+void EnumType::Value::detachOcaml() {
+  if(ocaml_val == 0) return;
+  caml_remove_global_root(&ocaml_val);
+  ocaml_val = 0;
+  detach_ocaml_StringRef(name);
+  // detach_ocaml_nativeint(value);
+}
 
 
 // -------------------- TypePred ----------------------
