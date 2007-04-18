@@ -87,6 +87,10 @@ let ast_node_fun = function
       opt_iter string_fun info.inst_name;
 
 
+  | EnumType_Value_type(_annot, string, nativeint) ->
+      string_fun string;
+      nativeint_fun nativeint
+
   | AtomicType(SimpleType(_annot, _simpleTypeId)) ->
       ()
 
@@ -101,11 +105,9 @@ let ast_node_fun = function
       string_fun str;
 
   | AtomicType(EnumType(_annot, string, _variable, _accessKeyword, 
-			string_nativeint_list, has_negatives)) ->
+			_enum_value_list, has_negatives)) ->
       opt_iter string_fun string;
-      List.iter (fun (string, nativeint) -> 
-		   (string_fun string; nativeint_fun nativeint))
-	string_nativeint_list;
+      (* List.iter enum_value_fun enum_value_list; *)
       bool_fun has_negatives
 
   | AtomicType(TypeVariable(_annot, string, _variable, _accessKeyword)) ->
@@ -802,7 +804,7 @@ let main () =
   Arg.parse arguments anonfun usage_msg;
   if not !file_set then
     usage();				(* does not return *)
-  let ast_array = Superast.load_marshalled_ast !file
+  let ast_array = Superast.load_marshaled_ast_array !file
   in
     for i = 1 to Array.length ast_array -1 do
       (* Printf.eprintf "visit node %d\n%!" i; *)

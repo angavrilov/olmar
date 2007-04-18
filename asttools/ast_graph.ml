@@ -22,7 +22,7 @@ open Cc_ast_gen_type
 open Ml_ctype
 open Ast_annotation
 open Ast_util
-
+open Superast
 
 
 
@@ -94,8 +94,11 @@ let loc_label (file, line, char) =
 let edge_counter = ref 0
 
 let child_edge id (cid,label) =
-  incr edge_counter;
-  Printf.fprintf !oc "    \"%d\" -> \"%d\" [label=\"%s\"];\n" id cid label
+  if !print_node.(id) && !print_node.(cid)
+  then begin
+    incr edge_counter;
+    Printf.fprintf !oc "    \"%d\" -> \"%d\" [label=\"%s\"];\n" id cid label
+  end
 
 let child_edges id childs = 
   List.iter (child_edge id) childs
@@ -265,11 +268,16 @@ and compound_info_fun info =
   end
 
 
-and enum_value_fun (string, nativeint) =
-  ast_node color_Enum_Value (pseudo_annotation ()) "Enum::Value"
-    [("name", string);
-     ("value", Nativeint.to_string nativeint)]
-    []
+and enum_value_fun (annot, string, nativeint) =
+  if visited annot then retval annot
+  else begin
+    visit annot;
+    ast_node color_Enum_Value annot "Enum::Value"
+      [("name", string);
+       ("value", Nativeint.to_string nativeint)]
+      []
+  end
+
 
 and atomicType_fun at = 
   let annot = atomicType_annotation at
@@ -306,7 +314,7 @@ and atomicType_fun at =
 		 l1 @ l2 @ l3)
 
 	| EnumType(annot, string, variable, accessKeyword, 
-		   string_nativeint_list, has_negatives) ->
+		   enum_value_list, has_negatives) ->
 	    visit annot;
 	    atnode "EnumType" 
 	      [("name", string_opt string);
@@ -315,7 +323,7 @@ and atomicType_fun at =
 	      (let l1 = opt_child variable_fun "typedefVar" variable in
 	       let l2 = 
 		 count_rev "values"
-		   (List.rev_map enum_value_fun string_nativeint_list)
+		   (List.rev_map enum_value_fun enum_value_list)
 	       in 
 		 l1 @ l2)
 
@@ -1613,6 +1621,18 @@ and attribute_fun a =
  *
  **************************************************************************)
 
+type node_selection =
+  | All_nodes
+  | Real_nodes
+  | No_nodes
+  | Add_node of int
+  | Del_node of int
+  | Loc of string option * int option * int option
+  | Add_diameter of int
+  | Del_noloc
+  | Add_noloc
+  | Normal_top_scope
+  | Special_top_scope
 
 let out_file = ref ""
 
@@ -1620,19 +1640,61 @@ let size_flag = ref false
 
 let dot_page_attribute = ref ""
 
-let print_node_arg = ref None
+let node_selections = ref []
 
-let diameter_arg = ref 10
+let normal_top_level_scope = ref false
 
-let set_print_node i = print_node_arg := Some i
+let parse_loc_string s =
+  try
+    let first_colon = String.index s ':' 
+    in
+      try
+	ignore(String.index_from s (first_colon +1) ':');
+	(* two colons present in s *)
+	Scanf.sscanf s "%s@:%d:%d"
+	  (fun s l c -> (Some s, Some l, Some c))
+      with
+	| Not_found ->
+	    (* one colon in s *)
+	    Scanf.sscanf s "%s@:%d"
+	      (fun s l -> (Some s, Some l, None))
+  with
+    | Not_found ->
+	(* no colon in s *)
+	Scanf.sscanf s "%d" 
+	  (fun l -> (None, Some l, None))
 
+let select x = 
+  node_selections := x :: !node_selections
 
 let arguments = Arg.align
   [
-    ("-node", Arg.Int set_print_node,
-     "node_id restrict output to node node_id");
-    ("-dia", Arg.Set_int diameter_arg,
-     "n set diameter around printed node");
+    ("-all", Arg.Unit (fun () -> select All_nodes),
+     " select all nodes");
+    ("-real", Arg.Unit (fun () -> select Real_nodes),
+     " select all nodes apart from builtin functions in the top level scope");
+    ("-none", Arg.Unit (fun () -> select No_nodes),
+     " unselect all nodes");
+    ("-loc", 
+     Arg.String (fun loc -> 
+		   let (f,l,c) = parse_loc_string loc
+		   in
+		     select (Loc (f,l,c))),
+     "i select line i");
+    ("-node", Arg.Int (fun i -> select(Add_node i)),
+     "node_id add node_id");
+    ("-del-node", Arg.Int (fun i -> select(Del_node i)),
+     "node_id del node_id");
+    ("-dia", Arg.Int (fun i -> select(Add_diameter i)),
+     "n select diameter around currently selected nodes");
+    ("-noloc", Arg.Unit (fun () -> select Del_noloc),
+     " unselect nodes with a <noloc> location");
+    ("-with-noloc", Arg.Unit (fun () -> select Add_noloc),
+     " select nodes with a <noloc> location");
+    ("-normal-top-scope", Arg.Unit (fun () -> select Normal_top_scope),
+     " don't treat top level scope special");
+    ("-special-top-scope", Arg.Unit (fun () -> select Special_top_scope),
+     " don't treat top level scope special");
     ("-o", Arg.Set_string out_file,
      "file set output file name [default nodes.dot]");
     ("-size", Arg.Set size_flag,
@@ -1669,32 +1731,117 @@ let anonfun fn =
 
 let print_this_node i = !print_node.(i) <- true
 
-let mark_all_nodes () =
+
+
+let mark_noloc_iter flag i node = 
+  let loc_opt = node_loc node
+  in
+    match loc_opt with
+      | Some (file, line, char) ->
+	  if (file = "<noloc>" or file = "<init>")
+	    && line = 1 && char = 1 
+	  then
+	    !print_node.(i) <- flag
+      | None -> ()
+
+
+let mark_noloc_nodes ast_array flag =
+  Superast.iteri (mark_noloc_iter flag) ast_array
+
+let mark_all_nodes flag =
   for i = 0 to Array.length !print_node -1 do
-    print_this_node i
+    !print_node.(i) <- flag
   done
 
 
 
+let mark_direction ast_array visited dir_fun nodes = 
+  let top_scope_opt = match ast_array.(1) with
+    | TranslationUnit_type(_,_, Some(scope)) -> 
+	Some(id_annotation scope.poly_scope)
+    | TranslationUnit_type _ -> None
+    | _ -> 
+	prerr_endline "Couldn't find top level node at index 1";
+	assert false
+  in
+  let rec doit = function
+    | [] -> ()
+    | (_, []) :: ll -> doit ll
+    | (dia, i::l) :: ll ->
+	if dia > visited.(i) then begin
+	  print_this_node i;
+	  visited.(i) <- dia;
+	  if (!normal_top_level_scope or top_scope_opt <> Some i)
+	  then	     
+	    doit (((max 0 (dia -1)), (dir_fun i)) :: (dia, l) :: ll)
+	  else
+	    doit ((dia, l) :: ll)
+	end
+	else
+	    doit ((dia, l) :: ll)
+  in
+    doit nodes
 
-let rec mark_node_diameter up down diameter i =
-  if not !print_node.(i) then begin
-    Printf.eprintf "mark %d%!\n" i;
-    print_this_node i;
-    if diameter > 0 then begin
-      List.iter (mark_node_diameter up down (diameter -1)) up.(i);
-      List.iter (mark_node_diameter up down (diameter -1)) down.(i)
-    end
-  end
-  else
-    Printf.eprintf "skip %d%!\n" i
+let mark_real_nodes ast_array down =
+  let visited = Array.create (Array.length !print_node) (-1) 
+  in
+    mark_direction ast_array visited (fun i -> down.(i)) [(-1), [1]]
 
 
+let mark_node_diameter ast_array up down diameter =
+  let rec get_current_selection i res = 
+    if i = Array.length !print_node 
+    then res
+    else
+      get_current_selection (i+1) (if !print_node.(i) then i::res else res)
+  in
+  let visited () = Array.create (Array.length !print_node) 0 in    
+  let start_selection = get_current_selection 1 [] 
+  in
+    mark_direction ast_array (visited ())
+      (fun i -> up.(i)) [(diameter +1, start_selection)];
+    mark_direction ast_array (visited ())
+      (fun i -> down.(i)) [(diameter +1, start_selection)]
 
-let mark_nodes up down =
-  match !print_node_arg with
-    | None -> mark_all_nodes ()
-    | Some i -> mark_node_diameter up down !diameter_arg i
+
+let match_file_line file line loc_opt =
+  match loc_opt with
+    | Some(lfile, lline, _) -> lfile = file && lline = line
+    | None -> false
+
+let match_line line loc_opt =
+  match loc_opt with
+    | Some(_, lline, _) -> lline = line
+    | None -> false
+
+let mark_line ast_array file line char =
+  let match_fun =
+    match file,line,char with
+      | (Some f, Some l, None) -> match_file_line f l
+      | (None,   Some l, None) -> match_line l
+      | _ -> assert false
+  in
+  let doit i node =
+    if match_fun (node_loc node) then
+      print_this_node i
+  in
+    Superast.iteri doit ast_array
+  
+  
+
+
+let mark_nodes ast_array up down = function
+  | All_nodes -> mark_all_nodes true
+  | Real_nodes -> mark_real_nodes ast_array down
+  | No_nodes -> mark_all_nodes false
+  | Add_node i -> !print_node.(i) <- true
+  | Del_node i -> !print_node.(i) <- false
+  | Add_diameter i -> mark_node_diameter ast_array up down i
+  | Del_noloc -> mark_noloc_nodes ast_array false
+  | Add_noloc -> mark_noloc_nodes ast_array true
+  | Normal_top_scope -> normal_top_level_scope := true
+  | Special_top_scope -> normal_top_level_scope := false
+  | Loc(file,line,char) -> mark_line ast_array file line char
 
 
 
@@ -1719,6 +1866,23 @@ let start_file infile =
 let finish_file () =
   output_string !oc "}\n"
 
+
+let real_node_selection = function
+  | All_nodes
+  | Real_nodes
+  | No_nodes
+  | Add_node _
+  | Del_node _
+  | Loc _
+  | Add_diameter _
+  | Del_noloc
+  | Add_noloc
+      -> true
+  | Normal_top_scope
+  | Special_top_scope
+      -> false
+
+
 let main () =
   Arg.parse arguments anonfun usage_msg;
   if not !file_set then
@@ -1729,13 +1893,32 @@ let main () =
     else "nodes.dot"
   in
   let _ = oc := open_out (ofile) in
-  let (max_node, ast) = Superast.load_marshalled_ast !file in
+  let (max_node, ast) = Oast_header.unmarshal_oast !file in
   let ast_array = Superast.into_array max_node ast in
   let (up, down) = Uplinks.create ast_array in
-  let print_node_array = Array.create (max_node +1) false
+  let print_node_array = Array.create (max_node +1) false in
+  let sels = List.rev !node_selections in
+  let sels = 
+    match List.filter real_node_selection sels with
+      | (Del_node _) :: _
+      | Del_noloc :: _
+      | []
+	-> Real_nodes :: sels
+
+      | Loc _ :: _
+      | All_nodes :: _
+      | Real_nodes :: _
+      | No_nodes :: _
+      | (Add_node _) :: _ 
+      | (Add_diameter _) :: _
+      | Add_noloc :: _
+	-> sels
+      | Normal_top_scope :: _
+      | Special_top_scope :: _
+	-> assert false
   in
     print_node := print_node_array;
-    mark_nodes up down;
+    List.iter (mark_nodes ast_array up down) sels;
     start_file !file;
     ignore(translationUnit_fun ast);
     finish_file ();

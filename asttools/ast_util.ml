@@ -34,6 +34,8 @@ let baseClass_annotation baseClass = baseClass.poly_base
 let compound_info_annotation info = info.compound_info_poly
 let scope_annotation scope = scope.poly_scope
 
+let enum_value_annotation (annot, _, _) = annot
+
 let atomicType_annotation = function
   | SimpleType(annot, _)
   | PseudoInstantiation(annot, _, _, _, _, _)

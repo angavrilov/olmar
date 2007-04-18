@@ -14,7 +14,7 @@
 #first: astiter.cmo
 #first: astiternodes.cmo
 #first: count-ast-new count-ast
-first: ast_graph
+#first: ast_graph
 #first: hashloc
 #first: test_ast
 #first: path_to_node.cmo
@@ -37,16 +37,26 @@ CAMLP4O  := camlp4o
 
 OCAML_OBJ_EXT := @OCAML_OBJ_EXT@
 OCAML_LIB_EXT := @OCAML_LIB_EXT@
-OCAML_FLAGS := -w Aez
+OCAML_FLAGS := -w Ae
 OCAML_BYTE_FLAGS := -g
 
+OCAMLDEBUG=1
+ifeq ($(OCAMLDEBUG),1)
+  OCAMLOPT := $(OCAMLC) -g
+  OCAMLCC  := $(OCAMLC) -g
+  OCAMLC   := $(OCAMLC) -g
+  OCAML_OBJ_EXT := cmo
+  OCAML_LIB_EXT := cma
+endif
+
 .PHONY: all
-all: 	ast_graph count-ast count-ast-new \
+all: 	check_oast \
+	count-ast count-ast-new \
 	astmatch.$(OCAML_OBJ_EXT) \
 	astiter.$(OCAML_OBJ_EXT) \
 	astiternodes.$(OCAML_OBJ_EXT) \
-	dumpast \
-	check_oast
+	ast_graph \
+	dumpast
 
 
 # list of files to clean in 'clean' (etc.) targets
@@ -154,6 +164,9 @@ elsa_ast_type_descr.cmx: elsa_ast_type_descr.ml
 
 CHECKTREE_ML=\
 	$(MEMCHECK)/memcheck.ml \
+	$(ELSA)/ast_annotation.ml \
+	$(ELSA)/oast_header_version.ml \
+	$(ELSA)/oast_header.ml \
 	elsa_ast_type_descr.ml \
 	check_oast.ml
 
@@ -166,7 +179,8 @@ check_oast.cmx: check_oast.ml elsa_ast_type_descr.cmx
 
 TOCLEAN += check_oast
 check_oast: $(CHECKTREE_ML:.ml=.$(OCAML_OBJ_EXT))
-	$(OCAMLCC) $(OCAML_FLAGS) -o $@ -I $(ELSA) -I $(MEMCHECK) unix.cmxa $^
+	$(OCAMLCC) $(OCAML_FLAGS) -o $@ -I $(ELSA) -I $(MEMCHECK) \
+		unix.$(OCAML_LIB_EXT) $^
 
 TOCLEAN += check_oast_byte
 check_oast_byte: $(CHECKTREE_ML:.ml=.cmo)
@@ -186,23 +200,6 @@ $(MEMCHECK)/memcheck.cmo:
 $(MEMCHECK)/memcheck.cmx:
 	$(MAKE) -C $(MEMCHECK) all
 
-
-
-# check-oast depends the safeUnmarshal library, 
-# see http://www.pps.jussieu.fr/~henry/marshal/
-CHECKOAST_ML=\
-	dense_set.ml \
-	$(ELSA)/ast_annotation.ml \
-	$(ELSA)/elsa_util.ml \
-	$(ELSA)/cc_ml_types.ml \
-	$(ELSA)/ml_ctype.ml \
-	$(ELSA)/cc_ast_gen_type.ml \
-	ast_util.ml \
-	check-oast.ml
-
-TOCLEAN += check-oast
-check-oast: $(CHECKOAST_ML:.ml=.$(OCAML_OBJ_EXT))
-	$(OCAMLCC) $(OCAML_FLAGS) -o $@ -I $(ELSA) safeUnmarshal.$(OCAML_LIB_EXT) $^
 
 
 UNMARSHAL_ML =\
@@ -233,13 +230,25 @@ test_ast: ast_graph
 
 
 $(ELSA)/%.cmo: $(ELSA)/%.ml
-	$(MAKE) -C $(ELSA) elsa_ml_objects
+	$(MAKE) \
+		OCAMLOPT="$(OCAMLOPT)" OCAMLCC="$(OCAMLCC)" \
+		OCAMLC="$(OCAMLC)" OCAML_OBJ_EXT="$(OCAML_OBJ_EXT)" \
+		OCAML_LIB_EXT="$(OCAML_LIB_EXT)" \
+		-C $(ELSA) elsa_ml_objects
 
 $(ELSA)/%.cmx: $(ELSA)/%.ml
-	$(MAKE) -C $(ELSA) elsa_ml_objects
+	$(MAKE) \
+		OCAMLOPT="$(OCAMLOPT)" OCAMLCC="$(OCAMLCC)" \
+		OCAMLC="$(OCAMLC)" OCAML_OBJ_EXT="$(OCAML_OBJ_EXT)" \
+		OCAML_LIB_EXT="$(OCAML_LIB_EXT)" \
+		-C $(ELSA) elsa_ml_objects
 
 $(ELSA)/%.cmi: $(ELSA)/%.mli
-	$(MAKE) -C $(ELSA) elsa_ml_objects
+	$(MAKE) \
+		OCAMLOPT="$(OCAMLOPT)" OCAMLCC="$(OCAMLCC)" \
+		OCAMLC="$(OCAMLC)" OCAML_OBJ_EXT="$(OCAML_OBJ_EXT)" \
+		OCAML_LIB_EXT="$(OCAML_LIB_EXT)" \
+		-C $(ELSA) elsa_ml_objects
 
 
 .PHONY: clean

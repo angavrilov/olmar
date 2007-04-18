@@ -106,6 +106,10 @@ let ast_node_fun = function
       compoundType_Keyword_fun info.keyword;
       opt_iter string_fun info.inst_name;
 
+  | EnumType_Value_type(annot, string, nativeint) ->
+      annotation_fun annot;
+      string_fun string;
+      nativeint_fun nativeint
 
   | AtomicType(SimpleType(annot, simpleTypeId)) ->
       annotation_fun annot;
@@ -124,13 +128,10 @@ let ast_node_fun = function
       accessKeyword_fun accessKeyword;
 
   | AtomicType(EnumType(annot, string, variable, accessKeyword, 
-			string_nativeint_list, has_negatives)) ->
+			enum_value_list, has_negatives)) ->
       annotation_fun annot;
       opt_iter string_fun string;
       accessKeyword_fun accessKeyword;
-      List.iter (fun (string, nativeint) -> 
-		   (string_fun string; nativeint_fun nativeint))
-	string_nativeint_list;
       bool_fun has_negatives
 
   | AtomicType(TypeVariable(annot, string, variable, accessKeyword)) ->

@@ -69,8 +69,7 @@ let main () =
   Arg.parse arguments anonfun usage_msg;
   if not !file_set then
     usage();				(* does not return *)
-  let ic = open_in !file in
-  let ast = (Marshal.from_channel ic : annotated translationUnit_type) in
+  let (_size, ast) = Oast_header.unmarshal_oast !file in
   let res = 
     Memcheck.check !check_flags ast 
       (translationUnit_type_type_descr annotated_type_descr)

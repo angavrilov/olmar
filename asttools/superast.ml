@@ -1,5 +1,6 @@
 open Cc_ast_gen_type
 open Ast_annotation
+open Ast_util
 
 type 'a super_ast =
   | TranslationUnit_type of 'a translationUnit_type
@@ -43,6 +44,7 @@ type 'a super_ast =
   | Variable of 'a variable
   | BaseClass of 'a baseClass
   | Compound_info of 'a compound_info
+  | EnumType_Value_type of 'a enumType_Value_type
   | AtomicType of 'a atomicType
   | CType of 'a cType
   | STemplateArgument of 'a sTemplateArgument
@@ -161,6 +163,14 @@ module Into_array = struct
       end
 
 
+  and enum_value_fun ast_array ((annot, _string, _nativeint) as x) =
+    if visited annot then ()
+    else begin
+      ast_array.(id_annotation annot) <- EnumType_Value_type x;
+      visit annot;
+    end
+	
+
   and atomicType_fun ast_array x = 
     let annot = atomicType_annotation x
     in
@@ -188,10 +198,11 @@ module Into_array = struct
 	    List.iter (sTemplateArgument_fun ast_array) sTemplateArgument_list
 
 	| EnumType(annot, _string, variable, _accessKeyword, 
-		   _string_nativeint_list, _has_negatives) ->
+		   enum_value_list, _has_negatives) ->
 	    ast_array.(id_annotation annot) <- AtomicType x;
 	    visit annot;
 	    opt_iter (variable_fun ast_array) variable;
+	    List.iter (enum_value_fun ast_array) enum_value_list
 
 	| TypeVariable(annot, _string, variable, _accessKeyword) ->
 	    ast_array.(id_annotation annot) <- AtomicType x;
@@ -1197,28 +1208,17 @@ let into_array max_node ast =
     assert(let res = ref true
 	   in
 	     for i = 1 to max_node do
-	       if ast_array.(i) = NoAstNode then
+	       if ast_array.(i) = NoAstNode then begin
+		 Printf.eprintf "Superast.into_array: node id %d missing\n" i;
 		 res := false
+	       end
 	     done;
 	     !res);
     ast_array
     
 
-let load_marshalled_ast file =
-  let ic = open_in file 
-  in
-    try
-      let max_node = Oast_header.read_header ic in
-      let ast = (Marshal.from_channel ic : annotated translationUnit_type)
-      in
-	close_in ic;
-	(max_node, ast)
-    with
-      | x -> close_in ic; raise x
-    
-
-let load_marshalled_ast_array file =
-  let (max_node, ast) = load_marshalled_ast file
+let load_marshaled_ast_array file =
+  let (max_node, ast) = Oast_header.unmarshal_oast file
   in
     into_array max_node ast
 
@@ -1232,3 +1232,52 @@ let iteri f ast_array =
     f i ast_array.(i)
   done
 
+
+
+let node_loc = function
+  | TopForm_type tf -> Some(topForm_loc tf)
+  | PQName_type pq -> Some(pQName_loc pq)
+  | TypeSpecifier_type x -> Some(typeSpecifier_loc x)
+  | Enumerator_type x -> Some(enumerator_loc x)
+  | Member_type x -> Some(member_loc x)
+  | Statement_type x -> Some(statement_loc x)
+  | Expression_type(E___builtin_constant_p(_,_,loc,_)) -> Some loc
+  | Expression_type(E___builtin_va_arg(_,_,loc,_,_)) -> Some loc
+  | Initializer_type x -> Some(init_loc x)
+  | TemplateParameter_type x -> Some(templateParameter_loc x)
+  | IDeclarator_type x -> Some(iDeclarator_loc x)
+  | Designator_type x -> Some(designator_loc x)
+  | Attribute_type x -> Some(attribute_loc x)
+  | Variable v -> Some(v.loc)
+
+  | TranslationUnit_type _
+  | Function_type _
+  | MemberInit_type _
+  | Declaration_type _
+  | ASTTypeId_type _
+  | BaseClassSpec_type _
+  | MemberList_type _
+  | ExceptionSpec_type _
+  | OperatorName_type _
+  | Condition_type _
+  | Handler_type _
+  | Expression_type _
+  | FullExpression_type _
+  | ArgExpression_type _
+  | ArgExpressionListOpt_type _
+  | TemplateDeclaration_type _
+  | TemplateArgument_type _
+  | NamespaceDecl_type _
+  | Declarator_type _
+  | FullExpressionAnnot_type _
+  | ASTTypeof_type _
+  | BaseClass _
+  | Compound_info _
+  | EnumType_Value_type _
+  | AtomicType _
+  | CType _
+  | STemplateArgument _
+  | Scope _
+    -> None
+
+  | NoAstNode -> assert(false)

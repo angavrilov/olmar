@@ -185,6 +185,15 @@ and compound_info_fun info =
     end
 
 
+and enum_value_fun(annot, string, nativeint) =
+  if visited annot then ()
+  else begin
+    visit annot;
+    string_fun string;
+    nativeint_fun nativeint;
+  end
+
+
 and atomicType_fun x = 
   let annot = atomicType_annotation x
   in
@@ -209,13 +218,11 @@ and atomicType_fun x =
 	  List.iter sTemplateArgument_fun sTemplateArgument_list
 
       | EnumType(annot, string, variable, _accessKeyword, 
-		 string_nativeint_list, has_negatives) ->
+		 enum_value_list, has_negatives) ->
 	  visit annot;
 	  opt_iter string_fun string;
 	  opt_iter variable_fun variable;
-	  List.iter (fun (string, nativeint) -> 
-		       (string_fun string; nativeint_fun nativeint))
-	    string_nativeint_list;
+	  List.iter enum_value_fun enum_value_list;
 	  bool_fun has_negatives
 
       | TypeVariable(annot, string, variable, _accessKeyword) ->

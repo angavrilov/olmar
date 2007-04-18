@@ -1,3 +1,4 @@
+open Cc_ml_types
 open Cc_ast_gen_type
 open Ast_annotation
 
@@ -43,6 +44,7 @@ type 'a super_ast =
   | Variable of 'a variable
   | BaseClass of 'a baseClass
   | Compound_info of 'a compound_info
+  | EnumType_Value_type of 'a enumType_Value_type
   | AtomicType of 'a atomicType
   | CType of 'a cType
   | STemplateArgument of 'a sTemplateArgument
@@ -55,12 +57,12 @@ type 'a super_ast =
 val into_array : 
   int -> annotated translationUnit_type -> annotated super_ast array
 
-val load_marshalled_ast : string -> int * annotated translationUnit_type
-
-val load_marshalled_ast_array : string -> annotated super_ast array
+val load_marshaled_ast_array : string -> annotated super_ast array
 
 val iter : 
   (annotated super_ast -> unit) -> annotated super_ast array -> unit
 
 val iteri : 
   (int -> annotated super_ast -> unit) -> annotated super_ast array -> unit
+
+val node_loc : annotated super_ast -> sourceLoc option
