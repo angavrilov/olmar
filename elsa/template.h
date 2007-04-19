@@ -111,10 +111,13 @@ public:    // data
   // entity may be specialized at compile time
   SObjList<Variable> params;
 
+protected: // data
+  value ocaml_val;       // cache ocaml serialization result
+
 public:    // funcs
-  TemplateParams() {}
+  TemplateParams() : ocaml_val(0) {}
   TemplateParams(TemplateParams const &obj);
-  ~TemplateParams();
+  virtual ~TemplateParams();
   
   // queries on parameters
   string paramsToCString() const;
@@ -124,6 +127,10 @@ public:    // funcs
   // print the parameters like arguments, e.g. "<S, T>"
   // instead of "template <class S, class T>"
   string paramsLikeArgsToString() const;
+
+  // ocaml serialization method
+  virtual value toOcaml(ToOcamlData *);
+  virtual void detachOcaml();
 };
 
 // make this available outside the class too
@@ -146,7 +153,11 @@ public:      // data
 public:      // funcs
   InheritedTemplateParams(CompoundType *e) : enclosing(e) {}
   InheritedTemplateParams(InheritedTemplateParams const &obj);
-  ~InheritedTemplateParams();
+  virtual ~InheritedTemplateParams();
+
+  // ocaml serialization method
+  virtual value toOcaml(ToOcamlData *);
+  virtual void detachOcaml();
 };
 
 
@@ -184,6 +195,7 @@ public:    // data
   //
   // TODO: make TemplateInfo inherit from Variable instead of
   // using two connected objects
+  // HT: NULL in t0026.cc
   Variable * const var;                    // (serf)
 
   // inherited parameters, in order from outermost to innermost; this
@@ -193,12 +205,13 @@ public:    // data
 
   // the specialization / primary that we were instantiated from, if
   // we are an instantiation; NULL if we are not
-  Variable * const instantiationOf;        // (serf)
+  Variable * const instantiationOf;        // (nullable, serf)
 
   // inverse of 'instantiatedFrom'
   SObjList<Variable> instantiations;
 
   // the primary that this is a specialization of
+  // HT: NULL in t0026.cc or 27
   Variable * const specializationOf;       // (serf)
 
   // inverse of 'specializationOf'
@@ -232,6 +245,7 @@ public:    // data
   // carries 'arguments' that are to be applied to the template it
   // is a partial instance of, with remaining arguments supplied by
   // the partial instance's own parameters.
+  // HT: NULL in t0026.cc or 27
   Variable * const partialInstantiationOf;      // (serf)
   SObjList<Variable> partialInstantiations;
 
@@ -247,7 +261,7 @@ public:    // data
 
   // scope in which the definition appears, if this is a primary
   // or a specialization (NULL otherwise)
-  Scope *defnScope;
+  Scope *defnScope;               // (nullable)
 
   // template parameters for use when instantiating a definition,
   // if different from the declaration
@@ -283,7 +297,7 @@ public:      // funcs
   // Q: can I make the 'var' argument mandatory?
   TemplateInfo(SourceLoc instLoc, Variable *var = NULL);
   TemplateInfo(TemplateInfo const &obj);
-  ~TemplateInfo();
+  virtual ~TemplateInfo();
 
   // name of the template class or function
   //StringRef getBaseName() const;    // who calls this?
@@ -393,6 +407,10 @@ public:      // funcs
   // debugging
   void gdb();
   void debugPrint(int depth = 0, bool printPartialInsts = true);
+
+  // ocaml serialization method
+  virtual value toOcaml(ToOcamlData *);
+  virtual void detachOcaml();
 };
 
 
@@ -495,8 +513,8 @@ public:
   void debugPrint(int depth = 0);
 
   // ocaml serialization method
-  virtual value toOcaml(ToOcamlData *);
-  virtual void detachOcaml();
+  value toOcaml(ToOcamlData *);
+  void detachOcaml();
 };
 
 SObjList<STemplateArgument> *cloneSArgs(SObjList<STemplateArgument> &sargs);

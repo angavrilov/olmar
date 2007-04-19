@@ -153,6 +153,7 @@ private:      // data
   // this is private to force clients to go through templateInfo(),
   // which skips aliases, as aliases now share templateInfos with
   // the things they are aliases of
+  // HT: is NULL in some regression test
   TemplateInfo *templInfo;      // (owner)
 
 protected:    // funcs
@@ -244,6 +245,7 @@ public:
 
   // templates (and specializations) and instantiatons have
   // TemplateInfo
+  // might return NULL
   TemplateInfo *templateInfo() const;
   void setTemplateInfo(TemplateInfo *templInfo0);
 
@@ -366,7 +368,7 @@ public:
 
   // ocaml serialization method
   value toOcaml(ToOcamlData *);
-  virtual void detachOcaml();
+  void detachOcaml();
 };
 
 inline value ocaml_from_Variable(Variable &v, ToOcamlData *d) {

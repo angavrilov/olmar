@@ -298,7 +298,8 @@ syntax tree. This method traverses the syntax tree, thereby
 reconstructing it in Ocaml. At the end the Ocaml value is
 marshaled into a file. Elsa is linked with some Ocaml code, the
 Ocaml runtime and some C++ glue code. (In reality the whole story
-is slightly more complicated, because Elsa's abstract syntax tree can be circular
+is slightly more complicated, because Elsa's abstract syntax tree
+can be circular 
 and because C++ pointers might be <KBD>NULL</KBD>. Anyway ...)
 <P>
 
@@ -429,6 +430,20 @@ nine fields that might make the tree circular:
 </LI>
 <LI>namespace_var in scope
 </LI>
+<LI>template_var in templateInfo
+</LI>
+<LI>instantiation_of in templateInfo
+</LI>
+<LI>specialization_of in templateInfo
+</LI>
+<LI>partial_instantiation_of in templateInfo
+</LI>
+<LI>enclosing in inheritedTemplateParams
+<P>
+</LI>
+
+
+
 <LI>overload in variable
 </LI>
 <LI>variables in scope
@@ -437,8 +452,9 @@ nine fields that might make the tree circular:
 </LI>
 </UL>
 
-The first six of these fields have a (hopefully hinting) option
-ref type. variables.overload has type list ref and the fields
+The fields in the first group (up to enclosing)
+have a (hopefully hinting) option
+ref type. The field variable.overload has type list ref and the fields
 variables and typeTags in scope have type (string, variable)
 Hashtabl.t.
 An
@@ -512,7 +528,7 @@ that triggers these assertions.
 
 <HR><FONT SIZE="-2">
 last changed on
-<!-- hhmts start -->19 Dec 2006
+<!-- hhmts start -->19 Apr 2007
 <!-- hhmts end -->
 by <A HREF="http://www.cs.ru.nl/~tews">Hendrik</A>
 </FONT></BODY> </HTML>

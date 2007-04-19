@@ -34,6 +34,7 @@ enum CircularAstType {
   CA_Expression,
   CA_TypeSpecifier,
   CA_Variable,
+  CA_CompoundInfo,
   CA_OverloadSet,
   CA_StringRefMapVariable
 };
@@ -48,6 +49,7 @@ class CircularAstPart {
     Expression * expression;	/* tagged CA_Expression */
     TypeSpecifier * typeSpecifier; /* tagged CA_TypeSpecifier */
     Variable * variable;	/* tagged CA_Variable */
+    CompoundType * compound;	/* tagged CA_CompoundInfo */
     OverloadSet * overload;	/* tagged CA_OverloadSet */
     StringRefMap<Variable> * string_var_map; /* tagged CA_StringRefMapVariable*/
   } ast;
@@ -86,8 +88,8 @@ value ref_constr(value elem, ToOcamlData * data);
  * ocaml data (in which the deferred circularity is enqued) they also take
  * the value to be updated and the ast node that is to 
  * be serialized later.
- * The first five functions (ie. CType, Function, Expression, TypeSpecifier, 
- * Variable) 
+ * The first six functions (ie. CType, Function, Expression, TypeSpecifier, 
+ * Variable, CompoundType) 
  * update an option ref, for them the value val passed must be ref None.
  * The OverloadSet function updates an list ref. For it val must be ref [].
  * StringRefMapVariable updates a (string, annotated variable) Hashtabl.t,
@@ -98,6 +100,7 @@ void postpone_circular_Function(ToOcamlData * data, value val, Function * func);
 void postpone_circular_Expression(ToOcamlData *, value, Expression *);
 void postpone_circular_TypeSpecifier(ToOcamlData *, value, TypeSpecifier *);
 void postpone_circular_Variable(ToOcamlData *, value, Variable *);
+void postpone_circular_CompoundInfo(ToOcamlData *, value, CompoundType *);
 void postpone_circular_OverloadSet(ToOcamlData *, value, OverloadSet *);
 void postpone_circular_StringRefMapVariable(ToOcamlData *, value, 
 					    StringRefMap<Variable> *);

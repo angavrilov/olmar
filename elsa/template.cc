@@ -405,7 +405,7 @@ void DependentQType::detachOcaml() {
 
 // ------------------ TemplateParams ---------------
 TemplateParams::TemplateParams(TemplateParams const &obj)
-  : params(obj.params)
+  : params(obj.params), ocaml_val(0)
 {}
 
 TemplateParams::~TemplateParams()
@@ -483,6 +483,20 @@ bool TemplateParams::anyParamCtorSatisfies(TypePred &pred) const
 }
 
 
+// ocaml serialization method
+// hand written ocaml serialization function
+value TemplateParams::toOcaml(ToOcamlData *){
+  // HT: XXX
+  cerr << "TemplateParams::toOcaml not implemented" << endl;
+  xassert(false);
+}
+
+void TemplateParams::detachOcaml(){
+  // HT: XXX
+  cerr << "TemplateParams::detachOcaml not implemented" << endl;
+  xassert(false);
+}
+
 // --------------- InheritedTemplateParams ---------------
 InheritedTemplateParams::InheritedTemplateParams(InheritedTemplateParams const &obj)
   : TemplateParams(obj),
@@ -492,6 +506,65 @@ InheritedTemplateParams::InheritedTemplateParams(InheritedTemplateParams const &
 InheritedTemplateParams::~InheritedTemplateParams()
 {}
 
+
+// ocaml serialization method
+// hand written ocaml serialization function
+value InheritedTemplateParams::toOcaml(ToOcamlData * data){
+  CAMLparam0();
+  CAMLlocal5(annot, elem, tmp, params_result, encl_val);
+
+  if(ocaml_val) {
+    // cerr << "shared ocaml value in TemplateInfo\n" << flush;
+    CAMLreturn(ocaml_val);
+  }
+  static value * create_inheritedTemplateParams_constructor_closure = NULL;
+  if(create_inheritedTemplateParams_constructor_closure == NULL)
+    create_inheritedTemplateParams_constructor_closure =
+      caml_named_value("create_inheritedTemplateParams_constructor");
+  xassert(create_inheritedTemplateParams_constructor_closure);
+
+  if(data->stack.contains(this)) {
+    cerr << "cyclic ast detected during ocaml serialization\n";
+    xassert(false);
+  } else {
+    data->stack.add(this);
+  }
+
+  annot = ocaml_ast_annotation(this, data);
+
+  params_result = Val_emptylist;
+  SFOREACH_OBJLIST_NC(Variable, params, iter) {
+    elem = iter.data()->toOcaml(data);
+    tmp = caml_alloc(2, Tag_cons);  // allocate a cons cell
+    Store_field(tmp, 0, elem);      // store car
+    Store_field(tmp, 1, params_result);    // store cdr
+    params_result = tmp;
+  }
+  params_result = ocaml_list_rev(params_result);
+
+  // circular
+  // encl_val = enclosing->toCompoundInfo(data);
+  encl_val = ref_constr(Val_None, data);
+  postpone_circular_CompoundInfo(data, encl_val, enclosing);
+
+  caml_register_global_root(&ocaml_val);
+  ocaml_val = 
+    caml_callback3(*create_inheritedTemplateParams_constructor_closure,
+		   annot, params_result, encl_val);
+  xassert(IS_OCAML_AST_VALUE(ocaml_val));
+
+  data->stack.remove(this);
+  CAMLreturn(ocaml_val);
+}
+
+void InheritedTemplateParams::detachOcaml(){
+  if(ocaml_val == 0) return;
+  caml_remove_global_root(&ocaml_val);
+  ocaml_val = 0;
+  SFOREACH_OBJLIST_NC(Variable, params, iter)
+    iter.data()->detachOcaml();
+  enclosing->detachOcaml();
+}
 
 // ------------------ TemplateInfo -------------
 TemplateInfo::TemplateInfo(SourceLoc il, Variable *v)
@@ -931,6 +1004,223 @@ void TemplateInfo::debugPrint(int depth, bool printPartialInsts)
   depth--;
 
   ind(cout, depth*2) << "}" << endl;
+}
+
+
+// ocaml serialization method
+// hand written ocaml serialization function
+value TemplateInfo::toOcaml(ToOcamlData *data){
+  CAMLparam0();
+  CAMLlocalN(child, 19);
+  CAMLlocal5(elem, tmp, params_result, inherited_params_result, 
+	     instantiations_result);
+  CAMLlocal5(specializations_result, arguments_result, partial_inst_result,
+	     arg_to_prim_result, dep_bases_result);
+
+  if(ocaml_val) {
+    // cerr << "shared ocaml value in TemplateInfo\n" << flush;
+    CAMLreturn(ocaml_val);
+  }
+  static value * create_templateInfo_constructor_closure = NULL;
+  if(create_templateInfo_constructor_closure == NULL)
+    create_templateInfo_constructor_closure =
+      caml_named_value("create_templateInfo_constructor");
+  xassert(create_templateInfo_constructor_closure);
+
+  if(data->stack.contains(this)) {
+    cerr << "cyclic ast detected during ocaml serialization\n";
+    xassert(false);
+  } else {
+    data->stack.add(this);
+  }
+
+  child[0] = ocaml_ast_annotation(this, data);
+
+  params_result = Val_emptylist;
+  SFOREACH_OBJLIST_NC(Variable, params, iter) {
+    elem = iter.data()->toOcaml(data);
+    tmp = caml_alloc(2, Tag_cons);  // allocate a cons cell
+    Store_field(tmp, 0, elem);      // store car
+    Store_field(tmp, 1, params_result);    // store cdr
+    params_result = tmp;
+  }
+  child[1] = ocaml_list_rev(params_result);
+
+  // circular
+  // if(var) {
+  //   child[2] = option_some_constr(var->toOcaml(data));
+  // } else {
+  //   child[2] = Val_None;
+  // }
+  child[2] = ref_constr(Val_None, data);
+  if(var)
+    postpone_circular_Variable(data, child[2], var);
+
+  inherited_params_result = Val_emptylist;
+  FOREACH_OBJLIST_NC(InheritedTemplateParams, inheritedParams, iter) {
+    elem = iter.data()->toOcaml(data);
+    tmp = caml_alloc(2, Tag_cons); // allocate a cons cell
+    Store_field(tmp, 0, elem);	// store car
+    Store_field(tmp, 1, inherited_params_result); // store cdr
+    inherited_params_result = tmp;
+  }
+  child[3] = ocaml_list_rev(inherited_params_result);
+  
+  // circular
+  // if(instantiationOf) {
+  //   child[4] = option_some_constr(instantiationOf->toOcaml(data));
+  // } else {
+  //   child[4] = Val_None;
+  // }
+  child[4] = ref_constr(Val_None, data);
+  if(instantiationOf)
+    postpone_circular_Variable(data, child[4], instantiationOf);
+
+  instantiations_result = Val_emptylist;
+  SFOREACH_OBJLIST_NC(Variable, instantiations, iter) {
+    elem = iter.data()->toOcaml(data);
+    tmp = caml_alloc(2, Tag_cons); // allocate a cons cell
+    Store_field(tmp, 0, elem);	// store car
+    Store_field(tmp, 1, instantiations_result); // store cdr
+    instantiations_result = tmp;
+  }
+  child[5] = ocaml_list_rev(instantiations_result);
+  
+  // circular
+  // if(specializationOf) {
+  //   child[6] = option_some_constr(specializationOf->toOcaml(data));
+  // } else {
+  //   child[6] = Val_None;
+  // }
+  child[6] = ref_constr(Val_None, data);
+  if(specializationOf)
+    postpone_circular_Variable(data, child[6], specializationOf);
+
+  specializations_result = Val_emptylist;
+  SFOREACH_OBJLIST_NC(Variable, specializations, iter) {
+    elem = iter.data()->toOcaml(data);
+    tmp = caml_alloc(2, Tag_cons); // allocate a cons cell
+    Store_field(tmp, 0, elem);	// store car
+    Store_field(tmp, 1, specializations_result); // store cdr
+    specializations_result = tmp;
+  }
+  child[7] = ocaml_list_rev(specializations_result);
+
+  arguments_result = Val_emptylist;
+  FOREACH_OBJLIST_NC(STemplateArgument, arguments, iter) {
+    elem = iter.data()->toOcaml(data);
+    tmp = caml_alloc(2, Tag_cons); // allocate a cons cell
+    Store_field(tmp, 0, elem);	// store car
+    Store_field(tmp, 1, arguments_result); // store cdr
+    arguments_result = tmp;
+  }
+  child[8] = ocaml_list_rev(arguments_result);
+
+  child[9] = ocaml_from_SourceLoc(instLoc, data);
+
+  // circular
+  // if(partialInstantiationOf) {
+  //   child[10] = option_some_constr(partialInstantiationOf->toOcaml(data));
+  // } else {
+  //   child[10] = Val_None;
+  // }
+  child[10] = ref_constr(Val_None, data);
+  if(partialInstantiationOf)
+    postpone_circular_Variable(data, child[10], partialInstantiationOf);
+
+  partial_inst_result = Val_emptylist;
+  SFOREACH_OBJLIST_NC(Variable, partialInstantiations, iter) {
+    elem = iter.data()->toOcaml(data);
+    tmp = caml_alloc(2, Tag_cons); // allocate a cons cell
+    Store_field(tmp, 0, elem);	// store car
+    Store_field(tmp, 1, partial_inst_result); // store cdr
+    partial_inst_result = tmp;
+  }
+  child[11] = ocaml_list_rev(partial_inst_result);
+
+  arg_to_prim_result = Val_emptylist;
+  FOREACH_OBJLIST_NC(STemplateArgument, argumentsToPrimary, iter) {
+    elem = iter.data()->toOcaml(data);
+    tmp = caml_alloc(2, Tag_cons); // allocate a cons cell
+    Store_field(tmp, 0, elem);	// store car
+    Store_field(tmp, 1, arg_to_prim_result); // store cdr
+    arg_to_prim_result = tmp;
+  }
+  child[12] = ocaml_list_rev(arg_to_prim_result);
+
+  if(defnScope) {
+    child[13] = option_some_constr(defnScope->scopeToOcaml(data));
+  } else {
+    child[13] = Val_None;
+  }
+
+  if(definitionTemplateInfo) {
+    child[14] = option_some_constr(definitionTemplateInfo->toOcaml(data));
+  } else {
+    child[14] = Val_None;
+  }
+
+  child[15] = ocaml_from_bool(instantiateBody, data);
+  child[16] = ocaml_from_bool(instantiationDisallowed, data);
+  child[17] = ocaml_from_int(uninstantiatedDefaultArgs, data);
+
+  dep_bases_result = Val_emptylist;
+  SFOREACH_OBJLIST_NC(CType, dependentBases, iter) {
+    elem = iter.data()->toOcaml(data);
+    tmp = caml_alloc(2, Tag_cons); // allocate a cons cell
+    Store_field(tmp, 0, elem);	// store car
+    Store_field(tmp, 1, dep_bases_result); // store cdr
+    dep_bases_result = tmp;
+  }
+  child[18] = ocaml_list_rev(dep_bases_result);
+
+  caml_register_global_root(&ocaml_val);
+  ocaml_val = caml_callbackN(*create_templateInfo_constructor_closure,
+			     19, child);
+  xassert(IS_OCAML_AST_VALUE(ocaml_val));
+
+  data->stack.remove(this);
+  CAMLreturn(ocaml_val);
+}
+
+// ocaml serialization, cleanup ocaml_val
+// hand written ocaml serialization function
+void TemplateInfo::detachOcaml(){
+  if(ocaml_val == 0) return;
+  caml_remove_global_root(&ocaml_val);
+  ocaml_val = 0;
+  SFOREACH_OBJLIST_NC(Variable, params, iter)
+    iter.data()->detachOcaml();
+  if(var)
+    var->detachOcaml();
+  FOREACH_OBJLIST_NC(InheritedTemplateParams, inheritedParams, iter)
+    iter.data()->detachOcaml();
+  if(instantiationOf)
+    instantiationOf->detachOcaml();
+  SFOREACH_OBJLIST_NC(Variable, instantiations, iter)
+    iter.data()->detachOcaml();
+  if(specializationOf)
+    specializationOf->detachOcaml();
+  SFOREACH_OBJLIST_NC(Variable, specializations, iter)
+    iter.data()->detachOcaml();
+  FOREACH_OBJLIST_NC(STemplateArgument, arguments, iter)
+    iter.data()->detachOcaml();
+  detach_ocaml_SourceLoc(instLoc);
+  if(partialInstantiationOf)
+    partialInstantiationOf->detachOcaml();
+  SFOREACH_OBJLIST_NC(Variable, partialInstantiations, iter)
+    iter.data()->detachOcaml();
+  FOREACH_OBJLIST_NC(STemplateArgument, argumentsToPrimary, iter)
+    iter.data()->detachOcaml();
+  if(defnScope)
+    defnScope->scopeDetachOcaml();
+  if(definitionTemplateInfo)
+    definitionTemplateInfo->detachOcaml();
+  detach_ocaml_bool(instantiateBody);
+  detach_ocaml_bool(instantiationDisallowed);
+  detach_ocaml_int(uninstantiatedDefaultArgs);
+  SFOREACH_OBJLIST_NC(CType, dependentBases, iter)
+    iter.data()->detachOcaml();
 }
 
 

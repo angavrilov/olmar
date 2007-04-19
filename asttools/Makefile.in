@@ -40,7 +40,7 @@ OCAML_LIB_EXT := @OCAML_LIB_EXT@
 OCAML_FLAGS := -w Ae
 OCAML_BYTE_FLAGS := -g
 
-OCAMLDEBUG=1
+OCAMLDEBUG=0
 ifeq ($(OCAMLDEBUG),1)
   OCAMLOPT := $(OCAMLC) -g
   OCAMLCC  := $(OCAMLC) -g
@@ -153,10 +153,10 @@ elsa_ast_type_descr.ml: $(ELSA_AST_TYPE_DEF) $(ELSA_AST_TYPE_DESCR) Makefile
 		$(CAMLP4O) $(MEMCHECK)/generate_type_descr.cmo $$f >> $@; \
 	done
 
-elsa_ast_type_descr.cmo: elsa_ast_type_descr.ml
+elsa_ast_type_descr.cmo: elsa_ast_type_descr.ml $(MEMCHECK)/memcheck.cmi
 	$(OCAMLC) $(OCAML_BYTE_FLAGS) $(OCAML_FLAGS) -I $(MEMCHECK) -c $<
 
-elsa_ast_type_descr.cmx: elsa_ast_type_descr.ml
+elsa_ast_type_descr.cmx: elsa_ast_type_descr.ml $(MEMCHECK)/memcheck.cmx
 	$(OCAMLOPT) $(OCAML_FLAGS) -I $(MEMCHECK) -c $<
 
 

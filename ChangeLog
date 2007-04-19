@@ -1,4 +1,36 @@
+2007-04-19  Hendrik Tews  <tews@tandem.cs.ru.nl>
+
+        AST
+        * added dummy record copies to force compile errors when the types
+          in the ast change
+        * exploit new type_id feature of memcheck in check_oast
+        
+        Elsa
+
+        * added TemplateInfo and InheritedTemplateParams to ocaml
+          reflection; in ocaml those are different record types, although
+          they are in a class hierarchy with TemplateParams. However,
+          TemplateParams objects seem not to be exist.
+        * rename scope.template_params into scope_template_params
+        * added circularity support for compound_info's
+        * new nullables and new circularities added below        
+
 2007-04-18  Hendrik Tews  <tews@gromit>
+
+        * new nullables
+           Variable.templInfo (Variable.templateInfo()) (without hint!)
+           TemplateInfo.instantiationOf
+           TemplateInfo.specializationOf (without hint!)
+           TemplateInfo.partialInstantiationOf (without hint!)
+           TemplateInfo.definitionTemplateInfo
+           TemplateInfo.defnScope
+           TemplateInfo.var
+        * new circularities
+           TemplateInfo.var
+           TemplateInfo.instantiationOf
+           TemplateInfo.specializationOf
+           TemplateInfo.partialInstantiationOf
+           InheritedTemplateParams.enclosing
 
         Asttools:
         * adjusted to elsa changes
@@ -90,7 +122,8 @@
 
         * added has_negative_values in EnumType
         * added in compound_info: compound_scope, is_transparent_union, syntax
-
+        * new circularity: CompoundType.syntax
+        
         * redesigned postpone_circular_* functions: they work on the
         reference now and don't take the field anymore
 
@@ -221,12 +254,23 @@
           Scope.parentScope
           Scope.namespaceVar, 
           Scope.parameterizedEntity     
-        
+          Variable.templInfo (Variable.templateInfo())
+          TemplateInfo.instantiationOf
+          TemplateInfo.specializationOf
+          TemplateInfo.partialInstantiationOf
+          TemplateInfo.definitionTemplateInfo
+          TemplateInfo.defnScope
+          TemplateInfo.var
+
           - fields without nullable comment, that happen to be null in at
           elast one regression test
 
           EnumType.typedefVar
           IN_expr.e
+          TemplateInfo.specializationOf 
+          TemplateInfo.partialInstantiationOf 
+          TemplateInfo.var
+          Variable.templInfo (Variable.templateInfo())
         
         * new circularity via
           Variable.varValue

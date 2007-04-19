@@ -25,7 +25,8 @@ let ast_node_fun up down myindex = function
 
   (* 1 *)
   | Variable v ->
-      let _dummy = {
+      (* unused recored copy to provoke compilation errors for new fields *)
+      let _dummy = {			
 	poly_var = v.poly_var; loc = v.loc; var_name = v.var_name;
 	var_type = v.var_type; flags = v.flags; value = v.value;
 	defaultParam = v.defaultParam; funcDefn = v.funcDefn;
@@ -44,6 +45,7 @@ let ast_node_fun up down myindex = function
 
   (* 2 *)
   | BaseClass baseClass ->
+      (* unused recored copy to provoke compilation errors for new fields *)
       let _dummy = {
 	poly_base = baseClass.poly_base; compound = baseClass.compound;
 	bc_access = baseClass.bc_access; is_virtual = baseClass.is_virtual
@@ -54,6 +56,7 @@ let ast_node_fun up down myindex = function
 
   (* 3 *)
   | Compound_info i ->
+      (* unused recored copy to provoke compilation errors for new fields *)
       let _dummy = {
 	compound_info_poly = i.compound_info_poly;
 	compound_name = i.compound_name; typedef_var = i.typedef_var;
@@ -217,6 +220,7 @@ let ast_node_fun up down myindex = function
 
   (* 26 *)
   | Scope s ->
+      (* unused recored copy to provoke compilation errors for new fields *)
       let _dummy = {
 	poly_scope = s.poly_scope; variables = s.variables; 
 	type_tags = s.type_tags; parent_scope = s.parent_scope;

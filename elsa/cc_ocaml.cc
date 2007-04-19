@@ -177,6 +177,22 @@ void postpone_circular_Variable(ToOcamlData * data, value val, Variable * var) {
 
 // hand written ocaml serialization function
 // not relly a serialization function, but handwritten ;-)
+void postpone_circular_CompoundInfo(ToOcamlData * data, value val, 
+				    CompoundType * c) {
+  // no need to register val as long as we don't allocate here
+  xassert(c != NULL);
+  CircularAstPart * part = init_ca_part(data, val, CA_CompoundInfo);
+  part->ast.compound = c;
+# ifdef DEBUG_CIRCULARITIES
+  cerr << "postpone (" << data->postponed_count
+       << ") CompoundInfo " << var << " in cell " 
+       << hex << "0x" << val << dec << "\n";
+# endif // DEBUG_CIRCULARITIES
+}
+
+
+// hand written ocaml serialization function
+// not relly a serialization function, but handwritten ;-)
 void postpone_circular_OverloadSet(ToOcamlData * data, value val,
 				   OverloadSet * os) {
 
@@ -264,6 +280,13 @@ void finish_circular_pointers(ToOcamlData * data) {
       val = part->ast.variable->toOcaml(data);
       break;
 
+    case CA_CompoundInfo:
+#     ifdef DEBUG_CIRCULARITIES
+      cerr << " (CompoundInfo)\n";
+#     endif // DEBUG_CIRCULARITIES
+      val = part->ast.compound->toCompoundInfo(data);
+      break;
+
     case CA_OverloadSet:
 #     ifdef DEBUG_CIRCULARITIES
       cerr << " (OverloadSet)\n";
@@ -333,6 +356,7 @@ void finish_circular_pointers(ToOcamlData * data) {
     case CA_Expression:
     case CA_TypeSpecifier:
     case CA_Variable:
+    case CA_CompoundInfo:
       // update an option ref
       // check that cell is ref None
       xassert(Is_block(cell) && 	      // it's a block

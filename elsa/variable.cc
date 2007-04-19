@@ -812,7 +812,7 @@ void Variable::traverse(TypeVisitor &vis) {
 value Variable::toOcaml(ToOcamlData *data){
   CAMLparam0();
   CAMLlocal3(elem, list, tmp);
-  CAMLlocalN(var, 11);
+  CAMLlocalN(var, 12);
   
   if(ocaml_val) {
     // cerr << "shared ocaml value in Variable\n" << flush;
@@ -904,9 +904,16 @@ value Variable::toOcaml(ToOcamlData *data){
     var[10] = Val_None;
   }    
 
+  if(TemplateInfo * ti = templateInfo()) {
+    var[11] = option_some_constr(ti->toOcaml(data));
+  }
+  else {
+    var[11] = Val_None;
+  }
+
   caml_register_global_root(&ocaml_val);
   ocaml_val = caml_callbackN(*create_variable_constructor_closure,
-                             11, var);
+                             12, var);
   xassert(IS_OCAML_AST_VALUE(ocaml_val));
 
   data->stack.remove(this);
@@ -942,6 +949,8 @@ void Variable::detachOcaml() {
   }
   if(scope)
     scope->scopeDetachOcaml();
+  if(TemplateInfo * ti = templateInfo())
+    ti->detachOcaml();
 }
 
 

@@ -70,21 +70,49 @@ let ast_node_fun = function
       assert false
 
   | Variable v ->
-      sourceLoc_fun v.loc;
-      opt_iter string_fun v.var_name;
+      (* unused recored copy to provoke compilation errors for new fields *)
+      let _dummy = {			
+	poly_var = v.poly_var; loc = v.loc; var_name = v.var_name;
+	var_type = v.var_type; flags = v.flags; value = v.value;
+	defaultParam = v.defaultParam; funcDefn = v.funcDefn;
+	overload = v.overload; virtuallyOverride = v.virtuallyOverride;
+	scope = v.scope
+      }
+      in
+	sourceLoc_fun v.loc;
+	opt_iter string_fun v.var_name;
       
   | BaseClass baseClass ->
-      bool_fun baseClass.is_virtual
+      (* unused recored copy to provoke compilation errors for new fields *)
+      let _dummy = {
+	poly_base = baseClass.poly_base; compound = baseClass.compound;
+	bc_access = baseClass.bc_access; is_virtual = baseClass.is_virtual
+      }
+      in
+	bool_fun baseClass.is_virtual
 
   | Compound_info info ->
-      assert(match !(info.syntax) with
-	       | None
-	       | Some(TS_classSpec _) -> true
-	       | _ -> false);
-      opt_iter string_fun info.compound_name;
-      bool_fun info.is_forward_decl;
-      bool_fun info.is_transparent_union;
-      opt_iter string_fun info.inst_name;
+      (* unused recored copy to provoke compilation errors for new fields *)
+      let _dummy = {
+	compound_info_poly = i.compound_info_poly;
+	compound_name = i.compound_name; typedef_var = i.typedef_var;
+	ci_access = i.ci_access; compound_scope = i.compound_scope;
+	is_forward_decl = i.is_forward_decl;
+	is_transparent_union = i.is_transparent_union; keyword = i.keyword;
+	data_members = i.data_members; bases = i.bases;
+	conversion_operators = i.conversion_operators;
+	friends = i.friends; inst_name = i.inst_name; syntax = i.syntax;
+	self_type = i.self_type;
+      }
+      in
+	assert(match !(info.syntax) with
+		 | None
+		 | Some(TS_classSpec _) -> true
+		 | _ -> false);
+	opt_iter string_fun info.compound_name;
+	bool_fun info.is_forward_decl;
+	bool_fun info.is_transparent_union;
+	opt_iter string_fun info.inst_name;
 
 
   | EnumType_Value_type(_annot, string, nativeint) ->
@@ -175,12 +203,21 @@ let ast_node_fun = function
       ()
 
   | Scope scope ->
-      Hashtbl.iter 
-	(fun str _var -> string_fun str)
-	scope.variables;
-      Hashtbl.iter
-	(fun str _var -> string_fun str)
-	scope.type_tags
+      (* unused recored copy to provoke compilation errors for new fields *)
+      let _dummy = {
+	poly_scope = s.poly_scope; variables = s.variables; 
+	type_tags = s.type_tags; parent_scope = s.parent_scope;
+	scope_kind = s.scope_kind; namespace_var = s.namespace_var;
+	template_params = s.template_params; 
+	parameterized_entity = s.parameterized_entity
+      }
+      in
+	Hashtbl.iter 
+	  (fun str _var -> string_fun str)
+	  scope.variables;
+	Hashtbl.iter
+	  (fun str _var -> string_fun str)
+	  scope.type_tags
 
   | TranslationUnit_type((_annot, _topForm_list, _scope_opt) 
 			   as _x : annotated translationUnit_type) ->

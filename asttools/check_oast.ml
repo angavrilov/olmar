@@ -14,12 +14,13 @@ let verbose_flags =
 
 let verbose_type_flags = 
   [Memcheck.Channel stdout; Memcheck.Verbose_blocks; 
-   Memcheck.Verbose_statistics; Memcheck.Verbose_types; 
+   Memcheck.Verbose_statistics; Memcheck.Verbose_type_ids; 
    Memcheck.Start_indent 2]
 
 let trace_flags = 
   [Memcheck.Channel stdout; Memcheck.Verbose_statistics; 
    Memcheck.Verbose_spinner; Memcheck.Verbose_trace;
+   Memcheck.Verbose_type_ids;
    Memcheck.Start_indent 0]
 
 let check_flags = 

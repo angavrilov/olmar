@@ -1375,7 +1375,7 @@ void Scope::traverse_internal(TypeVisitor &vis)
 }
 
 
-// ocaml serialization method for Variable
+// ocaml serialization method for Scope
 // hand written ocaml serialization function
 value Scope::scopeToOcaml(ToOcamlData *data){
   CAMLparam0();

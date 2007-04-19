@@ -63,7 +63,7 @@ let create_K_UNION_constructor () = K_UNION
 
 let create_variable_constructor 
     poly loc name var_type flags value 
-    defparam funcdef overload_ref virt_ride scope_opt =
+    defparam funcdef overload_ref virt_ride scope_opt templ_info =
   { poly_var = poly;
     loc = loc;
     var_name = name;
@@ -75,8 +75,46 @@ let create_variable_constructor
     overload = overload_ref;
     virtuallyOverride = virt_ride;
     scope = scope_opt;
+    templ_info = templ_info
   }
 
+
+(* type templateInfo *)
+let create_templateInfo_constructor poly_templ template_params template_var
+    inherited_params instantiation_of instantiations specialization_of
+    specializations arguments inst_loc partial_instantiation_of
+    partial_instantiations arguments_to_primary defn_scope
+    definition_template_info instantiate_body instantiation_disallowed
+    uninstantiated_default_args dependent_bases =
+  { 
+    poly_templ = poly_templ;
+    template_params = template_params;
+    template_var = template_var;
+    inherited_params = inherited_params;
+    instantiation_of = instantiation_of;
+    instantiations = instantiations;
+    specialization_of = specialization_of;
+    specializations = specializations;
+    arguments = arguments;
+    inst_loc = inst_loc;
+    partial_instantiation_of = partial_instantiation_of;
+    partial_instantiations = partial_instantiations;
+    arguments_to_primary = arguments_to_primary;
+    defn_scope = defn_scope;
+    definition_template_info = definition_template_info;
+    instantiate_body = instantiate_body;
+    instantiation_disallowed = instantiation_disallowed;
+    uninstantiated_default_args = uninstantiated_default_args;
+    dependent_bases = dependent_bases;
+  }
+
+(* type inheritedTemplateParams *)
+let create_inheritedTemplateParams_constructor poly params encl =
+  { 
+    poly_inherited_templ = poly;
+    inherited_template_params = params;
+    enclosing = encl;
+  }
 
 (* type baseClass *)
 let create_baseClass_constructor poly compound access is_virtual =
@@ -176,7 +214,7 @@ let create_scope_constructor
     parent_scope = parent_scope_opt;
     scope_kind = scope_kind;
     namespace_var = namespace_var_opt;
-    template_params = template_params;
+    scope_template_params = template_params;
     parameterized_entity = parameterized_entity_opt;
   }
 
@@ -205,6 +243,14 @@ let register_ml_ctype_constructor_callbacks () =
 
   (* from variable *)
   Callback.register "create_variable_constructor" create_variable_constructor;
+
+  (* from templateInfo *)
+  Callback.register "create_templateInfo_constructor" 
+    create_templateInfo_constructor;
+
+  (* from inheritedTemplateParams *)
+  Callback.register "create_inheritedTemplateParams_constructor" 
+    create_inheritedTemplateParams_constructor;
 
   (* from baseClass *)
   Callback.register "create_baseClass_constructor" create_baseClass_constructor;

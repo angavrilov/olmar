@@ -1,4 +1,4 @@
-//  (visit this in -*- mode: tuareg;-*- )                              *
+//  (visit this in -*- mode: tuareg -*- )                              *
 //                                                                     *
 //  Copyright 2006 Hendrik Tews, All rights reserved.                  *
 //  See file license.txt for terms of use                              *
@@ -61,7 +61,58 @@ and 'a variable = {
    * see comments in variable.h
    *)
   scope : 'a scope option;
+
+  templ_info : 'a templateInfo option;
 }
+
+(************************** TemplateInfo ******************************)
+
+and 'a templateInfo = {
+  poly_templ : 'a;
+  template_params : 'a variable list;
+  (* template_var is circular (in/t0026.cc) 
+   * also nullable, might stay None
+   *)
+  template_var : 'a variable option ref;
+  inherited_params : 'a inheritedTemplateParams list;
+  (* instantiation_of is circular in in/t0026.cc, 
+   * also nullable, might stay None
+   *)
+  instantiation_of : 'a variable option ref;
+  instantiations : 'a variable list;
+  (* specialization_of is circular in in/t0054.cc,
+   * alse nullable, might stay None
+   *)
+  specialization_of : 'a variable option ref;
+  specializations : 'a variable list;
+  arguments : 'a sTemplateArgument list;
+  inst_loc : sourceLoc;
+  (* partial_instantiation_of is circular in in/t0219.cc,
+   * alse nullable, might stay None
+   *)
+  partial_instantiation_of : 'a variable option ref;
+  partial_instantiations : 'a variable list;
+  arguments_to_primary : 'a sTemplateArgument list;
+  defn_scope : 'a scope option;
+  definition_template_info : 'a templateInfo option;
+  instantiate_body : bool;
+  instantiation_disallowed : bool;
+  uninstantiated_default_args : int;
+  dependent_bases : 'a cType list;
+}
+
+
+(*********************** InheritedTemplateParams **********************)
+
+and 'a inheritedTemplateParams = {
+  poly_inherited_templ : 'a;
+  inherited_template_params : 'a variable list;
+  (* circular in in/t0224.cc
+   * not nullable, will always contain something 
+   *)
+  enclosing : 'a compound_info option ref;
+}
+
 
 (***************************** CType **********************************)
 
@@ -227,7 +278,7 @@ and 'a scope = {
    * namespace_var is also nullable, it might therefore stay None.
    *)
   namespace_var : 'a variable option ref;
-  template_params : 'a variable list;
+  scope_template_params : 'a variable list;
   parameterized_entity : 'a variable option;
 }
 

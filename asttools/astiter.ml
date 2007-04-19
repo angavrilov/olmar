@@ -91,6 +91,15 @@ let compoundType_Keyword_fun = function
 (***************** variable ***************************)
 
 let rec variable_fun(v : annotated variable) =
+  (* unused recored copy to provoke compilation errors for new fields *)
+  let _dummy = {			
+    poly_var = v.poly_var; loc = v.loc; var_name = v.var_name;
+    var_type = v.var_type; flags = v.flags; value = v.value;
+    defaultParam = v.defaultParam; funcDefn = v.funcDefn;
+    overload = v.overload; virtuallyOverride = v.virtuallyOverride;
+    scope = v.scope
+  }
+  in
   let annot = variable_annotation v
   in
     if visited annot then ()
@@ -119,6 +128,12 @@ let rec variable_fun(v : annotated variable) =
 (***************** cType ******************************)
 
 and baseClass_fun baseClass =
+  (* unused recored copy to provoke compilation errors for new fields *)
+  let _dummy = {
+    poly_base = baseClass.poly_base; compound = baseClass.compound;
+    bc_access = baseClass.bc_access; is_virtual = baseClass.is_virtual
+  }
+  in
   let annot = baseClass_annotation baseClass
   in
     if visited annot then ()
@@ -132,6 +147,19 @@ and baseClass_fun baseClass =
 
 
 and compound_info_fun info = 
+  (* unused recored copy to provoke compilation errors for new fields *)
+  let _dummy = {
+    compound_info_poly = i.compound_info_poly;
+    compound_name = i.compound_name; typedef_var = i.typedef_var;
+    ci_access = i.ci_access; compound_scope = i.compound_scope;
+    is_forward_decl = i.is_forward_decl;
+    is_transparent_union = i.is_transparent_union; keyword = i.keyword;
+    data_members = i.data_members; bases = i.bases;
+    conversion_operators = i.conversion_operators;
+    friends = i.friends; inst_name = i.inst_name; syntax = i.syntax;
+    self_type = i.self_type;
+  }
+  in
   let annot = compound_info_annotation info
   in
     if visited annot then ()
@@ -323,6 +351,15 @@ and sTemplateArgument_fun ta =
 
 
 and scope_fun scope = 
+  (* unused recored copy to provoke compilation errors for new fields *)
+  let _dummy = {
+    poly_scope = s.poly_scope; variables = s.variables; 
+    type_tags = s.type_tags; parent_scope = s.parent_scope;
+    scope_kind = s.scope_kind; namespace_var = s.namespace_var;
+    template_params = s.template_params; 
+    parameterized_entity = s.parameterized_entity
+  }
+  in
   let annot = scope_annotation scope
   in
     if visited annot then ()
