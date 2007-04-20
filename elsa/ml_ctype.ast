@@ -69,6 +69,7 @@ and 'a variable = {
 
 and 'a templateInfo = {
   poly_templ : 'a;
+  templ_kind : templateThingKind;
   template_params : 'a variable list;
   (* template_var is circular (in/t0026.cc) 
    * also nullable, might stay None

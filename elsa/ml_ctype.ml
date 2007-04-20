@@ -78,3 +78,16 @@ let string_of_compoundType_Keyword = function
   | K_STRUCT -> "struct"
   | K_CLASS  -> "class"
   | K_UNION  -> "union"
+
+
+
+type templateThingKind =
+  | TTK_PRIMARY
+  | TTK_SPECIALIZATION
+  | TTK_INSTANTIATION
+
+
+let string_of_templateThingKind = function
+  | TTK_PRIMARY -> "primary"
+  | TTK_SPECIALIZATION -> "specialization"
+  | TTK_INSTANTIATION -> "instantiation"

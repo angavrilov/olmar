@@ -141,7 +141,8 @@ module Into_array = struct
   and templ_info_fun ast_array ti =
     (* unused recored copy to provoke compilation errors for new fields *)
     let _dummy = {
-      poly_templ = ti.poly_templ; template_params = ti.template_params;
+      poly_templ = ti.poly_templ; templ_kind = ti.templ_kind;
+      template_params = ti.template_params;
       template_var = ti.template_var; inherited_params = ti.inherited_params; 
       instantiation_of = ti.instantiation_of; 
       instantiations = ti.instantiations; 

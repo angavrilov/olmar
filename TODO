@@ -8,8 +8,6 @@ GENERAL
 
 * do without SK_UNKNOWN (post 9 dec 2006 by smcpeak on oink-devel)
 
-* TemplateInfo::getKind()
-
 * elsa merge plan:
   - renamings varValue, sta_value, CType
   - gnu_attribute clever idea in gnu.ast (change to list list?)

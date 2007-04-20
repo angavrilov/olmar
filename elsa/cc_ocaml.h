@@ -13,7 +13,7 @@
 #include "ocamlhelp.h"
 #include "variable.h"      // Variable
 #include "cc_type.h"       // CType, FunctonType, CompoundType
-
+#include "template.h"
 
 #define DEBUG_CAML_GLOBAL_ROOTS
 #ifdef DEBUG_CAML_GLOBAL_ROOTS
@@ -134,6 +134,7 @@ value ocaml_from_CompoundType_Keyword(const CompoundType::Keyword &,
 				      ToOcamlData *);
 value ocaml_from_DeclaratorContext(const DeclaratorContext &, ToOcamlData *);
 value ocaml_from_ScopeKind(const ScopeKind &, ToOcamlData *);
+value ocaml_from_TemplateThingKind(const TemplateThingKind &, ToOcamlData *);
 
 // for other types
 value ocaml_from_unsigned_long(const unsigned long &, ToOcamlData *);

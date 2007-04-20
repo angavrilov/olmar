@@ -234,7 +234,8 @@ let rec variable_fun (v : annotated variable) =
 and templ_info_fun ti =
   (* unused recored copy to provoke compilation errors for new fields *)
   let _dummy = {
-    poly_templ = ti.poly_templ; template_params = ti.template_params;
+    poly_templ = ti.poly_templ; templ_kind = ti.templ_kind;
+    template_params = ti.template_params;
     template_var = ti.template_var; inherited_params = ti.inherited_params; 
     instantiation_of = ti.instantiation_of; 
     instantiations = ti.instantiations; 
@@ -256,7 +257,8 @@ and templ_info_fun ti =
     else begin
       visit ti.poly_templ;
       ast_loc_node color_TemplateInfo ti.poly_templ ti.inst_loc "TemplateInfo"
-	[("instantiateBody",  string_of_bool ti.instantiate_body);
+	[("templKind", string_of_templateThingKind ti.templ_kind);
+	 ("instantiateBody",  string_of_bool ti.instantiate_body);
 	 ("instantiationDisallowed", 
 	  string_of_bool ti.instantiation_disallowed);
 	 ("uninstantiatedDefaultArgs", 

@@ -1011,7 +1011,7 @@ void TemplateInfo::debugPrint(int depth, bool printPartialInsts)
 // hand written ocaml serialization function
 value TemplateInfo::toOcaml(ToOcamlData *data){
   CAMLparam0();
-  CAMLlocalN(child, 19);
+  CAMLlocalN(child, 20);
   CAMLlocal5(elem, tmp, params_result, inherited_params_result, 
 	     instantiations_result);
   CAMLlocal5(specializations_result, arguments_result, partial_inst_result,
@@ -1035,6 +1035,7 @@ value TemplateInfo::toOcaml(ToOcamlData *data){
   }
 
   child[0] = ocaml_ast_annotation(this, data);
+  child[1] = ocaml_from_TemplateThingKind(getKind(), data);
 
   params_result = Val_emptylist;
   SFOREACH_OBJLIST_NC(Variable, params, iter) {
@@ -1044,17 +1045,17 @@ value TemplateInfo::toOcaml(ToOcamlData *data){
     Store_field(tmp, 1, params_result);    // store cdr
     params_result = tmp;
   }
-  child[1] = ocaml_list_rev(params_result);
+  child[2] = ocaml_list_rev(params_result);
 
   // circular
   // if(var) {
-  //   child[2] = option_some_constr(var->toOcaml(data));
+  //   child[3] = option_some_constr(var->toOcaml(data));
   // } else {
-  //   child[2] = Val_None;
+  //   child[3] = Val_None;
   // }
-  child[2] = ref_constr(Val_None, data);
+  child[3] = ref_constr(Val_None, data);
   if(var)
-    postpone_circular_Variable(data, child[2], var);
+    postpone_circular_Variable(data, child[3], var);
 
   inherited_params_result = Val_emptylist;
   FOREACH_OBJLIST_NC(InheritedTemplateParams, inheritedParams, iter) {
@@ -1064,17 +1065,17 @@ value TemplateInfo::toOcaml(ToOcamlData *data){
     Store_field(tmp, 1, inherited_params_result); // store cdr
     inherited_params_result = tmp;
   }
-  child[3] = ocaml_list_rev(inherited_params_result);
+  child[4] = ocaml_list_rev(inherited_params_result);
   
   // circular
   // if(instantiationOf) {
-  //   child[4] = option_some_constr(instantiationOf->toOcaml(data));
+  //   child[5] = option_some_constr(instantiationOf->toOcaml(data));
   // } else {
-  //   child[4] = Val_None;
+  //   child[5] = Val_None;
   // }
-  child[4] = ref_constr(Val_None, data);
+  child[5] = ref_constr(Val_None, data);
   if(instantiationOf)
-    postpone_circular_Variable(data, child[4], instantiationOf);
+    postpone_circular_Variable(data, child[5], instantiationOf);
 
   instantiations_result = Val_emptylist;
   SFOREACH_OBJLIST_NC(Variable, instantiations, iter) {
@@ -1084,17 +1085,17 @@ value TemplateInfo::toOcaml(ToOcamlData *data){
     Store_field(tmp, 1, instantiations_result); // store cdr
     instantiations_result = tmp;
   }
-  child[5] = ocaml_list_rev(instantiations_result);
+  child[6] = ocaml_list_rev(instantiations_result);
   
   // circular
   // if(specializationOf) {
-  //   child[6] = option_some_constr(specializationOf->toOcaml(data));
+  //   child[7] = option_some_constr(specializationOf->toOcaml(data));
   // } else {
-  //   child[6] = Val_None;
+  //   child[7] = Val_None;
   // }
-  child[6] = ref_constr(Val_None, data);
+  child[7] = ref_constr(Val_None, data);
   if(specializationOf)
-    postpone_circular_Variable(data, child[6], specializationOf);
+    postpone_circular_Variable(data, child[7], specializationOf);
 
   specializations_result = Val_emptylist;
   SFOREACH_OBJLIST_NC(Variable, specializations, iter) {
@@ -1104,7 +1105,7 @@ value TemplateInfo::toOcaml(ToOcamlData *data){
     Store_field(tmp, 1, specializations_result); // store cdr
     specializations_result = tmp;
   }
-  child[7] = ocaml_list_rev(specializations_result);
+  child[8] = ocaml_list_rev(specializations_result);
 
   arguments_result = Val_emptylist;
   FOREACH_OBJLIST_NC(STemplateArgument, arguments, iter) {
@@ -1114,19 +1115,19 @@ value TemplateInfo::toOcaml(ToOcamlData *data){
     Store_field(tmp, 1, arguments_result); // store cdr
     arguments_result = tmp;
   }
-  child[8] = ocaml_list_rev(arguments_result);
+  child[9] = ocaml_list_rev(arguments_result);
 
-  child[9] = ocaml_from_SourceLoc(instLoc, data);
+  child[10] = ocaml_from_SourceLoc(instLoc, data);
 
   // circular
   // if(partialInstantiationOf) {
-  //   child[10] = option_some_constr(partialInstantiationOf->toOcaml(data));
+  //   child[11] = option_some_constr(partialInstantiationOf->toOcaml(data));
   // } else {
-  //   child[10] = Val_None;
+  //   child[11] = Val_None;
   // }
-  child[10] = ref_constr(Val_None, data);
+  child[11] = ref_constr(Val_None, data);
   if(partialInstantiationOf)
-    postpone_circular_Variable(data, child[10], partialInstantiationOf);
+    postpone_circular_Variable(data, child[11], partialInstantiationOf);
 
   partial_inst_result = Val_emptylist;
   SFOREACH_OBJLIST_NC(Variable, partialInstantiations, iter) {
@@ -1136,7 +1137,7 @@ value TemplateInfo::toOcaml(ToOcamlData *data){
     Store_field(tmp, 1, partial_inst_result); // store cdr
     partial_inst_result = tmp;
   }
-  child[11] = ocaml_list_rev(partial_inst_result);
+  child[12] = ocaml_list_rev(partial_inst_result);
 
   arg_to_prim_result = Val_emptylist;
   FOREACH_OBJLIST_NC(STemplateArgument, argumentsToPrimary, iter) {
@@ -1146,23 +1147,23 @@ value TemplateInfo::toOcaml(ToOcamlData *data){
     Store_field(tmp, 1, arg_to_prim_result); // store cdr
     arg_to_prim_result = tmp;
   }
-  child[12] = ocaml_list_rev(arg_to_prim_result);
+  child[13] = ocaml_list_rev(arg_to_prim_result);
 
   if(defnScope) {
-    child[13] = option_some_constr(defnScope->scopeToOcaml(data));
-  } else {
-    child[13] = Val_None;
-  }
-
-  if(definitionTemplateInfo) {
-    child[14] = option_some_constr(definitionTemplateInfo->toOcaml(data));
+    child[14] = option_some_constr(defnScope->scopeToOcaml(data));
   } else {
     child[14] = Val_None;
   }
 
-  child[15] = ocaml_from_bool(instantiateBody, data);
-  child[16] = ocaml_from_bool(instantiationDisallowed, data);
-  child[17] = ocaml_from_int(uninstantiatedDefaultArgs, data);
+  if(definitionTemplateInfo) {
+    child[15] = option_some_constr(definitionTemplateInfo->toOcaml(data));
+  } else {
+    child[15] = Val_None;
+  }
+
+  child[16] = ocaml_from_bool(instantiateBody, data);
+  child[17] = ocaml_from_bool(instantiationDisallowed, data);
+  child[18] = ocaml_from_int(uninstantiatedDefaultArgs, data);
 
   dep_bases_result = Val_emptylist;
   SFOREACH_OBJLIST_NC(CType, dependentBases, iter) {
@@ -1172,11 +1173,11 @@ value TemplateInfo::toOcaml(ToOcamlData *data){
     Store_field(tmp, 1, dep_bases_result); // store cdr
     dep_bases_result = tmp;
   }
-  child[18] = ocaml_list_rev(dep_bases_result);
+  child[19] = ocaml_list_rev(dep_bases_result);
 
   caml_register_global_root(&ocaml_val);
   ocaml_val = caml_callbackN(*create_templateInfo_constructor_closure,
-			     19, child);
+			     20, child);
   xassert(IS_OCAML_AST_VALUE(ocaml_val));
 
   data->stack.remove(this);

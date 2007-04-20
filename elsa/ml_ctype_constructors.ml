@@ -59,6 +59,14 @@ let create_K_CLASS_constructor () = K_CLASS
 let create_K_UNION_constructor () = K_UNION
 
 
+(* type templateThingKind *)
+
+let create_TTK_PRIMARY_constructor () = TTK_PRIMARY
+let create_TTK_SPECIALIZATION_constructor () = TTK_SPECIALIZATION
+let create_TTK_INSTANTIATION_constructor () = TTK_INSTANTIATION
+
+
+
 (* type variable *)
 
 let create_variable_constructor 
@@ -80,14 +88,15 @@ let create_variable_constructor
 
 
 (* type templateInfo *)
-let create_templateInfo_constructor poly_templ template_params template_var
-    inherited_params instantiation_of instantiations specialization_of
-    specializations arguments inst_loc partial_instantiation_of
-    partial_instantiations arguments_to_primary defn_scope
-    definition_template_info instantiate_body instantiation_disallowed
-    uninstantiated_default_args dependent_bases =
+let create_templateInfo_constructor poly_templ templ_kind template_params
+    template_var inherited_params instantiation_of instantiations 
+    specialization_of specializations arguments inst_loc
+    partial_instantiation_of partial_instantiations arguments_to_primary
+    defn_scope definition_template_info instantiate_body
+    instantiation_disallowed uninstantiated_default_args dependent_bases =
   { 
     poly_templ = poly_templ;
+    templ_kind = templ_kind;
     template_params = template_params;
     template_var = template_var;
     inherited_params = inherited_params;
@@ -240,6 +249,14 @@ let register_ml_ctype_constructor_callbacks () =
     create_array_size_DYN_SIZE_constructor;
   Callback.register "create_array_size_FIXED_SIZE_constructor" 
     create_array_size_FIXED_SIZE_constructor;
+
+  (* from templateThingKind *)
+  Callback.register "create_TTK_PRIMARY_constructor" 
+    create_TTK_PRIMARY_constructor;
+  Callback.register "create_TTK_SPECIALIZATION_constructor" 
+    create_TTK_SPECIALIZATION_constructor;
+  Callback.register "create_TTK_INSTANTIATION_constructor" 
+    create_TTK_INSTANTIATION_constructor ;
 
   (* from variable *)
   Callback.register "create_variable_constructor" create_variable_constructor;

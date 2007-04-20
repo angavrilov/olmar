@@ -51,10 +51,10 @@ endif
 
 .PHONY: all
 all: 	check_oast \
-	count-ast count-ast-new \
 	astmatch.$(OCAML_OBJ_EXT) \
 	astiter.$(OCAML_OBJ_EXT) \
 	astiternodes.$(OCAML_OBJ_EXT) \
+	count-ast count-ast-new \
 	ast_graph \
 	dumpast
 

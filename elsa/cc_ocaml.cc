@@ -2498,6 +2498,57 @@ value ocaml_from_ScopeKind(const ScopeKind &id, ToOcamlData *d){
 }
 
 
+// hand written ocaml serialization function
+value ocaml_from_TemplateThingKind(const TemplateThingKind &id, 
+				   ToOcamlData *d) {
+  // don't allocate here, so don't need the CAMLparam stuff
+
+  static value * create_TTK_PRIMARY_constructor_closure = NULL;
+  static value * create_TTK_SPECIALIZATION_constructor_closure = NULL;
+  static value * create_TTK_INSTANTIATION_constructor_closure = NULL;
+
+  value result;
+
+  switch(id){
+
+  case TTK_PRIMARY:
+    if(create_TTK_PRIMARY_constructor_closure == NULL)
+      create_TTK_PRIMARY_constructor_closure = 
+        caml_named_value("create_TTK_PRIMARY_constructor");
+    xassert(create_TTK_PRIMARY_constructor_closure);
+    result = caml_callback(*create_TTK_PRIMARY_constructor_closure, Val_unit);
+    xassert(IS_OCAML_AST_VALUE(result));
+    return result;
+
+  case TTK_SPECIALIZATION:
+    if(create_TTK_SPECIALIZATION_constructor_closure == NULL)
+      create_TTK_SPECIALIZATION_constructor_closure = 
+        caml_named_value("create_TTK_SPECIALIZATION_constructor");
+    xassert(create_TTK_SPECIALIZATION_constructor_closure);
+    result = caml_callback(*create_TTK_SPECIALIZATION_constructor_closure, 
+			   Val_unit);
+    xassert(IS_OCAML_AST_VALUE(result));
+    return result;
+
+  case TTK_INSTANTIATION:
+    if(create_TTK_INSTANTIATION_constructor_closure == NULL)
+      create_TTK_INSTANTIATION_constructor_closure = 
+        caml_named_value("create_TTK_INSTANTIATION_constructor");
+    xassert(create_TTK_INSTANTIATION_constructor_closure);
+    result = caml_callback(*create_TTK_INSTANTIATION_constructor_closure, 
+			   Val_unit);
+    xassert(IS_OCAML_AST_VALUE(result));
+    return result;
+
+  default:
+    xassert(false);
+    break;
+  }
+
+  // not reached, the above assertion takes us out before
+  xassert(false);
+}
+  
 
 //**************************************************************************
 //******************************* debug caml roots *************************

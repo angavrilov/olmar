@@ -74,7 +74,7 @@ let compoundType_Keyword_fun = function
   | K_CLASS -> ()
   | K_UNION -> ()
 
-
+let templ_kind_fun(kind : templateThingKind) = ()
 
 
 
@@ -100,7 +100,8 @@ let ast_node_fun = function
   | TemplateInfo ti -> 
       (* unused recored copy to provoke compilation errors for new fields *)
       let _dummy = {
-	poly_templ = ti.poly_templ; template_params = ti.template_params;
+	poly_templ = ti.poly_templ; templ_kind = ti.templ_kind;
+	template_params = ti.template_params;
 	template_var = ti.template_var; inherited_params = ti.inherited_params; 
 	instantiation_of = ti.instantiation_of; 
 	instantiations = ti.instantiations; 
@@ -119,6 +120,7 @@ let ast_node_fun = function
       }
       in
 	annotation_fun ti.poly_templ;
+	templ_kind_fun ti.templ_kind;
 	sourceLoc_fun ti.inst_loc;
 	bool_fun ti.instantiate_body;
 	bool_fun ti.instantiation_disallowed;
