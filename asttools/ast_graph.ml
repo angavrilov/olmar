@@ -187,6 +187,8 @@ let color_TemplateDeclaration = "brown3"
 let color_TemplateParameter = "tan3"
 let color_TemplateArgument = "peru"
 let color_STemplateArgument = "maroon"
+let color_TemplateInfo = "burlywood3"
+let color_InheritedTemplateParams = "PaleVioletRed4"
 let color_NamespaceDecl = "grey50"
 let color_Designator = "LemonChiffon"
 let color_Attribute = "orchid1"
@@ -195,77 +197,206 @@ let color_Scope = "grey"
 (***************** variable ***************************)
 
 let rec variable_fun (v : annotated variable) =
-  if visited v.poly_var then retval v.poly_var
-  else begin
-    visit v.poly_var;
-    ast_loc_node color_Variable v.poly_var v.loc "Variable"
-      [("name", string_opt v.var_name);
-       ("flags", string_of_declFlags v.flags)
-      ]
-      (let l1 = opt_child cType_fun "type" !(v.var_type) in
-       let l2 = opt_child expression_fun "varValue" !(v.value) in
-       let l3 = opt_child cType_fun "defaultParamType" v.defaultParam in
-       let l4 = opt_child func_fun "funcDefn" !(v.funcDefn) in 
-       let l5 = 
-	 count_rev "overload"
-	   (List.rev_map variable_fun !(v.overload)) in
-       let l6 =
-	 count_rev "virtuallyOverride"
-	   (List.rev_map variable_fun v.virtuallyOverride) in
-       let l7 = opt_child scope_fun "scope" v.scope
-       in
-	 l1 @ l2 @ l3 @ l4 @ l5 @ l6 @ l7)
-(* add overload *)
-  end
+  (* unused recored copy to provoke compilation errors for new fields *)
+  let _dummy = {			
+    poly_var = v.poly_var; loc = v.loc; var_name = v.var_name;
+    var_type = v.var_type; flags = v.flags; value = v.value;
+    defaultParam = v.defaultParam; funcDefn = v.funcDefn;
+    overload = v.overload; virtuallyOverride = v.virtuallyOverride;
+    scope = v.scope; templ_info = v.templ_info;
+  }
+  in
+    if visited v.poly_var then retval v.poly_var
+    else begin
+      visit v.poly_var;
+      ast_loc_node color_Variable v.poly_var v.loc "Variable"
+	[("name", string_opt v.var_name);
+	 ("flags", string_of_declFlags v.flags)
+	]
+	(let l1 = opt_child cType_fun "type" !(v.var_type) in
+	 let l2 = opt_child expression_fun "varValue" !(v.value) in
+	 let l3 = opt_child cType_fun "defaultParamType" v.defaultParam in
+	 let l4 = opt_child func_fun "funcDefn" !(v.funcDefn) in 
+	 let l5 = 
+	   count_rev "overload"
+	     (List.rev_map variable_fun !(v.overload)) in
+	 let l6 =
+	   count_rev "virtuallyOverride"
+	     (List.rev_map variable_fun v.virtuallyOverride) in
+	 let l7 = opt_child scope_fun "scope" v.scope in
+	 let l8 = opt_child templ_info_fun "templInfo" v.templ_info
+	 in
+	   l1 @ l2 @ l3 @ l4 @ l5 @ l6 @ l7 @ l8)
+    end
+
+(***************** templateInfo ***********************)
+
+and templ_info_fun ti =
+  (* unused recored copy to provoke compilation errors for new fields *)
+  let _dummy = {
+    poly_templ = ti.poly_templ; template_params = ti.template_params;
+    template_var = ti.template_var; inherited_params = ti.inherited_params; 
+    instantiation_of = ti.instantiation_of; 
+    instantiations = ti.instantiations; 
+    specialization_of = ti.specialization_of; 
+    specializations = ti.specializations; arguments = ti.arguments; 
+    inst_loc = ti.inst_loc; 
+    partial_instantiation_of = ti.partial_instantiation_of; 
+    partial_instantiations = ti.partial_instantiations; 
+    arguments_to_primary = ti.arguments_to_primary; 
+    defn_scope = ti.defn_scope; 
+    definition_template_info = ti.definition_template_info; 
+    instantiate_body = ti.instantiate_body; 
+    instantiation_disallowed = ti.instantiation_disallowed; 
+    uninstantiated_default_args = ti.uninstantiated_default_args; 
+    dependent_bases = ti.dependent_bases;
+  }
+  in
+    if visited ti.poly_templ then retval ti.poly_templ
+    else begin
+      visit ti.poly_templ;
+      ast_loc_node color_TemplateInfo ti.poly_templ ti.inst_loc "TemplateInfo"
+	[("instantiateBody",  string_of_bool ti.instantiate_body);
+	 ("instantiationDisallowed", 
+	  string_of_bool ti.instantiation_disallowed);
+	 ("uninstantiatedDefaultArgs", 
+	  string_of_int ti.uninstantiated_default_args)
+	]
+	(let l1 = 
+	   count_rev "params"
+	     (List.rev_map variable_fun ti.template_params) in
+	 let l2 = opt_child variable_fun "var" !(ti.template_var) in
+	 let l3 = 
+	   count_rev "inheritedParams"
+	     (List.rev_map inherited_templ_params_fun ti.inherited_params) in
+	 let l4 = 
+	   opt_child variable_fun "instantiationOf" !(ti.instantiation_of) in
+	 let l5 = 
+	   count_rev "instantiations" 
+	     (List.rev_map variable_fun ti.instantiations) in
+	 let l6 = 
+	   opt_child variable_fun "specializationOf" !(ti.specialization_of) in
+	 let l7 = 
+	   count_rev "specializations"
+	     (List.rev_map variable_fun ti.specializations) in
+	 let l8 =
+	   count_rev "arguments"
+	     (List.rev_map sTemplateArgument_fun ti.arguments) in
+	 let l9 = 
+	   opt_child variable_fun 
+	     "partialInstantiationOf" !(ti.partial_instantiation_of) in
+	 let l10 = 
+	   count_rev "partialInstantiations"
+	     (List.rev_map variable_fun ti.partial_instantiations) in
+	 let l11 =
+	   count_rev "argumentsToPrimary"
+	     (List.rev_map sTemplateArgument_fun ti.arguments_to_primary) in
+	 let l12 = opt_child scope_fun "defnScope" ti.defn_scope in
+	 let l13 = 
+	   opt_child templ_info_fun
+	     "definitionTemplateInfo" ti.definition_template_info in
+	 let l14 =
+	   count_rev "dependentBases"
+	     (List.rev_map cType_fun ti.dependent_bases)
+	 in
+	   l1 @ l2 @ l3 @ l4 @ l5 @ l6 @ l7 @ l8 
+	   @ l9 @ l10 @ l11 @ l12 @ l13 @ l14)
+    end
+
+
+(************* inheritedTemplateParams ****************)
+
+and inherited_templ_params_fun itp =
+  (* unused recored copy to provoke compilation errors for new fields *)
+  let _dummy = {
+    poly_inherited_templ = itp.poly_inherited_templ;
+    inherited_template_params = itp.inherited_template_params;
+    enclosing = itp.enclosing;
+  }
+  in
+    if visited itp.poly_inherited_templ then retval itp.poly_inherited_templ
+    else begin
+      assert(!(itp.enclosing) <> None);
+      visit itp.poly_inherited_templ;
+      ast_node color_InheritedTemplateParams itp.poly_inherited_templ
+	"InheritedTemplateParams"
+	[]
+	(let l1 = 
+	   count_rev "params"
+	     (List.rev_map variable_fun itp.inherited_template_params) in
+	 let l2 = 
+	   opt_child compound_info_fun "enclosing" !(itp.enclosing)
+	 in
+	   l1 @ l2)
+    end
 
 
 (***************** cType ******************************)
 
 and baseClass_fun bc =
-  if visited bc.poly_base then retval bc.poly_base
-  else begin
-    visit bc.poly_base;
-    ast_node color_BaseClass bc.poly_base "BaseClass"
-      [("access", string_of_accessKeyword bc.bc_access);
-       ("isVirtual", string_of_bool bc.is_virtual)]
-      [(compound_info_fun bc.compound, "ct")]
-  end
+  (* unused recored copy to provoke compilation errors for new fields *)
+  let _dummy = {
+    poly_base = bc.poly_base; compound = bc.compound;
+    bc_access = bc.bc_access; is_virtual = bc.is_virtual
+  }
+  in
+    if visited bc.poly_base then retval bc.poly_base
+    else begin
+      visit bc.poly_base;
+      ast_node color_BaseClass bc.poly_base "BaseClass"
+	[("access", string_of_accessKeyword bc.bc_access);
+	 ("isVirtual", string_of_bool bc.is_virtual)]
+	[(compound_info_fun bc.compound, "ct")]
+    end
 
-and compound_info_fun info = 
-  if visited info.compound_info_poly then retval info.compound_info_poly 
-  else begin
-    visit info.compound_info_poly;
-    assert(match !(info.syntax) with
-	     | None
-	     | Some(TS_classSpec _) -> true
-	     | _ -> false);
-    ast_node color_Compound_info info.compound_info_poly "CompoundType" 
-      [("name", string_opt info.compound_name);
-       ("access", string_of_accessKeyword info.ci_access);
-       ("forward", string_of_bool info.is_forward_decl);
-       ("transparantUnion", string_of_bool info.is_transparent_union);
-       ("keyword", string_of_compoundType_Keyword info.keyword);
-       ("instName", string_opt info.inst_name)
-      ]
-      (let x1 = variable_fun info.typedef_var, "typedefVar" in
-       let x2 = scope_fun info.compound_scope, "inherited scope" in
-       let l3 = 
-	 count_rev "dataMembers"
-	   (List.rev_map variable_fun info.data_members) in
-       let l4 =
-	 count_rev "virtualBases"
-	   (List.rev_map baseClass_fun info.bases) in
-       let l5 = 
-	 count_rev "conversionOperators"
-	   (List.rev_map variable_fun info.conversion_operators) in
-       let l6 = opt_child typeSpecifier_fun "syntax" !(info.syntax) in
-       let l7 = 
-	 count_rev "friends"
-	   (List.rev_map variable_fun info.friends) in
-       let l8 = opt_child cType_fun "selfType" !(info.self_type)
-       in
-	 x1 :: x2 :: l3 @ l4 @ l5 @ l6 @ l7 @ l8)
-  end
+and compound_info_fun i = 
+  (* unused recored copy to provoke compilation errors for new fields *)
+  let _dummy = {
+    compound_info_poly = i.compound_info_poly;
+    compound_name = i.compound_name; typedef_var = i.typedef_var;
+    ci_access = i.ci_access; compound_scope = i.compound_scope;
+    is_forward_decl = i.is_forward_decl;
+    is_transparent_union = i.is_transparent_union; keyword = i.keyword;
+    data_members = i.data_members; bases = i.bases;
+    conversion_operators = i.conversion_operators;
+    friends = i.friends; inst_name = i.inst_name; syntax = i.syntax;
+    self_type = i.self_type;
+  }
+  in
+    if visited i.compound_info_poly then retval i.compound_info_poly 
+    else begin
+      visit i.compound_info_poly;
+      assert(match !(i.syntax) with
+	       | None
+	       | Some(TS_classSpec _) -> true
+	       | _ -> false);
+      ast_node color_Compound_info i.compound_info_poly "CompoundType" 
+	[("name", string_opt i.compound_name);
+	 ("access", string_of_accessKeyword i.ci_access);
+	 ("forward", string_of_bool i.is_forward_decl);
+	 ("transparantUnion", string_of_bool i.is_transparent_union);
+	 ("keyword", string_of_compoundType_Keyword i.keyword);
+	 ("instName", string_opt i.inst_name)
+	]
+	(let x1 = variable_fun i.typedef_var, "typedefVar" in
+	 let x2 = scope_fun i.compound_scope, "inherited scope" in
+	 let l3 = 
+	   count_rev "dataMembers"
+	     (List.rev_map variable_fun i.data_members) in
+	 let l4 =
+	   count_rev "virtualBases"
+	     (List.rev_map baseClass_fun i.bases) in
+	 let l5 = 
+	   count_rev "conversionOperators"
+	     (List.rev_map variable_fun i.conversion_operators) in
+	 let l6 = opt_child typeSpecifier_fun "syntax" !(i.syntax) in
+	 let l7 = 
+	   count_rev "friends"
+	     (List.rev_map variable_fun i.friends) in
+	 let l8 = opt_child cType_fun "selfType" !(i.self_type)
+	 in
+	   x1 :: x2 :: l3 @ l4 @ l5 @ l6 @ l7 @ l8)
+    end
 
 
 and enum_value_fun (annot, string, nativeint) =
@@ -450,27 +581,36 @@ and sTemplateArgument_fun ta =
 	    tanode_1c "STA_ATOMIC" "sta_value.at" (atomicType_fun atomicType)
 
 
-and scope_fun scope =
-  if visited scope.poly_scope then retval scope.poly_scope
-  else begin
-    visit scope.poly_scope;
-    ast_node color_Scope scope.poly_scope "Scope"
-      [("variable hash", string_of_int (Hashtbl.length scope.variables));
-       ("type tags hash", string_of_int (Hashtbl.length scope.type_tags));
-       ("scopeKind", string_of_scopeKind scope.scope_kind)
-      ]
-      (let l1 = string_hash_child variable_fun "variables" scope.variables in
-       let l2 = string_hash_child variable_fun "typeTags" scope.type_tags in
-       let l3 = opt_child scope_fun "parentScope" scope.parent_scope in
-       let l4 = opt_child variable_fun "namespaceVar" !(scope.namespace_var) in
-       let l5 = 
-	 count_rev "templateParams"
-	   (List.rev_map variable_fun scope.template_params) in
-       let l6 = opt_child variable_fun "parameterizedEntity" 
-	 scope.parameterized_entity
-       in
-	 l1 @ l2 @ l3 @ l4 @ l5 @ l6)
-  end
+and scope_fun s =
+  (* unused recored copy to provoke compilation errors for new fields *)
+  let _dummy = {
+    poly_scope = s.poly_scope; variables = s.variables; 
+    type_tags = s.type_tags; parent_scope = s.parent_scope;
+    scope_kind = s.scope_kind; namespace_var = s.namespace_var;
+    scope_template_params = s.scope_template_params; 
+    parameterized_entity = s.parameterized_entity
+  }
+  in
+    if visited s.poly_scope then retval s.poly_scope
+    else begin
+      visit s.poly_scope;
+      ast_node color_Scope s.poly_scope "Scope"
+	[("variable hash", string_of_int (Hashtbl.length s.variables));
+	 ("type tags hash", string_of_int (Hashtbl.length s.type_tags));
+	 ("scopeKind", string_of_scopeKind s.scope_kind)
+	]
+	(let l1 = string_hash_child variable_fun "variables" s.variables in
+	 let l2 = string_hash_child variable_fun "typeTags" s.type_tags in
+	 let l3 = opt_child scope_fun "parentScope" s.parent_scope in
+	 let l4 = opt_child variable_fun "namespaceVar" !(s.namespace_var) in
+	 let l5 = 
+	   count_rev "templateParams"
+	     (List.rev_map variable_fun s.scope_template_params) in
+	 let l6 = opt_child variable_fun "parameterizedEntity" 
+	   s.parameterized_entity
+	 in
+	   l1 @ l2 @ l3 @ l4 @ l5 @ l6)
+    end
 
 
 (***************** generated ast nodes ****************)
@@ -1785,7 +1925,7 @@ let mark_direction ast_array visited dir_fun nodes =
 let mark_real_nodes ast_array down =
   let visited = Array.create (Array.length !print_node) (-1) 
   in
-    mark_direction ast_array visited (fun i -> down.(i)) [(-1), [1]]
+    mark_direction ast_array visited (fun i -> down.(i)) [0, [1]]
 
 
 let mark_node_diameter ast_array up down diameter =

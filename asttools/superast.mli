@@ -42,6 +42,8 @@ type 'a super_ast =
    *)
   | Attribute_type of 'a attribute_type
   | Variable of 'a variable
+  | TemplateInfo of 'a templateInfo
+  | InheritedTemplateParams of 'a inheritedTemplateParams
   | BaseClass of 'a baseClass
   | Compound_info of 'a compound_info
   | EnumType_Value_type of 'a enumType_Value_type

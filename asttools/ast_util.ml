@@ -30,6 +30,9 @@ open Ast_annotation
  **************************************************************************)
 
 let variable_annotation(v : 'a variable) = v.poly_var
+let templ_info_annotation(ti : 'a templateInfo) = ti.poly_templ
+let inherited_templ_params_annotation(itp : 'a inheritedTemplateParams) =
+  itp.poly_inherited_templ
 let baseClass_annotation baseClass = baseClass.poly_base
 let compound_info_annotation info = info.compound_info_poly
 let scope_annotation scope = scope.poly_scope

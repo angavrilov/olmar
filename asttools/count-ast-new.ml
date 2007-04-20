@@ -76,12 +76,47 @@ let ast_node_fun = function
 	var_type = v.var_type; flags = v.flags; value = v.value;
 	defaultParam = v.defaultParam; funcDefn = v.funcDefn;
 	overload = v.overload; virtuallyOverride = v.virtuallyOverride;
-	scope = v.scope
+	scope = v.scope; templ_info = v.templ_info;
       }
       in
 	sourceLoc_fun v.loc;
 	opt_iter string_fun v.var_name;
       
+  | TemplateInfo ti -> 
+      (* unused recored copy to provoke compilation errors for new fields *)
+      let _dummy = {
+	poly_templ = ti.poly_templ; template_params = ti.template_params;
+	template_var = ti.template_var; inherited_params = ti.inherited_params; 
+	instantiation_of = ti.instantiation_of; 
+	instantiations = ti.instantiations; 
+	specialization_of = ti.specialization_of; 
+	specializations = ti.specializations; arguments = ti.arguments; 
+	inst_loc = ti.inst_loc; 
+	partial_instantiation_of = ti.partial_instantiation_of; 
+	partial_instantiations = ti.partial_instantiations; 
+	arguments_to_primary = ti.arguments_to_primary; 
+	defn_scope = ti.defn_scope; 
+	definition_template_info = ti.definition_template_info; 
+	instantiate_body = ti.instantiate_body; 
+	instantiation_disallowed = ti.instantiation_disallowed; 
+	uninstantiated_default_args = ti.uninstantiated_default_args; 
+	dependent_bases = ti.dependent_bases;
+      }
+      in
+	sourceLoc_fun ti.inst_loc;
+	bool_fun ti.instantiate_body;
+	bool_fun ti.instantiation_disallowed;
+	int_fun ti.uninstantiated_default_args;
+
+  | InheritedTemplateParams itp ->
+      let _dummy = {
+	poly_inherited_templ = itp.poly_inherited_templ;
+	inherited_template_params = itp.inherited_template_params;
+	enclosing = itp.enclosing;
+      }
+      in
+	assert(!(itp.enclosing) <> None);
+
   | BaseClass baseClass ->
       (* unused recored copy to provoke compilation errors for new fields *)
       let _dummy = {
@@ -91,7 +126,7 @@ let ast_node_fun = function
       in
 	bool_fun baseClass.is_virtual
 
-  | Compound_info info ->
+  | Compound_info i ->
       (* unused recored copy to provoke compilation errors for new fields *)
       let _dummy = {
 	compound_info_poly = i.compound_info_poly;
@@ -105,14 +140,14 @@ let ast_node_fun = function
 	self_type = i.self_type;
       }
       in
-	assert(match !(info.syntax) with
+	assert(match !(i.syntax) with
 		 | None
 		 | Some(TS_classSpec _) -> true
 		 | _ -> false);
-	opt_iter string_fun info.compound_name;
-	bool_fun info.is_forward_decl;
-	bool_fun info.is_transparent_union;
-	opt_iter string_fun info.inst_name;
+	opt_iter string_fun i.compound_name;
+	bool_fun i.is_forward_decl;
+	bool_fun i.is_transparent_union;
+	opt_iter string_fun i.inst_name;
 
 
   | EnumType_Value_type(_annot, string, nativeint) ->
@@ -202,22 +237,22 @@ let ast_node_fun = function
   | STemplateArgument(STA_ATOMIC(_annot, _atomicType)) -> 
       ()
 
-  | Scope scope ->
+  | Scope s ->
       (* unused recored copy to provoke compilation errors for new fields *)
       let _dummy = {
 	poly_scope = s.poly_scope; variables = s.variables; 
 	type_tags = s.type_tags; parent_scope = s.parent_scope;
 	scope_kind = s.scope_kind; namespace_var = s.namespace_var;
-	template_params = s.template_params; 
+	scope_template_params = s.scope_template_params; 
 	parameterized_entity = s.parameterized_entity
       }
       in
 	Hashtbl.iter 
 	  (fun str _var -> string_fun str)
-	  scope.variables;
+	  s.variables;
 	Hashtbl.iter
 	  (fun str _var -> string_fun str)
-	  scope.type_tags
+	  s.type_tags
 
   | TranslationUnit_type((_annot, _topForm_list, _scope_opt) 
 			   as _x : annotated translationUnit_type) ->

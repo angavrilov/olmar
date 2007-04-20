@@ -31,7 +31,7 @@ let ast_node_fun up down myindex = function
 	var_type = v.var_type; flags = v.flags; value = v.value;
 	defaultParam = v.defaultParam; funcDefn = v.funcDefn;
 	overload = v.overload; virtuallyOverride = v.virtuallyOverride;
-	scope = v.scope
+	scope = v.scope; templ_info = v.templ_info;
       }
       in
 	add_links up down myindex
@@ -41,7 +41,60 @@ let ast_node_fun up down myindex = function
 		    (opt_link func_annotation !(v.funcDefn)
 		       (List.map variable_annotation !(v.overload))))))
 	   @ (List.map variable_annotation v.virtuallyOverride)
-	   @ (opt_link scope_annotation v.scope []))
+	   @ (opt_link scope_annotation v.scope 
+		(opt_link templ_info_annotation v.templ_info [])))
+
+  (* 163 *)
+  | TemplateInfo ti -> 
+      (* unused recored copy to provoke compilation errors for new fields *)
+      let _dummy = {
+	poly_templ = ti.poly_templ; template_params = ti.template_params;
+	template_var = ti.template_var; inherited_params = ti.inherited_params; 
+	instantiation_of = ti.instantiation_of; 
+	instantiations = ti.instantiations; 
+	specialization_of = ti.specialization_of; 
+	specializations = ti.specializations; arguments = ti.arguments; 
+	inst_loc = ti.inst_loc; 
+	partial_instantiation_of = ti.partial_instantiation_of; 
+	partial_instantiations = ti.partial_instantiations; 
+	arguments_to_primary = ti.arguments_to_primary; 
+	defn_scope = ti.defn_scope; 
+	definition_template_info = ti.definition_template_info; 
+	instantiate_body = ti.instantiate_body; 
+	instantiation_disallowed = ti.instantiation_disallowed; 
+	uninstantiated_default_args = ti.uninstantiated_default_args; 
+	dependent_bases = ti.dependent_bases;
+      }
+      in
+	add_links up down myindex
+	  ((List.map variable_annotation ti.template_params)
+	   @ (opt_link variable_annotation !(ti.template_var)
+		(List.map 
+		   inherited_templ_params_annotation ti.inherited_params))
+	   @ (opt_link variable_annotation !(ti.instantiation_of)
+		(List.map variable_annotation ti.instantiations))
+	   @ (opt_link variable_annotation !(ti.specialization_of)
+		(List.map variable_annotation ti.specializations))
+	   @ (List.map sTemplateArgument_annotation ti.arguments)
+	   @ (opt_link variable_annotation !(ti.partial_instantiation_of)
+		(List.map variable_annotation ti.partial_instantiations))
+	   @ (List.map sTemplateArgument_annotation ti.arguments_to_primary)
+	   @ (opt_link scope_annotation ti.defn_scope
+		(opt_link templ_info_annotation ti.definition_template_info
+		   (List.map cType_annotation ti.dependent_bases))))
+
+  (* 164 *)
+  | InheritedTemplateParams itp ->
+      let _dummy = {
+	poly_inherited_templ = itp.poly_inherited_templ;
+	inherited_template_params = itp.inherited_template_params;
+	enclosing = itp.enclosing;
+      }
+      in
+	assert(!(itp.enclosing) <> None);
+	add_links up down myindex
+	  ((List.map variable_annotation itp.inherited_template_params)
+	   @ (opt_link compound_info_annotation !(itp.enclosing) []))
 
   (* 2 *)
   | BaseClass baseClass ->
@@ -225,7 +278,7 @@ let ast_node_fun up down myindex = function
 	poly_scope = s.poly_scope; variables = s.variables; 
 	type_tags = s.type_tags; parent_scope = s.parent_scope;
 	scope_kind = s.scope_kind; namespace_var = s.namespace_var;
-	template_params = s.template_params; 
+	scope_template_params = s.scope_template_params; 
 	parameterized_entity = s.parameterized_entity
       }
       in
@@ -240,7 +293,7 @@ let ast_node_fun up down myindex = function
 		[])
 	   @ (opt_link scope_annotation s.parent_scope
 		(opt_link variable_annotation !(s.namespace_var) []))
-	   @ (List.map variable_annotation s.template_params)
+	   @ (List.map variable_annotation s.scope_template_params)
 	   @ (opt_link variable_annotation s.parameterized_entity []))
 
 
@@ -1152,6 +1205,12 @@ let ast_node_fun up down myindex = function
   (* 
    * (\* 162 *\)
    * | EnumType_Value_type(_annot, _string, _nativeint) ->
+   * 
+   * (\* 163 *\)
+   * | TemplateInfo ti -> 
+   * 
+   * (\* 164 *\)
+   * | InheritedTemplateParams itp ->
    *)
 
 

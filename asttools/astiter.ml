@@ -97,7 +97,7 @@ let rec variable_fun(v : annotated variable) =
     var_type = v.var_type; flags = v.flags; value = v.value;
     defaultParam = v.defaultParam; funcDefn = v.funcDefn;
     overload = v.overload; virtuallyOverride = v.virtuallyOverride;
-    scope = v.scope
+    scope = v.scope; templ_info = v.templ_info;
   }
   in
   let annot = variable_annotation v
@@ -123,6 +123,90 @@ let rec variable_fun(v : annotated variable) =
       List.iter variable_fun !(v.overload);
       List.iter variable_fun v.virtuallyOverride;
       opt_iter scope_fun v.scope;
+      opt_iter templ_info_fun v.templ_info;
+    end
+
+(**************** templateInfo ************************)
+
+and templ_info_fun ti =
+  (* unused recored copy to provoke compilation errors for new fields *)
+  let _dummy = {
+    poly_templ = ti.poly_templ; template_params = ti.template_params;
+    template_var = ti.template_var; inherited_params = ti.inherited_params; 
+    instantiation_of = ti.instantiation_of; 
+    instantiations = ti.instantiations; 
+    specialization_of = ti.specialization_of; 
+    specializations = ti.specializations; arguments = ti.arguments; 
+    inst_loc = ti.inst_loc; 
+    partial_instantiation_of = ti.partial_instantiation_of; 
+    partial_instantiations = ti.partial_instantiations; 
+    arguments_to_primary = ti.arguments_to_primary; 
+    defn_scope = ti.defn_scope; 
+    definition_template_info = ti.definition_template_info; 
+    instantiate_body = ti.instantiate_body; 
+    instantiation_disallowed = ti.instantiation_disallowed; 
+    uninstantiated_default_args = ti.uninstantiated_default_args; 
+    dependent_bases = ti.dependent_bases;
+  }
+  in
+  let annot = templ_info_annotation ti
+  in
+    if visited annot then ()
+    else begin
+      visit annot;
+
+      annotation_fun ti.poly_templ;
+      List.iter variable_fun ti.template_params;
+
+      (* POSSIBLY CIRCULAR *)
+      opt_iter variable_fun !(ti.template_var);
+      List.iter inherited_templ_params_fun ti.inherited_params;
+
+      (* POSSIBLY CIRCULAR *)
+      opt_iter variable_fun !(ti.instantiation_of);
+      List.iter variable_fun ti.instantiations;
+
+      (* POSSIBLY CIRCULAR *)
+      opt_iter variable_fun !(ti.specialization_of);
+      List.iter variable_fun ti.specializations;
+      List.iter sTemplateArgument_fun ti.arguments;
+      sourceLoc_fun ti.inst_loc;
+
+      (* POSSIBLY CIRCULAR *)
+      opt_iter variable_fun !(ti.partial_instantiation_of);
+      List.iter variable_fun ti.partial_instantiations;
+      List.iter sTemplateArgument_fun ti.arguments_to_primary;
+      opt_iter scope_fun ti.defn_scope;
+      opt_iter templ_info_fun ti.definition_template_info;
+      bool_fun ti.instantiate_body;
+      bool_fun ti.instantiation_disallowed;
+      int_fun ti.uninstantiated_default_args;
+      List.iter cType_fun ti.dependent_bases;
+    end
+
+(************* inheritedTemplateParams ****************)
+
+and inherited_templ_params_fun itp =
+  (* unused recored copy to provoke compilation errors for new fields *)
+  let _dummy = {
+    poly_inherited_templ = itp.poly_inherited_templ;
+    inherited_template_params = itp.inherited_template_params;
+    enclosing = itp.enclosing;
+  }
+  in
+  let annot = inherited_templ_params_annotation itp
+  in
+    if visited annot then ()
+    else begin
+      assert(!(itp.enclosing) <> None);
+
+      visit annot;
+
+      annotation_fun itp.poly_inherited_templ;
+      List.iter variable_fun itp.inherited_template_params;
+
+      (* POSSIBLY CIRCULAR *)
+      opt_iter compound_info_fun !(itp.enclosing);
     end
 
 (***************** cType ******************************)
@@ -146,7 +230,7 @@ and baseClass_fun baseClass =
     end
 
 
-and compound_info_fun info = 
+and compound_info_fun i = 
   (* unused recored copy to provoke compilation errors for new fields *)
   let _dummy = {
     compound_info_poly = i.compound_info_poly;
@@ -160,34 +244,34 @@ and compound_info_fun info =
     self_type = i.self_type;
   }
   in
-  let annot = compound_info_annotation info
+  let annot = compound_info_annotation i
   in
     if visited annot then ()
     else begin
       visit annot;
-      assert(match !(info.syntax) with
+      assert(match !(i.syntax) with
 	       | None
 	       | Some(TS_classSpec _) -> true
 	       | _ -> false);
-      annotation_fun info.compound_info_poly;
-      opt_iter string_fun info.compound_name;
-      variable_fun info.typedef_var;
-      accessKeyword_fun info.ci_access;
-      scope_fun info.compound_scope;
-      bool_fun info.is_forward_decl;
-      bool_fun info.is_transparent_union;
-      compoundType_Keyword_fun info.keyword;
-      List.iter variable_fun info.data_members;
-      List.iter baseClass_fun info.bases;
-      List.iter variable_fun info.conversion_operators;
-      List.iter variable_fun info.friends;
-      opt_iter typeSpecifier_fun !(info.syntax);
+      annotation_fun i.compound_info_poly;
+      opt_iter string_fun i.compound_name;
+      variable_fun i.typedef_var;
+      accessKeyword_fun i.ci_access;
+      scope_fun i.compound_scope;
+      bool_fun i.is_forward_decl;
+      bool_fun i.is_transparent_union;
+      compoundType_Keyword_fun i.keyword;
+      List.iter variable_fun i.data_members;
+      List.iter baseClass_fun i.bases;
+      List.iter variable_fun i.conversion_operators;
+      List.iter variable_fun i.friends;
+      opt_iter typeSpecifier_fun !(i.syntax);
 
       (* POSSIBLY CIRCULAR *)
-      opt_iter string_fun info.inst_name;
+      opt_iter string_fun i.inst_name;
 
       (* POSSIBLY CIRCULAR *)
-      opt_iter cType_fun !(info.self_type)
+      opt_iter cType_fun !(i.self_type)
     end
 
 and enum_value_fun ((annot, string, nativeint) as x) =
@@ -350,32 +434,32 @@ and sTemplateArgument_fun ta =
 	    atomicType_fun atomicType
 
 
-and scope_fun scope = 
+and scope_fun s = 
   (* unused recored copy to provoke compilation errors for new fields *)
   let _dummy = {
     poly_scope = s.poly_scope; variables = s.variables; 
     type_tags = s.type_tags; parent_scope = s.parent_scope;
     scope_kind = s.scope_kind; namespace_var = s.namespace_var;
-    template_params = s.template_params; 
+    scope_template_params = s.scope_template_params; 
     parameterized_entity = s.parameterized_entity
   }
   in
-  let annot = scope_annotation scope
+  let annot = scope_annotation s
   in
     if visited annot then ()
     else begin
       visit annot;
       Hashtbl.iter 
 	(fun str var -> string_fun str; variable_fun var)
-	scope.variables;
+	s.variables;
       Hashtbl.iter
 	(fun str var -> string_fun str; variable_fun var)
-	scope.type_tags;
-      opt_iter scope_fun scope.parent_scope;
-      scopeKind_fun scope.scope_kind;
-      opt_iter variable_fun !(scope.namespace_var);
-      List.iter variable_fun scope.template_params;
-      opt_iter variable_fun scope.parameterized_entity;
+	s.type_tags;
+      opt_iter scope_fun s.parent_scope;
+      scopeKind_fun s.scope_kind;
+      opt_iter variable_fun !(s.namespace_var);
+      List.iter variable_fun s.scope_template_params;
+      opt_iter variable_fun s.parameterized_entity;
     end
 
 

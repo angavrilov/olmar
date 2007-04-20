@@ -50,7 +50,7 @@ for f in $ast_files ; do
 	echo "[$count] skip $f"
     else
 	echo "[$count] test $f"
-	./ast_graph $f -o $f.dot
+	./ast_graph -all $f -o $f.dot
 	result=$?
 	if [ ! $result -eq 0 ] ; then
 	    echo ast_graph exit $result on $f >&2

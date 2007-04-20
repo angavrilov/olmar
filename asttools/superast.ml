@@ -42,6 +42,8 @@ type 'a super_ast =
    *)
   | Attribute_type of 'a attribute_type
   | Variable of 'a variable
+  | TemplateInfo of 'a templateInfo
+  | InheritedTemplateParams of 'a inheritedTemplateParams
   | BaseClass of 'a baseClass
   | Compound_info of 'a compound_info
   | EnumType_Value_type of 'a enumType_Value_type
@@ -108,7 +110,7 @@ module Into_array = struct
       var_type = v.var_type; flags = v.flags; value = v.value;
       defaultParam = v.defaultParam; funcDefn = v.funcDefn;
       overload = v.overload; virtuallyOverride = v.virtuallyOverride;
-      scope = v.scope
+      scope = v.scope; templ_info = v.templ_info;
     }
     in
     let annot = variable_annotation v
@@ -131,6 +133,86 @@ module Into_array = struct
 	List.iter (variable_fun ast_array) !(v.overload);
 	List.iter (variable_fun ast_array) v.virtuallyOverride;
 	opt_iter (scope_fun ast_array) v.scope;
+	opt_iter (templ_info_fun ast_array) v.templ_info;
+      end
+
+  (**************** templateInfo ************************)
+
+  and templ_info_fun ast_array ti =
+    (* unused recored copy to provoke compilation errors for new fields *)
+    let _dummy = {
+      poly_templ = ti.poly_templ; template_params = ti.template_params;
+      template_var = ti.template_var; inherited_params = ti.inherited_params; 
+      instantiation_of = ti.instantiation_of; 
+      instantiations = ti.instantiations; 
+      specialization_of = ti.specialization_of; 
+      specializations = ti.specializations; arguments = ti.arguments; 
+      inst_loc = ti.inst_loc; 
+      partial_instantiation_of = ti.partial_instantiation_of; 
+      partial_instantiations = ti.partial_instantiations; 
+      arguments_to_primary = ti.arguments_to_primary; 
+      defn_scope = ti.defn_scope; 
+      definition_template_info = ti.definition_template_info; 
+      instantiate_body = ti.instantiate_body; 
+      instantiation_disallowed = ti.instantiation_disallowed; 
+      uninstantiated_default_args = ti.uninstantiated_default_args; 
+      dependent_bases = ti.dependent_bases;
+    }
+    in
+    let annot = templ_info_annotation ti
+    in
+      if visited annot then ()
+      else begin
+	ast_array.(id_annotation annot) <- TemplateInfo ti;
+	visit annot;
+
+	List.iter (variable_fun ast_array) ti.template_params;
+
+	(* POSSIBLY CIRCULAR *)
+	opt_iter (variable_fun ast_array) !(ti.template_var);
+	List.iter (inherited_templ_params_fun ast_array) ti.inherited_params;
+
+	(* POSSIBLY CIRCULAR *)
+	opt_iter (variable_fun ast_array) !(ti.instantiation_of);
+	List.iter (variable_fun ast_array) ti.instantiations;
+
+	(* POSSIBLY CIRCULAR *)
+	opt_iter (variable_fun ast_array) !(ti.specialization_of);
+	List.iter (variable_fun ast_array) ti.specializations;
+	List.iter (sTemplateArgument_fun ast_array) ti.arguments;
+
+	(* POSSIBLY CIRCULAR *)
+	opt_iter (variable_fun ast_array) !(ti.partial_instantiation_of);
+	List.iter (variable_fun ast_array) ti.partial_instantiations;
+	List.iter (sTemplateArgument_fun ast_array) ti.arguments_to_primary;
+	opt_iter (scope_fun ast_array) ti.defn_scope;
+	opt_iter (templ_info_fun ast_array) ti.definition_template_info;
+	List.iter (cType_fun ast_array) ti.dependent_bases;
+      end
+
+  (************* inheritedTemplateParams ****************)
+
+  and inherited_templ_params_fun ast_array itp =
+    (* unused recored copy to provoke compilation errors for new fields *)
+    let _dummy = {
+      poly_inherited_templ = itp.poly_inherited_templ;
+      inherited_template_params = itp.inherited_template_params;
+      enclosing = itp.enclosing;
+    }
+    in
+    let annot = inherited_templ_params_annotation itp
+    in
+      if visited annot then ()
+      else begin
+	assert(!(itp.enclosing) <> None);
+	ast_array.(id_annotation annot) <- InheritedTemplateParams itp;
+
+	visit annot;
+
+	List.iter (variable_fun ast_array) itp.inherited_template_params;
+
+	(* POSSIBLY CIRCULAR *)
+	opt_iter (compound_info_fun ast_array) !(itp.enclosing);
       end
 
   (***************** cType ******************************)
@@ -152,7 +234,7 @@ module Into_array = struct
       end
 
 
-  and compound_info_fun ast_array info = 
+  and compound_info_fun ast_array i = 
     (* unused recored copy to provoke compilation errors for new fields *)
     let _dummy = {
       compound_info_poly = i.compound_info_poly;
@@ -166,28 +248,28 @@ module Into_array = struct
       self_type = i.self_type;
     }
     in
-    let annot = compound_info_annotation info
+    let annot = compound_info_annotation i
     in
       if visited annot then ()
       else begin
-	ast_array.(id_annotation annot) <- Compound_info info;
+	ast_array.(id_annotation annot) <- Compound_info i;
 	visit annot;
-	assert(match !(info.syntax) with
+	assert(match !(i.syntax) with
 		 | None
 		 | Some(TS_classSpec _) -> true
 		 | _ -> false);
-	variable_fun ast_array info.typedef_var;
-	scope_fun ast_array info.compound_scope;
-	List.iter (variable_fun ast_array) info.data_members;
-	List.iter (baseClass_fun ast_array) info.bases;
-	List.iter (variable_fun ast_array) info.conversion_operators;
-	List.iter (variable_fun ast_array) info.friends;
+	variable_fun ast_array i.typedef_var;
+	scope_fun ast_array i.compound_scope;
+	List.iter (variable_fun ast_array) i.data_members;
+	List.iter (baseClass_fun ast_array) i.bases;
+	List.iter (variable_fun ast_array) i.conversion_operators;
+	List.iter (variable_fun ast_array) i.friends;
 
 	(* POSSIBLY CIRCULAR *)
-	opt_iter (typeSpecifier_fun ast_array) !(info.syntax);
+	opt_iter (typeSpecifier_fun ast_array) !(i.syntax);
 
 	(* POSSIBLY CIRCULAR *)
-	opt_iter (cType_fun ast_array) !(info.self_type)
+	opt_iter (cType_fun ast_array) !(i.self_type)
       end
 
 
@@ -325,32 +407,32 @@ module Into_array = struct
 	      atomicType_fun ast_array atomicType
 
 
-  and scope_fun ast_array scope = 
+  and scope_fun ast_array s = 
     (* unused recored copy to provoke compilation errors for new fields *)
     let _dummy = {
       poly_scope = s.poly_scope; variables = s.variables; 
       type_tags = s.type_tags; parent_scope = s.parent_scope;
       scope_kind = s.scope_kind; namespace_var = s.namespace_var;
-      template_params = s.template_params; 
+      scope_template_params = s.scope_template_params; 
       parameterized_entity = s.parameterized_entity
     }
     in
-    let annot = scope_annotation scope
+    let annot = scope_annotation s
     in
       if visited annot then ()
       else begin
-	ast_array.(id_annotation annot) <- Scope scope;
+	ast_array.(id_annotation annot) <- Scope s;
 	visit annot;
 	Hashtbl.iter 
 	  (fun _str var -> variable_fun ast_array var)
-	  scope.variables;
+	  s.variables;
 	Hashtbl.iter
 	  (fun _str var -> variable_fun ast_array var)
-	  scope.type_tags;
-	opt_iter (scope_fun ast_array) scope.parent_scope;
-	opt_iter (variable_fun ast_array) !(scope.namespace_var);
-	List.iter (variable_fun ast_array) scope.template_params;
-	opt_iter (variable_fun ast_array) scope.parameterized_entity;
+	  s.type_tags;
+	opt_iter (scope_fun ast_array) s.parent_scope;
+	opt_iter (variable_fun ast_array) !(s.namespace_var);
+	List.iter (variable_fun ast_array) s.scope_template_params;
+	opt_iter (variable_fun ast_array) s.parameterized_entity;
       end
 
 
@@ -1308,6 +1390,8 @@ let node_loc = function
   | Declarator_type _
   | FullExpressionAnnot_type _
   | ASTTypeof_type _
+  | TemplateInfo _
+  | InheritedTemplateParams _
   | BaseClass _
   | Compound_info _
   | EnumType_Value_type _
