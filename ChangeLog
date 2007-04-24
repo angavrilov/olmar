@@ -1,3 +1,7 @@
+2007-04-24  Hendrik Tews  <tews@tandem.cs.ru.nl>
+
+        * added to the interface of dense_set, superast
+
 2007-04-20  Hendrik Tews  <tews@tandem.cs.ru.nl>
 
         Elsa, Ast

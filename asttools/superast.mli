@@ -67,4 +67,11 @@ val iter :
 val iteri : 
   (int -> annotated super_ast -> unit) -> annotated super_ast array -> unit
 
+val fold : 
+  ('a -> annotated super_ast -> 'a) -> annotated super_ast array -> 'a -> 'a
+
 val node_loc : annotated super_ast -> sourceLoc option
+
+val node_annotation : annotated super_ast -> annotated
+
+val node_id : annotated super_ast -> int

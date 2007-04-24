@@ -1352,7 +1352,13 @@ let iteri f ast_array =
     f i ast_array.(i)
   done
 
-
+let fold f ast_array x =
+  let r = ref x
+  in
+    for i = 1 to (Array.length ast_array -1) do
+      r := f !r ast_array.(i)
+    done;
+    !r
 
 let node_loc = function
   | TopForm_type tf -> Some(topForm_loc tf)
@@ -1403,3 +1409,54 @@ let node_loc = function
     -> None
 
   | NoAstNode -> assert(false)
+
+
+let node_annotation node = 
+  match node with
+    | TranslationUnit_type x -> translationUnit_annotation x
+    | TopForm_type x -> topForm_annotation x
+    | Function_type x -> func_annotation x
+    | MemberInit_type x -> memberInit_annotation x
+    | Declaration_type x -> declaration_annotation x
+    | ASTTypeId_type x -> aSTTypeId_annotation x
+    | PQName_type x -> pQName_annotation x
+    | TypeSpecifier_type x -> typeSpecifier_annotation x
+    | BaseClassSpec_type x -> baseClassSpec_annotation x
+    | Enumerator_type x -> enumerator_annotation x
+    | MemberList_type x -> memberList_annotation x
+    | Member_type x -> member_annotation x
+    | ExceptionSpec_type x -> exceptionSpec_annotation x
+    | OperatorName_type x -> operatorName_annotation x
+    | Statement_type x -> statement_annotation x
+    | Condition_type x -> condition_annotation x
+    | Handler_type x -> handler_annotation x
+    | Expression_type x -> expression_annotation x
+    | FullExpression_type x -> fullExpression_annotation x
+    | ArgExpression_type x -> argExpression_annotation x
+    | ArgExpressionListOpt_type x -> argExpressionListOpt_annotation x
+    | Initializer_type x -> init_annotation x
+    | TemplateDeclaration_type x -> templateDeclaration_annotation x
+    | TemplateParameter_type x -> templateParameter_annotation x
+    | TemplateArgument_type x -> templateArgument_annotation x
+    | NamespaceDecl_type x -> namespaceDecl_annotation x
+    | Declarator_type x -> declarator_annotation x
+    | IDeclarator_type x -> iDeclarator_annotation x
+    | FullExpressionAnnot_type x -> fullExpressionAnnot_annotation x
+    | ASTTypeof_type x -> aSTTypeof_annotation x
+    | Designator_type x -> designator_annotation x
+    | Attribute_type x -> attribute_annotation x
+    | Variable x -> variable_annotation x
+    | TemplateInfo x -> templ_info_annotation x
+    | InheritedTemplateParams x -> inherited_templ_params_annotation x
+    | BaseClass x -> baseClass_annotation x
+    | Compound_info x -> compound_info_annotation x
+    | EnumType_Value_type x -> enum_value_annotation x
+    | AtomicType x -> atomicType_annotation x
+    | CType x -> cType_annotation x
+    | STemplateArgument x -> sTemplateArgument_annotation x
+    | Scope x -> scope_annotation x
+
+    | NoAstNode -> assert false
+
+let node_id node =
+  id_annotation(node_annotation node)

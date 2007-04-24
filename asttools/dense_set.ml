@@ -34,6 +34,37 @@ let get_position i =
    (i mod ( Sys.max_string_length * 8)) / 8,
    1 lsl (i mod 8))
 
+
+
+(* array size to accomodate all positive integers *)
+let array_size = 
+  int_of_float 
+    (ceil
+       ((float_of_int max_int) /. (float_of_int Sys.max_string_length) /. 8.0))
+
+(* create a new set *)
+let make () =
+  let a = Array.make array_size ""
+  in
+    a.(0) <- String.make string_min_length '\000';
+    a
+
+(* check if the set is empty *)
+exception Nonempty_dense_set
+
+let is_empty set =
+  try
+    for i = 0 to array_size -1 do
+      for j = 0 to String.length set.(i) -1 do
+	if set.(i).[j] <> '\000' then
+	  raise Nonempty_dense_set
+      done
+    done;
+    true
+  with
+    | Nonempty_dense_set -> false
+  
+
 (* check whether el is in the set set *)
 let mem el set =
   let (string_i, char_i, mask) = get_position el
@@ -75,15 +106,12 @@ let add el set =
  *)
 
 
-(* array size to accomodate all positive integers *)
-let array_size = 
-  int_of_float 
-    (ceil
-       ((float_of_int max_int) /. (float_of_int Sys.max_string_length) /. 8.0))
-
-(* create a new set *)
-let make () =
-  let a = Array.make array_size ""
+(* remove el from the set set *)
+let remove el set =
+  let (string_i, char_i, mask) = get_position el
   in
-    a.(0) <- String.make string_min_length '\000';
-    a
+    if char_i < String.length set.(string_i) &&
+      ((int_of_char set.(string_i).[char_i]) land mask) <> 0
+    then
+      set.(string_i).[char_i] <- 
+	char_of_int ((int_of_char set.(string_i).[char_i]) lxor mask)
