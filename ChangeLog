@@ -1,3 +1,7 @@
+2007-04-25  Hendrik Tews  <tews@tandem.cs.ru.nl>
+
+        * propagation of latest ml_ctype.ast changes
+
 2007-04-24  Hendrik Tews  <tews@tandem.cs.ru.nl>
 
         * added to the interface of dense_set, superast

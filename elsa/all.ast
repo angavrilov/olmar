@@ -2576,7 +2576,7 @@ and 'a variable = {
    * after resolving circularities
    *)
   funcDefn : 'a function_type option ref;
-  (* overload is circurlar, it might contain this variable *)
+  (* overload is circular, it might contain this variable *)
   overload : 'a variable list ref;
   virtuallyOverride : 'a variable list;
   (* scope contains different things, depending on flag DF_NAMESPACE, 
@@ -2790,7 +2790,9 @@ and 'a sTemplateArgument =
 
 and 'a scope = {
   poly_scope : 'a;
+  (* variables is circular *)
   variables : (string, 'a variable) Hashtbl.t;
+  (* type_tags is circular *)
   type_tags : (string, 'a variable) Hashtbl.t;
   parent_scope : 'a scope option;
   scope_kind : scopeKind;
