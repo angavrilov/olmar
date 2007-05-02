@@ -6293,6 +6293,16 @@ CType *E_funCall::inner2_itcheck(Env &env, LookupSet &candidates)
     dependentArgs = true;
   }
 
+  // 2007-04-23: in/t0592.cc: HACK: If we're not inside a template
+  // at all, then the arguments can't be dependent.  The correct
+  // solution involves distinguishing bound from unbound template
+  // parameters, but that's nontrivial.  See in/t0595.cc.
+  //
+  // TODO: do it properly
+  if (!env.inUninstTemplate()) {
+    dependentArgs = false;
+  }
+
   // abbreviated processing for dependent lookups
   if (dependentArgs) {
     if (fevar && fevar->nondependentVar) {
@@ -7636,10 +7646,15 @@ CType *resolveOverloadedBinaryOperator(
   OverloadableOp op,         // which operator this node is
   ArgumentInfoArray &argInfo // carries info about overloaded func arg names
 ) {
-  // 14.6.2.2 para 1
-  if (e1->type->containsGeneralizedDependent() ||
-      e2 && e2->type->containsGeneralizedDependent()) {
-    return env.dependentType();
+  // in/t0105a.cc: HACK: If we're not inside a template, then the
+  // argument types can't be dependent.  See in/t0595.cc for more
+  // details.
+  if (env.inUninstTemplate()) {
+    // 14.6.2.2 para 1
+    if (e1->type->containsGeneralizedDependent() ||
+        e2 && e2->type->containsGeneralizedDependent()) {
+      return env.dependentType();
+    }
   }
 
   if (!env.doOperatorOverload()) {

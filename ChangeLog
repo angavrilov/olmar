@@ -1,3 +1,10 @@
+2007-05-02  Hendrik Tews  <tews@tandem.cs.ru.nl>
+
+        * merge upstream, versions:
+        elsa-stack: 9 smbase: 491 ast: 282 elkhound: 1045 elsa: 2476
+
+        * remove new files from vendor import
+
 2007-04-25  Hendrik Tews  <tews@tandem.cs.ru.nl>
 
         * propagation of latest ml_ctype.ast changes

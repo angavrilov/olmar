@@ -179,6 +179,10 @@ public:
   // some convenient interpretations of 'flags'
   bool hasAddrTaken() const { return hasFlag(DF_ADDRTAKEN); }
   bool isGlobal() const { return hasFlag(DF_GLOBAL); }
+
+  // persists as a global; not on stack or heap
+  bool isSemanticallyGlobal() const;
+
   bool inGlobalOrNamespaceScope() const;
   bool isStaticLinkage() const {
     // quarl 2006-07-11

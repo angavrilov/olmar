@@ -202,6 +202,11 @@ docclean:
 	rm -rf gendoc
 
 # ------------------------ misc ---------------------
+
+# for now, check-full is just check
+.PHONY: check-full
+check-full: check
+
 check: ccsstr ocsstr
 	./ccsstr
 	./ocsstr
@@ -212,7 +217,7 @@ clean:
 	rm -f *.o tmp *.d gmon.out
 	rm -f agrampar astgen ccsstr ocsstr towner exampletest libast.a
 	rm -f agrampar.output
-	rm -f example.{h.cc} ext1.{h,cc}
+	rm -f example.{h,cc} ext1.{h,cc}
 	rm -f agramlex.yy.cc
 
 # return to pristine checked-out state

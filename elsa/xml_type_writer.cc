@@ -373,12 +373,16 @@ void XmlTypeWriter::toXml(CompoundType *cpd) {
     toXml_Scope_properties(cpd);
     // * members
     printXml_bool(forward, cpd->forward);
+    // FIX: isTransparentUnion; turn this on
+//     printXml_bool(isTransparentUnion, cpd->isTransparentUnion);
     printXml(keyword, cpd->keyword);
     printEmbed(cpd, dataMembers);
     printEmbed(cpd, get_bases());
     printEmbed(cpd, virtualBases);
     printEmbed(cpd, subobj);
     printEmbed(cpd, conversionOperators);
+    // FIX: friends; turn this on
+//     printEmbed(cpd, friends);
     printStrRef(instName, cpd->instName);
     printPtrAST(cpd, syntax);
     printPtr(cpd, parameterizingScope);
@@ -396,6 +400,8 @@ void XmlTypeWriter::toXml(CompoundType *cpd) {
   travObjList(cpd, CompoundType, virtualBases, BaseClassSubobj);
   toXml(&cpd->subobj);          // embedded
   travObjList_S(cpd, CompoundType, conversionOperators, Variable); // Variable
+  // FIX: friends; turn this on
+//   travObjList_S(cpd, CompoundType, friends, Variable); // Variable
   travAST(cpd->syntax);
   trav(cpd->parameterizingScope);
   trav(cpd->selfType);
