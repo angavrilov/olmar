@@ -10,6 +10,7 @@
 #include "overload.h"      // OVERLOADTRACE
 #include "mtype.h"         // MType
 #include "implconv.h"      // ImplicitConversion
+#include "typelistiter.h"  // TypeListIter_GrowArray
 
 
 // forwards in this file
@@ -4123,6 +4124,7 @@ Variable *Env::pickMatchingOverloadedFunctionVar(LookupSet &set, Type *type)
   if (!type->isFunctionType()) {
     return NULL;     // no matching element if not converting to function
   }
+  FunctionType *ft = type->asFunctionType();
 
   // as there are no standard conversions for function types or
   // pointer to function types [cppstd 13.4 para 7], simply find an
@@ -4130,13 +4132,47 @@ Variable *Env::pickMatchingOverloadedFunctionVar(LookupSet &set, Type *type)
   SFOREACH_OBJLIST_NC(Variable, set, iter) {
     Variable *v = iter.data();
 
+    // TODO: cppstd 13.4p3
+
+    // TODO: cppstd 13.4p4: in/t0593.cc
+
     if (v->isTemplate()) {
-      // TODO: cppstd 13.4 paras 2,3,4
-      unimp("address of overloaded name, with a templatized element");
+      // cppstd 13.4p2: attempt template argument deduction
+      //
+      // TODO: What if the user specified some template arguments
+      // explicitly?  I don't even have access to them here.
+      OVERLOADTRACE("13.4: attempting to deduce template args for `" << 
+                    v->toString() << "'");
+
+      // put the concrete types from the destination parameter list
+      // into an array, then can get a TypeListIter for them
+      ArrayStack<ArgumentInfo> concreteTypes;
+      SFOREACH_OBJLIST(Variable, ft->params, iter) {
+        concreteTypes.push(ArgumentInfo(SE_NONE, iter.data()->type));
+      }
+      TypeListIter_GrowArray tli(concreteTypes);
+
+      // now pass 'v' as the templatized type and 'tli' as the
+      // concrete type sequence to the general template argument
+      // deduction routine
+      MType match(env);
+      if (!inferTemplArgsFromFuncArgs(v, tli, match, IA_NO_ERRORS)) {
+        continue;
+      }
+
+      // use the inferred arguments to instantiate the template
+      v = env.instantiateFunctionTemplate(env.loc(), v, match);
+      if (!v) {
+        continue;
+      }
+
+      // proceed with the instantiated 'v'
+      OVERLOADTRACE("13.4: instantiated `" << v->toString() << "'");
     }
 
     if (v->type->equals(type)) {
       OVERLOADTRACE("13.4: selected `" << v->toString() << "'");
+      ensureFuncBodyTChecked(v);
       return v;     // found it
     }
   }
@@ -4186,13 +4222,26 @@ SourceLoc getExprNameLoc(Expression const *e)
 void Env::possiblySetOverloadedFunctionVar(Expression *expr, Type *paramType,
                                            LookupSet &set)
 {
-  if (set.count() >= 2) {
-    // pick the one that matches the target type
-    Variable *ovlVar =
-      env.pickMatchingOverloadedFunctionVar(set, paramType);
-    if (ovlVar) {
-      // modify 'arg' accordingly
-      env.setOverloadedFunctionVar(expr, ovlVar);
+  if (set.isEmpty()) {
+    // should already have reported this as a lookup failure
+    return;
+  }
+
+  // pick the one that matches the target type
+  //
+  // we do this even if there is only one element in the set
+  // because we may need to deduce template arguments if the
+  // set contains a template function
+  Variable *ovlVar =
+    env.pickMatchingOverloadedFunctionVar(set, paramType);
+  if (ovlVar) {
+    // modify 'arg' accordingly
+    env.setOverloadedFunctionVar(expr, ovlVar);
+  }
+  else {
+    if (set.count() == 1) {
+      // it wasn't overloaded in the first place, so the error message
+      // here is not appropriate; we should report the error elsewhere
     }
     else {
       env.error(getExprNameLoc(expr), stringc

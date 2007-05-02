@@ -865,11 +865,15 @@ testparse t0583.cc
 testparse t0584.cc
 failparse t0585.cc "explicit invocation of dtor of template class"
 testparse t0586.cc
-failparse t0587.cc "conversion of static method of template to func ptr"
+testparse t0587.cc #"conversion of static method of template to func ptr"
 testparse t0588.cc
 testparse t0589.cc
 testparse t0590.cc
 testparse t0591.cc
+testparse t0592.cc
+failparse t0593.cc "addr of template func overloaded with non-template func"
+failparse t0594.cc "addr of template func with some explicit template args"
+failparse t0595.cc "addr of overloaded template funcs + two-phase lookup"
 
 # another set of tests, generally isolated by Daniel
 testparse d0001.cc
@@ -1130,7 +1134,8 @@ testparse k0101.cc "typename ParameterDeclaration in TemplateParameterList"
 failparse k0102.cc "template parameter template-instantiated on another template parameter"
 testparse k0103.cc #"'duplicate definition' from 'using' declaration"
 testparse k0104.cc #"restrict reference"
-failparse k0105.cc "function pointer dependent type"
+testparse k0105.cc #"function pointer dependent type"
+testparse k0105a.cc #"function pointer dependent type"
 failparse k0106.cc "anonymous struct in anonymous union"
 failparse k0107.cc "inline explicit instantiation"
 failparse k0108.cc "explicit instantiation of constructor"

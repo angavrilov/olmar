@@ -581,6 +581,10 @@ toolclean: clean
 	$(MAKE) -C examples/arith toolclean
 	$(MAKE) -C c toolclean
 
+# for now, check-full is just check
+.PHONY: check-full
+check-full: check
+
 check: all mlsstr
 	./mlsstr
 	MAKE=$(MAKE) ./regrtest
