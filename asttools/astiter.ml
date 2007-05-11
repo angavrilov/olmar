@@ -93,7 +93,7 @@ let templ_kind_fun(kind : templateThingKind) = ()
 (***************** variable ***************************)
 
 let rec variable_fun(v : annotated variable) =
-  (* unused recored copy to provoke compilation errors for new fields *)
+  (* unused record copy to provoke compilation errors for new fields *)
   let _dummy = {			
     poly_var = v.poly_var; loc = v.loc; var_name = v.var_name;
     var_type = v.var_type; flags = v.flags; value = v.value;
@@ -131,7 +131,7 @@ let rec variable_fun(v : annotated variable) =
 (**************** templateInfo ************************)
 
 and templ_info_fun ti =
-  (* unused recored copy to provoke compilation errors for new fields *)
+  (* unused record copy to provoke compilation errors for new fields *)
   let _dummy = {
     poly_templ = ti.poly_templ; templ_kind = ti.templ_kind;
     template_params = ti.template_params;
@@ -191,7 +191,7 @@ and templ_info_fun ti =
 (************* inheritedTemplateParams ****************)
 
 and inherited_templ_params_fun itp =
-  (* unused recored copy to provoke compilation errors for new fields *)
+  (* unused record copy to provoke compilation errors for new fields *)
   let _dummy = {
     poly_inherited_templ = itp.poly_inherited_templ;
     inherited_template_params = itp.inherited_template_params;
@@ -216,7 +216,7 @@ and inherited_templ_params_fun itp =
 (***************** cType ******************************)
 
 and baseClass_fun baseClass =
-  (* unused recored copy to provoke compilation errors for new fields *)
+  (* unused record copy to provoke compilation errors for new fields *)
   let _dummy = {
     poly_base = baseClass.poly_base; compound = baseClass.compound;
     bc_access = baseClass.bc_access; is_virtual = baseClass.is_virtual
@@ -235,7 +235,7 @@ and baseClass_fun baseClass =
 
 
 and compound_info_fun i = 
-  (* unused recored copy to provoke compilation errors for new fields *)
+  (* unused record copy to provoke compilation errors for new fields *)
   let _dummy = {
     compound_info_poly = i.compound_info_poly;
     compound_name = i.compound_name; typedef_var = i.typedef_var;
@@ -439,7 +439,7 @@ and sTemplateArgument_fun ta =
 
 
 and scope_fun s = 
-  (* unused recored copy to provoke compilation errors for new fields *)
+  (* unused record copy to provoke compilation errors for new fields *)
   let _dummy = {
     poly_scope = s.poly_scope; variables = s.variables; 
     type_tags = s.type_tags; parent_scope = s.parent_scope;

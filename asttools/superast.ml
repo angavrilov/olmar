@@ -104,7 +104,7 @@ module Into_array = struct
   (***************** variable ***************************)
 
   let rec variable_fun ast_array (v : annotated variable) =
-    (* unused recored copy to provoke compilation errors for new fields *)
+    (* unused record copy to provoke compilation errors for new fields *)
     let _dummy = {			
       poly_var = v.poly_var; loc = v.loc; var_name = v.var_name;
       var_type = v.var_type; flags = v.flags; value = v.value;
@@ -139,7 +139,7 @@ module Into_array = struct
   (**************** templateInfo ************************)
 
   and templ_info_fun ast_array ti =
-    (* unused recored copy to provoke compilation errors for new fields *)
+    (* unused record copy to provoke compilation errors for new fields *)
     let _dummy = {
       poly_templ = ti.poly_templ; templ_kind = ti.templ_kind;
       template_params = ti.template_params;
@@ -194,7 +194,7 @@ module Into_array = struct
   (************* inheritedTemplateParams ****************)
 
   and inherited_templ_params_fun ast_array itp =
-    (* unused recored copy to provoke compilation errors for new fields *)
+    (* unused record copy to provoke compilation errors for new fields *)
     let _dummy = {
       poly_inherited_templ = itp.poly_inherited_templ;
       inherited_template_params = itp.inherited_template_params;
@@ -219,7 +219,7 @@ module Into_array = struct
   (***************** cType ******************************)
 
   and baseClass_fun ast_array baseClass =
-    (* unused recored copy to provoke compilation errors for new fields *)
+    (* unused record copy to provoke compilation errors for new fields *)
     let _dummy = {
       poly_base = baseClass.poly_base; compound = baseClass.compound;
       bc_access = baseClass.bc_access; is_virtual = baseClass.is_virtual
@@ -236,7 +236,7 @@ module Into_array = struct
 
 
   and compound_info_fun ast_array i = 
-    (* unused recored copy to provoke compilation errors for new fields *)
+    (* unused record copy to provoke compilation errors for new fields *)
     let _dummy = {
       compound_info_poly = i.compound_info_poly;
       compound_name = i.compound_name; typedef_var = i.typedef_var;
@@ -409,7 +409,7 @@ module Into_array = struct
 
 
   and scope_fun ast_array s = 
-    (* unused recored copy to provoke compilation errors for new fields *)
+    (* unused record copy to provoke compilation errors for new fields *)
     let _dummy = {
       poly_scope = s.poly_scope; variables = s.variables; 
       type_tags = s.type_tags; parent_scope = s.parent_scope;

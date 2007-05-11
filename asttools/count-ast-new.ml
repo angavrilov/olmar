@@ -70,7 +70,7 @@ let ast_node_fun = function
       assert false
 
   | Variable v ->
-      (* unused recored copy to provoke compilation errors for new fields *)
+      (* unused record copy to provoke compilation errors for new fields *)
       let _dummy = {			
 	poly_var = v.poly_var; loc = v.loc; var_name = v.var_name;
 	var_type = v.var_type; flags = v.flags; value = v.value;
@@ -83,7 +83,7 @@ let ast_node_fun = function
 	opt_iter string_fun v.var_name;
       
   | TemplateInfo ti -> 
-      (* unused recored copy to provoke compilation errors for new fields *)
+      (* unused record copy to provoke compilation errors for new fields *)
       let _dummy = {
 	poly_templ = ti.poly_templ; templ_kind = ti.templ_kind;
 	template_params = ti.template_params;
@@ -119,7 +119,7 @@ let ast_node_fun = function
 	assert(!(itp.enclosing) <> None);
 
   | BaseClass baseClass ->
-      (* unused recored copy to provoke compilation errors for new fields *)
+      (* unused record copy to provoke compilation errors for new fields *)
       let _dummy = {
 	poly_base = baseClass.poly_base; compound = baseClass.compound;
 	bc_access = baseClass.bc_access; is_virtual = baseClass.is_virtual
@@ -128,7 +128,7 @@ let ast_node_fun = function
 	bool_fun baseClass.is_virtual
 
   | Compound_info i ->
-      (* unused recored copy to provoke compilation errors for new fields *)
+      (* unused record copy to provoke compilation errors for new fields *)
       let _dummy = {
 	compound_info_poly = i.compound_info_poly;
 	compound_name = i.compound_name; typedef_var = i.typedef_var;
@@ -159,7 +159,7 @@ let ast_node_fun = function
       ()
 
   | AtomicType(CompoundType _compound_info) ->
-      (* does not occor: instead of (AtomicType(CompoundType...))
+      (* does not occur: instead of (AtomicType(CompoundType...))
        * the ast_array contains a (Compound_info ...)
        *)
       assert false
@@ -239,7 +239,7 @@ let ast_node_fun = function
       ()
 
   | Scope s ->
-      (* unused recored copy to provoke compilation errors for new fields *)
+      (* unused record copy to provoke compilation errors for new fields *)
       let _dummy = {
 	poly_scope = s.poly_scope; variables = s.variables; 
 	type_tags = s.type_tags; parent_scope = s.parent_scope;
