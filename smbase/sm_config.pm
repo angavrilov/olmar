@@ -395,7 +395,6 @@ EOF
     $obj_ext="cmo";
     $lib_ext="cma";
   }
-#  return($lib, "$ocamlc", "$ocamlopt -p", "$ocamlcc -p", $native, $obj_ext, $lib_ext);
   return($lib, $ocamlc, $ocamlopt, $ocamlcc, $native, $obj_ext, $lib_ext);
 }
 

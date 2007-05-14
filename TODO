@@ -1,5 +1,7 @@
 BEFORE NEXT RELEASE
 
+* continue proof reading from html doc Compile/try it - mention check_oast
+
 * check licence.txt file list
 
 * rename Type -> CType in elsa/doc/*fig

@@ -26,7 +26,7 @@
 SMBASE   := @SMBASE@
 AST      := @AST@
 ELSA     := @ELSA@
-MEMCHECK:= $(HOME)/src/memcheck
+MEMCHECK :=@MEMCHECK@
 
 
 # external tools
@@ -49,8 +49,14 @@ ifeq ($(OCAMLDEBUG),1)
   OCAML_LIB_EXT := cma
 endif
 
+ifeq ($(MEMCHECK),)
+  CHECKOAST_GOAL=
+else
+  CHECKOAST_GOAL=check_oast
+endif
+
 .PHONY: all
-all: 	check_oast \
+all: 	$(CHECKOAST_GOAL) \
 	astmatch.$(OCAML_OBJ_EXT) \
 	astiter.$(OCAML_OBJ_EXT) \
 	astiternodes.$(OCAML_OBJ_EXT) \

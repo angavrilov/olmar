@@ -123,6 +123,14 @@ echo ===========================================================================
 #       the file in there is also in elsa/doc
 
 
+# -r REV to force revision
+# svn export --ignore-externals $svnpath orig-elsa
+# svn export --ignore-externals https://svn.cubewano.org/repos/smbase/trunk orig-elsa/smbase
+# svn export --ignore-externals https://svn.cubewano.org/repos/ast/trunk orig-elsa/ast
+# svn export --ignore-externals https://svn.cubewano.org/repos/elkhound/trunk orig-elsa/elkhound
+# svn export --ignore-externals https://svn.cubewano.org/repos/elsa/trunk orig-elsa/elsa
+
+
 if [ ! -d $orig_elsa_release ] ; then
     if [ ! -f $orig_elsa_release_tar ] ; then
 	echo "need location of elsa-2005.08.22b.tar.gz"

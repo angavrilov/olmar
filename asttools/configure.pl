@@ -44,7 +44,7 @@ if ($smcv < $req_smcv) {
 # defaults
 $AST = "../ast";
 $ELSA = "../elsa";
-
+$MEMCHECK = "../../memchec";
 
 sub usage {
   standardUsage();
@@ -53,6 +53,7 @@ sub usage {
 package options:
   -ast=<dir>:        specify where the ast system is [$AST]
   -elsa=<dir>:       specify where the elsa system is [$ELSA]
+  -memcheck=<dir>:   specify where to find the memcheck library [$MEMCHECK]
 EOF
 }
 
@@ -82,6 +83,9 @@ foreach $optionAndValue (@ARGV) {
   }
   elsif ($arg eq "elsa") {
     $ELSA = getOptArg();
+  }
+  elsif ($arg eq "memcheck") {
+    $MEMCHECK = getOptArg();
   }
 
   else {
@@ -114,6 +118,24 @@ if (! -f "$ELSA/ast_annotation.ml") {
  $OCAML_OBJ_EXT, $OCAML_LIB_EXT) = 
     test_ocaml_compiler();
 
+# memcheck
+print("Searching the memcheck library... ");
+if (-f "$MEMCHECK/generate_type_descr.cmo" && 
+    -f "$MEMCHECK/memcheck.$OCAML_OBJ_EXT") {
+  print("found in $MEMCHECK");
+}
+else {
+  print("not found\n",
+	"unable to find $MEMCHECK/generate_type_descr.cmo",
+	"and $MEMCHECK/memcheck.$OCAML_OBJ_EXT.\n",
+	"Use the -memcheck option and configure and compile the ",
+	"memcheck library.\n",
+	"DISABLING memcheck\n");
+  $MEMCHECK="";
+}
+  
+
+
 # ------------------ config.summary -----------------
 $summary = getStandardConfigSummary();
 
@@ -122,6 +144,7 @@ cat <<EOF
   SMBASE:        $SMBASE
   AST:           $AST
   ELSA:          $ELSA
+  MEMCHECK:      $MEMCHECK
   OCAMLC:        $OCAMLC
   OCAMLOPT:      $OCAMLOPT
   OCAMLCC:       $OCAMLCC
@@ -138,6 +161,7 @@ writeConfigSummary($summary);
 writeConfigStatus("SMBASE" => "$SMBASE",
                   "AST" => "$AST",
                   "ELSA" => "$ELSA",
+		  "MEMCHECK" => "$MEMCHECK",
 		  "OCAMLC" => "$OCAMLC",
 		  "OCAMLOPT" => "$OCAMLOPT",
 		  "OCAMLCC" => "$OCAMLCC",
@@ -157,3 +181,8 @@ exit(0);
 
 # silence warnings
 pretendUsed($thisPackage, $OCAML_NATIVE);
+
+
+### Local Variables: ###
+### perl-indent-level: 2 ###
+### End: ###

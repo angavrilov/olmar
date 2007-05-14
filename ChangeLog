@@ -1,5 +1,12 @@
+2007-05-14  Hendrik Tews  <tews@tandem.cs.ru.nl>
+
+        * added config support for memcheck
+        * documentation updates
+        * changes towards a new release
+
 2007-05-02  Hendrik Tews  <tews@tandem.cs.ru.nl>
 
+        * regression tests ok
         * merge upstream, versions:
         elsa-stack: 9 smbase: 491 ast: 282 elkhound: 1045 elsa: 2476
 

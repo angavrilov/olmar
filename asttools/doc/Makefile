@@ -16,6 +16,14 @@ TODOCCLEAN =
 DOCFILESCVS=\
 	minor_gc.html
 
+MINOR_GC_TARGETS=\
+	minor_gc.ps.gz \
+	minor_gc.png \
+	minor_gc.fig.gz \
+	minor_gc-pages.ps.gz \
+	minor_gc-detail.png.gz \
+	minor_gc-detail-small-border.png
+
 DOCFILESNOCVS=\
 	hello-world.png \
 	hello-world-border.png \
@@ -25,12 +33,7 @@ DOCFILESNOCVS=\
 	crc.ps.gz \
 	crc.png \
 	crc-small.png \
-	minor_gc.ps.gz \
-	minor_gc.png \
-	minor_gc.fig.gz \
-	minor_gc-pages.ps.gz \
-	minor_gc-detail.png.gz \
-	minor_gc-detail-small-border.png
+	$(MINOR_GC_TARGETS)
 
 DOCFILES= $(DOCFILESCVS) $(DOCFILESNOCVS)
 
@@ -72,6 +75,13 @@ new-doc: rm-doc copydoc-www
 rm-doc:
 	ssh $(WEBHOST) rm -f $(WEBDIR)/*; true
 
+# convinience target for creating all minor_gc stuff over night
+.PHONY: all-minor-gc
+all-minor-gc: 
+	echo -n "start date "
+	date
+	$(MAKE) -k $(MINOR_GC_TARGETS); echo -n "end date "; date
+
 TODOCCLEAN += minor_gc.png
 minor_gc.png: minor_gc.ps
 	convert -resize 8000x $< $@
@@ -108,10 +118,8 @@ minor_gc-detail-small-border.png: minor_gc-detail-small.png
 	convert -bordercolor blue -border 5 -bordercolor white -border 50 $< $@
 
 TODOCCLEAN += minor_gc-size.dot
-minor_gc-size.dot: minor_gc.dot
-	head -1 $< > $@
-	echo '    size="90,90";' >> $@
-	tail -n +2 $< >> $@
+minor_gc-size.dot: minor_gc.oast ../ast_graph
+	../ast_graph -size minor_gc.oast -o minor_gc-size.dot
 
 TODOCCLEAN += minor_gc.fig
 minor_gc.fig: minor_gc.dot
@@ -156,13 +164,17 @@ TODOCCLEAN += crc.dot
 crc.dot: crc.oast ../ast_graph
 	../ast_graph -o crc.dot crc.oast 
 
+TODOCCLEAN += crc-size.dot
+crc-size.dot: crc.oast ../ast_graph
+	../ast_graph -size -o crc-size.dot crc.oast 
+
 TODOCCLEAN += crc.svg
 crc.svg: crc.dot
 	dot -Tsvg -o crc.svg crc.dot
 
 TODOCCLEAN += crc.ps
-crc.ps: crc.dot
-	dot -Tps -o crc.ps crc.dot
+crc.ps: crc-size.dot
+	dot -Tps -o crc.ps crc-size.dot
 
 TODOCCLEAN += crc.png
 crc.png: crc.svg
@@ -170,7 +182,7 @@ crc.png: crc.svg
 
 TODOCCLEAN += crc-small.png
 crc-small.png: crc.svg
-	convert -resize 700x $< $@
+	convert -resize 500x $< $@
 
 
 .PHONY: touchdoc
