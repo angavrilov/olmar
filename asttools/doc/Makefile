@@ -104,6 +104,7 @@ ifeq ($(TOUCH_GC_DETAIL),1)
 minor_gc-detail.png: minor_gc-pages.ps
 	touch $@
 else
+TODOCCLEAN += minor_gc-detail.png
 minor_gc-detail.png: minor_gc-pages.ps
 	echo cut some interesting part and save it as minor_gc-detail.png
 	false
