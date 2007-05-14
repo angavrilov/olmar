@@ -7,32 +7,63 @@ make -C elsa all.ast
 if cvs status elsa/all.ast | grep -q Up-to-date ; then
     echo all.ast is up-to-date
 else
-    echo please update else/all.ast before continuing the snapshot
+    echo please update elsa/all.ast before continuing the snapshot
     exit 1
 fi
 
-#elsarep=ithif59.inf.tu-dresden.de:/sun/theorie/tews/Privat/Store
-if [ $(hostname) = "tandem" ] ; then
-    elsarep=/home/tews/Store
-else
-    elsarep=tandem:/home/tews/Store
-fi
-repdir=src/elsa
+last_merge_tag=$(cvs status -v ChangeLog | grep merged-svn | head -1 | tr '-' ' ')
+svn_stack=$(echo $last_merge_tag | (read -a a; echo ${a[7]}))
+svn_smbase=$(echo $last_merge_tag | (read -a a; echo ${a[9]}))
+svn_ast=$(echo $last_merge_tag | (read -a a; echo ${a[11]}))
+svn_elkhound=$(echo $last_merge_tag | (read -a a; echo ${a[13]}))
+svn_elsa=$(echo $last_merge_tag | (read -a a; echo ${a[15]}))
+
+svnbase=https://svn.cubewano.org/repos
+elsarep=solo:/vol/cvsd/robin
+repdir=elsa
 create_tar_cache=1
-snapshot_name=$(date +"elsa-2005.08.22b-olmar-%Y.%m.%d")
+snapshot_base="elsa-$svn_stack-$svn_smbase-$svn_ast-$svn_elkhound-$svn_elsa"
+snapshot_name=$(date +"$snapshot_base-olmar-%Y-%m-%d")
 snapshot_tar=$snapshot_name.tar.gz
 
 dir=/tmp/tews/elsa
+elsa_orig=$(dirname $dir)/orig-elsa
 cvscache=elsa.tar.gz
-
-orig_elsa_release_tar=/home/tews/src/elsa-2005.08.22b.tar.gz
-orig_elsa_release=/tmp/tews/elsa-2005.08.22b
+svncache=orig-elsa.tar.gz
 
 rm -rf $(dirname $dir)/elsa*olmar*
 rm -rf $dir
+rm -rf $elsa_orig
 rm -rf $(dirname $dir)/build
 
 elsa_cvs_dir=$(pwd)
+
+
+echo ===========================================================================
+echo ==========================     get orig elsa    ===========================
+echo ===========================================================================
+
+pushd $(dirname $elsa_orig)
+
+if [ $create_tar_cache = 1 -a -f $svncache ] ; then
+    tar -xzf $svncache
+else
+    svn export -r $svn_stack    --ignore-externals \
+	$svnbase/elsa-stack/trunk $(basename $elsa_orig)
+    svn export -r $svn_smbase   --ignore-externals \
+	$svnbase/smbase/trunk $(basename $elsa_orig)/smbase
+    svn export -r $svn_ast      --ignore-externals \
+	$svnbase/ast/trunk $(basename $elsa_orig)/ast
+    svn export -r $svn_elkhound --ignore-externals \
+	$svnbase/elkhound/trunk $(basename $elsa_orig)/elkhound
+    svn export -r $svn_elsa     --ignore-externals \
+	$svnbase/elsa/trunk $(basename $elsa_orig)/elsa
+    if [ $create_tar_cache = 1 ] ; then
+	tar -czf $svncache $(basename $elsa_orig)
+    fi
+fi
+
+popd
 
 echo ===========================================================================
 echo ============================     make doc    ==============================
@@ -123,31 +154,8 @@ echo ===========================================================================
 #       the file in there is also in elsa/doc
 
 
-# -r REV to force revision
-# svn export --ignore-externals $svnpath orig-elsa
-# svn export --ignore-externals https://svn.cubewano.org/repos/smbase/trunk orig-elsa/smbase
-# svn export --ignore-externals https://svn.cubewano.org/repos/ast/trunk orig-elsa/ast
-# svn export --ignore-externals https://svn.cubewano.org/repos/elkhound/trunk orig-elsa/elkhound
-# svn export --ignore-externals https://svn.cubewano.org/repos/elsa/trunk orig-elsa/elsa
-
-
-if [ ! -d $orig_elsa_release ] ; then
-    if [ ! -f $orig_elsa_release_tar ] ; then
-	echo "need location of elsa-2005.08.22b.tar.gz"
-	exit 1
-    fi
-    
-    pushd $(dirname $dir) > /dev/null
-    tar -xzf $orig_elsa_release_tar
-    if [ ! -d $orig_elsa_release ] ; then
-	echo "something is wrong: untared original elsa but can't find it"
-	exit 1
-    fi
-    popd > /dev/null
-fi
-
 cd $(dirname $dir)
-diff -rq $(basename $dir) $orig_elsa_release | \
+diff -rq $(basename $dir) $elsa_orig | \
     grep -v -e 'differ$' | \
     sed -e 's/Only in //' -e 's|: |/|' | \
     grep -v -f $elsa_cvs_dir/addcheck_ignored_files

@@ -1,0 +1,70 @@
+#!/bin/bash
+
+set -e
+
+startdir=$(pwd)
+
+if [ -x $startdir/get-export-revisions.pl ] ; then
+    get_export_revisions=$startdir/get-export-revisions.pl
+else 
+    echo can\'t find get-export-revisions.pl
+    exit 1
+fi
+
+
+svnpath=https://svn.cubewano.org/repos/elsa-stack/trunk
+
+dir=/tmp/tews/elsa-merge
+
+rm -rf $dir
+
+mkdir -p $dir
+
+pushd $dir
+
+cvs -Q -d /home/tews/Store co -d head-before-import elsa
+
+cd head-before-import
+
+last_tag=$(cvs status -v elsa/Makefile.in | \
+    awk '/[^-]svn-/ {print $1}' | head -1)
+
+cd ..
+
+# get-export-revisions.pl pattern matches on the the upstream dir name
+# if you changed upstream keep get-export-revisions.pl in sync!
+svn export $svnpath upstream 2>&1 | tee svn-export-log
+#(cd /tmp/tews; tar -xzf svn.tar.gz)
+
+# smbase-484-ast-278-elkhound-1036-elsa-2439
+
+comment=$($get_export_revisions < svn-export-log | head -1)
+tag=$($get_export_revisions < svn-export-log | tail -1)
+
+echo comment: $comment
+echo tag: $tag
+
+echo -n "continue with vendor import (comment and tag as printed) [N/y]: "
+read answer
+
+if [  ${answer:=n} = n -o $answer = N ] ; then
+    exit 0
+fi
+
+cd upstream
+
+set -x
+cvs -d /home/tews/Store import -m "$comment" src/elsa elsa-vendor $tag
+set +x
+
+cd ..
+
+
+cp -a head-before-import merge
+
+echo "update in head-before-import and delete all new/updated files there"
+echo "then do the merge"
+echo "cd $dir/merge; cvs up; cvs up -j $last_tag -j $tag 2>&1 | tee merge.log"
+
+
+
