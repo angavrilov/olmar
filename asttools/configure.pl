@@ -44,7 +44,7 @@ if ($smcv < $req_smcv) {
 # defaults
 $AST = "../ast";
 $ELSA = "../elsa";
-$MEMCHECK = "../../memchec";
+$MEMCHECK = "../../memcheck";
 
 sub usage {
   standardUsage();

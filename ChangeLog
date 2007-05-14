@@ -1,5 +1,7 @@
 2007-05-14  Hendrik Tews  <tews@tandem.cs.ru.nl>
 
+        * fixed memcheck config default
+        
         * added config support for memcheck
         * documentation updates
         * changes towards a new release
