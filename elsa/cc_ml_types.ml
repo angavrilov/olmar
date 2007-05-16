@@ -11,7 +11,7 @@ type unsigned_int = int32
 (* SourceLoc is defined as an enum in srcloc.h, here we take the
  * xml representation, which is file * line * char
  *
- * xmlserilaization: hardwired in astgen:
+ * xmlserialization: hardwired in astgen:
  * toXml_SourceLoc -> sourceLocManager->getString(loc)
  *)
 type sourceLoc = string * int * int
@@ -105,7 +105,7 @@ let is_DF_SOURCEFLAGS = function
 
 
 (*
- * xmlserilaization via string toXml(DeclFlags df) as int
+ * xmlserialization via string toXml(DeclFlags df) as int
  *)
 type declFlags = declFlag list
 
@@ -149,13 +149,13 @@ let string_of_declFlags l = Elsa_util.string_of_flag_list string_of_declFlag l
 
 
 (* from strtable.h
- * xmlserilaization as string, hardwired in astgen
+ * xmlserialization as string, hardwired in astgen
  *)
 type stringRef = string
 
 
 (* from cc_flags.h
- * xmlserilaization as int via cpp generated toXml
+ * xmlserialization as int via cpp generated toXml
  *)
 (*
  * ------------------------- SimpleTypeId ----------------------------
@@ -272,7 +272,7 @@ let string_of_simpleTypeId = function
 
 
 (* also cc_flags.h
- * xmlserilaization as int via cpp generated toXml
+ * xmlserialization as int via cpp generated toXml
  *)
 (* ----------------------- TypeIntr ----------------------
  * type introducer keyword
@@ -293,7 +293,7 @@ let string_of_typeIntr = function
   | TI_ENUM   -> "enum"
 
 (* also cc_flags.h
- * xmlserilaization as int via cpp generated toXml
+ * xmlserialization as int via cpp generated toXml
  *
  * ---------------- access control ------------
  * these are listed from least restrictive to most restrictive,
@@ -339,7 +339,7 @@ type cVFlag =
 
 
 (*
- * xmlserilaization as int via cpp generated toXml
+ * xmlserialization as int via cpp generated toXml
  *)
 type cVFlags = cVFlag list
 
@@ -352,7 +352,7 @@ let string_of_cVFlag = function
 let string_of_cVFlags l = Elsa_util.string_of_flag_list string_of_cVFlag l
 
 (* cc_flags.h
- * xmlserilaization as int via cpp generated toXml
+ * xmlserialization as int via cpp generated toXml
  *
  * --------------- overloadable operators -------------
  * This is all of the unary and binary operators that are overloadable
@@ -474,7 +474,7 @@ let string_of_overloadableOp = function
 
 
 (* cc_flags.h
- * xmlserilaization as int via cpp generated toXml
+ * xmlserialization as int via cpp generated toXml
  *
  * ---------------------------- UnaryOp ---------------------------
  *)
@@ -494,7 +494,7 @@ let string_of_unaryOp = function
 
 
 (* cc_flags.h
- * xmlserilaization as int via cpp generated toXml
+ * xmlserialization as int via cpp generated toXml
  *
  * ------------------------- EffectOp -------------------------
  * unary operator with a side effect
@@ -515,7 +515,7 @@ let string_of_effectOp = function
 
 
 (* cc_flags.h
- * xmlserilaization as int via cpp generated toXml
+ * xmlserialization as int via cpp generated toXml
  *
  * ------------------------ BinaryOp --------------------------
  *)
@@ -598,7 +598,7 @@ let string_of_binaryOp = function
 
 
 (* cc_flags.h
- * xmlserilaization as int via cpp generated toXml
+ * xmlserialization as int via cpp generated toXml
  *
  * ---------------- cast keywords -------------
  *)
