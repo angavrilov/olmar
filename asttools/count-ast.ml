@@ -1,3 +1,6 @@
+(*  Copyright 2006-2007, Hendrik Tews, All rights reserved.            *)
+(*  See file license.txt for terms of use                              *)
+(***********************************************************************)
 
 (* 
  * This program prints useless messages like
@@ -13,6 +16,8 @@
  * 
  * The main purpose here is to have a simple example for doing something 
  * with a C++ abstract syntax tree.
+ * 
+ * This is the recursive variant. It uses straightforward tree recursion.
  *)
 
 open Cc_ast_gen_type

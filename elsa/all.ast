@@ -880,7 +880,7 @@ class IDeclarator(SourceLoc loc) {
 // EOF
 //=========================== end  of  cc.ast
 //=========================== start of gnu_attribute_hack.ast
-//  Copyright 2006 Hendrik Tews, All rights reserved.                  *
+//  Copyright 2006-2007, Hendrik Tews, All rights reserved.            *
 //  See file license.txt for terms of use                              *
 //**********************************************************************
 
@@ -2522,7 +2522,7 @@ class IDeclarator {
 //=========================== start of ml_ctype.ast
 //  (visit this in -*- mode: tuareg -*- )                              *
 //                                                                     *
-//  Copyright 2006 Hendrik Tews, All rights reserved.                  *
+//  Copyright 2006-2007, Hendrik Tews, All rights reserved.            *
 //  See file license.txt for terms of use                              *
 //**********************************************************************
 

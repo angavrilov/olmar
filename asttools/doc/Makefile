@@ -78,7 +78,7 @@ rm-doc:
 # convinience target for creating all minor_gc stuff over night
 .PHONY: all-minor-gc
 all-minor-gc: 
-	echo -n "start date "
+	echo -n "start "
 	date
 	$(MAKE) -k $(MINOR_GC_TARGETS); echo -n "end date "; date
 
@@ -188,7 +188,8 @@ crc-small.png: crc.svg
 
 .PHONY: touchdoc
 touchdoc: 
-	touch crc.dot crc.ps crc.svg crc.png crc-small.png minor_gc.oast \
+	touch crc.dot crc.ps crc.svg crc.png crc-small.png crc-size.dot \
+		minor_gc.oast \
 		minor_gc.dot minor_gc-size.dot minor_gc-pages.dot \
 		minor_gc-pages.ps minor_gc.ps minor_gc.fig \
 		minor_gc-detail.png minor_gc-detail-small.png $(DOCFILES)

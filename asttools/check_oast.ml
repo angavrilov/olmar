@@ -1,3 +1,8 @@
+(*  Copyright 2006-2007, Hendrik Tews, All rights reserved.            *)
+(*  See file license.txt for terms of use                              *)
+(***********************************************************************)
+
+(* check oast file consitency with the memcheck library *)
 
 open Cc_ast_gen_type
 open Ast_annotation

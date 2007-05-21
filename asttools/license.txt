@@ -1,5 +1,5 @@
 The software in this directory is
-Copyright (c) 2006, Hendrik Tews, all right reserved.
+Copyright (c) 2006, 2007, Hendrik Tews, all right reserved.
 
 Redistribution and use in source and binary forms of all material
 within this directory, with or without modification, are

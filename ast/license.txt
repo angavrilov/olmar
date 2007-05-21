@@ -1,7 +1,7 @@
 The files 
     astgen_util.ml ocamlhelp.cc ocamlhelp.h ocsstr.cc ocsstr.h
 in this directory are
-Copyright (c) 2006, Hendrik Tews, all right reserved.
+Copyright (c) 2006, 2007, Hendrik Tews, all right reserved.
 
 All other software in this directory is
 Copyright (c) 2002, Regents of the University of California
