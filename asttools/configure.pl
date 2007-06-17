@@ -126,7 +126,7 @@ if (-f "$MEMCHECK/generate_type_descr.cmo" &&
 }
 else {
   print("not found\n",
-	"unable to find $MEMCHECK/generate_type_descr.cmo",
+	"unable to find $MEMCHECK/generate_type_descr.cmo ",
 	"and $MEMCHECK/memcheck.$OCAML_OBJ_EXT.\n",
 	"Use the -memcheck option and configure and compile the ",
 	"memcheck library.\n",

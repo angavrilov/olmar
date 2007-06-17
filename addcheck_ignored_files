@@ -30,7 +30,9 @@
 ^elsa/asttools$
 ^elsa/snapshot$
 ^elsa/addcheck_ignored_files$
-^elsa/elsa/in/big/gz/iostream-4.1.2.i.gz
+^elsa/get-export-revisions.pl$
+^elsa/upstream-snapshot-import$
+^elsa/elsa/in/big/gz/iostream-4.1.2.i.gz$
 ^/tmp/tews/orig-elsa/ast/agrampar.codes.h$
 ^/tmp/tews/orig-elsa/ast/agrampar.tab.cc$
 ^/tmp/tews/orig-elsa/ast/agrampar.tab.h$

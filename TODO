@@ -1,20 +1,10 @@
-BEFORE NEXT RELEASE
-
-* continue proof reading from html doc Compile/try it - mention check_oast
-
-* check licence.txt file list
-
-* rename Type -> CType in elsa/doc/*fig
-
 GENERAL   
 
 * do without SK_UNKNOWN (post 9 dec 2006 by smcpeak on oink-devel)
 
 * elsa merge plan:
-  - renamings varValue, sta_value, CType
   - gnu_attribute clever idea in gnu.ast (change to list list?)
   - array index designators default in gnu.ast
-  - 
 
 * check whether IDeclarator.kAndR_params should be nullable
    (kandr.ast)
@@ -24,8 +14,6 @@ GENERAL
   might move DeclaratorContext back into the cc_tcheck.ast
 
 * SubscriptDesignator.idx_computed2 is INT_MIN
-
-* update readme.txt   
 
 * update dependency graph in elsa/gendoc, include ocaml modules, check
    for all modules

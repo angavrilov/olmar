@@ -1,6 +1,7 @@
 The following files 
 
-    ast_annotation.ml ast_marshal.ml caml_callbacks.ml
+    ast_annotation.ml ast_annotation.mli ast_marshal.ml 
+    oast_header.ml oast_header_version.ml caml_callbacks.ml
     cc_ml_constructors.ml cc_ml_types.ml cc_ocaml.cc cc_ocaml.h
     elsa_util.ml gnu_attribute_hack.ast ml_ctype.ast
     ml_ctype_constructors.ml ml_ctype.ml

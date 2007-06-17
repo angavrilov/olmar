@@ -1,16 +1,19 @@
-readme.txt for Elkhound/Elsa distribution
------------------------------------------
+readme.txt for Olmar 
+--------------------
 
 This release is provided under the BSD license.  See license.txt.
 
 Elkhound is a parser generator.  
 Elsa is a C/C++ parser that uses Elkhound.
+Olmar is a patched Elsa version that can reflect the internal 
+  C++ syntax tree into an Ocaml variant type.
 
-See additional documentation in index.html in the various 
-subdirectories.
+The Olmar documentation is in asttools/doc/index.html. The
+various other index.html files contain documentation for the
+original Elkhound/Elsa system.
 
-Alternatively, see the Documentation section of
-http://www.cs.berkeley.edu/~smcpeak/elkhound/ .
+Alternatively, see http://www.cs.ru.nl/~tews/olmar/
+and http://www.cs.berkeley.edu/~smcpeak/elkhound/ .
 
 
 Build instructions:
@@ -25,9 +28,7 @@ in a particular directory just by going into the failing directory and
 issuing it there.
 
 After building, the interesting binary is elsa/ccparse.  See
-elsa/index.html for more info on what to do with it.
+asttools/doc/index.html and elsa/index.html for more info on what
+to do with it. 
 
-
-If you run into problems you can email me: smcpeak@cs.berkeley.edu
-But be aware I'm usually pretty busy so responses may take a couple
-of days.
+Please email any problems/suggestions/patches to tews@cs.ru.nl.

@@ -101,9 +101,13 @@ for d in smbase ast elkhound elsa ; do
     cp -a $elsa_cvs_dir/$d/gendoc $d
 done
 
+set -x
 set -e
-make -C $elsa_cvs_dir/asttools/doc TARGETDIR=$dir/asttools/doc copydoc-tar
+make -C $elsa_cvs_dir/asttools/doc \
+    TARGETDIR=$dir/asttools/doc SNAPSHOTNAME=$snapshot_name \
+    copydoc-tar
 set +e
+set +x
 
 echo ===========================================================================
 echo ============================     ADDED FILES    ===========================
@@ -173,11 +177,14 @@ echo -n "test distribution [Y/n]:"
 read answer
 
 if [  ${answer:=y} = y -o $answer = Y ] ; then
+    rm -rf build
     mkdir build
     cd build
     tar -xzf ../$snapshot_tar
     cd $snapshot_name
     $elsa_cvs_dir/reconfigure
+    (cd asttools; CC="ccache gcc-4.1" CXX="ccache g++-4.1" \
+	./configure -memcheck=/home/tews/src/memcheck -no-dash-O2)
     make
 
     echo
@@ -192,6 +199,17 @@ if [  ${answer:=y} = y -o $answer = Y ] ; then
 	echo -n "continue tests [Y/n]:"
 	read answer
 	if [  ${answer:=y} = y -o $answer = Y ] ; then
+	    echo ===============================================================
+	    echo ============== Files
+	    (cd asttools; ./regtest-files)
+	    echo ===============================================================
+	    echo ============== Count
+	    (cd asttools; ./regtest-count)
+	    echo ===============================================================
+	    echo ============== Check oast
+	    (cd asttools; ./regtest-oast)
+	    echo ===============================================================
+	    echo ============== Graph
 	    (cd asttools; ./regtest-graph -parse)
 	fi
     fi
@@ -199,10 +217,10 @@ fi
 
 
 cd $elsa_cvs_dir
-echo -n "copy olmar docs [Y/n]:"
+echo -n "copy olmar docs [y/N]:"
 read answer
 
-if [  ${answer:=y} = y -o $answer = Y ] ; then
+if [  ${answer:=n} = y -o $answer = Y ] ; then
     make -C asttools/doc new-doc
 fi
 

@@ -37,7 +37,7 @@ executable.
 <DT><STRONG>2 May 2007</STRONG> 
 <DD>
 <UL>
-<LI>updated to the elsa stack svn repository, version May 2 2006
+<LI>updated to the elsa stack svn repository, version May 2nd 2006
 (svn versions: elsa-stack: 9 smbase: 491 ast: 282 elkhound: 1045
 elsa: 2476) 
 </LI>
@@ -108,19 +108,30 @@ repository.</A>
 <LI>Flex</LI>
 <LI>perl5</LI>
 <LI>(I believe some Yacc variant, like bison)</LI>
-<LI>of course Ocaml</LI>
-<LI><A HREF="~/memcheck" >the Memcheck library for Ocaml</A></LI>
+<LI>Ocaml version 3.09.*</LI>
+<LI><A HREF="~/memcheck" >the Memcheck library for Ocaml</A>
+(not strictly necessary, but recommended), 
+</LI>
 </UL>
 
+The Memcheck library is needed for the <KBD>check_oast</KBD>, the
+consitency checker for marshalled elsa abstract syntax trees.
+When encountering strange bugs in Olmar applications it is
+advisable to first check the consistency of the abstract syntax
+trees.
+<P>
+The Memcheck library is currently only available for Ocaml 3.09
+(because it relies on camlp4). Without Memcheck, Olmar also runs
+fine under the latest Ocaml version.
+<P>
 
 See also <A HREF="http://www.cs.berkeley.edu/~smcpeak/elkhound/"
 >Elsa's requirements (under point Download)</A> and <A HREF="http://www.cs.berkeley.edu/~smcpeak/elkhound/matrices/matrix-2005.08.22b.html" >Elsa's
 success/failure matrix</A>
 <P>
 
-(It appears to run on a 64bit system. However, there are quite a
-few warnings about casts between pointer and integer. I guess it
-is pure luck that it passes the regression tests.)
+(I was told that Elsa is now 64bit clean. However, the additional
+Olmar code is not (yet).)
 
 
 
@@ -128,11 +139,17 @@ is pure luck that it passes the regression tests.)
 choose from the following alternative:
 <UL>
 <LI>current release: <A
-HREF="http://www.cs.ru.nl/~tews/olmar/releases/elsa-olmar-@RELEASEDATE@.tar.gz"
->elsa-olmar-@RELEASEDATE@.tar.gz</A>
+HREF="http://www.cs.ru.nl/~tews/olmar/releases/@RELEASEDATE@.tar.gz"
+>@RELEASEDATE@.tar.gz</A>
+<P>
+(The numbers between elsa and olmar are the elsa-stack svn
+repository versions in the following order: elsa-stack, smbase,
+ast, elkhound, elsa. The numbers after olmar are the release date
+in the format yyyy-mm-dd.)
 </LI>
 <LI><A HREF="http://www.sos.cs.ru.nl/cgi-bin/~tews/olmar/viewvc-patch.cgi/elsa/" >Browse the cvs
 repository</A>
+<P>
 </LI>
 <LI>via anonymous cvs access, use
 <P>
@@ -147,6 +164,18 @@ releases</A>
 </UL>
 
 <H3>Configure</H3>
+The toplevel configure simply calls the configure scripts of all
+subdirectories with the same options. Therefore it is not
+possible to pass directory specific options to the toplevel
+configure. Therefore, if the automatic detection of the Memcheck
+library fails, you have to run configure twice: In the top-level
+directory and with specific options in the asttools directory.
+
+<DL>
+<DT><STRONG>top-level configuration</STRONG>
+<DD>In <span
+style="color:#0048ff;"><STRONG>Olmars</STRONG></span> top-level
+directory, run
 <BLOCKQUOTE><PRE>
 configure -no-dash-O2
 </PRE>
@@ -156,22 +185,30 @@ compile the C++ code with <KBD>-O2</KBD>. You can use the
 environment variables <KBD>CC</KBD> and <KBD>CXX</KBD> to set the
 C and C++ compiler, respectively.
 <P>
+In order to see whether automatic Memcheck detection worked check
+the line starting with "Searching the memcheck library..." at the
+end of the configure output.
 
-The whole thing consists of five packages/subdirectories: smbase,
-ast, elkhound, elsa, and asttools. The configure script and the
-makefile of the base directory simply start the appropriate
-action in each subdirectory. <KBD>configure --help</KBD> in the
-base directory will therefore give you the help text of all the
-configure scripts in the subdirectories.
+<DT><STRONG>asttools configuration</STRONG>
+</DL>Only necessary if automatic Memcheck detection failed and
+you do want to compile with Memcheck support. Do
+<BLOCKQUOTE><PRE>
+(cd asttools/; ./configure -memcheck=/path/to/memcheck)
+</PRE></BLOCKQUOTE>
 <P>
 
 
 <H3>Compile</H3>
 <BLOCKQUOTE><PRE>make</PRE></BLOCKQUOTE>
-this will create the C++ parser <KBD>elsa/ccparse</KBD>, the AST
+This will create the C++ parser <KBD>elsa/ccparse</KBD> (with
+buildin Ocaml reflection capabilities), the AST
 Graph utility <KBD>asttools/ast_graph</KBD>, and the <span
 style="color:#0048ff;"><STRONG>Olmar</STRONG></span> example
-application <KBD>asttool/count-ast</KBD>.
+application <KBD>asttools/count-ast</KBD> and its variant
+<KBD>asttools/count-ast-new</KBD>. If the Memcheck library is
+available, the Ocaml Ast consistency checker <KBD>check_oast</KBD>
+is also built.
+
 <P>
 
 <H3>Try it</H3>
@@ -188,6 +225,8 @@ g++ -E -o <A HREF="crc.ii" >crc.ii</A> <A HREF="http://www.sos.cs.ru.nl/cgi-bin/
 elsa/ccparse -oc <A HREF="crc.oast" >crc.oast</A> <A HREF="crc.ii" >crc.ii</A>
 </PRE>
 </BLOCKQUOTE>
+(Add <KBD>-tr c_lang</KBD> for C source files; default is C++.)
+<P>
 </LI>
 <LI>use AST Graph to generate a dot graph description
 <BLOCKQUOTE><PRE>
@@ -205,7 +244,7 @@ dotty crc.dot
 dot -Tps crc.dot -o crc.ps; gv <A HREF="crc.ps.gz" >crc.ps</A>
 </PRE>
 </BLOCKQUOTE>
-(If gv fail with an error, try a smaller magnification.)
+(If gv fails with an error, try a smaller magnification.)
 <P>
 </LI>
 <LI>or generate a png from it (<KBD>dot -Tpng</KBD>):
@@ -286,8 +325,12 @@ HREF="http://bugs.debian.org/cgi-bin/bugreport.cgi?bug=387296"
 >#387296</A>, <A
 HREF="http://bugs.debian.org/cgi-bin/bugreport.cgi?bug=387298"
 >#387298</A>)
+<DT>kgraphviewer
+<DD>In my first attempt kgraphviewer did not show any labels.
+  Still investigating.
 </DL>
 <P>
+
 
 <div style="background:#ffa500; color:#0048ff; text-align:center">
 <H2>
@@ -332,9 +375,9 @@ and because C++ pointers might be <KBD>NULL</KBD>. Anyway ...)
 <P>
 
 
-Elsa internal abstract syntax tree falls into two parts. About 35
-different node types (about 150 classes) describe the C++ syntax. 
-Elsa's type checker adds some more types of nodes to describe C++
+Elsa internal abstract syntax tree falls into two parts. 32
+different node types (about 135 classes) describe the C++ syntax. 
+Elsa's type checker adds 10 types of nodes to describe C++
 types in a syntax independent way. A node type might be split
 into several subtypes (very similar to Ocaml variants). The node
 type for C++ expressions, for instance, is modelled with 36
@@ -357,7 +400,7 @@ hopefully less error prone variant over more efficient code.
 <P>
 
 
-The code for the 35 syntax node types is generated automatically
+The code for the 32 syntax node types is generated automatically
 from an ast description file. Therefore, to add the
 <KBD>toOcaml</KBD> method to these syntax classes one only needs
 to patch astgen. With <span
@@ -390,10 +433,15 @@ arrange for calls from ccparse.
 
 In <A
 HREF="http://www.sos.cs.ru.nl/cgi-bin/~tews/olmar/viewvc-patch.cgi/elsa/asttools/count-ast.ml?revision=HEAD&view=markup"
->asttools/count-ast.ml</A> you find a
+>asttools/count-ast.ml</A>
+and its variant
+<A
+HREF="http://www.sos.cs.ru.nl/cgi-bin/~tews/olmar/viewvc-patch.cgi/elsa/asttools/count-ast-new.ml?revision=HEAD&view=markup"
+>asttools/count-ast-new.ml</A>
+you find two
 very simple <span
 style="color:#0048ff;"><STRONG>Olmar</STRONG></span> example
-application. 
+applications. 
 
 <H3>Abstract syntax tree type definition</H3>
 
@@ -411,7 +459,7 @@ The type definition is in the following files
 
 The whole abstract syntax tree that is marshaled from ccparse has type
 <BLOCKQUOTE>
-annotated translationUnit_type = annotated * (annotated topForm_type list)
+annotated translationUnit_type = annotated * (annotated topForm_type list) * (annotated scope option)
 </BLOCKQUOTE>
 
 
@@ -444,7 +492,7 @@ generated (shifted to the right to fit into an Ocaml int).
 
 The abstract syntax tree is circular. A naive iteration over the
 tree will therefore in general not terminate. Currently there are
-nine fields that might make the tree circular:
+14 fields that might make the tree circular:
 <UL>
 <LI>var_type in type variable
 </LI>
@@ -525,13 +573,11 @@ Elsa related.
 </div>
 
 <DL>
-<DT>does not compile on 64-bit platforms
-<DD>The elsa code contains some pointer &LT;--&GT; <KBD>unsigned
-int</KBD> casts and is thus not 64-bit clean. If you really want
-64 bit try <A HREF="64-bit.patch" >this patch</A> (ignore
-the error on ChangeLog, insert the line from chunk #2
-sm_config.pm manually, fix smbase/Makefile to pass
--DARCH_64_BIT to smbase/mysig.cc and configure with -64bit).
+<DT>64-bit platforms
+<DD>I was told that recent elsa versions are 64 bit clean now.
+However, not all
+<span style="color:#0048ff;"><STRONG>Olmar</STRONG></span>
+changes are not 64 bit clean. 
 <P>
 <DT>inefficiency on large graphs
 <DD>When generating the Ocaml tree every node in the C++ tree
@@ -545,18 +591,27 @@ HREF="http://caml.inria.fr/pub/ml-archives/caml-list/2006/10/93f3eece137374dc6f2
 >the related discussion on the Ocaml list.</A>
 <P>
 <DT>missing node types
-<DD>The syntax node class BaseClassSubobj seems not to appear in
+<DD>The syntax node classes BaseClassSubobj and TemplateParams
+seems not to appear in
 all of Elsa's regression test programs. The <KBD>toOcaml</KBD>
 method of this classes currently just contains an
 <KBD>assert(false)</KBD>. I am grateful for any example program
 that triggers these assertions.
+<P>
+<DT>ocaml 3.10
+<DD>The memcheck library relies on some camlp4 code that has not
+yet been ported to ocaml 3.10. Therefore a complete
+<span style="color:#0048ff;"><STRONG>Olmar</STRONG></span>
+installation with Memcheck requires ocaml 3.09. Without Memcheck
+<span style="color:#0048ff;"><STRONG>Olmar</STRONG></span>
+runs fine with ocaml 3.10.
 </DL>
 
 
 
 <HR><FONT SIZE="-2">
 last changed on
-<!-- hhmts start --> 4 May 2007
+<!-- hhmts start -->17 Jun 2007
 <!-- hhmts end -->
 by <A HREF="http://www.cs.ru.nl/~tews">Hendrik</A>
 </FONT></BODY> </HTML>

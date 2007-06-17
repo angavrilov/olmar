@@ -44,9 +44,14 @@ prepare-snapshot-doc: $(DOCFILES)
 
 TODOCCLEAN += $(DOCFILESNOCVS)
 
+
+#SNAPSHOTNAME=elsa-9-491-282-1045-2476-olmar-2007-05-21
+SNAPSHOTNAME=elsa-x-x-x-x-x-olmar-yyyy-mm-dd
+
 TODOCCLEAN += index.html.rel
+.PHONY: index.html.rel
 index.html.rel: index.html
-	sed  "s/@RELEASEDATE@/$$(date +%Y.%m.%d)/" < $^ > $@
+	sed  "s/@RELEASEDATE@/$(SNAPSHOTNAME)/" < $^ > $@
 
 .PHONY: webdir
 webdir:
@@ -55,16 +60,17 @@ webdir:
 cp-index-html: webdir index.html.rel
 	scp -q index.html.rel $(WEBSSH)/index.html; true
 	scp -q old-releases.html $(WEBSSH)/releases/index.html; true
-	rm index.html.rel
 
 olmar-tar: webdir
 	if [ ! -f /tmp/tews/$(OLMARTAR) ] ; \
 		then echo make snapshot first; false; fi
 	scp -q /tmp/tews/$(OLMARTAR) $(WEBSSH)/releases; true
 
-.PHONY: copydoc-tar copydoc-www
+.PHONY: copydoc-tar copydoc-www 
 copydoc-tar: $(DOCFILES)
 	cp $(DOCFILES) $(TARGETDIR)
+	$(MAKE) index.html.rel
+	cp index.html.rel $(TARGETDIR)/index.html
 
 copydoc-www: $(DOCFILES) webdir cp-index-html olmar-tar 
 	scp -q $(DOCFILES) $(WEBSSH); true
@@ -189,6 +195,7 @@ crc-small.png: crc.svg
 .PHONY: touchdoc
 touchdoc: 
 	touch crc.dot crc.ps crc.svg crc.png crc-small.png crc-size.dot \
+		hello-world.oast hello-world.dot \
 		minor_gc.oast \
 		minor_gc.dot minor_gc-size.dot minor_gc-pages.dot \
 		minor_gc-pages.ps minor_gc.ps minor_gc.fig \
