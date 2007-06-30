@@ -1364,6 +1364,7 @@ int compareStandardConversions
 
         case Type::T_FUNCTION:
         case Type::T_ARRAY:
+        case Type::T_DEPENDENTSIZEDARRAY:
           if (L->equals(R)) {
             return ret;      // decision so far is final
           }
@@ -1432,7 +1433,7 @@ bool convertsPtrToBool(Type const *src, Type const *dest)
 
   // (in/t0526.cc) it seems this also applies to types that get
   // implicitly converted to pointers before being converted to bool
-  if (src->isArrayType() || src->isFunctionType()) {
+  if (src->isPDSArrayType() || src->isFunctionType()) {
     return true;
   }
 
@@ -1748,6 +1749,7 @@ Type *similarLUB(Env &env, Type *t1, Type *t2, bool &cvdiffers, bool toplevel=fa
 
     case Type::T_FUNCTION:
     case Type::T_ARRAY:
+    case Type::T_DEPENDENTSIZEDARRAY:
       // similarity implies equality, so LUB is t1==t2
       return t1;
 

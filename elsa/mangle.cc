@@ -138,8 +138,7 @@ string leftMangle(Type const *t, bool innerParen)
 
       stringBuilder s;
       s << leftMangle(atType, false /*innerParen*/);
-      if (atType->isFunctionType() ||
-          atType->isArrayType()) {
+      if (atType->usesPostfixTypeConstructorSyntax()) {
         s << "(";
       }
       s << (t->isPointerType()? "*" : "&");
@@ -182,9 +181,10 @@ string leftMangle(Type const *t, bool innerParen)
       return sb;
     }
 
-    case Type::T_ARRAY: {
-      ArrayType const *at = t->asArrayTypeC();
-      
+    case Type::T_ARRAY:
+    case Type::T_DEPENDENTSIZEDARRAY: {
+      PDSArrayType const *at = t->asPDSArrayTypeC();
+
       return leftMangle(at->eltType);
     }
 
@@ -194,11 +194,10 @@ string leftMangle(Type const *t, bool innerParen)
       stringBuilder s;
       s << leftMangle(ptm->atType, false /*innerParen*/);
       s << " ";
-      if (ptm->atType->isFunctionType() ||
-          ptm->atType->isArrayType()) {
+      if (ptm->atType->usesPostfixTypeConstructorSyntax()) {
         s << "(";
       }
-      
+
       // sm: the following line fails when the 'inClass' is
       // a type variable
       //s << ptm->inClass()->name << "::*";
@@ -227,8 +226,7 @@ string rightMangle(Type const *t, bool innerParen)
       Type *atType = t->getAtType();
 
       stringBuilder s;
-      if (atType->isFunctionType() ||
-          atType->isArrayType()) {
+      if (atType->usesPostfixTypeConstructorSyntax()) {
         s << ")";
       }
       s << rightMangle(atType, false /*innerParen*/);
@@ -312,18 +310,13 @@ string rightMangle(Type const *t, bool innerParen)
       return sb;
     }
 
-    case Type::T_ARRAY: {
-      ArrayType const *at = t->asArrayTypeC();
+    case Type::T_ARRAY:
+    case Type::T_DEPENDENTSIZEDARRAY: {
+      PDSArrayType const *at = t->asPDSArrayTypeC();
 
       stringBuilder sb;
 
-      if (at->hasSize()) {
-        sb << "[" << at->size << "]";
-      }
-      else {
-        sb << "[]";
-      }
-
+      sb << at->sizeString();
       sb << rightMangle(at->eltType);
 
       return sb;
@@ -333,8 +326,7 @@ string rightMangle(Type const *t, bool innerParen)
       PointerToMemberType const *ptm = t->asPointerToMemberTypeC();
 
       stringBuilder s;
-      if (ptm->atType->isFunctionType() ||
-          ptm->atType->isArrayType()) {
+      if (ptm->atType->usesPostfixTypeConstructorSyntax()) {
         s << ")";
       }
       s << rightMangle(ptm->atType, false /*innerParen*/);

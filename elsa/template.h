@@ -94,6 +94,46 @@ public:      // data
 };
 
 
+// Represent an array type whose size is given by an expression
+// that is dependent on template parameters.  For example:
+//
+//   template <int s>
+//   int a[s];
+//
+//   template <class T>
+//   int a[sizeof(T)];
+//
+// The 'sizeExpr' is marked 'serf' because the same is true of
+// STemplateArgument::value.e, although it's not clear now if
+// that is actually a good idea; types may want to live longer
+// than AST for many reasons...
+//
+// This name is abbreviated "DSAT" in some comments.
+//
+class DependentSizedArrayType : public PDSArrayType {
+public:      // data
+  Expression *sizeExpr;      // (serf) array size expression
+
+protected:   // funcs
+  friend class BasicTypeFactory;
+  DependentSizedArrayType(Type *e, Expression *s)
+    : PDSArrayType(e), sizeExpr(s) {}
+
+public:      // funcs
+  ~DependentSizedArrayType();
+
+  // PDSArrayType interface
+  virtual bool hasSize() const { return true; }
+  virtual string sizeString() const;
+
+  // Type interface
+  virtual Tag getTag() const { return T_DEPENDENTSIZEDARRAY; }
+  unsigned innerHashValue() const;
+  virtual string toMLString() const;
+  virtual int reprSize() const;
+};      
+
+
 // just some template parameters (this class exists, in part, so
 // that Scope doesn't have to instantiate a full TemplateInfo)
 class TemplateParams {
@@ -487,6 +527,8 @@ string sargsToString(SObjListIter<STemplateArgument> &iter);
 
 bool containsVariables(SObjList<STemplateArgument> const &args, MType *map = NULL);
 bool containsVariables(ObjList<STemplateArgument> const &args, MType *map = NULL);
+
+bool exprContainsVariables(Expression *expr, MType *map);
 
 bool hasDependentArgs(SObjList<STemplateArgument> const &args);
 

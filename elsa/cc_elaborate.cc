@@ -781,7 +781,7 @@ bool ElabVisitor::wantsMemberInit(Variable *var)
   // function members should be skipped
   if (var->type->isFunctionType()) return false;
   // skip arrays for now; FIX: do something correct here
-  if (var->type->isArrayType()) return false;
+  if (var->type->isPDSArrayType()) return false;
   if (var->isStaticMember()) return false;
   if (var->hasFlag(DF_TYPEDEF)) return false;
   // FIX: do all this with one test

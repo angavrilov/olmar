@@ -312,6 +312,8 @@ class CTypePrinter : public TypePrinter {
   string printRight(ArrayType const *type, bool innerParen = true);
   string printLeft(PointerToMemberType const *type, bool innerParen = true);
   string printRight(PointerToMemberType const *type, bool innerParen = true);
+  string printLeft(DependentSizedArrayType const *type, bool innerParen = true);
+  string printRight(DependentSizedArrayType const *type, bool innerParen = true);
 
   // **** Variable
   string printAsParameter(Variable const *var);

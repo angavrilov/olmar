@@ -402,6 +402,7 @@ string CTypePrinter::printRight(Type const *type, bool innerParen)
   case Type::T_FUNCTION:        return printRight(type->asFunctionTypeC(), innerParen);
   case Type::T_ARRAY:           return printRight(type->asArrayTypeC(), innerParen);
   case Type::T_POINTERTOMEMBER: return printRight(type->asPointerToMemberTypeC(), innerParen);
+  case Type::T_DEPENDENTSIZEDARRAY: return printRight(type->asDependentSizedArrayTypeC(), innerParen);
   }
 }
 
@@ -416,6 +417,7 @@ string CTypePrinter::printLeft(Type const *type, bool innerParen)
   case Type::T_FUNCTION:        return printLeft(type->asFunctionTypeC(), innerParen);
   case Type::T_ARRAY:           return printLeft(type->asArrayTypeC(), innerParen);
   case Type::T_POINTERTOMEMBER: return printLeft(type->asPointerToMemberTypeC(), innerParen);
+  case Type::T_DEPENDENTSIZEDARRAY: return printLeft(type->asDependentSizedArrayTypeC(), innerParen);
   }
 }
 
@@ -455,8 +457,7 @@ string CTypePrinter::printLeft(PointerType const *type, bool /*innerParen*/)
   }
   else {
     s << printLeft(type->atType, false /*innerParen*/);
-    if (type->atType->isFunctionType() ||
-        type->atType->isArrayType()) {
+    if (type->atType->usesPostfixTypeConstructorSyntax()) {
       s << '(';
     }
     s << '*';
@@ -473,8 +474,7 @@ string CTypePrinter::printLeft(PointerType const *type, bool /*innerParen*/)
 string CTypePrinter::printRight(PointerType const *type, bool /*innerParen*/)
 {
   stringBuilder s;
-  if (type->atType->isFunctionType() ||
-      type->atType->isArrayType()) {
+  if (type->atType->usesPostfixTypeConstructorSyntax()) {
     s << ')';
   }
   s << printRight(type->atType, false /*innerParen*/);
@@ -485,8 +485,7 @@ string CTypePrinter::printLeft(ReferenceType const *type, bool /*innerParen*/)
 {
   stringBuilder s;
   s << printLeft(type->atType, false /*innerParen*/);
-  if (type->atType->isFunctionType() ||
-      type->atType->isArrayType()) {
+  if (type->atType->usesPostfixTypeConstructorSyntax()) {
     s << '(';
   }
   s << '&';
@@ -496,8 +495,7 @@ string CTypePrinter::printLeft(ReferenceType const *type, bool /*innerParen*/)
 string CTypePrinter::printRight(ReferenceType const *type, bool /*innerParen*/)
 {
   stringBuilder s;
-  if (type->atType->isFunctionType() ||
-      type->atType->isArrayType()) {
+  if (type->atType->usesPostfixTypeConstructorSyntax()) {
     s << ')';
   }
   s << printRight(type->atType, false /*innerParen*/);
@@ -646,8 +644,7 @@ string CTypePrinter::printLeft(PointerToMemberType const *type, bool /*innerPare
   stringBuilder s;
   s << printLeft(type->atType, false /*innerParen*/);
   s << ' ';
-  if (type->atType->isFunctionType() ||
-      type->atType->isArrayType()) {
+  if (type->atType->usesPostfixTypeConstructorSyntax()) {
     s << '(';
   }
   s << type->inClassNAT->name << ':' << ':' << '*';
@@ -658,12 +655,27 @@ string CTypePrinter::printLeft(PointerToMemberType const *type, bool /*innerPare
 string CTypePrinter::printRight(PointerToMemberType const *type, bool /*innerParen*/)
 {
   stringBuilder s;
-  if (type->atType->isFunctionType() ||
-      type->atType->isArrayType()) {
+  if (type->atType->usesPostfixTypeConstructorSyntax()) {
     s << ')';
   }
   s << printRight(type->atType, false /*innerParen*/);
   return s;
+}
+
+string CTypePrinter::printLeft(DependentSizedArrayType const *type, bool /*innerParen*/)
+{
+  return printLeft(type->eltType);
+}
+
+string CTypePrinter::printRight(DependentSizedArrayType const *type, bool /*innerParen*/)
+{
+  stringBuilder sb;
+
+  sb << '[' << type->sizeExpr->exprToString() << ']';
+
+  sb << printRight(type->eltType);
+
+  return sb;
 }
 
 string CTypePrinter::printAsParameter(Variable const *var)

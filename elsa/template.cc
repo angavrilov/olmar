@@ -236,6 +236,48 @@ void DependentQType::traverse(TypeVisitor &vis)
 }
 
 
+// ---------------- DependentSizedArrayType --------
+DependentSizedArrayType::~DependentSizedArrayType()
+{}
+
+
+string DependentSizedArrayType::sizeString() const
+{
+  return sizeExpr->exprToString();
+}
+
+
+// these constants are copied from cc_type.cc, but exact agreement
+// isn't necessary, and I don't want to pollute the header
+enum {
+  HASH_KICK = 33,
+  TAG_KICK = 7
+};
+
+unsigned DependentSizedArrayType::innerHashValue() const
+{
+  // similar to ArrayType, except without 'size'; I don't have a way
+  // of hashing expressions right now, and the performance
+  // consequences of a poor hash function for DSAT are minimal due to
+  // its rarity
+  return eltType->innerHashValue() * HASH_KICK +
+         T_DEPENDENTSIZEDARRAY * TAG_KICK;
+}
+
+
+string DependentSizedArrayType::toMLString() const
+{
+  xunimp("DependentSizedArrayType::toMLString: what is this used for?");
+  return "";
+}
+
+
+int DependentSizedArrayType::reprSize() const
+{
+  throw XReprSize();
+}
+
+
 // ------------------ TemplateParams ---------------
 TemplateParams::TemplateParams(TemplateParams const &obj)
   : params(obj.params)
@@ -842,6 +884,16 @@ bool STemplateArgument::equals(STemplateArgument const *obj,
 }
 
 
+bool exprContainsVariables(Expression *expr, MType *map)
+{
+  // TODO: This is wrong because the variables might be bound
+  // in 'map'.  I think a reasonable solution would be to
+  // rehabilitate the TypeVisitor, and design a nice way for
+  // a TypeVisitor and an ASTVisitor to talk to each other.
+  return true;
+}
+
+
 bool STemplateArgument::containsVariables(MType *map) const
 {
   if (kind == STemplateArgument::STA_TYPE) {
@@ -850,11 +902,7 @@ bool STemplateArgument::containsVariables(MType *map) const
     }
   }
   else if (kind == STA_DEPEXPR) {
-    // TODO: This is wrong because the variables might be bound
-    // in 'map'.  I think a reasonable solution would be to
-    // rehabilitate the TypeVisitor, and design a nice way for
-    // a TypeVisitor and an ASTVisitor to talk to each other.
-    return true;
+    return exprContainsVariables(value.e, map);
   }
 
   return false;
@@ -1353,9 +1401,9 @@ bool Env::inferTemplArgsFromFuncArgs
       // prior to calling into matchtype, normalize the parameter
       // and argument types according to 14.8.2.1p2
       if (!paramType->isReference()) {
-        if (argType->isArrayType()) {
+        if (argType->isPDSArrayType()) {
           // synthesize a pointer type to be used instead
-          ArrayType *at = argType->asArrayType();
+          PDSArrayType *at = argType->asPDSArrayType();
           argType = tfac.makePointerType(CV_NONE, at->eltType);
         }
         else if (argType->isFunctionType()) {
@@ -3930,6 +3978,19 @@ Type *Env::applyArgumentMapToType(MType &map, Type *origSrc)
            spmt->cv,
            applyArgumentMapToType(map, spmt->atType));
       }
+    }
+    
+    case Type::T_DEPENDENTSIZEDARRAY: {
+      DependentSizedArrayType const *dsat = src->asDependentSizedArrayTypeC();
+        
+      Type *eltType = applyArgumentMapToType(map, dsat->eltType);
+
+      STemplateArgument sizeExpr = 
+        applyArgumentMapToExpression(map, dsat->sizeExpr);
+                      
+      // note: making an *ordinary* array type, since my expectation
+      // is that the variables in 'dsat->sizeExpr' are all bound
+      return tfac.makeArrayType(eltType, sizeExpr.getInt());
     }
   }
 }

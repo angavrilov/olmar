@@ -4041,8 +4041,8 @@ FakeList<ASTTypeId> *tcheckFakeASTTypeIdList(
 // overloadings), strip toplevel cv qualifiers
 static Type *normalizeParameterType(Env &env, SourceLoc loc, Type *t)
 {
-  if (t->isArrayType()) {
-    return env.makePtrType(t->asArrayType()->eltType);
+  if (t->isPDSArrayType()) {
+    return env.makePtrType(t->getAtType());
   }
   if (t->isFunctionType()) {
     return env.makePtrType(t);
@@ -4386,7 +4386,9 @@ void D_array::tcheck(Env &env, Declarator::Tcheck &dt)
         delete val.getWhy();
       }
       else if (val.isDependent()) {
-        // let it go
+        dt.type = env.tfac.makeDependentSizedArrayType(dt.type, size);
+        base->tcheck(env, dt);
+        return;
       }
       else if (val.isIntegral()) {
         sz = val.getIntegralValue();
@@ -6152,8 +6154,8 @@ static bool hasNoopDtor(Type *t)
 {
   // if it's an array type, then whether it has a no-op dtor depends
   // entirely on whether the element type has a no-op dtor
-  while (t->isArrayType()) {
-    t = t->asArrayType()->eltType;
+  while (t->isPDSArrayType()) {
+    t = t->asPDSArrayType()->eltType;
   }
 
   return !t->isCompoundType();
@@ -8249,8 +8251,8 @@ Type *E_deref::itcheck_x(Env &env, Expression *&replacement)
   }
 
   // implicit coercion of array to pointer for dereferencing
-  if (rt->isArrayType()) {
-    return makeLvalType(env, rt->asArrayType()->eltType);
+  if (rt->isPDSArrayType()) {
+    return makeLvalType(env, rt->asPDSArrayType()->eltType);
   }
 
   return env.error(rt, stringc
@@ -8366,8 +8368,8 @@ Type *attemptCondConversion(Env &env, ImplicitConversion &ic /*OUT*/,
 // cppstd...
 Type *arrAndFuncToPtr(Env &env, Type *t)
 {
-  if (t->isArrayType()) {
-    return env.makePtrType(t->asArrayType()->eltType);
+  if (t->isPDSArrayType()) {
+    return env.makePtrType(t->asPDSArrayType()->eltType);
   }
   if (t->isFunctionType()) {
     return env.makePtrType(t);

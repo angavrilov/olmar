@@ -433,6 +433,21 @@ bool IMType::imatchType(Type const *conc, Type const *pat, MatchFlags flags)
     }
   }
 
+  if ((flags & MF_MATCH) &&
+      conc->isArrayType() &&
+      pat->isDependentSizedArrayType()) {
+    ArrayType const *concAT = conc->asArrayTypeC();
+    DependentSizedArrayType const *patAT = pat->asDependentSizedArrayTypeC();
+                    
+    // element types first
+    if (!imatchType(concAT->eltType, patAT->eltType, flags)) {
+      return false;
+    }
+    
+    // sizes
+    return imatchArraySizeWithExpression(concAT->size, patAT->sizeExpr, flags);
+  }
+
   // further comparison requires that the types have equal tags
   Type::Tag tag = conc->getTag();
   if (pat->getTag() != tag) {
@@ -450,6 +465,7 @@ bool IMType::imatchType(Type const *conc, Type const *pat, MatchFlags flags)
     CASE(T_FUNCTION, FunctionType);
     CASE(T_ARRAY, ArrayType);
     CASE(T_POINTERTOMEMBER, PointerToMemberType);
+    CASE(T_DEPENDENTSIZEDARRAY, DependentSizedArrayType);
     #undef CASE
   }
 }
@@ -986,13 +1002,15 @@ bool IMType::imatchExceptionSpecs(FunctionType const *conc, FunctionType const *
 }
 
 
-bool IMType::imatchArrayType(ArrayType const *conc, ArrayType const *pat, MatchFlags flags)
+// Determine what match flags to propagate past an array type
+// constructor, where 'eltType' is the type of the array elements and
+// 'flags' are the match flags from above.
+static MatchFlags propagateFlagsForArray(MatchFlags flags, Type *eltType)
 {
-  // what flags to propagate?
   MatchFlags propFlags = (flags & MF_PROP);
 
   if (flags & MF_IGNORE_ELT_CV) {
-    if (conc->eltType->isArrayType()) {
+    if (eltType->isPDSArrayType()) {
       // propagate the ignore-elt down through as many ArrayTypes
       // as there are
       propFlags |= MF_IGNORE_ELT_CV;
@@ -1003,14 +1021,19 @@ bool IMType::imatchArrayType(ArrayType const *conc, ArrayType const *pat, MatchF
     }
   }
 
+  return propFlags;
+}
+
+
+bool IMType::imatchArrayType(ArrayType const *conc, ArrayType const *pat, MatchFlags flags)
+{
+  // what flags to propagate?
+  MatchFlags propFlags = propagateFlagsForArray(flags, conc->eltType);
+
   if (!( imatchType(conc->eltType, pat->eltType, propFlags) &&
          conc->hasSize() == pat->hasSize() )) {
     return false;
   }
-
-  // TODO: At some point I will implement dependent-sized arrays
-  // (t0435.cc), at which point the size comparison code here will
-  // have to be generalized.
 
   if (conc->hasSize()) {
     return conc->size == pat->size;
@@ -1027,6 +1050,16 @@ bool IMType::imatchPointerToMemberType(PointerToMemberType const *conc,
   return imatchAtomicType(conc->inClassNAT, pat->inClassNAT, flags) &&
          imatchCVFlags(conc->cv, pat->cv, flags) &&
          imatchType(conc->atType, pat->atType, flags & MF_PTR_PROP);
+}
+
+
+bool IMType::imatchDependentSizedArrayType(DependentSizedArrayType const *conc,
+                                           DependentSizedArrayType const *pat, MatchFlags flags)
+{
+  MatchFlags propFlags = propagateFlagsForArray(flags, conc->eltType);
+
+  return imatchType(conc->eltType, pat->eltType, propFlags) &&
+         imatchExpression(conc->sizeExpr, pat->sizeExpr, propFlags);
 }
 
 
@@ -1119,6 +1152,35 @@ bool IMType::imatchExpression(Expression const *conc, Expression const *pat, Mat
     }
     ASTENDCASE2C
   }
+}
+
+
+bool IMType::imatchArraySizeWithExpression
+  (int concSize, Expression *patSize, MatchFlags flags)
+{
+  if (concSize < 0) {
+    // one of the unspecified array "sizes"; no match
+    return false;
+  }
+
+  // apparently the grouping parens have been stripped
+  xassert(!patSize->isE_grouping());
+
+  // all that we can do is bind an E_variable
+  if (patSize->isE_variable()) {
+    E_variable *evar = patSize->asE_variable();
+    if (evar->var->isTemplateParam()) {
+      // package 'concSize' as an STemplateArgument so I can
+      // re-use the existing binding code
+      STemplateArgument sarg;
+      sarg.setInt(concSize);
+
+      // call into said binding code
+      return imatchNontypeWithVariable(&sarg, evar, flags);
+    }
+  }
+  
+  return false;
 }
 
 
