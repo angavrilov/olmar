@@ -392,6 +392,8 @@ void OverloadResolver::processCandidate(Variable *v)
   // A: Yes, in/t0269.cc gets here.  E_constructor still does overload
   // resolution with template primaries.  It's not clear whether that
   // is a problem or not; it's a lot simpler than E_funCall.
+  //
+  // Also, in/k0075.cc gets here via overloaded operator resolution...
 
   // template function; we have to filter out all of the possible
   // specializations and put them, together with the primary, into the
