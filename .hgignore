@@ -6,6 +6,7 @@ syntax: glob
 *.fig.gz
 *.png.gz
 *.o
+*.i
 *.a
 *.d
 *.gen.cc
@@ -69,6 +70,7 @@ syntax: regexp
 ^elsa/ccparse
 ^elsa/in/.*\.cc\.oast$
 ^elsa/in/.*\.error[0-9]*\.cc$
+^elsa/outdir/.*
 ^elsa/lexer\.lex
 ^elsa/lexer\.yy\.cc
 ^elsa/packedword_test

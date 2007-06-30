@@ -542,6 +542,11 @@ and cType_fun t =
 	       in
 		 [x1; x2])
 
+        | DependentSizedArrayType(_annot, cType, array_size) ->
+            tnode "DependentSizedArrayType" []
+              [(cType_fun cType, "eltType");
+               (expression_fun array_size, "size")]
+
 
 and sTemplateArgument_fun ta = 
   let annot = sTemplateArgument_annotation ta

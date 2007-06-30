@@ -210,6 +210,12 @@ and cType_fun = function
 			  cVFlags_fun cVFlags,
 			  cType_fun cType)
 
+  | DependentSizedArrayType(annot, cType, array_size) ->
+      DependentSizedArrayType(annotation_fun annot,
+                              cType_fun cType,
+                              expression_fun array_size)
+
+
 and sTemplateArgument_fun = function
   | STA_NONE annot -> 
       STA_NONE(annotation_fun annot)

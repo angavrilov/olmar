@@ -244,6 +244,8 @@ let ast_node_fun = function
       annotation_fun annot;
       cVFlags_fun cVFlags;
 
+  | CType(DependentSizedArrayType(annot, cType, array_size)) ->
+      annotation_fun annot
 
   | STemplateArgument(STA_NONE annot) -> 
       annotation_fun annot

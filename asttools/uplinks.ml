@@ -228,6 +228,11 @@ let ast_node_fun up down myindex = function
 	[atomicType_annotation atomicType;
 	 cType_annotation cType]
 
+  | CType(DependentSizedArrayType(_annot, cType, array_size)) ->
+      add_links up down myindex
+        [cType_annotation cType;
+         expression_annotation array_size]
+
   (* 16 *)
   | STemplateArgument(STA_NONE _annot) ->
       ()

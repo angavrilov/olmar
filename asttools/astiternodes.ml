@@ -302,6 +302,10 @@ and cType_fun x =
 	  atomicType_fun atomicType;
 	  cType_fun cType
 
+      | DependentSizedArrayType(annot, cType, array_size) ->
+          cType_fun cType;
+          expression_fun array_size
+
 
 and sTemplateArgument_fun ta = 
   let annot = sTemplateArgument_annotation ta

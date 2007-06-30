@@ -2565,7 +2565,7 @@ CType *Env::operandRval(CType *t)
   }
 
   // 4.2: array to pointer
-  if (t->isArrayType()) {
+  if (t->isPDSArrayType()) {
     t = makePointerType(CV_NONE, t->getAtType());
   }
 
@@ -2681,10 +2681,10 @@ Variable *Env::createBuiltinBinaryOp(CType *retType, OverloadableOp op,
 bool Env::almostEqualTypes(CType const *t1, CType const *t2,
                            MatchFlags mflags)
 {
-  if (t1->isArrayType() &&
-      t2->isArrayType()) {
-    ArrayType const *at1 = t1->asArrayTypeC();
-    ArrayType const *at2 = t2->asArrayTypeC();
+  if (t1->isPDSArrayType() &&
+      t2->isPDSArrayType()) {
+    PDSArrayType const *at1 = t1->asPDSArrayTypeC();
+    PDSArrayType const *at2 = t2->asPDSArrayTypeC();
 
     if ((at1->hasSize() && !at2->hasSize()) ||
         (at2->hasSize() && !at1->hasSize())) {
@@ -4370,6 +4370,7 @@ void Env::getAssociatedScopes(SObjList<Scope> &associated, CType *type)
       // implicitly skipped as being an lvalue
     case CType::T_POINTER:
     case CType::T_ARRAY:
+    case CType::T_DEPENDENTSIZEDARRAY:
       // bullet 4: skip to atType
       getAssociatedScopes(associated, type->getAtType());
       break;
@@ -4558,6 +4559,21 @@ CType *Env::resolveDQTs(SourceLoc loc, CType *t)
         }
 
         return tfac.makePointerToMemberType(nat, ptm->cv, resolvedAtType);
+      }
+      return NULL;
+    }
+
+    case CType::T_DEPENDENTSIZEDARRAY: {
+      DependentSizedArrayType *dsat = t->asDependentSizedArrayType();
+      CType *resolved = resolveDQTs(loc, dsat->eltType);
+      
+      // TODO: I think I should also be resolving DQTs inside the
+      // 'exprSize'.  However, I'm currently not doing that for
+      // PseudoInstantiations either, so maybe it's not that
+      // important.
+
+      if (resolved) {
+        return tfac.makeDependentSizedArrayType(resolved, dsat->sizeExpr);
       }
       return NULL;
     }

@@ -212,6 +212,8 @@ let ast_node_fun = function
 	       | TypeVariable _ 
 	       | DependentQType _ -> true);
 
+  | CType(DependentSizedArrayType(_annot, _cType, _array_size)) ->
+      ()
 
   | STemplateArgument(STA_NONE _annot) -> 
       ()

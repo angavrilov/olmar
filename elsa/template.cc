@@ -403,6 +403,96 @@ void DependentQType::detachOcaml() {
 }
 
 
+// ---------------- DependentSizedArrayType --------
+DependentSizedArrayType::~DependentSizedArrayType()
+{}
+
+
+string DependentSizedArrayType::sizeString() const
+{
+  return sizeExpr->exprToString();
+}
+
+
+// these constants are copied from cc_type.cc, but exact agreement
+// isn't necessary, and I don't want to pollute the header
+enum {
+  HASH_KICK = 33,
+  TAG_KICK = 7
+};
+
+unsigned DependentSizedArrayType::innerHashValue() const
+{
+  // similar to ArrayType, except without 'size'; I don't have a way
+  // of hashing expressions right now, and the performance
+  // consequences of a poor hash function for DSAT are minimal due to
+  // its rarity
+  return eltType->innerHashValue() * HASH_KICK +
+         T_DEPENDENTSIZEDARRAY * TAG_KICK;
+}
+
+
+string DependentSizedArrayType::toMLString() const
+{
+  xunimp("DependentSizedArrayType::toMLString: what is this used for?");
+  return "";
+}
+
+
+int DependentSizedArrayType::reprSize() const
+{
+  throw XReprSize();
+}
+
+
+// ocaml serialization method
+// hand written ocaml serialization function
+value DependentSizedArrayType::toOcaml(ToOcamlData * data){
+  CAMLparam0();
+  CAMLlocal3(poly, caml_elt_type, caml_size);
+  if(ocaml_val) {
+    // cerr << "shared ocaml value in ArrayType\n" << flush;
+    CAMLreturn(ocaml_val);
+  }
+  static value * create_ctype_DependentSizedArrayType_constructor_closure = NULL;
+  if(create_ctype_DependentSizedArrayType_constructor_closure == NULL)
+    create_ctype_DependentSizedArrayType_constructor_closure = 
+      caml_named_value("create_ctype_DependentSizedArrayType_constructor");
+  xassert(create_ctype_DependentSizedArrayType_constructor_closure);
+
+  if(data->stack.contains(this)) {
+    cerr << "cyclic ast detected during ocaml serialization\n";
+    xassert(false);
+  } else {
+    data->stack.add(this);
+  }
+
+  poly = ocaml_ast_annotation(this, data);
+  caml_elt_type = eltType->toOcaml(data);
+  caml_size = sizeExpr->toOcaml(data);
+  xassert(IS_OCAML_AST_VALUE(caml_size));
+
+  caml_register_global_root(&ocaml_val);
+  ocaml_val = caml_callback3(*create_ctype_DependentSizedArrayType_constructor_closure,
+                             poly, caml_elt_type, caml_size);
+  xassert(IS_OCAML_AST_VALUE(ocaml_val));
+
+  data->stack.remove(this);
+  CAMLreturn(ocaml_val);
+}
+
+
+// ocaml serialization, cleanup ocaml_val
+// hand written ocaml serialization function
+void DependentSizedArrayType::detachOcaml() {
+  if(ocaml_val == 0) return;
+  CType::detachOcaml();
+
+  eltType->detachOcaml();
+  sizeExpr->detachOcaml();
+}
+
+
 // ------------------ TemplateParams ---------------
 TemplateParams::TemplateParams(TemplateParams const &obj)
   : params(obj.params), ocaml_val(0)
@@ -1300,6 +1390,16 @@ bool STemplateArgument::equals(STemplateArgument const *obj,
 }
 
 
+bool exprContainsVariables(Expression *expr, MType *map)
+{
+  // TODO: This is wrong because the variables might be bound
+  // in 'map'.  I think a reasonable solution would be to
+  // rehabilitate the TypeVisitor, and design a nice way for
+  // a TypeVisitor and an ASTVisitor to talk to each other.
+  return true;
+}
+
+
 bool STemplateArgument::containsVariables(MType *map) const
 {
   if (kind == STemplateArgument::STA_TYPE) {
@@ -1308,11 +1408,7 @@ bool STemplateArgument::containsVariables(MType *map) const
     }
   }
   else if (kind == STA_DEPEXPR) {
-    // TODO: This is wrong because the variables might be bound
-    // in 'map'.  I think a reasonable solution would be to
-    // rehabilitate the TypeVisitor, and design a nice way for
-    // a TypeVisitor and an ASTVisitor to talk to each other.
-    return true;
+    return exprContainsVariables(sta_value.e, map);
   }
 
   return false;
@@ -2017,9 +2113,9 @@ bool Env::inferTemplArgsFromFuncArgs
       // prior to calling into matchtype, normalize the parameter
       // and argument types according to 14.8.2.1p2
       if (!paramType->isReference()) {
-        if (argType->isArrayType()) {
+        if (argType->isPDSArrayType()) {
           // synthesize a pointer type to be used instead
-          ArrayType *at = argType->asArrayType();
+          PDSArrayType *at = argType->asPDSArrayType();
           argType = tfac.makePointerType(CV_NONE, at->eltType);
         }
         else if (argType->isFunctionType()) {
@@ -4594,6 +4690,19 @@ CType *Env::applyArgumentMapToType(MType &map, CType *origSrc)
            spmt->cv,
            applyArgumentMapToType(map, spmt->atType));
       }
+    }
+    
+    case CType::T_DEPENDENTSIZEDARRAY: {
+      DependentSizedArrayType const *dsat = src->asDependentSizedArrayTypeC();
+        
+      CType *eltType = applyArgumentMapToType(map, dsat->eltType);
+
+      STemplateArgument sizeExpr = 
+        applyArgumentMapToExpression(map, dsat->sizeExpr);
+                      
+      // note: making an *ordinary* array type, since my expectation
+      // is that the variables in 'dsat->sizeExpr' are all bound
+      return tfac.makeArrayType(eltType, sizeExpr.getInt());
     }
   }
 }

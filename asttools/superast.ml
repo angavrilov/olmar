@@ -373,6 +373,10 @@ module Into_array = struct
 	    atomicType_fun ast_array atomicType;
 	    cType_fun ast_array cType
 
+        | DependentSizedArrayType(_annot, cType, array_size) ->
+            cType_fun ast_array cType;
+            expression_fun ast_array array_size
+
 
   and sTemplateArgument_fun ast_array ta = 
     let annot = sTemplateArgument_annotation ta

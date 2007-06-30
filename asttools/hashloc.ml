@@ -391,6 +391,11 @@ and cType_fun x =
 				atomicType_fun atomicType,
 				cVFlags_fun cVFlags,
 				cType_fun cType)
+
+        | DependentSizedArrayType(annot, cType, array_size) ->
+            ArrayType(annotation_fun annot,
+                      cType_fun cType,
+                      expression_fun array_size)
     in
       Hashtbl.add cType_hash (id_annotation (cType_annotation x)) res;
       res

@@ -724,7 +724,7 @@ testparse t0431.cc
 testparse t0432.cc
 testparse t0433.cc
 testparse t0434.cc
-failparse t0435.cc "need for ArrayType with dependent size"
+testparse t0435.cc #"need for ArrayType with dependent size"
 failparse t0436.cc "pointer-to-member names processed in wrong order"
 testparse t0437.cc
 testparse t0438a.cc
@@ -870,8 +870,8 @@ failparse t0577.cc "flawed abstract enumerator value processing"
 # t0578.cc is arguably valid code, but nobody can handle it
 failparse t0579.cc "tricky rules about enumerator types"
 failparse t0580.cc "use of enumerator in template-id for explicit specializiation"
-failparse t0581.cc "simpler dependent array bound problem"
-failparse t0582.cc "template array bound problem leads to crash"
+testparse t0581.cc #"simpler dependent array bound problem"
+testparse t0582.cc #"template array bound problem leads to crash"
 testparse t0583.cc
 testparse t0584.cc
 failparse t0585.cc "explicit invocation of dtor of template class"
@@ -1128,8 +1128,8 @@ failparse k0086.cc "enable_if: template argument expressions"
 failparse k0087.cc 'implicit conversion to "bool const &" via "bool" via "operator bool"'
 testparse k0088.cc #"inferring const member function template parameter type"
 failparse k0089.cc "specialization of template function member"
-failparse k0090.cc "template specialization of array"
-failparse k0090a.cc "template specialization of array"
+testparse k0090.cc #"template specialization of array"
+testparse k0090a.cc #"template specialization of array"
 failparse k0091.cc "template specialization with all default parameters"
 failparse k0092.cc "template-parameter-instantiated template class without 'typename' in constructor initializer"
 failparse k0093.cc "tertiary operator implicitly casting one pointer operand to bool"
@@ -1165,7 +1165,7 @@ failparse k0120.cc "confusion between function template decl and return type"
 
 ### </quarl-testcases-c++>
 
-failparse u0001.cc "template array size"
+testparse u0001.cc #"template array size"
 
 # Simon sfg@cs
 testparse sg0001.cc # invoke dtor on const object

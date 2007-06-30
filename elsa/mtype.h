@@ -27,7 +27,7 @@ class MType;                    // this file
 // public MType interfaces.  Its directly-exposed interfaces ensure
 // constness of arguments, except that the exposed 'bindings' map can
 // be used for non-const access.  The MType class is responsible for
-// packaging this in a sound form.
+// packaging this in a const-correct (sound) form.
 class IMType {
 protected:   // types
   // A template variable binding.  A name can be bound to one of three
@@ -64,6 +64,18 @@ protected:   // types
 
 protected:   // data
   // set of bindings
+  //
+  // SGM: 2007-04-25: TODO: What was the reasoning for using simple
+  // strings as the keys here?  That's obviously going to cause
+  // binding collisions when template parameters have the same names
+  // but need to be bound simultaneously (or is the claim that that is
+  // somehow impossible, due to only binding one template's parameters
+  // at a time?).  I recall originally designing this to use Variable*
+  // as the key, and running into trouble b/c of redeclarations making
+  // new Variable objects, and so I think I switched to strings, but
+  // the string approach seems highly questionable too.  I don't
+  // understand why I didn't document this crucial decision...
+  //
   typedef ObjMap<char const /*StringRef*/, Binding> BindingMap;
   BindingMap bindings;
   
@@ -128,7 +140,11 @@ protected:   // funcs
   bool imatchArrayType(ArrayType const *conc, ArrayType const *pat, MatchFlags flags);
   bool imatchPointerToMemberType(PointerToMemberType const *conc,
                                        PointerToMemberType const *pat, MatchFlags flags);
+  bool imatchDependentSizedArrayType(DependentSizedArrayType const *conc, 
+                                     DependentSizedArrayType const *pat, MatchFlags flags);
+
   bool imatchExpression(Expression const *conc, Expression const *pat, MatchFlags flags);
+  bool imatchArraySizeWithExpression(int concSize, Expression *patSize, MatchFlags flags);
 
 private:     // funcs
   // the only allowed subclass is MType; this justifies a

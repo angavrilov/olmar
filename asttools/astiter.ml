@@ -391,6 +391,11 @@ and cType_fun x =
 	  cVFlags_fun cVFlags;
 	  cType_fun cType
 
+      | DependentSizedArrayType(annot, cType, array_size) ->
+          annotation_fun annot;
+          cType_fun cType;
+          expression_fun array_size
+
 
 and sTemplateArgument_fun ta = 
   let annot = sTemplateArgument_annotation ta

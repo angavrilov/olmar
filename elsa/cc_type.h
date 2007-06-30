@@ -53,6 +53,7 @@ class Declaration;        // cc.ast
 class TypeVariable;       // template.h
 class PseudoInstantiation;// template.h
 class DependentQType;     // template.h
+class DependentSizedArrayType;   // template.h
 class MType;              // mtype.h
 class XmlReader;
 
@@ -67,6 +68,7 @@ class CVAtomicType;
 class PointerType;
 class ReferenceType;
 class FunctionType;
+class PDSArrayType;
 class ArrayType;
 class PointerToMemberType;
 class CType;
@@ -703,6 +705,7 @@ public:     // types
     T_FUNCTION,                 // int ()(int, float)
     T_ARRAY,                    // int [3]
     T_POINTERTOMEMBER,          // int C::*
+    T_DEPENDENTSIZEDARRAY,      // int a[sizeof(T)]
 
     T_LAST_TYPE_TAG,
     // IMPORTANT: it is important that T_LAST_TYPE_TAG be the last one
@@ -739,6 +742,7 @@ public:     // funcs
   bool isFunctionType() const { return getTag() == T_FUNCTION; }
   bool isArrayType() const { return getTag() == T_ARRAY; }
   bool isPointerToMemberType() const { return getTag() == T_POINTERTOMEMBER; }
+  bool isDependentSizedArrayType() const { return getTag() == T_DEPENDENTSIZEDARRAY; }
 
   DOWNCAST_FN(CVAtomicType)
   DOWNCAST_FN(PointerType)
@@ -746,6 +750,10 @@ public:     // funcs
   DOWNCAST_FN(FunctionType)
   DOWNCAST_FN(ArrayType)
   DOWNCAST_FN(PointerToMemberType)
+  DOWNCAST_FN(DependentSizedArrayType)
+
+  // map a tag to the tag's name
+  static char const *getNameOfTag(Tag t);
 
   // like above, this is (structural) equality, not coercibility;
   // internally, this calls the innerEquals() method on the two
@@ -779,6 +787,14 @@ public:     // funcs
   // paretheses
   virtual string leftString(bool innerParen=true) const = 0;
   virtual string rightString(bool innerParen=true) const;    // default: returns ""
+
+  // If this is true, the type constructor syntax is postfix.  This
+  // information is needed when printing the prefix type constructors,
+  // because it determines whether grouping parentheses are required.
+  //
+  // This is for functions and arrays.  The default implementation
+  // returns 'false'.
+  virtual bool usesPostfixTypeConstructorSyntax() const;
 
   // size of representation at run-time; for now uses nominal 32-bit
   // values
@@ -843,8 +859,15 @@ public:     // funcs
   bool isPtrOrRef() const { return isPointer() || isReference(); }
   bool isPointerOrArrayRValueType() const;
 
-  // dsw: this is virtual because in Oink an int can act as a pointer
-  // so I need a way to do that
+  // unified handling of ArrayType and DependentSizedArrayType:
+  // "is possibly dependent sized array type"
+  bool isPDSArrayType() const
+    { return isArrayType() || isDependentSizedArrayType(); }
+  DOWNCAST_FN(PDSArrayType)
+
+  // If this CType object acts as an indirection (pointer, array, etc.)
+  // on top of another type, then return that underlying type.
+  // Otherwise (and by default), fail an assertion
   virtual CType *getAtType() const;
 
   // note that CType overrides these to return CType instead of BaseType
@@ -1001,6 +1024,7 @@ public:
   virtual bool anyCtorSatisfies(TypePred &pred) const;
   virtual CVFlags getCVFlags() const;
   virtual void traverse(TypeVisitor &vis);
+  virtual CType *getAtType() const;
   // ocaml serialization method
   virtual value toOcaml(ToOcamlData *);
   virtual void detachOcaml();
@@ -1031,6 +1055,7 @@ public:
   virtual bool anyCtorSatisfies(TypePred &pred) const;
   virtual CVFlags getCVFlags() const;
   virtual void traverse(TypeVisitor &vis);
+  virtual CType *getAtType() const;
   // ocaml serialization method
   virtual value toOcaml(ToOcamlData *);
   virtual void detachOcaml();
@@ -1151,6 +1176,7 @@ public:
   virtual string toMLString() const;
   virtual string leftString(bool innerParen=true) const;
   virtual string rightString(bool innerParen=true) const;
+  virtual bool usesPostfixTypeConstructorSyntax() const;
   virtual int reprSize() const;
   virtual bool anyCtorSatisfies(TypePred &pred) const;
   virtual void traverse(TypeVisitor &vis);
@@ -1169,10 +1195,47 @@ inline void detach_ocaml_FunctionType(FunctionType &t) {
   t.detachOcaml();
 }
 
+// superclass of ArrayType and DependentSizedArrayType:
+// "possibly dependent-sized array type"
+//
+// It has no tag of its own; the tag is either T_ARRAY or
+// T_DEPENDENTSIZEDARRAY.
+//
+// I choose not to simply generalize ArrayType because I want the
+// non-templatized types to be separable from all the template stuff.
+//
+class PDSArrayType : public CType {
+public:       // data
+  CType *eltType;               // (serf) type of the elements
 
+private:      // funcs
+  void checkWellFormedness() const;
+
+protected:    // funcs
+  PDSArrayType(CType *e)
+    : eltType(e) { checkWellFormedness(); }
+  PDSArrayType(XmlReader&)
+    : eltType(NULL) {}
+    
+public:       // funcs
+  // true if a fixed size has been specified, or this is a
+  // DependentSizedArrayType
+  virtual bool hasSize() const=0;
+
+  // return the string rendering of the size
+  virtual string sizeString() const=0;
+
+  // CType interface
+  virtual string leftString(bool innerParen=true) const;
+  virtual string rightString(bool innerParen=true) const;
+  virtual bool usesPostfixTypeConstructorSyntax() const;
+  virtual bool anyCtorSatisfies(TypePred &pred) const;
+  virtual void traverse(TypeVisitor &vis);
+  virtual CType *getAtType() const;
+};
 
 // type of an array
-class ArrayType : public CType {
+class ArrayType : public PDSArrayType {
 public:       // types
   enum {
     NO_SIZE = -1,              // no size specified
@@ -1180,37 +1243,32 @@ public:       // types
   };
 
 public:       // data
-  CType *eltType;               // (serf) type of the elements
   int size;                    // specified size (>=0), or NO_SIZE or DYN_SIZE
 
   // Note that whether a size of 0 is legal depends on the current
   // language settings (cc_lang.h), so most code should adapt itself
   // to that possibility.
 
-private:      // funcs
-  void checkWellFormedness() const;
-
 protected:
   friend class BasicTypeFactory;
   friend class XmlTypeReader;
   ArrayType(CType *e, int s = NO_SIZE)
-    : eltType(e), size(s) { checkWellFormedness(); }
+    : PDSArrayType(e), size(s) {}
   ArrayType(XmlReader&)           // a ctor for de-serialization
-    : eltType(NULL), size(NO_SIZE) {}
+    : PDSArrayType(NULL), size(NO_SIZE) {}
 
 public:
   int getSize() const { return size; }
-  bool hasSize() const { return size >= 0; }
+
+  // PDSArrayType interface
+  virtual bool hasSize() const { return size >= 0; }
+  virtual string sizeString() const;
 
   // CType interface
   virtual Tag getTag() const { return T_ARRAY; }
   unsigned innerHashValue() const;
   virtual string toMLString() const;
-  virtual string leftString(bool innerParen=true) const;
-  virtual string rightString(bool innerParen=true) const;
   virtual int reprSize() const;
-  virtual bool anyCtorSatisfies(TypePred &pred) const;
-  virtual void traverse(TypeVisitor &vis);
   // ocaml serialization method
   virtual value toOcaml(ToOcamlData *);
   virtual void detachOcaml();
@@ -1254,6 +1312,7 @@ public:
   virtual bool anyCtorSatisfies(TypePred &pred) const;
   virtual CVFlags getCVFlags() const;
   virtual void traverse(TypeVisitor &vis);
+  virtual CType *getAtType() const;
   // ocaml serialization method
   virtual value toOcaml(ToOcamlData *);
   virtual void detachOcaml();
@@ -1325,6 +1384,8 @@ public:
   virtual PointerToMemberType *makePointerToMemberType
     (NamedAtomicType *inClassNAT, CVFlags cv, CType *atType)=0;
 
+  virtual DependentSizedArrayType *makeDependentSizedArrayType
+    (CType *eltType, Expression *sizeExpr)=0;
 
   // ---- create a type based on another one ----
   // NOTE: all 'syntax' pointers are nullable, since there are contexts
@@ -1448,6 +1509,8 @@ public:    // funcs
   virtual ArrayType *makeArrayType(CType *eltType, int size);
   virtual PointerToMemberType *makePointerToMemberType
     (NamedAtomicType *inClassNAT, CVFlags cv, CType *atType);
+  virtual DependentSizedArrayType *makeDependentSizedArrayType
+    (CType *eltType, Expression *sizeExpr);
 
   virtual Variable *makeVariable(SourceLoc L, StringRef n, CType *t, DeclFlags f);
 };

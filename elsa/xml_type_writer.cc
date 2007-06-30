@@ -192,6 +192,11 @@ void XmlTypeWriter::toXml(CType *t) {
     trav(ptm->atType);
     break;
   }
+  
+  case CType::T_DEPENDENTSIZEDARRAY: {
+    xunimp("XmlTypeWriter::toXml for T_DEPENDENTSIZEDARRAY");
+    break;
+  }
 
   }
 }

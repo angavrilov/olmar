@@ -55,6 +55,7 @@ let cType_annotation = function
   | FunctionType(annot, _, _, _, _)
   | ArrayType(annot, _, _)
   | PointerToMemberType(annot, _, _, _)
+  | DependentSizedArrayType(annot, _, _)
     -> annot
 
 let sTemplateArgument_annotation = function

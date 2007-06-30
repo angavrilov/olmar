@@ -235,6 +235,7 @@ and 'a cType =
       (* PointerToMemberType( ?, volatile, type of pointed member ) *)
   | PointerToMemberType of 'a * 'a atomicType (* = NamedAtomicType *) * 
       cVFlags * 'a cType
+  | DependentSizedArrayType of 'a * 'a cType * 'a expression_type
 
   (* functionType is a cType build with the FunctionType constructor *)
 and 'a functionType = 'a cType
