@@ -2103,6 +2103,40 @@ bool Env::inferTemplArgsFromFuncArgs
       CType *argType = worklist[i].first;
       CType *paramType = param->type;
 
+      if (argType == NULL) {
+        // This happens when the argument was an overloaded function
+        // name, for example in/k0075.cc.
+        if (paramType->isPointerType() &&
+            paramType->getAtType()->isFunctionType()) {
+          // It seems that in order to get this right, I would have to:
+          //   1. Pass along the entire overload set.
+          //   2. Deduce template arguments for each one.
+          //   3. Yield the entire set of possible bindings.
+          //   4. Somehow fold all that into this worklist,
+          //      presumably multiplying bindings.
+          //
+          // See in/t0596.cc.  It works for ordinary functions (as
+          // opposed to operators), so perhaps that means that I
+          // already implemented the above for ordinary functions and
+          // just need to route the operator resolution code through
+          // those paths.
+          xunimp("deducing template arguments from an argument that is the "
+                 "name of an overloaded function");
+        }
+        else {
+          // Since the parameter type is not a pointer to a function,
+          // we can safely assume that no template argument bindings
+          // would make it match any of the overloaded functions
+          // arguments, so just yield failure.
+          if (iflags & IA_REPORT_ERRORS) {
+            error(stringc << "during function template argument deduction: "
+                  << "argument `" << argType->toString() << "'"
+                  << " is incompatible with parameter `"
+                  << paramType->toString() << "'");
+          }
+          return false;
+        }
+      }
       xassert(argType != NULL && "52291632-1792-4e5c-b5b8-9e6240b75a91");
 
       // deduction does not take into account whether the argument
