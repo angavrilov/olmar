@@ -3,7 +3,7 @@ WEBHOST=lilo
 WEBDIR=web-docs/olmar
 WEBSSH=$(WEBHOST):$(WEBDIR)
 DATE=$(shell date +%Y.%m.%d)
-OLMARTAR=elsa-2005.08.22b-olmar-$(DATE).tar.gz
+OLMARTAR=elsa-olmar-xx.tar.gz
 ocamlsrc=/usr/local/src/ocaml-3.09.3
 
 all: prepare-snapshot-doc

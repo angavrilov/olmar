@@ -221,6 +221,7 @@ echo -n "copy olmar docs [y/N]:"
 read answer
 
 if [  ${answer:=n} = y -o $answer = Y ] ; then
-    make -C asttools/doc new-doc
+    make -C asttools/doc OLMARTAR=$snapshot_tar SNAPSHOTNAME=$snapshot_name \
+	new-doc
 fi
 

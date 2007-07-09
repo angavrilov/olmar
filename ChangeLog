@@ -1,8 +1,14 @@
+2007-07-09  Hendrik Tews  <tews@tandem.cs.ru.nl>
+
+        * some more small snapshot fixes that should have been commited
+        before releasing
+
 2007-06-17  Hendrik Tews  <tews@tandem.cs.ru.nl>
 
         * updated documentation
         * fixed some todo's
         * some snapshot fixes
+        * released snapshot elsa-9-491-282-1045-2476-olmar-2007-06-17
 
 2007-05-21  Hendrik Tews  <tews@tandem.cs.ru.nl>
 
