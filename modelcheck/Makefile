@@ -50,6 +50,8 @@ kernel_prop_model: $(KERNEL_PROP_MODEL_ML:.ml=.$(OCAML_OBJ_EXT))
 .PHONY: clean
 clean:
 	rm -f $(TOCLEAN)
+	rm -f test/*.o
+	rm -f test/*.pml
 
 TOCLEAN += *.cmo
 %.cmo: %.ml

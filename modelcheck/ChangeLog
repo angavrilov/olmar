@@ -1,3 +1,7 @@
+2007-07-23  Hendrik Tews  <tews@tandem.cs.ru.nl>
+
+        * make clean improved
+
 2007-07-12  Hendrik Tews  <tews@tandem.cs.ru.nl>
 
         * Started. Compiles and prints silly comments.
