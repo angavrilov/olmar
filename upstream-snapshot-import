@@ -2,6 +2,7 @@
 
 set -e
 
+repo=solo:/vol/cvsd/robin
 startdir=$(pwd)
 
 if [ -x $startdir/get-export-revisions.pl ] ; then
@@ -22,7 +23,7 @@ mkdir -p $dir
 
 pushd $dir
 
-cvs -Q -d /home/tews/Store co -d head-before-import elsa
+cvs -Q -d $repo co -d head-before-import elsa
 
 cd head-before-import
 
@@ -54,7 +55,7 @@ fi
 cd upstream
 
 set -x
-cvs -d /home/tews/Store import -m "$comment" src/elsa elsa-vendor $tag
+cvs -d $repo import -m "$comment" src/elsa elsa-vendor $tag
 set +x
 
 cd ..

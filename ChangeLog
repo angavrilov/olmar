@@ -1,3 +1,8 @@
+2007-07-23  Hendrik Tews  <tews@tandem.cs.ru.nl>
+
+        * fix upstream-import script -- however don't import those little
+          changes 
+
 2007-07-09  Hendrik Tews  <tews@tandem.cs.ru.nl>
 
         * some more small snapshot fixes that should have been commited
