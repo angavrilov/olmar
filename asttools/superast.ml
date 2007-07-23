@@ -5,7 +5,7 @@
 
 open Cc_ast_gen_type
 open Ast_annotation
-open Ast_util
+open Ast_accessors
 
 type 'a super_ast =
   | TranslationUnit_type of 'a translationUnit_type
@@ -80,7 +80,7 @@ module Into_array = struct
 
   open Cc_ml_types
   open Ml_ctype
-  open Ast_util
+  open Ast_accessors
 
 
   module DS = Dense_set

@@ -84,7 +84,7 @@ COUNTAST_ML=\
 	$(ELSA)/ast_annotation.ml \
 	$(ELSA)/oast_header_version.ml \
 	$(ELSA)/oast_header.ml \
-	ast_util.ml \
+	ast_accessors.ml \
 	count-ast.ml
 
 TOCLEAN += count-ast
@@ -97,7 +97,7 @@ COUNTASTNEW_ML=\
 	$(ELSA)/ast_annotation.ml \
 	$(ELSA)/oast_header_version.ml \
 	$(ELSA)/oast_header.ml \
-	ast_util.ml \
+	ast_accessors.ml \
 	superast.ml \
 	count-ast-new.ml
 
@@ -114,7 +114,7 @@ ASTGRAPH_ML=\
 	$(ELSA)/ast_annotation.ml \
 	$(ELSA)/oast_header_version.ml \
 	$(ELSA)/oast_header.ml \
-	ast_util.ml \
+	ast_accessors.ml \
 	superast.ml \
 	uplinks.ml \
 	ast_graph.ml
@@ -132,7 +132,7 @@ dumpast: dumpast.ml
 HASHLOC_ML=\
 	dense_set.ml \
 	$(ELSA)/ast_annotation.ml \
-	ast_util.ml \
+	ast_accessors.ml \
 	hashloc.ml
 
 TOCLEAN += hashloc

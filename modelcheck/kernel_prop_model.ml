@@ -4,7 +4,7 @@
 
 open Cc_ast_gen_type
 open Ast_annotation
-open Ast_util_2
+open Ast_util
 
 (***********************************************************************
  *

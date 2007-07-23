@@ -13,7 +13,7 @@ open Cc_ml_types
 open Cc_ast_gen_type
 open Ml_ctype
 open Ast_annotation
-open Ast_util
+open Ast_accessors
 
 let do_fast = ref true
 

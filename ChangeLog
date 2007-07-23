@@ -1,5 +1,9 @@
 2007-07-23  Hendrik Tews  <tews@tandem.cs.ru.nl>
 
+        Asttools
+        * renamed ast_util into ast_accessor, new module ast_util will
+          contain not so trivial functions
+
         * fix upstream-import script -- however don't import those little
           changes 
 

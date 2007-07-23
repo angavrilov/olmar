@@ -30,7 +30,7 @@ TOCLEAN =
 
 
 .PHONY: test
-test: kernel_prop_model test/t001.dot
+test: kernel_prop_model test/t001.oast test/t001.dot
 	./kernel_prop_model -o - test/t001.oast
 
 
@@ -38,7 +38,7 @@ KERNEL_PROP_MODEL_ML=\
 	$(ELSA)/ast_annotation.ml \
 	$(ELSA)/oast_header_version.ml \
 	$(ELSA)/oast_header.ml \
-	ast_util_2.ml \
+	$(ASTTOOLS)/ast_util.ml \
 	kernel_prop_model.ml
 
 TOCLEAN += kernel_prop_model
@@ -55,15 +55,15 @@ clean:
 
 TOCLEAN += *.cmo
 %.cmo: %.ml
-	$(OCAMLC) $(OCAML_BYTE_FLAGS) $(OCAML_FLAGS) -I $(ELSA) -c $<
+	$(OCAMLC) $(OCAML_BYTE_FLAGS) $(OCAML_FLAGS) -I $(ELSA) -I $(ASTTOOLS) -c $<
 
 TOCLEAN += *.cmx *.o
 %.cmx: %.ml
-	$(OCAMLOPT) $(OCAML_FLAGS) -I $(ELSA) -c $<
+	$(OCAMLOPT) $(OCAML_FLAGS) -I $(ELSA) -I $(ASTTOOLS) -c $<
 
 TOCLEAN += *.cmi
 %.cmi: %.mli
-	$(OCAMLC) $(OCAML_FLAGS) -I $(ELSA) -c $<
+	$(OCAMLC) $(OCAML_FLAGS) -I $(ELSA) -I $(ASTTOOLS) -c $<
 
 TOCLEAN += test/*.oast
 %.oast: %.cc

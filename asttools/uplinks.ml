@@ -6,7 +6,7 @@ open Ast_annotation
 open Cc_ast_gen_type
 open Ast_annotation
 open Superast
-open Ast_util
+open Ast_accessors
 open Ml_ctype
 
 let add_links up down myindex annots =

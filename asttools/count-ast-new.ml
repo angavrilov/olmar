@@ -20,14 +20,6 @@
  * This is the ast-array variant: It iterates over the array of all ast-nodes.
  *)
 
-(* 
- * open Cc_ast_gen_type
- * open Ml_ctype
- * open Ast_annotation
- * open Ast_util
- *)
-
-
 open Superast
 open Ast_annotation
 open Cc_ml_types
