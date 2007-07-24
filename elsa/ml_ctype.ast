@@ -283,6 +283,12 @@ and 'a scope = {
   namespace_var : 'a variable option ref;
   scope_template_params : 'a variable list;
   parameterized_entity : 'a variable option;
+
+  (* if this scope is part of a CompoundType then this link gives the 
+   * corresponding compound_info
+   * obviously cyclic, stays None eg. for namespace scopes
+   *)
+  scope_compound: 'a compound_info option ref;
 }
 
 }

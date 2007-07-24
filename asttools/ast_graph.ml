@@ -590,7 +590,8 @@ and scope_fun s =
     type_tags = s.type_tags; parent_scope = s.parent_scope;
     scope_kind = s.scope_kind; namespace_var = s.namespace_var;
     scope_template_params = s.scope_template_params; 
-    parameterized_entity = s.parameterized_entity
+    parameterized_entity = s.parameterized_entity;
+    scope_compound = s.scope_compound
   }
   in
     if visited s.poly_scope then retval s.poly_scope
@@ -609,9 +610,11 @@ and scope_fun s =
 	   count_rev "templateParams"
 	     (List.rev_map variable_fun s.scope_template_params) in
 	 let l6 = opt_child variable_fun "parameterizedEntity" 
-	   s.parameterized_entity
+	   s.parameterized_entity in
+	 let l7 = opt_child compound_info_fun "scope_compound" 
+	   !(s.scope_compound)
 	 in
-	   l1 @ l2 @ l3 @ l4 @ l5 @ l6)
+	   l1 @ l2 @ l3 @ l4 @ l5 @ l6 @ l7)
     end
 
 

@@ -1379,7 +1379,7 @@ void Scope::traverse_internal(TypeVisitor &vis)
 // hand written ocaml serialization function
 value Scope::scopeToOcaml(ToOcamlData *data){
   CAMLparam0();
-  CAMLlocalN(child, 8);
+  CAMLlocalN(child, 9);
   CAMLlocal5(hash, hash_size, list, elem, tmp);
 
   if(scope_ocaml_val) {
@@ -1457,9 +1457,17 @@ value Scope::scopeToOcaml(ToOcamlData *data){
   else
     child[7] = Val_None;
 
+  // check if this scope is part of some compound
+  // if so, give a link to this compound on the ocaml side
+  CompoundType * compound = dynamic_cast<CompoundType *>(this);
+
+  child[8] = ref_constr(Val_None, data);
+  if(compound)
+    postpone_circular_CompoundInfo(data, child[8], compound);
+
   caml_register_global_root(&scope_ocaml_val);
   scope_ocaml_val = caml_callbackN(*create_scope_constructor_closure,
-				   8, child);
+				   9, child);
   xassert(IS_OCAML_AST_VALUE(scope_ocaml_val));
 
   data->stack.remove(this);

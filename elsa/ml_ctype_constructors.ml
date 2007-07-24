@@ -215,7 +215,8 @@ let create_STA_ATOMIC_constructor poly atomic_type =
 (* type scope *)
 let create_scope_constructor 
     poly variable_hash type_tags_hash parent_scope_opt scope_kind
-    namespace_var_opt template_params parameterized_entity_opt =
+    namespace_var_opt template_params parameterized_entity_opt 
+    scope_compound_opt =
   {
     poly_scope = poly;
     variables = variable_hash;
@@ -225,6 +226,7 @@ let create_scope_constructor
     namespace_var = namespace_var_opt;
     scope_template_params = template_params;
     parameterized_entity = parameterized_entity_opt;
+    scope_compound = scope_compound_opt;
   }
 
 

@@ -34,6 +34,14 @@ executable.
 </div>
 
 <DL>
+<DT><STRONG>after the last snapshot</STRONG> 
+<DD>
+<UL>
+<LI>new field scope.scope_compound
+</LI>
+<LI>file rename: ast_util -> ast_accessors</LI>
+</UL>
+<P>
 <DT><STRONG>17 June 2007</STRONG> 
 <DD>
 <UL>
@@ -492,7 +500,7 @@ generated (shifted to the right to fit into an Ocaml int).
 
 The abstract syntax tree is circular. A naive iteration over the
 tree will therefore in general not terminate. Currently there are
-14 fields that might make the tree circular:
+15 fields that might make the tree circular:
 <UL>
 <LI>var_type in type variable
 </LI>
@@ -515,6 +523,8 @@ tree will therefore in general not terminate. Currently there are
 <LI>partial_instantiation_of in templateInfo
 </LI>
 <LI>enclosing in inheritedTemplateParams
+</LI>
+<LI>scope_compound in scope
 <P>
 </LI>
 
@@ -528,7 +538,7 @@ tree will therefore in general not terminate. Currently there are
 </LI>
 </UL>
 
-The fields in the first group (up to enclosing)
+The fields in the first group (up to scope_compound)
 have a (hopefully hinting) option
 ref type. The field variable.overload has type list ref and the fields
 variables and typeTags in scope have type (string, variable)
@@ -611,7 +621,7 @@ runs fine with ocaml 3.10.
 
 <HR><FONT SIZE="-2">
 last changed on
-<!-- hhmts start -->25 Jun 2007
+<!-- hhmts start -->24 Jul 2007
 <!-- hhmts end -->
 by <A HREF="http://www.cs.ru.nl/~tews">Hendrik</A>
 </FONT></BODY> </HTML>

@@ -1,3 +1,14 @@
+2007-07-24  Hendrik Tews  <tews@tandem.cs.ru.nl>
+
+        Elsa
+        * serialize a link scope -> compound_info for those Scopes that
+          are part of a CompoundType
+        * the new link is obviously circular and nullable (but doesn't
+          exist directly in C++)
+
+        Asttools
+        * adjusting
+
 2007-07-23  Hendrik Tews  <tews@tandem.cs.ru.nl>
 
         Asttools

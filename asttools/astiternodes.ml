@@ -348,7 +348,8 @@ and scope_fun s =
     type_tags = s.type_tags; parent_scope = s.parent_scope;
     scope_kind = s.scope_kind; namespace_var = s.namespace_var;
     scope_template_params = s.scope_template_params; 
-    parameterized_entity = s.parameterized_entity
+    parameterized_entity = s.parameterized_entity;
+    scope_compound = s.scope_compound;
   }
   in
   let annot = scope_annotation s
@@ -366,6 +367,7 @@ and scope_fun s =
       opt_iter variable_fun !(s.namespace_var);
       List.iter variable_fun s.scope_template_params;
       opt_iter variable_fun s.parameterized_entity;
+      opt_iter compound_info_fun !(s.scope_compound);
     end
 
 

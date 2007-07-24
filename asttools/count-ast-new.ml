@@ -242,7 +242,8 @@ let ast_node_fun = function
 	type_tags = s.type_tags; parent_scope = s.parent_scope;
 	scope_kind = s.scope_kind; namespace_var = s.namespace_var;
 	scope_template_params = s.scope_template_params; 
-	parameterized_entity = s.parameterized_entity
+	parameterized_entity = s.parameterized_entity;
+	scope_compound = s.scope_compound;
       }
       in
 	Hashtbl.iter 

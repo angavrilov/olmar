@@ -420,7 +420,8 @@ module Into_array = struct
       type_tags = s.type_tags; parent_scope = s.parent_scope;
       scope_kind = s.scope_kind; namespace_var = s.namespace_var;
       scope_template_params = s.scope_template_params; 
-      parameterized_entity = s.parameterized_entity
+      parameterized_entity = s.parameterized_entity;
+      scope_compound = s.scope_compound;
     }
     in
     let annot = scope_annotation s
@@ -439,6 +440,7 @@ module Into_array = struct
 	opt_iter (variable_fun ast_array) !(s.namespace_var);
 	List.iter (variable_fun ast_array) s.scope_template_params;
 	opt_iter (variable_fun ast_array) s.parameterized_entity;
+	opt_iter (compound_info_fun ast_array) !(s.scope_compound);
       end
 
 
