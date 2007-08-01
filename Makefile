@@ -44,3 +44,7 @@ docclean:
 	$(MAKE) -C elkhound docclean
 	$(MAKE) -C elsa docclean
 	$(MAKE) -C asttools docclean
+
+stable:
+	cvs tag -d latest-stable
+	cvs tag latest-stable
