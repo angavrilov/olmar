@@ -253,7 +253,7 @@ and baseClass_fun baseClass =
   in
     if visited annot then ()
     else begin
-	visit annot;
+      visit annot;
       compound_info_fun baseClass.compound;
       bool_fun baseClass.is_virtual
     end
@@ -347,7 +347,7 @@ and atomicType_fun x =
 	  variable_fun variable;
 
       | DependentQType(annot, string, variable, 
-		      _accessKeyword, atomic, pq_name) ->
+		       _accessKeyword, atomic, pq_name) ->
 	  visit annot;
 	  string_fun string;
 	  variable_fun variable;
@@ -363,35 +363,35 @@ and cType_fun x =
     else
       let _ = visit annot 
       in match x with
-      | CVAtomicType(_annot, _cVFlags, atomicType) ->
-	  atomicType_fun atomicType
+	| CVAtomicType(_annot, _cVFlags, atomicType) ->
+	    atomicType_fun atomicType
 
-      | PointerType(_annot, _cVFlags, cType) ->
-	  cType_fun cType
+	| PointerType(_annot, _cVFlags, cType) ->
+	    cType_fun cType
 
-      | ReferenceType(_annot, cType) ->
-	  cType_fun cType
+	| ReferenceType(_annot, cType) ->
+	    cType_fun cType
 
-      | FunctionType(_annot, _function_flags, cType, 
-		     variable_list, cType_list_opt) ->
-	  cType_fun cType;
-	  List.iter variable_fun variable_list;
-	  opt_iter (List.iter cType_fun) cType_list_opt
+	| FunctionType(_annot, _function_flags, cType, 
+		       variable_list, cType_list_opt) ->
+	    cType_fun cType;
+	    List.iter variable_fun variable_list;
+	    opt_iter (List.iter cType_fun) cType_list_opt
 
-      | ArrayType(_annot, cType, _array_size) ->
-	  cType_fun cType;
+	| ArrayType(_annot, cType, _array_size) ->
+	    cType_fun cType;
 
-      | PointerToMemberType(_annot, atomicType (* = NamedAtomicType *), 
-			    _cVFlags, cType) ->
-	  assert(match atomicType with 
-		   | SimpleType _ -> false
-		   | CompoundType _
-		   | PseudoInstantiation _
-		   | EnumType _
-		   | TypeVariable _ 
-		   | DependentQType _ -> true);
-	  atomicType_fun atomicType;
-	  cType_fun cType
+	| PointerToMemberType(_annot, atomicType (* = NamedAtomicType *), 
+			      _cVFlags, cType) ->
+	    assert(match atomicType with 
+		     | SimpleType _ -> false
+		     | CompoundType _
+		     | PseudoInstantiation _
+		     | EnumType _
+		     | TypeVariable _ 
+		     | DependentQType _ -> true);
+	    atomicType_fun atomicType;
+	    cType_fun cType
 
 
 and sTemplateArgument_fun ta = 
@@ -460,7 +460,7 @@ and scope_fun s =
       opt_iter variable_fun s.parameterized_entity;
       opt_iter compound_info_fun !(s.scope_compound);
     end
-	
+      
 
 
 (***************** generated ast nodes ****************)
@@ -525,8 +525,8 @@ and topForm_fun x =
 
 
 and func_fun((annot, _declFlags, typeSpecifier, declarator, memberInit_list, 
-	     s_compound_opt, handler_list, func, variable_opt_1, 
-	     variable_opt_2, statement_opt, bool) ) =
+	      s_compound_opt, handler_list, func, variable_opt_1, 
+	      variable_opt_2, statement_opt, bool) ) =
 
   if visited annot then ()
   else begin
@@ -537,8 +537,8 @@ and func_fun((annot, _declFlags, typeSpecifier, declarator, memberInit_list,
 		   | S_compound _ -> true 
 		   | _ -> false);
     assert(match func with 
-      | FunctionType _ -> true
-      | _ -> false);
+	     | FunctionType _ -> true
+	     | _ -> false);
     visit annot;
     typeSpecifier_fun typeSpecifier;
     declarator_fun declarator;
@@ -554,15 +554,15 @@ and func_fun((annot, _declFlags, typeSpecifier, declarator, memberInit_list,
 
 
 and memberInit_fun((annot, pQName, argExpression_list, 
-		   variable_opt_1, compound_opt, variable_opt_2, 
-		   full_expr_annot, statement_opt) ) =
+		    variable_opt_1, compound_opt, variable_opt_2, 
+		    full_expr_annot, statement_opt) ) =
 
   if visited annot then ()
   else begin
-      assert(match compound_opt with
-	| None
-	| Some(CompoundType _) -> true
-	| _ -> false);
+    assert(match compound_opt with
+	     | None
+	     | Some(CompoundType _) -> true
+	     | _ -> false);
     visit annot;
     pQName_fun pQName;
     List.iter argExpression_fun argExpression_list;
@@ -601,7 +601,7 @@ and pQName_fun x =
       in match x with
 	| PQ_qualifier(_annot, sourceLoc, stringRef_opt, 
 		       templateArgument_opt, pQName, 
-		      variable_opt, s_template_arg_list) -> 
+		       variable_opt, s_template_arg_list) -> 
 	    sourceLoc_fun sourceLoc;
 	    opt_iter string_fun stringRef_opt;
 	    opt_iter templateArgument_fun templateArgument_opt;
@@ -619,7 +619,7 @@ and pQName_fun x =
 	    string_fun stringRef
 
 	| PQ_template(_annot, sourceLoc, stringRef, templateArgument_opt, 
-		     s_template_arg_list) -> 
+		      s_template_arg_list) -> 
 	    sourceLoc_fun sourceLoc;
 	    string_fun stringRef;
 	    opt_iter templateArgument_fun templateArgument_opt;
@@ -639,7 +639,7 @@ and typeSpecifier_fun x =
       let _ = visit annot 
       in match x with
 	| TS_name(_annot, sourceLoc, _cVFlags, pQName, bool, 
-		 var_opt_1, var_opt_2) -> 
+		  var_opt_1, var_opt_2) -> 
 	    sourceLoc_fun sourceLoc;
 	    pQName_fun pQName;
 	    bool_fun bool;
@@ -650,10 +650,10 @@ and typeSpecifier_fun x =
 	    sourceLoc_fun sourceLoc;
 
 	| TS_elaborated(_annot, sourceLoc, _cVFlags, _typeIntr, 
-		       pQName, namedAtomicType_opt) -> 
+			pQName, namedAtomicType_opt) -> 
 	    assert(match namedAtomicType_opt with
-	      | Some(SimpleType _) -> false
-	      | _ -> true);
+		     | Some(SimpleType _) -> false
+		     | _ -> true);
 	    sourceLoc_fun sourceLoc;
 	    pQName_fun pQName;
 	    opt_iter atomicType_fun namedAtomicType_opt
@@ -661,8 +661,8 @@ and typeSpecifier_fun x =
 	| TS_classSpec(_annot, sourceLoc, _cVFlags, _typeIntr, pQName_opt, 
 		       baseClassSpec_list, memberList, compoundType) -> 
 	    assert(match compoundType with
-	      | CompoundType _ -> true
-	      | _ -> false);
+		     | CompoundType _ -> true
+		     | _ -> false);
 	    sourceLoc_fun sourceLoc;
 	    opt_iter pQName_fun pQName_opt;
 	    List.iter baseClassSpec_fun baseClassSpec_list;
@@ -672,8 +672,8 @@ and typeSpecifier_fun x =
 	| TS_enumSpec(_annot, sourceLoc, _cVFlags, 
 		      stringRef_opt, enumerator_list, enumType) -> 
 	    assert(match enumType with 
-	      | EnumType _ -> true
-	      | _ -> false);
+		     | EnumType _ -> true
+		     | _ -> false);
 	    sourceLoc_fun sourceLoc;
 	    opt_iter string_fun stringRef_opt;
 	    List.iter enumerator_fun enumerator_list;
@@ -704,7 +704,7 @@ and baseClassSpec_fun
 
 
 and enumerator_fun((annot, sourceLoc, stringRef, 
-		   expression_opt, variable, _int32) ) =
+		    expression_opt, variable, _int32) ) =
   if visited annot then ()
   else begin
     visit annot;
@@ -752,8 +752,8 @@ and member_fun x =
 
 
 and declarator_fun((annot, iDeclarator, init_opt, 
-		   variable_opt, ctype_opt, _declaratorContext,
-		   statement_opt_ctor, statement_opt_dtor) ) =
+		    variable_opt, ctype_opt, _declaratorContext,
+		    statement_opt_ctor, statement_opt_dtor) ) =
   if visited annot then ()
   else begin
     visit annot;
@@ -950,7 +950,7 @@ and statement_fun x =
 
 	| S_rangeCase(_annot, sourceLoc, 
 		      expression_lo, expression_hi, statement, 
-		     label_lo, label_hi) -> 
+		      label_lo, label_hi) -> 
 	    sourceLoc_fun sourceLoc;
 	    expression_fun expression_lo;
 	    expression_fun expression_hi;
@@ -978,7 +978,7 @@ and condition_fun x =
 
 
 and handler_fun((annot, aSTTypeId, statement_body, variable_opt, 
-		fullExpressionAnnot, expression_opt, statement_gdtor) ) =
+		 fullExpressionAnnot, expression_opt, statement_gdtor) ) =
   if visited annot then ()
   else begin
     visit annot;
@@ -1240,7 +1240,7 @@ and init_fun x =
 	    List.iter init_fun init_list
 
 	| IN_ctor(_annot, sourceLoc, fullExpressionAnnot, 
-		 argExpression_list, var_opt, bool) -> 
+		  argExpression_list, var_opt, bool) -> 
 	    sourceLoc_fun sourceLoc;
 	    fullExpressionAnnot_fun fullExpressionAnnot;
 	    List.iter argExpression_fun argExpression_list;
@@ -1248,7 +1248,7 @@ and init_fun x =
 	    bool_fun bool
 
 	| IN_designated(_annot, sourceLoc, fullExpressionAnnot, 
-		       designator_list, init) -> 
+			designator_list, init) -> 
 	    sourceLoc_fun sourceLoc;
 	    fullExpressionAnnot_fun fullExpressionAnnot;
 	    List.iter designator_fun designator_list;
@@ -1291,7 +1291,7 @@ and templateParameter_fun x =
 	    opt_iter templateParameter_fun templateParameter_opt
 
 	| TP_nontype(_annot, sourceLoc, variable,
-		    aSTTypeId, templateParameter_opt) -> 
+		     aSTTypeId, templateParameter_opt) -> 
 	    sourceLoc_fun sourceLoc;
 	    variable_fun variable;
 	    aSTTypeId_fun aSTTypeId;
@@ -1371,7 +1371,7 @@ and designator_fun x =
 	    string_fun stringRef
 
 	| SubscriptDesignator(_annot, sourceLoc, expression, expression_opt, 
-			     idx_start, idx_end) -> 
+			      idx_start, idx_end) -> 
 	    sourceLoc_fun sourceLoc;
 	    expression_fun expression;
 	    opt_iter expression_fun expression_opt;

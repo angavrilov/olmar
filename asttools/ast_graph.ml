@@ -1825,7 +1825,7 @@ let arguments = Arg.align
 		   let (f,l,c) = parse_loc_string loc
 		   in
 		     select (Loc (f,l,c))),
-     "i select line i");
+     "loc select location, loc is of the form [file:]line[:char]");
     ("-node", Arg.Int (fun i -> select(Add_node i)),
      "node_id add node_id");
     ("-del-node", Arg.Int (fun i -> select(Del_node i)),
