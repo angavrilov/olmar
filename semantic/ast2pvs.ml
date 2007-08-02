@@ -61,7 +61,7 @@
 
 (* flag for debug output *)
 
-let debug = true
+let debug = false
 
 let trace s = if debug then Format.print_string s else ()
 
@@ -947,7 +947,7 @@ and func_fun (annot, declFlags, typeSpecifier, declarator, memberInit_list,
 		  Format.printf "@[<2>with_new_stackvar(@[<2>lambda@ @[<2>(";
 		  variable_fun v;
 		  Format.printf "_addr@ :@ Address)@]@]:@\n";
-		  Format.printf "@[<2>e2s(assign(pm, dt_unsigned)(id(";
+		  Format.printf "@[<2>e2s(assign(pm, dt_int)(id(";
 		  variable_fun v;
 		  Format.printf "_addr),@ ";
 		  variable_fun v;
@@ -1500,7 +1500,7 @@ and declarator_fun (annot, iDeclarator, init_opt,
 
 	| D_name _ ->
 	    (*TODO*)
-	    Format.printf "assign(pm, dt_unsigned)(@[<2>id(";
+	    Format.printf "assign(pm, dt_int)(@[<2>id(";
 	    assert (Option.isSome variable_opt);
 	    Option.app variable_fun variable_opt;
 	    Format.printf "),@ ";
@@ -1869,7 +1869,7 @@ and l2r_expression_fun x =
   in
     if is_lvalue_expression x then
       begin
-	Format.printf "l2r(pm, dt_unsigned)@[<2>(";
+	Format.printf "l2r(pm, dt_int)@[<2>(";
 	expression_fun x;
         Format.printf ")@]";
       end
@@ -2065,7 +2065,7 @@ and expression_fun x =
         assert (Option.isSome type_opt);
 	(*Option.app cType_fun type_opt;*)
 	effectOp_fun effectOp;
-        Format.printf "(pm, dt_unsigned)(";
+        Format.printf "(pm, dt_int)(";
 	expression_fun expression;
         Format.print_string ")";
         trace ")";
@@ -2132,7 +2132,7 @@ and expression_fun x =
         assert (Option.isSome type_opt);
 	(*Option.app cType_fun type_opt;*)
 	assignOp_fun binaryOp;
-        Format.printf "(pm, dt_unsigned)@[<2>(";
+        Format.printf "(pm, dt_int)@[<2>(";
 	expression_fun expression_target;
         Format.printf ",@ ";
 	l2r_expression_fun expression_src;
@@ -2618,7 +2618,7 @@ let main () =
           @[<2>POSTCONDITION@ :@ PRED[State]@]@\n\
           @\n\
           @[<4>@[<2>%s@ :@ LEMMA@ Forall@ (argc:@ Address,@ argv:@ Address):@\n\
-          Valid(PRECONDITION,@]@\n\
+          valid(PRECONDITION,@]@\n\
             @[<2>main(argc,@ argv),@]@]@\n  \
           POSTCONDITION)@]@\n\
         @\n\
