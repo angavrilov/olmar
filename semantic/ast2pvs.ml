@@ -1287,7 +1287,7 @@ and typeSpecifier_fun x =
 	  | _ -> false);
 	(*cVFlags_fun cVFlags;*)
 	(*Option.app string_fun stringRef_opt;*)
-	separate enumerator_fun (fun () -> Format.printf "@\n@\n")
+	separate enumerator_fun (fun () -> Format.printf "@\n")
 	  enumerator_list;
 	(*atomicType_fun enumType;*)
 	trace ")";
@@ -2608,20 +2608,22 @@ let main () =
       Format.printf "@[@[<2>%s[State@ :@ Type]@ :@ THEORY@]@\n\
         BEGIN@\n\
         @[<2>@\n\
-          @[<2>IMPORTING@ Abstract_Read_Write_Plain,@ Cxx_Types,@ Expressions,@ Statements,@ Conversions,@ Hoare@]@\n\
+          @[<2>IMPORTING@ Abstract_Read_Write_Plain,@ Cpp_Types,@ Expressions,@ Statements,@ Conversions,@ Hoare@]@\n\
           @\n\
           @[pm@ :@ Plain_Memory[State]@]@\n\
           @\n" theory_name;
       ast_node_fun ast_array.(1);
+      (* this only works for int main(), not for int main(argc, argv)
+	 (cf. C++ Standard, 3.6.1.2) *)
       Format.printf "@[<2>PRECONDITION@ :@ PRED[State]@]@\n\
           @\n\
           @[<2>POSTCONDITION@ :@ PRED[State]@]@\n\
           @\n\
-          @[<4>@[<2>%s@ :@ LEMMA@ Forall@ (argc:@ Address,@ argv:@ Address):@\n\
-          valid(PRECONDITION,@]@\n\
-            @[<2>main(argc,@ argv),@]@]@\n  \
-          POSTCONDITION)@]@\n\
-        @\n\
+          @[<2>@[<4>%s@ :@ LEMMA@]@\n\
+            @[<2>valid(PRECONDITION,@\n\
+              main,@]@\n\
+            POSTCONDITION)@]@]@\n\
+          @\n\
         END@ %s@]@." lemma_name theory_name;
       close_out !out;
     end;;
