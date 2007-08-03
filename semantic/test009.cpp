@@ -3,9 +3,15 @@
  * Author: Tjark Weber
  * (c) 2007 Radboud University
  *
- * main without arguments
+ * typedef
  */
 
+typedef int foo;
+
 int main() {
-  return 0;
+  int i = 0;
+
+  foo f = i;
+
+  return f;
 }
