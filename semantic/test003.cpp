@@ -11,7 +11,7 @@ void f() {
 }
 
 int g(int i, bool b) {
-  return i;
+  return i;  // FIXME: l2r conversion required
 }
 
 int main() {

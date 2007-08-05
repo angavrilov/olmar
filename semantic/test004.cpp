@@ -14,12 +14,14 @@ int main() {
   // int i;
 
   int i = 0;
-  int j = i;
+  int j = i;  // FIXME: l2r conversion required
+
+  bool b = false;
 
   {
     // our scope rules are slightly different from those of C++,
-    // so that this would not work as expected -- it's best to
-    // use unique identifiers everywhere!
+    // so that this declaration would not work as expected --
+    // it's best to use unique identifiers everywhere!
     // int i = i;
     int i = 1;
     j = i;
