@@ -628,14 +628,12 @@ and atomicType_fun x =
     | EnumType(annot, string, variable, accessKeyword, 
 	      enum_value_list, has_negatives) ->
 	trace "EnumType(";
-	(*TODO*)
-	Format.printf ">>>>>";
-	Option.app string_fun string;
-	Option.app variable_fun variable;
+	assert (Option.isSome string);
+	Option.app string_fun string;  (*identical to variable name?*)
+	(*Option.app variable_fun variable;
 	accessKeyword_fun accessKeyword;
 	List.iter enum_value_fun enum_value_list;
-	bool_fun has_negatives;
-	Format.printf "<<<<<";
+	bool_fun has_negatives;*)
 	trace ")";
 
     | TypeVariable(annot, string, variable, accessKeyword) ->
@@ -947,7 +945,10 @@ and func_fun (annot, declFlags, typeSpecifier, declarator, memberInit_list,
 		  Format.printf "@[<2>with_new_stackvar(@[<2>lambda@ @[<2>(";
 		  variable_fun v;
 		  Format.printf "_addr@ :@ Address)@]@]:@\n";
-		  Format.printf "@[<2>e2s(assign(pm, dt_int)(id(";
+		  Format.printf "@[<2>e2s(assign(pm, dt_";
+		  assert (Option.isSome !(v.var_type));
+		  Option.app cType_fun !(v.var_type);
+		  Format.printf ")(id(";
 		  variable_fun v;
 		  Format.printf "_addr),@ ";
 		  variable_fun v;
@@ -1066,10 +1067,11 @@ and declaration_fun (annot, declFlags, typeSpecifier, declarator_list) =
           Format.printf "@]") declarator_list;
       end
     else
-      (* variable/function declaration *)
+      (* class/variable/function declaration *)
       begin
+	(*TODO: declaring a type and at the same time a variable of that type,
+	  as in    class C { /* ... */ } c;    is not supported yet.*)
 	typeSpecifier_fun typeSpecifier;
-
 	List.iter declarator_fun declarator_list;
       end;
     trace ")";
@@ -1285,11 +1287,21 @@ and typeSpecifier_fun x =
 	assert(match enumType with 
 	  | EnumType _ -> true
 	  | _ -> false);
+	Format.print_string "% enum ";
+	atomicType_fun enumType;
+	Format.printf "@\n@\n";
+	Format.printf "@[<2>Semantics_";
+	atomicType_fun enumType;
+	Format.printf "@ :@ TYPE@ =@ Semantics_int@]@\n";
+	Format.printf "@[<2>dt_";
+	atomicType_fun enumType;
+	Format.printf "@ :@ (pod_data_type?[Semantics_";
+	atomicType_fun enumType;
+	Format.printf "])@ =@ dt_int@]@\n@\n";
 	(*cVFlags_fun cVFlags;*)
 	(*Option.app string_fun stringRef_opt;*)
 	separate enumerator_fun (fun () -> Format.printf "@\n")
 	  enumerator_list;
-	(*atomicType_fun enumType;*)
 	trace ")";
 
     | TS_type(annot, sourceLoc, cVFlags, cType) -> 
@@ -1499,9 +1511,11 @@ and declarator_fun (annot, iDeclarator, init_opt,
 	    Format.printf "]@ =@]@\n";
 
 	| D_name _ ->
-	    (*TODO*)
-	    Format.printf "assign(pm, dt_int)(@[<2>id(";
+	    Format.printf "assign(pm, dt_";
 	    assert (Option.isSome variable_opt);
+	    assert (Option.isSome !((Option.valOf variable_opt).var_type));
+	    Option.app cType_fun !((Option.valOf variable_opt).var_type);
+	    Format.printf ")(@[<2>id(";
 	    Option.app variable_fun variable_opt;
 	    Format.printf "),@ ";
 	    (* TODO: default initialization (§8.5) not modelled yet *)
