@@ -285,7 +285,7 @@ open Ast_accessors
 (* include Library *)
 include Option
 
-(* separate f s [x1; x2]  =  ignore (f x1); ignore (s ()); ignore (f x2)     *)
+(* separate f s [x1; x2]  =  ignore (f x1); ignore (s ()); ignore (f x2) *)
 let separate f s =
   let rec sep = function
       x1::x2::xs -> ignore (f x1); ignore (s ()); sep (x2::xs)
@@ -293,6 +293,11 @@ let separate f s =
     | []         -> ()
   in sep
 
+(* last [x1; ...; xn]  =  xn *)
+let rec last = function
+    []  -> raise (Failure "last")
+  | [x] -> x
+  | xs  -> last (List.tl xs)
 
 (**************************************************************************
  *
@@ -396,7 +401,7 @@ let declaratorContext_fun (dc : declaratorContext) =
   trace (string_of_declaratorContext dc);
   trace ")"
 
-let scopeKind_fun (_ : scopeKind) = assert false
+let scopeKind_fun (_ : scopeKind) = ()
 
 let array_size_fun = function
   | NO_SIZE -> assert false
@@ -628,7 +633,7 @@ and atomicType_fun x =
     | EnumType(annot, string, variable, accessKeyword, 
 	      enum_value_list, has_negatives) ->
 	trace "EnumType(";
-	assert (Option.isSome string);
+	assert (Option.isSome string);  (* anonymous enums not supported yet *)
 	Option.app string_fun string;  (*identical to variable name?*)
 	(*Option.app variable_fun variable;
 	accessKeyword_fun accessKeyword;
@@ -1083,10 +1088,13 @@ and member_declaration_fun pQName
     (annot, declFlags, typeSpecifier, declarator_list) =
   begin
     trace "member_declaration_fun(";
+    (*member variable declarations are handled at the class node*)
+    (*
     Format.printf "@[<2>";
     separate (member_declarator_fun pQName)
       (fun () -> Format.printf ",@ ") declarator_list;
     Format.printf "@ :@ nat@]";
+    *)
     trace ")";
   end
 
@@ -1208,6 +1216,7 @@ and typeSpecifier_fun x =
 		| _ ->
 		    []) (snd memberList)) in
 
+	(* Semantics_<type> : TYPE = ... *)
 	Format.printf "@[<2>Semantics_";
 	Option.app pQName_fun pQName_opt;  (* name of class type *)
 	Format.printf "@ :@ TYPE";
@@ -1216,19 +1225,37 @@ and typeSpecifier_fun x =
 	if (function | CompoundType ct -> ct.keyword <> K_UNION
 	  | _ -> assert false) compoundType then
 	  begin
-	    Format.printf "@ =@ @[<2>[";
+	    Format.printf "@ =@ @[<2>[#@ ";
 	    separate
-	      (fun (t, _) ->
-		Format.print_string "Semantics_";
-		typeSpecifier_fun t)
+	      (fun (t, v) ->
+		Format.printf "@[<2>";
+		variable_fun v;
+		Format.printf ":@ Semantics_";
+		typeSpecifier_fun t;
+		Format.printf "@]")
 	      (fun () -> Format.printf ",@ ") fields;
-	    Format.printf "]@]";
+	    Format.printf "@ #]@]";
 	  end;
-	Format.printf "@]@\n@\n";
+	Format.printf "@]@\n";
 
+	(* dt_<type> : (uninterpreted_data_type?) *)
+	(* since we define access member-wise, the datatype itself is *)
+	(* currently left uninterpreted                               *)
 	Format.printf "@[<2>dt_";
 	Option.app pQName_fun pQName_opt;  (* name of class type *)
 	Format.printf "@ :@ (uninterpreted_data_type?)@]@\n@\n";
+
+	(* offsets_<type> : [# ... #] *)
+	Format.printf "@[<2>offsets_";
+	Option.app pQName_fun pQName_opt;  (* name of class type *)
+	Format.printf "@ :@ @[<2>[#@ ";
+	separate
+	  (fun (_, v) ->
+	    Format.printf "@[<2>";
+	    variable_fun v;
+	    Format.printf ":@ nat@]")
+	  (fun () -> Format.printf ",@ ") fields;
+	Format.printf "@ #]@]@]@\n";
 
 	cVFlags_fun cVFlags;  (*?*)
 	typeIntr_fun typeIntr;  (*?*)
@@ -1237,26 +1264,31 @@ and typeSpecifier_fun x =
 	assert (List.length baseClassSpec_list = 0);
 	List.iter baseClassSpec_fun baseClassSpec_list;
 
-	memberList_fun (Option.valOf pQName_opt) memberList;
-	Format.printf "@\n@\n";
-
 	(*additional axioms about memory layout etc.*)
 	ignore (List.fold_left (fun prev_opt (typeSpecifier, variable) ->
 	  begin
 	    match prev_opt with
 	      | None ->
 		  Format.printf "@[<2>";
+		  Option.app pQName_fun pQName_opt;  (* name of class type *)
+		  Format.print_string "_";
 		  variable_fun variable;  (* name of field *)
-		  Format.printf "_min@ :@ AXIOM@ ";
+		  Format.printf "_axiom@ :@ AXIOM@ offsets_";
+		  Option.app pQName_fun pQName_opt;  (* name of class type *)
+		  Format.print_string "`";
 		  variable_fun variable;  (* name of field *)
 		  (* the C++ standard only implies >= 0 here, but also *)
 		  (* that the amount of padding is the same between    *)
 		  (* different classes with identical initial segments *)
-		  Format.printf "@ =@ 0@]";
+		  Format.printf "@ =@ 0@]@\n";
 	      | Some (prev_ts, prev_var) ->
-		  Format.printf "@\n@\n@[<2>";
+		  Format.printf "@[<2>";
+		  Option.app pQName_fun pQName_opt;  (* name of class type *)
+		  Format.print_string "_";
 		  variable_fun variable;  (* name of field *)
-		  Format.printf "_min@ :@ AXIOM@ ";
+		  Format.printf "_axiom@ :@ AXIOM@ offsets_";
+		  Option.app pQName_fun pQName_opt;  (* name of class type *)
+		  Format.print_string "`";
 		  variable_fun variable;  (* name of field *)
 		  (* the C++ standard only implies >= here, but also   *)
 		  (* that the amount of padding is the same between    *)
@@ -1268,14 +1300,39 @@ and typeSpecifier_fun x =
 		    Format.print_string "0"
 		  else
 		    begin
+		      Format.print_string "offsets_";
+		      Option.app pQName_fun pQName_opt;  (* name of class type *)
+		      Format.print_string "`";
 		      variable_fun prev_var;  (* name of field *)
 		      Format.printf "@ +@ size(uidt(dt_";
 		      typeSpecifier_fun prev_ts;
 		      Format.print_string "))";
 		    end;
-		  Format.printf "@]";
+		  Format.printf "@]@\n";
 	  end;
 	  Some (typeSpecifier, variable)) None fields);
+
+	(* total size of the datatype *)
+	(* TODO: for unions, we need to take the maximum of the member sizes *)
+	if (List.length fields > 0) then
+	  let (t, v) = last fields in
+	    begin
+	      Format.printf "@[<2>dt_";
+	      Option.app pQName_fun pQName_opt;  (* name of class type *)
+	      Format.printf "_size@ :@ AXIOM@ size(dt_";
+	      Option.app pQName_fun pQName_opt;  (* name of class type *)
+	      Format.printf ")@ >= offsets_";
+	      Option.app pQName_fun pQName_opt;  (* name of class type *)
+	      Format.print_string "`";
+	      variable_fun v;  (* name of field *)
+	      Format.printf "@ +@ size(uidt(dt_";
+	      typeSpecifier_fun t;
+	      Format.printf "))@]@\n";
+	  end;
+	Format.printf "@\n";
+
+	(* print member functions *)
+	memberList_fun (Option.valOf pQName_opt) memberList;
 
 	(*atomicType_fun compoundType;*)  (* same as pQName_opt ??? *)
 	trace ")";
@@ -1354,8 +1411,8 @@ and enumerator_fun (annot, sourceLoc, stringRef,
 and memberList_fun pQName (annot, member_list) =
   begin
     trace "memberList_fun(";
-    separate (member_fun pQName)
-      (fun () -> Format.printf "@\n@\n") member_list;
+    separate (member_fun pQName) (fun () -> Format.printf "@\n@\n")
+      (List.filter (function | MR_func _ -> true | _ -> false) member_list);
     trace ")";
   end
 
@@ -2045,8 +2102,11 @@ and expression_fun x =
 	Format.printf "@[<2>member(";
 	(* object *)
 	expression_fun expression;
-	Format.printf ",@ ";
-	(* field name (difference between this and var_opt???) *)
+	Format.printf ",@ offsets_";
+	assert (Option.isSome (expression_type expression));
+	Option.app cType_fun (expression_type expression);
+	Format.print_string "`";
+	(* field name (difference between this and var_opt?) *)
 	(*pQName_fun pQName;*)
 	(* field name *)
 	assert (Option.isSome var_opt);
