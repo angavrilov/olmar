@@ -1,3 +1,11 @@
+2007-08-10  Hendrik Tews  <tews@tandem.cs.ru.nl>
+
+        * merge from conversion-branch: 
+          store conversion sequences in Expression nodes:
+          + fields scs, conversionKind added to Expression (elaborate.ast)
+          + in Env::makeConvertedArg: copy conversions from ic to arg
+
+
 2007-08-01  Hendrik Tews  <tews@tandem.cs.ru.nl>
 
         * add latest-stable rule
