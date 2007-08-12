@@ -69,6 +69,7 @@ syntax: regexp
 ^elsa/cc_tokens\.ids
 ^elsa/ccparse
 ^elsa/in/.*\.cc\.oast$
+^elsa/in/.*_[0-9]+\.cc$
 ^elsa/in/.*\.error[0-9]*\.cc$
 ^elsa/outdir/.*
 ^elsa/lexer\.lex
