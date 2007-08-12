@@ -50,6 +50,7 @@ class XmlTypeReader : public XmlReader {
     (FunctionType::ExnSpec *, int attr, char const *strValue);
   void registerAttr_ArrayType          (ArrayType *,           int attr, char const *strValue);
   void registerAttr_PointerToMemberType(PointerToMemberType *, int attr, char const *strValue);
+  void registerAttr_DependentSizedArrayType(DependentSizedArrayType *, int attr, char const *strValue);
 
   // AtomicTypes
   bool registerAttr_NamedAtomicType_super(NamedAtomicType *,   int attr, char const *strValue);
