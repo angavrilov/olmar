@@ -157,11 +157,16 @@ void TypeVariable::detachOcaml() {
 
 
 // -------------------- PseudoInstantiation ------------------
+// Here, 'p' might be NULL only during deserialization.
 PseudoInstantiation::PseudoInstantiation(CompoundType *p)
   : NamedAtomicType(p? p->name : NULL),
     primary(p),
     args()        // empty initially
-{}
+{
+  if (p) {
+    xassert(p->templateInfo()->isPrimary());
+  }
+}
 
 PseudoInstantiation::~PseudoInstantiation()
 {}
@@ -786,6 +791,12 @@ TemplateInfo const *TemplateInfo::getPrimaryC() const
   else {
     return this;
   }
+}
+
+
+CompoundType *TemplateInfo::getCompoundType() const
+{
+  return var->type->asCompoundType();
 }
 
 
@@ -3798,13 +3809,15 @@ bool Env::supplyDefaultTemplateArguments
       if (arg) {
         TRACE("template", "supplied default argument `" <<
                           arg->toString() << "' for param `" <<
-                          param->name << "'");
+                          param->name << "' of template `" <<
+                          primaryTI->templateName() << "'");
       }
     }
 
     if (!arg) {
       error(stringc << "no argument supplied for template parameter `"
-                    << param->name << "'");
+                    << param->name << "' of template `"
+                    << primaryTI->templateName() << "'");
       return false;
     }
 
@@ -4373,7 +4386,7 @@ bool Env::verifyCompatibleTemplateParameters(Scope *scope, CompoundType *prior)
     if (prior->isInstantiation()) {
       // in/t0510.cc: 'prior' is an instantiation, so the parameters
       // were referring to the template primary
-      prior = prior->templateInfo()->getPrimary()->var->type->asCompoundType();
+      prior = prior->templateInfo()->getPrimary()->getCompoundType();
     }
     else {
       error(stringc
@@ -5356,7 +5369,7 @@ CType *Env::pseudoSelfInstantiation(CompoundType *ct, CVFlags cv)
   xassert(tinfo);     // otherwise why are we here?
 
   PseudoInstantiation *pi = new PseudoInstantiation(
-    tinfo->getPrimary()->var->type->asCompoundType());   // awkward...
+    tinfo->getPrimary()->getCompoundType());
 
   if (tinfo->isPrimary()) {
     // 14.6.1 para 1
