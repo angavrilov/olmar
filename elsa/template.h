@@ -340,6 +340,9 @@ public:      // funcs
   TemplateInfo const *getPrimaryC() const;
   TemplateInfo *getPrimary() { return const_cast<TemplateInfo*>(getPrimaryC()); }
 
+  // map back to the CompoundType, for a class template
+  CompoundType *getCompoundType() const;
+
   // modify one of the bidirectional relations; this is always
   // done by asking the parent to add a child
   void addInstantiation(Variable *inst);

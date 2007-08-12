@@ -4853,6 +4853,11 @@ void Env::lookupPQ_withScope(LookupSet &set, PQName *name, LookupFlags flags,
 
           // build DependentQType PseudoInstantiation(svar, qual->targs)::...
           CompoundType *ct = svar->type->asCompoundType();
+          
+          // in/t0600.cc: 'ct' might be a specialization, but we need
+          // to map back to the primary in order to make a PI
+          ct = ct->templateInfo()->getPrimary()->getCompoundType();
+
           dqt = new DependentQType(createPseudoInstantiation(ct, qual->sargs));
         }
 
