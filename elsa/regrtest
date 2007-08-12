@@ -875,6 +875,9 @@ failparse t0593.cc "addr of template func overloaded with non-template func"
 failparse t0594.cc "addr of template func with some explicit template args"
 failparse t0595.cc "addr of overloaded template funcs + two-phase lookup"
 failparse t0596.cc "deduce template args during op overload resolution from name of overloaded function"
+# placeholder: t0597.cc
+testparse t0598.cc
+failparse t0599.cc "inability to update a no-size array member's size"
 
 # another set of tests, generally isolated by Daniel
 testparse d0001.cc

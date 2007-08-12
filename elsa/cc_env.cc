@@ -3523,7 +3523,13 @@ Variable *Env::createDeclaration(
     // the one that is defined
     if (prior->type->isArrayType()
         && prior->type->asArrayType()->size == ArrayType::NO_SIZE) {
-      prior->type->asArrayType()->size = type->asArrayType()->size;
+      if (type->isDependentSizedArrayType()) {
+        // in/t0598.cc: go from [] to [<dependent>]
+        prior->type = type;
+      }
+      else {
+        prior->type->asArrayType()->size = type->asArrayType()->size;
+      }
     }
 
     // prior is a ptr to the previous decl/def var; type is the
