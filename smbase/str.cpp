@@ -233,7 +233,7 @@ stringBuilder& stringBuilder::operator=(char const *src)
   if (s != src) {
     int srclen = strlen(src)+1;
     if (srclen > size) { // need to re-allocate?
-      delete s;
+      delete[] s;
       s = new char[ srclen ];
     }
     xassert(s);
