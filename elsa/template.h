@@ -116,8 +116,11 @@ public:      // data
 
 protected:   // funcs
   friend class BasicTypeFactory;
+  friend class XmlTypeReader;
   DependentSizedArrayType(Type *e, Expression *s)
     : PDSArrayType(e), sizeExpr(s) {}
+  DependentSizedArrayType(XmlReader &r)  
+    : PDSArrayType(r), sizeExpr(NULL) {}
 
 public:      // funcs
   ~DependentSizedArrayType();

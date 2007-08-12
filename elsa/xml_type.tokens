@@ -9,6 +9,7 @@ FunctionType
   FunctionType_ExnSpec
 ArrayType
 PointerToMemberType
+DependentSizedArrayType
 # fields
 atomic
 atType
@@ -17,6 +18,7 @@ eltType
 inClassNAT
 cv
 size
+sizeExpr
 
 # AtomicType nodes
 AtomicType

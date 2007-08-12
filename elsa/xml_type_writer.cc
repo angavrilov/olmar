@@ -194,7 +194,18 @@ void XmlTypeWriter::toXml(Type *t) {
   }
   
   case Type::T_DEPENDENTSIZEDARRAY: {
-    xunimp("XmlTypeWriter::toXml for T_DEPENDENTSIZEDARRAY");
+    DependentSizedArrayType *dsa = t->asDependentSizedArrayType();
+    XmlTagPrinter tagPrinter(*this);
+    if (writingP()) {
+      tagPrinter.printOpenTag("DependentSizedArrayType", dsa);
+      // **** attributes
+      printPtr(dsa, eltType);
+      printPtrAST(dsa, sizeExpr);
+      tagPrinter.tagEnd();
+    }
+
+    // **** subtags
+    trav(dsa->eltType);
     break;
   }
 

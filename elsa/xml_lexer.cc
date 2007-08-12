@@ -37,6 +37,20 @@ int XmlLexer::getToken() {
   return token;
 }
 
+char const *XmlLexer::currentText() const 
+{
+  // Unfortunately, FlexLexer.h is missing a 'const'.  So
+  // work around it with a cast.
+  return const_cast<XmlLexer*>(this)->YYText();
+}
+
+void XmlLexer::restart(istream *in) 
+{ 
+  this->yyrestart(in); 
+  linenumber = 1; 
+  sawEof = false; 
+}
+
 int XmlLexer::tok(XmlToken kind)
 {
 //    printf("%s\n", tokenKindDesc(kind).c_str());
@@ -70,11 +84,19 @@ string XmlLexer::tokenKindDesc(int kind) const
 
 string XmlLexer::tokenKindDescV(int kind) const
 {
-  xassert(0 <= kind && kind < NUM_XML_TOKEN_TYPES);
-  xassert(tokenNames[kind]);     // make sure the tokenNames array grows with the enum
-
   stringBuilder s;
-  s << tokenNames[kind]
+  s << tokenKindDesc(kind)
     << " (" << kind << ")";
   return s;
 }
+
+string XmlLexer::tokenDesc(int kind) const
+{
+  stringBuilder sb;
+  sb << tokenKindDesc(kind) 
+     << " (code=" << kind 
+     << ", lexeme=\"" << currentText() << "\")";
+  return sb;
+}
+
+// EOF
