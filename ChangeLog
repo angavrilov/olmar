@@ -1,3 +1,8 @@
+2007-08-13  Hendrik Tews  <tews@tandem.cs.ru.nl>
+
+        * revert conversion-branch merge: the changes go to
+          olmar-conversion-branch, we first look at Scott's patch
+
 2007-08-10  Hendrik Tews  <tews@tandem.cs.ru.nl>
 
         * merge from conversion-branch: 

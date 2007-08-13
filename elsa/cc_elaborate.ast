@@ -8,8 +8,6 @@
 
 
 verbatim {
-  #include "implconv.h"		// ImplicitConversion::Kind, StandardConversion
-
   class ElabVisitor;             // cc_elaborate.h
   string refersTo(Variable *v);  // cc_ast_aux.cc
 }
@@ -141,21 +139,6 @@ class Expression {
   // All of the 'elaborate()' functions of Expression return a visitor
   // boolean: true to elaborate the children automatically, false to
   // skip the children.  See the SES in cc_elaborate.cc.
-
-  // Necessary conversions to adjust the type of this expression to what
-  // the outer context expects. Conversion sequenses consist of one standard 
-  // conversion and (optionally) a user conversion and an additional 
-  // standard conversion. We expect here that in case there is a user 
-  // conversion, the AST has been rewritten accordingly. There here we only
-  // store one standard conversion (the remainder will be stored elsewhere).
-  public StandardConversion scs;
-
-  // FIXME: apparently AST rewriting for user conversions is not fully 
-  // implemented. Therefore we remember here the conversion kind from the 
-  // ImplicitConversion object. If it is IC_USER_DEFINED, then AST rewriting 
-  // is missing. [In cases where the AST is actually rewritten one can only
-  // find IC_STANDARD here.]
-  public ImplicitConversion::Kind conversionKind = ImplicitConversion::IC_NONE;
 
   -> E_funCall {
     // Return by value (for class-valued objects) is elaborated by saying there

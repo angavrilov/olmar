@@ -5483,34 +5483,21 @@ Expression *Env::makeConvertedArg(Expression * const arg,
 {
   Expression *newarg = arg;
 
-  // we should not have added some conversion to this expression
-  // xassert(newarg->conversionKind == ImplicitConversion::IC_NONE);
-
   switch (ic.kind) {
   case ImplicitConversion::IC_NONE:
     // an error message is already printed above.
-    newarg->scs = ic.scs;
     break;
   case ImplicitConversion::IC_STANDARD:
-    newarg->conversionKind = ic.kind;
     if (ic.scs & SC_GROUP_1_MASK) {
       switch (ic.scs & SC_GROUP_1_MASK) {
       case SC_LVAL_TO_RVAL:
-	newarg->scs = ic.scs; 
         // TODO
         break;
       case SC_ARRAY_TO_PTR:
-	newarg->scs = ic.scs; 
         // TODO
         break;
       case SC_FUNC_TO_PTR:
         newarg = makeAddr(env.tfac, env.loc(), arg);
-	// AST has been rewritten, delete the conversion, since it is 
-	// explicit in the AST now!
-	newarg->conversionKind = ImplicitConversion::IC_STANDARD;
-	newarg->scs = ic.scs & (~SC_GROUP_1_MASK); 
-	// set the conversion in arg to be the identity conversion
-	arg->scs = SC_IDENTITY;
         break;
       default:
         // only 3 kinds in SC_GROUP_1_MASK
@@ -5518,22 +5505,14 @@ Expression *Env::makeConvertedArg(Expression * const arg,
         break;
       }
     } else {
-      newarg->scs = ic.scs; 
       // TODO
     }
     break;
   case ImplicitConversion::IC_USER_DEFINED:
     // TODO
-    // If the AST is rewritten here, then conversionKind should become 
-    // IC_STANDARD and ic.scs2 should be assigned at the top node of the 
-    // rewriting result.
-    newarg->conversionKind = ic.kind;
-    newarg->scs = ic.scs; 
     break;
   case ImplicitConversion::IC_ELLIPSIS:
     // TODO
-    newarg->conversionKind = ic.kind;
-    newarg->scs = ic.scs; 
     break;
   case ImplicitConversion::IC_AMBIGUOUS:
     xfailure("IC_AMBIGUOUS -- what does this mean here? (25f0c1af-5aea-4528-b994-ccaac0b3a8f1)");
@@ -5557,9 +5536,6 @@ bool Env::elaborateImplicitConversionArgToParam(CType *paramType, Expression *&a
                           src,
                           paramType,
                           false /*destIsReceiver*/);
-
-  // DEBUG IC
-  // ic.ht_debug(env, 1);
 
   if (!ic) {
     if (paramType->isArrayType()) {
