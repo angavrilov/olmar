@@ -54,6 +54,7 @@ let cType_annotation = function
   | ReferenceType(annot, _)
   | FunctionType(annot, _, _, _, _)
   | ArrayType(annot, _, _)
+  | DependentSizeArrayType(annot, _, _)
   | PointerToMemberType(annot, _, _, _)
     -> annot
 

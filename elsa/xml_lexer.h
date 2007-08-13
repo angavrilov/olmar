@@ -30,13 +30,13 @@ public:
   // this is yylex() but does what I want it to with EOF
   int getToken();
   // have we seen the EOF?
-  bool haveSeenEof() { return sawEof; }
+  bool haveSeenEof() const { return sawEof; }
 
   // This is yytext.  Strings are already dequoted+unescaped.
-  char const *currentText() { return this->YYText(); }
+  char const *currentText() const;
 
   // this is yyrestart.  For starting and restarting.
-  void restart(istream *in) { this->yyrestart(in); sawEof = false; }
+  void restart(istream *in);
 
   int tok(XmlToken kind);
   int svalTok(XmlToken t);
@@ -44,6 +44,10 @@ public:
 
   string tokenKindDesc(int kind) const;
   string tokenKindDescV(int kind) const;
+            
+  // Describe the current token, assuming its kind is 'kind'.  This
+  // prints the lexeme (token text) too.
+  string tokenDesc(int kind) const;
 
   FLEX_OUTPUT_METHOD_DECLS
 };

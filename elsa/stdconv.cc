@@ -183,14 +183,7 @@ static char const *atomicName(AtomicType::Tag tag)
 
 static char const *ctorName(CType::Tag tag)
 {
-  switch (tag) {
-    default: xfailure("bad tag");
-    case CType::T_ATOMIC:          return "atomic";
-    case CType::T_POINTER:         return "pointer";
-    case CType::T_FUNCTION:        return "function";
-    case CType::T_ARRAY:           return "array";
-    case CType::T_POINTERTOMEMBER: return "ptr-to-member";
-  }
+  return CType::getNameOfTag(tag);
 }
 
 
@@ -318,8 +311,8 @@ bool Conversion::stripPtrCtor(CVFlags scv, CVFlags dcv, bool isReference)
 // array to find the element.
 CVFlags getSrcCVFlags(CType const *src)
 {
-  if (src->isArrayType()) {
-    ArrayType const *at = src->asArrayTypeC();
+  if (src->isPDSArrayType()) {
+    PDSArrayType const *at = src->asPDSArrayTypeC();
     return getSrcCVFlags(at->eltType);
   }
   else {
@@ -404,7 +397,7 @@ StandardConversion getStandardConversion
   // --------------- group 1 ----------------
   if (src->isReference() &&
       !src->asRvalC()->isFunctionType() &&
-      !src->asRvalC()->isArrayType() &&
+      !src->asRvalC()->isPDSArrayType() &&
       !dest->isReference()) {
     conv.ret |= SC_LVAL_TO_RVAL;
 
@@ -445,7 +438,7 @@ StandardConversion getStandardConversion
       return SC_PTR_CONV;     // "derived-to-base Conversion"
     }
   }
-  else if (src->asRvalC()->isArrayType() && dest->isPointer()) {
+  else if (src->asRvalC()->isPDSArrayType() && dest->isPointer()) {
     // 7/19/03: 'src' can be an lvalue (cppstd 4.2 para 1)
 
     conv.ret |= SC_ARRAY_TO_PTR;
@@ -454,7 +447,7 @@ StandardConversion getStandardConversion
     // is SC_LVAL_TO_RVAL (why? because I can't represent that.. and
     // I hope that that is right...)
 
-    src = src->asRvalC()->asArrayTypeC()->eltType;
+    src = src->asRvalC()->asPDSArrayTypeC()->eltType;
     dest = dest->asPointerTypeC()->atType;
 
     // do one level of qualification conversion checking
@@ -497,7 +490,7 @@ StandardConversion getStandardConversion
     // these conversions always yield 'true'.. I wonder if there
     // is a good way to take advantage of that..
     CType const *s = src->asRvalC();
-    if (s->isArrayType()) {
+    if (s->isPDSArrayType()) {
       return conv.ret | SC_ARRAY_TO_PTR | SC_BOOL_CONV;
     }
     if (s->isFunctionType()) {
@@ -573,7 +566,8 @@ StandardConversion getStandardConversion
         }
       }
 
-      case CType::T_ARRAY: {
+      case CType::T_ARRAY:
+      case CType::T_DEPENDENTSIZEDARRAY: {
         // like functions, no conversions are possible on array types,
         // including (as far as I can see) converting
         //   int[3]

@@ -1649,6 +1649,28 @@ DOWNCAST_IMPL(BaseType, ReferenceType)
 DOWNCAST_IMPL(BaseType, FunctionType)
 DOWNCAST_IMPL(BaseType, ArrayType)
 DOWNCAST_IMPL(BaseType, PointerToMemberType)
+DOWNCAST_IMPL(BaseType, DependentSizedArrayType)
+
+
+STATICDEF char const *BaseType::getNameOfTag(Tag t)
+{
+  static char const * const map[] = {
+    "T_ATOMIC",
+    "T_POINTER",
+    "T_REFERENCE",
+    "T_FUNCTION",
+    "T_ARRAY",
+    "T_POINTERTOMEMBER",
+    "T_DEPENDENTSIZEDARRAY",
+  };                                                 
+  
+  // the -1 is due to T_ATOMIC starting at 1
+  STATIC_ASSERT(TABLESIZE(map) == T_LAST_TYPE_TAG - 1);
+  
+  xassert(T_ATOMIC <= t && t < T_LAST_TYPE_TAG);
+  
+  return map[t-1];
+}
 
 
 bool BaseType::equals(BaseType const *obj, MatchFlags flags) const
@@ -1752,6 +1774,12 @@ string BaseType::rightString(bool /*innerParen*/) const
 }
 
 
+bool BaseType::usesPostfixTypeConstructorSyntax() const
+{
+  return false;
+}
+
+
 bool BaseType::anyCtorSatisfiesF(TypePredFunc f) const
 {
   StatelessTypePred stp(f);
@@ -1798,9 +1826,9 @@ bool BaseType::isSomeKindOfCharType() const
 
 bool BaseType::isStringType() const
 {
-  return isArrayType() &&
-    (asArrayTypeC()->eltType->isSimpleCharType() ||
-     asArrayTypeC()->eltType->isSimpleWChar_tType());
+  return isPDSArrayType() &&
+    (asPDSArrayTypeC()->eltType->isSimpleCharType() ||
+     asPDSArrayTypeC()->eltType->isSimpleWChar_tType());
 }
 
 bool BaseType::isIntegerType() const
@@ -1931,29 +1959,17 @@ bool BaseType::isReferenceToConst() const {
 }
 
 bool BaseType::isPointerOrArrayRValueType() const {
-  return asRvalC()->isPointerType() || asRvalC()->isArrayType();
+  return asRvalC()->isPointerType() || asRvalC()->isPDSArrayType();
 }
 
-// FIX: this is silly; it should be made into a virtual dispatch
+
 CType *BaseType::getAtType() const
 {
-  if (isPointerType()) {
-    return asPointerTypeC()->atType;
-  }
-  else if (isReferenceType()) {
-    return asReferenceTypeC()->atType;
-  }
-  else if (isArrayType()) {
-    return asArrayTypeC()->eltType;
-  }
-  else if (isPointerToMemberType()) {
-    return asPointerToMemberTypeC()->atType;
-  }
-  else {
-    xfailure("illegal call to getAtType");
-    return NULL;       // silence warning
-  }
+  xfailure(stringc << "illegal call to getAtType on Type: "
+                   << getNameOfTag(getTag()));
+  return NULL;       // silence warning
 }
+
 
 BaseType const *BaseType::asRvalC() const
 {
@@ -2103,6 +2119,9 @@ bool ContainsVariablesPred::operator() (CType const *t)
   }
   else if (t->isPointerToMemberType()) {
     return atomicTypeHasVariable(t->asPointerToMemberTypeC()->inClassNAT);
+  }
+  else if (t->isDependentSizedArrayType()) {
+    return exprContainsVariables(t->asDependentSizedArrayTypeC()->sizeExpr, map);
   }
 
   return false;
@@ -2279,8 +2298,7 @@ string PointerType::leftString(bool /*innerParen*/) const
   if (!global_mayUseTypeAndVarToCString) xfailure("suspended during CTypePrinter::print");
   stringBuilder s;
   s << atType->leftString(false /*innerParen*/);
-  if (atType->isFunctionType() ||
-      atType->isArrayType()) {
+  if (atType->usesPostfixTypeConstructorSyntax()) {
     s << "(";
   }
   s << "*";
@@ -2295,8 +2313,7 @@ string PointerType::rightString(bool /*innerParen*/) const
 {
   if (!global_mayUseTypeAndVarToCString) xfailure("suspended during CTypePrinter::print");
   stringBuilder s;
-  if (atType->isFunctionType() ||
-      atType->isArrayType()) {
+  if (atType->usesPostfixTypeConstructorSyntax()) {
     s << ")";
   }
   s << atType->rightString(false /*innerParen*/);
@@ -2333,6 +2350,12 @@ void PointerType::traverse(TypeVisitor &vis)
   atType->traverse(vis);
 
   vis.postvisitType(this);
+}
+
+
+CType *PointerType::getAtType() const
+{
+  return atType;
 }
 
 
@@ -2409,8 +2432,7 @@ string ReferenceType::leftString(bool /*innerParen*/) const
   if (!global_mayUseTypeAndVarToCString) xfailure("suspended during CTypePrinter::print");
   stringBuilder s;
   s << atType->leftString(false /*innerParen*/);
-  if (atType->isFunctionType() ||
-      atType->isArrayType()) {
+  if (atType->usesPostfixTypeConstructorSyntax()) {
     s << "(";
   }
   s << "&";
@@ -2421,8 +2443,7 @@ string ReferenceType::rightString(bool /*innerParen*/) const
 {
   if (!global_mayUseTypeAndVarToCString) xfailure("suspended during CTypePrinter::print");
   stringBuilder s;
-  if (atType->isFunctionType() ||
-      atType->isArrayType()) {
+  if (atType->usesPostfixTypeConstructorSyntax()) {
     s << ")";
   }
   s << atType->rightString(false /*innerParen*/);
@@ -2457,6 +2478,12 @@ void ReferenceType::traverse(TypeVisitor &vis)
   atType->traverse(vis);
 
   vis.postvisitType(this);
+}
+
+
+CType *ReferenceType::getAtType() const
+{
+  return atType;
 }
 
 
@@ -2787,6 +2814,13 @@ string FunctionType::toString_withCV(CVFlags cv) const
 }
 
 
+
+bool FunctionType::usesPostfixTypeConstructorSyntax() const
+{
+  return true;
+}
+
+
 int FunctionType::reprSize() const
 {
   // thinking here about how this works when we're summing
@@ -2940,11 +2974,90 @@ void FunctionType::detachOcaml() {
 }
 
 
-// -------------------- ArrayType ------------------
-void ArrayType::checkWellFormedness() const
+
+// ------------------ PDSArrayType -----------------
+DOWNCAST_IMPL(BaseType, PDSArrayType)
+
+
+void PDSArrayType::checkWellFormedness() const
 {
   xassert(eltType);
   xassert(!eltType->isReference());
+}
+
+
+string PDSArrayType::leftString(bool /*innerParen*/) const
+{
+  if (!global_mayUseTypeAndVarToCString) xfailure("suspended during CTypePrinter::print");
+  return eltType->leftString();
+}
+
+string PDSArrayType::rightString(bool /*innerParen*/) const
+{
+  if (!global_mayUseTypeAndVarToCString) xfailure("suspended during CTypePrinter::print");
+  stringBuilder sb;
+
+  sb << sizeString();
+  sb << eltType->rightString();
+
+  return sb;
+}
+
+
+bool PDSArrayType::usesPostfixTypeConstructorSyntax() const
+{
+  return true;
+}
+
+
+bool PDSArrayType::anyCtorSatisfies(TypePred &pred) const
+{
+  return pred(this) ||
+         eltType->anyCtorSatisfies(pred);
+}
+
+
+void PDSArrayType::traverse(TypeVisitor &vis)
+{
+  if (!vis.visitType(this)) {
+    return;
+  }
+
+  eltType->traverse(vis);
+
+  vis.postvisitType(this);
+}
+
+
+CType *PDSArrayType::getAtType() const
+{
+  return eltType;
+}
+
+
+// ocaml serialization, cleanup ocaml_val
+// hand written ocaml serialization function
+void PDSArrayType::detachOcaml() {
+  if(ocaml_val == 0) return;
+  CType::detachOcaml();
+
+  eltType->detachOcaml();
+}
+
+
+// -------------------- ArrayType ------------------
+string ArrayType::sizeString() const
+{
+  stringBuilder sb;
+
+  if (hasSize()) {
+    sb << "[" << size << "]";
+  }
+  else {
+    sb << "[]";
+  }
+
+  return sb;
 }
 
 
@@ -2957,30 +3070,6 @@ unsigned ArrayType::innerHashValue() const
 }
 
 
-string ArrayType::leftString(bool /*innerParen*/) const
-{
-  if (!global_mayUseTypeAndVarToCString) xfailure("suspended during CTypePrinter::print");
-  return eltType->leftString();
-}
-
-string ArrayType::rightString(bool /*innerParen*/) const
-{
-  if (!global_mayUseTypeAndVarToCString) xfailure("suspended during CTypePrinter::print");
-  stringBuilder sb;
-
-  if (hasSize()) {
-    sb << "[" << size << "]";
-  }
-  else {
-    sb << "[]";
-  }
-
-  sb << eltType->rightString();
-
-  return sb;
-}
-
-
 int ArrayType::reprSize() const
 {
   if (!hasSize()) {
@@ -2988,26 +3077,6 @@ int ArrayType::reprSize() const
   }
 
   return eltType->reprSize() * size;
-}
-
-
-bool ArrayType::anyCtorSatisfies(TypePred &pred) const
-{
-  return pred(this) ||
-         eltType->anyCtorSatisfies(pred);
-}
-
-
-
-void ArrayType::traverse(TypeVisitor &vis)
-{
-  if (!vis.visitType(this)) {
-    return;
-  }
-
-  eltType->traverse(vis);
-
-  vis.postvisitType(this);
 }
 
 
@@ -3083,9 +3152,8 @@ value ArrayType::toOcaml(ToOcamlData * data){
 // hand written ocaml serialization function
 void ArrayType::detachOcaml() {
   if(ocaml_val == 0) return;
-  CType::detachOcaml();
+  PDSArrayType::detachOcaml();
 
-  eltType->detachOcaml();
   detach_ocaml_int(size);
 }
 
@@ -3131,8 +3199,7 @@ string PointerToMemberType::leftString(bool /*innerParen*/) const
   stringBuilder s;
   s << atType->leftString(false /*innerParen*/);
   s << " ";
-  if (atType->isFunctionType() ||
-      atType->isArrayType()) {
+  if (atType->usesPostfixTypeConstructorSyntax()) {
     s << "(";
   }
   s << inClassNAT->name << "::*";
@@ -3144,8 +3211,7 @@ string PointerToMemberType::rightString(bool /*innerParen*/) const
 {
   if (!global_mayUseTypeAndVarToCString) xfailure("suspended during CTypePrinter::print");
   stringBuilder s;
-  if (atType->isFunctionType() ||
-      atType->isArrayType()) {
+  if (atType->usesPostfixTypeConstructorSyntax()) {
     s << ")";
   }
   s << atType->rightString(false /*innerParen*/);
@@ -3183,6 +3249,12 @@ void PointerToMemberType::traverse(TypeVisitor &vis)
   atType->traverse(vis);
 
   vis.postvisitType(this);
+}
+
+
+CType *PointerToMemberType::getAtType() const
+{
+  return atType;
 }
 
 
@@ -3494,6 +3566,11 @@ CType *TypeFactory::shallowCloneType(CType *baseType)
       PointerToMemberType *ptm = baseType->asPointerToMemberType();
       return makePointerToMemberType(ptm->inClassNAT, ptm->cv, ptm->atType);
     }
+
+    case CType::T_DEPENDENTSIZEDARRAY: {
+      DependentSizedArrayType *arr = baseType->asDependentSizedArrayType();
+      return makeDependentSizedArrayType(arr->eltType, arr->sizeExpr);
+    }
   }
 }
 
@@ -3561,6 +3638,12 @@ CType *TypeFactory::applyCVToType(SourceLoc loc, CVFlags cv, CType *baseType,
     ArrayType *at = baseType->asArrayType();
     return makeArrayType(applyCVToType(loc, cv, at->eltType, NULL /*syntax*/),
                          at->size);
+  }
+  else if (baseType->isDependentSizedArrayType()) {
+    DependentSizedArrayType *dsat = baseType->asDependentSizedArrayType();
+    return makeDependentSizedArrayType(
+      applyCVToType(loc, cv, dsat->eltType, NULL /*syntax*/),
+      dsat->sizeExpr);
   }
   else {
     // change to the union; setQualifiers will take care of catching
@@ -3748,8 +3831,15 @@ PointerToMemberType *BasicTypeFactory::makePointerToMemberType
 }
 
 
-Variable *BasicTypeFactory::makeVariable(
-  SourceLoc L, StringRef n, CType *t, DeclFlags f)
+DependentSizedArrayType *BasicTypeFactory::makeDependentSizedArrayType
+  (CType *eltType, Expression *sizeExpr)
+{
+  return new DependentSizedArrayType(eltType, sizeExpr);
+}
+
+
+Variable *BasicTypeFactory::makeVariable
+  (SourceLoc L, StringRef n, CType *t, DeclFlags f)
 {
   // I will turn this on from time to time as a way to check that
   // Types are always capable of printing themselves.  It should never

@@ -1,5 +1,12 @@
 2007-08-13  Hendrik Tews  <tews@tandem.cs.ru.nl>
 
+        * merge upstream, versions 
+          elsa-stack: 9 smbase: 492 ast: 282 elkhound: 1045 elsa: 2481
+        * new cType variant:
+          DependentSizeArrayType of 'a * 'a cType * 'a expression_type
+
+2007-08-13  Hendrik Tews  <tews@tandem.cs.ru.nl>
+
         * delete new files from upstream import
 
         * revert conversion-branch merge: the changes go to

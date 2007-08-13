@@ -157,11 +157,16 @@ void TypeVariable::detachOcaml() {
 
 
 // -------------------- PseudoInstantiation ------------------
+// Here, 'p' might be NULL only during deserialization.
 PseudoInstantiation::PseudoInstantiation(CompoundType *p)
   : NamedAtomicType(p? p->name : NULL),
     primary(p),
     args()        // empty initially
-{}
+{
+  if (p) {
+    xassert(p->templateInfo()->isPrimary());
+  }
+}
 
 PseudoInstantiation::~PseudoInstantiation()
 {}
@@ -400,6 +405,96 @@ void DependentQType::detachOcaml() {
 
   first->detachOcaml();
   rest->detachOcaml();
+}
+
+
+// ---------------- DependentSizedArrayType --------
+DependentSizedArrayType::~DependentSizedArrayType()
+{}
+
+
+string DependentSizedArrayType::sizeString() const
+{
+  return sizeExpr->exprToString();
+}
+
+
+// these constants are copied from cc_type.cc, but exact agreement
+// isn't necessary, and I don't want to pollute the header
+enum {
+  HASH_KICK = 33,
+  TAG_KICK = 7
+};
+
+unsigned DependentSizedArrayType::innerHashValue() const
+{
+  // similar to ArrayType, except without 'size'; I don't have a way
+  // of hashing expressions right now, and the performance
+  // consequences of a poor hash function for DSAT are minimal due to
+  // its rarity
+  return eltType->innerHashValue() * HASH_KICK +
+         T_DEPENDENTSIZEDARRAY * TAG_KICK;
+}
+
+
+string DependentSizedArrayType::toMLString() const
+{
+  xunimp("DependentSizedArrayType::toMLString: what is this used for?");
+  return "";
+}
+
+
+int DependentSizedArrayType::reprSize() const
+{
+  throw XReprSize();
+}
+
+
+// ocaml serialization method
+// hand written ocaml serialization function
+value DependentSizedArrayType::toOcaml(ToOcamlData * data){
+  CAMLparam0();
+  CAMLlocal3(poly, caml_elt_type, caml_size);
+  if(ocaml_val) {
+    // cerr << "shared ocaml value in DependentSizedArrayType\n" << flush;
+    CAMLreturn(ocaml_val);
+  }
+  static value * 
+    create_ctype_DependentSizedArrayType_constructor_closure = NULL;
+  if(create_ctype_DependentSizedArrayType_constructor_closure == NULL)
+    create_ctype_DependentSizedArrayType_constructor_closure =
+      caml_named_value("create_ctype_DependentSizedArrayType_constructor");
+  xassert(create_ctype_DependentSizedArrayType_constructor_closure);
+
+  if(data->stack.contains(this)) {
+    cerr << "cyclic ast detected during ocaml serialization\n";
+    xassert(false);
+  } else {
+    data->stack.add(this);
+  }
+
+  poly = ocaml_ast_annotation(this, data);
+  caml_elt_type = eltType->toOcaml(data);
+  caml_size = sizeExpr->toOcaml(data);
+
+  caml_register_global_root(&ocaml_val);
+  ocaml_val = 
+    caml_callback3(*create_ctype_DependentSizedArrayType_constructor_closure,
+		   poly, caml_elt_type, caml_size);
+  xassert(IS_OCAML_AST_VALUE(ocaml_val));
+
+  data->stack.remove(this);
+  CAMLreturn(ocaml_val);
+}
+
+
+// ocaml serialization, cleanup ocaml_val
+// hand written ocaml serialization function
+void DependentSizedArrayType::detachOcaml() {
+  if(ocaml_val == 0) return;
+  PDSArrayType::detachOcaml();
+
+  sizeExpr->detachOcaml();
 }
 
 
@@ -696,6 +791,12 @@ TemplateInfo const *TemplateInfo::getPrimaryC() const
   else {
     return this;
   }
+}
+
+
+CompoundType *TemplateInfo::getCompoundType() const
+{
+  return var->type->asCompoundType();
 }
 
 
@@ -1300,6 +1401,16 @@ bool STemplateArgument::equals(STemplateArgument const *obj,
 }
 
 
+bool exprContainsVariables(Expression *expr, MType *map)
+{
+  // TODO: This is wrong because the variables might be bound
+  // in 'map'.  I think a reasonable solution would be to
+  // rehabilitate the TypeVisitor, and design a nice way for
+  // a TypeVisitor and an ASTVisitor to talk to each other.
+  return true;
+}
+
+
 bool STemplateArgument::containsVariables(MType *map) const
 {
   if (kind == STemplateArgument::STA_TYPE) {
@@ -1308,11 +1419,7 @@ bool STemplateArgument::containsVariables(MType *map) const
     }
   }
   else if (kind == STA_DEPEXPR) {
-    // TODO: This is wrong because the variables might be bound
-    // in 'map'.  I think a reasonable solution would be to
-    // rehabilitate the TypeVisitor, and design a nice way for
-    // a TypeVisitor and an ASTVisitor to talk to each other.
-    return true;
+    return exprContainsVariables(sta_value.e, map);
   }
 
   return false;
@@ -2007,6 +2114,40 @@ bool Env::inferTemplArgsFromFuncArgs
       CType *argType = worklist[i].first;
       CType *paramType = param->type;
 
+      if (argType == NULL) {
+        // This happens when the argument was an overloaded function
+        // name, for example in/k0075.cc.
+        if (paramType->isPointerType() &&
+            paramType->getAtType()->isFunctionType()) {
+          // It seems that in order to get this right, I would have to:
+          //   1. Pass along the entire overload set.
+          //   2. Deduce template arguments for each one.
+          //   3. Yield the entire set of possible bindings.
+          //   4. Somehow fold all that into this worklist,
+          //      presumably multiplying bindings.
+          //
+          // See in/t0596.cc.  It works for ordinary functions (as
+          // opposed to operators), so perhaps that means that I
+          // already implemented the above for ordinary functions and
+          // just need to route the operator resolution code through
+          // those paths.
+          xunimp("deducing template arguments from an argument that is the "
+                 "name of an overloaded function");
+        }
+        else {
+          // Since the parameter type is not a pointer to a function,
+          // we can safely assume that no template argument bindings
+          // would make it match any of the overloaded functions
+          // arguments, so just yield failure.
+          if (iflags & IA_REPORT_ERRORS) {
+            error(stringc << "during function template argument deduction: "
+                  << "argument `" << argType->toString() << "'"
+                  << " is incompatible with parameter `"
+                  << paramType->toString() << "'");
+          }
+          return false;
+        }
+      }
       xassert(argType != NULL && "52291632-1792-4e5c-b5b8-9e6240b75a91");
 
       // deduction does not take into account whether the argument
@@ -2017,9 +2158,9 @@ bool Env::inferTemplArgsFromFuncArgs
       // prior to calling into matchtype, normalize the parameter
       // and argument types according to 14.8.2.1p2
       if (!paramType->isReference()) {
-        if (argType->isArrayType()) {
+        if (argType->isPDSArrayType()) {
           // synthesize a pointer type to be used instead
-          ArrayType *at = argType->asArrayType();
+          PDSArrayType *at = argType->asPDSArrayType();
           argType = tfac.makePointerType(CV_NONE, at->eltType);
         }
         else if (argType->isFunctionType()) {
@@ -3668,13 +3809,15 @@ bool Env::supplyDefaultTemplateArguments
       if (arg) {
         TRACE("template", "supplied default argument `" <<
                           arg->toString() << "' for param `" <<
-                          param->name << "'");
+                          param->name << "' of template `" <<
+                          primaryTI->templateName() << "'");
       }
     }
 
     if (!arg) {
       error(stringc << "no argument supplied for template parameter `"
-                    << param->name << "'");
+                    << param->name << "' of template `"
+                    << primaryTI->templateName() << "'");
       return false;
     }
 
@@ -4243,7 +4386,7 @@ bool Env::verifyCompatibleTemplateParameters(Scope *scope, CompoundType *prior)
     if (prior->isInstantiation()) {
       // in/t0510.cc: 'prior' is an instantiation, so the parameters
       // were referring to the template primary
-      prior = prior->templateInfo()->getPrimary()->var->type->asCompoundType();
+      prior = prior->templateInfo()->getPrimary()->getCompoundType();
     }
     else {
       error(stringc
@@ -4594,6 +4737,19 @@ CType *Env::applyArgumentMapToType(MType &map, CType *origSrc)
            spmt->cv,
            applyArgumentMapToType(map, spmt->atType));
       }
+    }
+    
+    case CType::T_DEPENDENTSIZEDARRAY: {
+      DependentSizedArrayType const *dsat = src->asDependentSizedArrayTypeC();
+        
+      CType *eltType = applyArgumentMapToType(map, dsat->eltType);
+
+      STemplateArgument sizeExpr = 
+        applyArgumentMapToExpression(map, dsat->sizeExpr);
+                      
+      // note: making an *ordinary* array type, since my expectation
+      // is that the variables in 'dsat->sizeExpr' are all bound
+      return tfac.makeArrayType(eltType, sizeExpr.getInt());
     }
   }
 }
@@ -5213,7 +5369,7 @@ CType *Env::pseudoSelfInstantiation(CompoundType *ct, CVFlags cv)
   xassert(tinfo);     // otherwise why are we here?
 
   PseudoInstantiation *pi = new PseudoInstantiation(
-    tinfo->getPrimary()->var->type->asCompoundType());   // awkward...
+    tinfo->getPrimary()->getCompoundType());
 
   if (tinfo->isPrimary()) {
     // 14.6.1 para 1

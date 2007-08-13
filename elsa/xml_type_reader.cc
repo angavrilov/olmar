@@ -78,6 +78,7 @@ bool XmlTypeReader::kind2kindCat(int kind, KindCategory *kindCat) {
   case XTOK_FunctionType_ExnSpec:
   case XTOK_ArrayType:
   case XTOK_PointerToMemberType:
+  case XTOK_DependentSizedArrayType:
   // AtomicTypes
   case XTOK_SimpleType:
   case XTOK_CompoundType:
@@ -161,6 +162,7 @@ bool XmlTypeReader::recordKind(int kind, bool& answer) {
   case XTOK_FunctionType_ExnSpec:
   case XTOK_ArrayType:
   case XTOK_PointerToMemberType:
+  case XTOK_DependentSizedArrayType:
   // AtomicTypes
   case XTOK_SimpleType:
 //    case XTOK_CompoundType: handled above
@@ -292,6 +294,8 @@ void *XmlTypeReader::ctorNodeFromTag(int tag) {
   case XTOK_ArrayType: return new ArrayType((XmlReader&)*this); // call the special ctor
   case XTOK_PointerToMemberType:
     return new PointerToMemberType((XmlReader&)*this); // call the special ctor
+  case XTOK_DependentSizedArrayType: 
+    return new DependentSizedArrayType((XmlReader&)*this);
 
   // **** Atomic Types
   // NOTE: this really should go through the SimpleTyp::fixed array
@@ -382,6 +386,7 @@ bool XmlTypeReader::registerAttribute(void *target, int kind, int attr, char con
   case XTOK_FunctionType: regAttr(FunctionType);               break;
   case XTOK_ArrayType: regAttr(ArrayType);                     break;
   case XTOK_PointerToMemberType: regAttr(PointerToMemberType); break;
+  case XTOK_DependentSizedArrayType: regAttr(DependentSizedArrayType); break;
   case XTOK_FunctionType_ExnSpec:
     registerAttr_FunctionType_ExnSpec
       ((FunctionType::ExnSpec*)target, attr, yytext0);         break;
@@ -469,6 +474,16 @@ void XmlTypeReader::registerAttr_PointerToMemberType
     ul(inClassNAT, XTOK_NamedAtomicType); break;
   case XTOK_cv: fromXml(obj->cv, strValue); break;
   case XTOK_atType: ul(atType, XTOK_CType); break;
+  }
+}
+
+void XmlTypeReader::registerAttr_DependentSizedArrayType
+  (DependentSizedArrayType *obj, int attr, char const *strValue) 
+{
+  switch(attr) {
+  default: xmlUserFatalError("illegal attribute for a DependentSizedArrayType"); break;
+  case XTOK_eltType: ul(eltType, XTOK_CType); break;
+  case XTOK_sizeExpr: ul(sizeExpr, XTOK_Expression); break;
   }
 }
 

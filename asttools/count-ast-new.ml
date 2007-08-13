@@ -194,6 +194,9 @@ let ast_node_fun = function
   | CType(ArrayType(_annot, _cType, _array_size)) ->
       ()
 
+  | CType(DependentSizeArrayType(_annot, _cType, _size_expr)) ->
+      ()
+
   | CType(PointerToMemberType(_annot, atomicType (* = NamedAtomicType *), 
 			      _cVFlags, _cType)) ->
       assert(match atomicType with 

@@ -361,6 +361,10 @@ module Into_array = struct
 	| ArrayType(_annot, cType, _array_size) ->
 	    cType_fun ast_array cType;
 
+	| DependentSizeArrayType(_annot, cType, size_expr) ->
+	    cType_fun ast_array cType;
+	    expression_fun ast_array size_expr
+
 	| PointerToMemberType(_annot, atomicType (* = NamedAtomicType *), 
 			      _cVFlags, cType) ->
 	    assert(match atomicType with 

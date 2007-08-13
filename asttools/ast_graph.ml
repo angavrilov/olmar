@@ -527,6 +527,14 @@ and cType_fun t =
 	    tnode_1d "ArrayType" "size" (string_of_array_size array_size)
 	      [(cType_fun cType, "eltType")]
 
+	| DependentSizeArrayType(_annot, cType, size_expr) ->
+	    tnode "DependentSizeArrayType"
+	      []
+	      (let x1 = (cType_fun cType, "eltType") in
+	       let x2 = (expression_fun size_expr, "sizeExpr")
+	       in
+		 [x1; x2])
+
 	| PointerToMemberType(_annot, atomicType (* = NamedAtomicType *), 
 			      cVFlags, cType) ->
 	    assert(match atomicType with 

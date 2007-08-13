@@ -232,6 +232,8 @@ and 'a cType =
       'a cType list option
       (* ArrayType( element type, size )*)
   | ArrayType of 'a * 'a cType * array_size
+      (* DependentSizeArrayType( element type, size expression) *)
+  | DependentSizeArrayType of 'a * 'a cType * 'a expression_type
       (* PointerToMemberType( ?, volatile, type of pointed member ) *)
   | PointerToMemberType of 'a * 'a atomicType (* = NamedAtomicType *) * 
       cVFlags * 'a cType

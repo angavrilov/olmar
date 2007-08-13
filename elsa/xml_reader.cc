@@ -584,7 +584,7 @@ void *XmlReaderManager::ctorNodeFromTag(int tag) {
   }
 
   xmlUserFatalError(stringc
-                    << "no ctor registered for tag " << lexer.tokenKindDescV(tag));
+                    << "no ctor registered for tag " << lexer.tokenDesc(tag));
 }
 
 void XmlReaderManager::registerAttribute
@@ -619,7 +619,7 @@ void XmlReaderManager::xmlUserFatalError(char const *msg) {
   if (inputFname) {
     msg0 << inputFname << ':';
   }
-  msg0 << lexer.linenumber << ':' << msg;
+  msg0 << lexer.linenumber << ": " << msg;
   THROW(xBase(msg0));
   xfailure("should not get here");
 }

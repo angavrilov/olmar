@@ -191,6 +191,8 @@ let create_ctype_ReferenceType_constructor poly ct = ReferenceType(poly, ct)
 let create_ctype_FunctionType_constructor poly ff ret vars exs = 
   FunctionType(poly, ff, ret, vars, exs)
 let create_ctype_ArrayType_constructor poly ct size = ArrayType(poly, ct, size)
+let create_ctype_DependentSizedArrayType_constructor poly ct size = 
+  DependentSizeArrayType(poly, ct, size)
 let create_ctype_PointerToMemberType_constructor poly at cvs ct =
   PointerToMemberType(poly, at, cvs, ct)
 
@@ -307,6 +309,8 @@ let register_ml_ctype_constructor_callbacks () =
     create_ctype_FunctionType_constructor;
   Callback.register "create_ctype_ArrayType_constructor" 
     create_ctype_ArrayType_constructor;
+  Callback.register "create_ctype_DependentSizedArrayType_constructor"
+    create_ctype_DependentSizedArrayType_constructor;
   Callback.register "create_ctype_PointerToMemberType_constructor" 
     create_ctype_PointerToMemberType_constructor;
 

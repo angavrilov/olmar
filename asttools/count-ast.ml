@@ -381,6 +381,10 @@ and cType_fun x =
 	| ArrayType(_annot, cType, _array_size) ->
 	    cType_fun cType;
 
+	| DependentSizeArrayType(_annot, cType, size_expr) ->
+	    cType_fun cType;
+	    expression_fun size_expr
+
 	| PointerToMemberType(_annot, atomicType (* = NamedAtomicType *), 
 			      _cVFlags, cType) ->
 	    assert(match atomicType with 

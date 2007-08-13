@@ -214,6 +214,12 @@ let ast_node_fun up down myindex = function
       add_links up down myindex
 	[cType_annotation cType]
 
+  (* 165 *)
+  | CType(DependentSizeArrayType(_annot, cType, size_expr)) ->
+      add_links up down myindex
+	[cType_annotation cType;
+	 expression_annotation size_expr]
+
   (* 15 *)
   | CType(PointerToMemberType(_annot, atomicType (* = NamedAtomicType *), 
 			      _cVFlags, cType)) ->
@@ -1218,7 +1224,11 @@ let ast_node_fun up down myindex = function
    * 
    * (\* 164 *\)
    * | InheritedTemplateParams itp ->
+   * 
+   * (\* 165 *\)
+   * | CType(DependentSizeArrayType(_annot, cType, size_expr)) ->
    *)
+
 
 
 (**************************************************************************
