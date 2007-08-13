@@ -1,3 +1,7 @@
+2007-08-13  Tjark Weber
+
+	* asttools/ast_util.ml: tuned
+
 2007-08-13  Hendrik Tews  <tews@tandem.cs.ru.nl>
 
         * merge upstream, versions 
