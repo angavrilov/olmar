@@ -1,5 +1,7 @@
 2007-08-13  Hendrik Tews  <tews@tandem.cs.ru.nl>
 
+        * delete new files from upstream import
+
         * revert conversion-branch merge: the changes go to
           olmar-conversion-branch, we first look at Scott's patch
 
