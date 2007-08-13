@@ -43,6 +43,10 @@
 (*   former, due to what could be considered a deficiency in our PVS C++     *)
 (*   memory model, will not allow compound types to contain padding (i.e.    *)
 (*   bits that are never affected by write operations).                      *)
+(* - (Non-static, non-constructor) member functions in the AST take an extra *)
+(*   "receiver" argument which is a reference to the associated object.  We  *)
+(*   treat references as addresses; unlike pointers, they are never stored   *)
+(*   in memory directly.                                                     *)
 
 (* TODO: most AST constructors are not translated yet.  For some, "assert    *)
 (*       false" will raise an exception, but others are just ignored         *)
@@ -669,12 +673,17 @@ and cType_fun x =
 	trace "PointerType(";
 	(*TODO*)
 	cVFlags_fun cVFlags;
+	Format.print_string "pointer[dt_";	
 	cType_fun cType;
+	Format.print_string "]";
 	trace ")";
 
     | ReferenceType(annot, cType) ->
 	trace "ReferenceType(";
+	(*TODO*)
+	Format.print_string "reference[dt_";
 	cType_fun cType;
+	Format.print_string "]";
 	trace ")";
 
     | FunctionType(annot, function_flags, cType,
@@ -887,13 +896,8 @@ and func_fun (annot, declFlags, typeSpecifier, declarator, memberInit_list,
     (* - names/types of parameters      *)
     declarator_fun declarator;
 
-    (* TODO: (for ctors only) member initialization list *)
-    if (List.length memberInit_list <> 0) then
-      begin
-	Format.printf ">>>>>";
-	List.iter memberInit_fun memberInit_list;
-	Format.printf "<<<<<";
-      end;
+    (* (for ctors only) member initialization list *)
+    List.iter memberInit_fun memberInit_list;
 
     (* TODO: s_compound_opt may be None, but when can this happen (apparently
              in in/t0524.cc, but in general? - seems obscure) *)
@@ -920,6 +924,7 @@ and func_fun (annot, declFlags, typeSpecifier, declarator, memberInit_list,
 		Format.printf "@[<2>(";
 		separate (fun v ->
 		  Format.printf "@[<2>";
+		  assert (Option.isSome v.var_name);
 		  variable_fun v;
 		  Format.printf "@ :@ ET[State,@ Semantics_";
 		  assert (Option.isSome !(v.var_type));
@@ -947,17 +952,24 @@ and func_fun (annot, declFlags, typeSpecifier, declarator, memberInit_list,
 	    if List.length variable_list > 0 then
 	      begin
 		List.iter (fun v ->
-		  Format.printf "@[<2>with_new_stackvar(@[<2>lambda@ @[<2>(";
-		  variable_fun v;
-		  Format.printf "_addr@ :@ Address)@]@]:@\n";
-		  Format.printf "@[<2>e2s(assign(pm, dt_";
-		  assert (Option.isSome !(v.var_type));
-		  Option.app cType_fun !(v.var_type);
-		  Format.printf ")(id(";
-		  variable_fun v;
-		  Format.printf "_addr),@ ";
-		  variable_fun v;
-		  Format.printf "))@] ##@\n")
+(*
+		  if Option.valOf v.var_name = "__receiver" then
+		      Format.printf "@[<2>receiver ##@ (@[<2>lambda@ @[<2>(receiver_addr@ :@ Address)@]@]:@\n"
+		  else
+*)
+		    begin
+		      Format.printf "@[<2>with_new_stackvar(@[<2>lambda@ @[<2>(";
+		      variable_fun v;
+		      Format.printf "_addr@ :@ Address)@]@]:@\n";
+		      Format.printf "@[<2>e2s(assign(pm, dt_";
+		      assert (Option.isSome !(v.var_type));
+		      Option.app cType_fun !(v.var_type);
+		      Format.printf ")(id(";
+		      variable_fun v;
+		      Format.printf "_addr),@ ";
+		      variable_fun v;
+		      Format.printf "))@] ##@\n";
+		    end)
 		  (* evaluation order in gcc is right to left *)
 		  (List.rev variable_list);
 	      end;
@@ -1032,20 +1044,34 @@ and memberInit_fun (annot, pQName, argExpression_list,
 		    full_expr_annot, statement_opt) =
   begin
     trace "memberInit_fun(";
-    Format.printf ">>>>>";
-    assert(match compound_opt with
+    assert (match compound_opt with
       | None
-      | Some(CompoundType _) -> true
+      | Some (CompoundType _) -> true
       | _ -> false);
-    annotation_fun annot;
+    Format.printf "e2s(assign(pm, dt_";
+    (* type of member *)
+    (function
+      | PQ_variable (_, _, variable) ->
+	  assert (Option.isSome !(variable.var_type));
+	  Option.app cType_fun !(variable.var_type);
+      | _ ->
+	  assert false) pQName;
+    Format.printf ")(@[<2>member(@[<2>id(receiver),@ offsets_CLASSTYPE`";
     pQName_fun pQName;
+    Format.printf "@]),@ ";
+    assert (List.length argExpression_list = 1);
     List.iter argExpression_fun argExpression_list;
+    Format.printf "@])) ##@\n";
+    (* ?
     Option.app variable_fun variable_opt_1;
     Option.app atomicType_fun compound_opt;
     Option.app variable_fun variable_opt_2;
     fullExpressionAnnot_fun full_expr_annot;
+    *)
+    assert (not (Option.isSome statement_opt));
+    (* ?
     Option.app statement_fun statement_opt;
-    Format.printf "<<<<<";
+    *)
     trace ")";
   end
 
@@ -1058,6 +1084,9 @@ and declaration_fun (annot, declFlags, typeSpecifier, declarator_list) =
       (* typedef declaration *)
       begin
 	List.iter (function d ->
+	  Format.print_string "% typedef ";
+	  typedef_declarator_fun d;
+	  Format.printf "@\n";
 	  Format.printf "@[<2>Semantics_";
 	  typedef_declarator_fun d;
 	  Format.printf "@ :@ TYPE@ =@ Semantics_";
@@ -1073,12 +1102,12 @@ and declaration_fun (annot, declFlags, typeSpecifier, declarator_list) =
       end
     else
       (* class/variable/function declaration *)
-      begin
 	(*TODO: declaring a type and at the same time a variable of that type,
 	  as in    class C { /* ... */ } c;    is not supported yet.*)
-	typeSpecifier_fun typeSpecifier;
-	List.iter declarator_fun declarator_list;
-      end;
+	if List.length declarator_list = 0 then
+	  typeSpecifier_fun typeSpecifier
+	else
+	  List.iter declarator_fun declarator_list;
     trace ")";
   end
 
@@ -1142,7 +1171,6 @@ and pQName_fun x =
 
     | PQ_variable(annot, sourceLoc, variable) ->
 	trace "PQ_variable(";
-	(*TODO*)
 	variable_fun variable;
 	trace ")";
 
@@ -1567,7 +1595,8 @@ and declarator_fun (annot, iDeclarator, init_opt,
 
 	    Format.printf "]@ =@]@\n";
 
-	| D_name _ ->
+	| D_name _
+	| D_pointer _ ->
 	    Format.printf "assign(pm, dt_";
 	    assert (Option.isSome variable_opt);
 	    assert (Option.isSome !((Option.valOf variable_opt).var_type));
@@ -1581,10 +1610,6 @@ and declarator_fun (annot, iDeclarator, init_opt,
 	    else
 	      Format.print_string ">>>>>default-initialization<<<<<";
 	    Format.printf "@])";
-
-	| D_pointer _ ->
-	    (*TODO*)
-	    Format.printf ">>>>> declarator_fun: D_pointer _<<<<<";
 
 	| D_attribute _ ->
 	    (*TODO*)
@@ -2340,6 +2365,72 @@ and expression_fun x =
 	Option.app cType_fun type_opt;
 	string_fun stringRef
 
+(* TODO
+    | E_stdConv (annot, type_opt, expression, stdConv) ->
+	(* standard conversion sequence: contains at most one conversion each
+	   from 3 different groups of conversions *)
+	let is_present sc = List.mem sc stdConv in 
+	  begin
+	    (* conversion group 3 (comes last conceptually) *)
+	    (* 4.4: int* -> int const* *)
+	    if is_present SC_QUAL_CONV then
+	      (* TODO *)
+	      assert false;
+
+	    (* conversion group 2 (goes in the middle) *)
+	    if is_present SC_INT_PROM then
+              (* 4.5: int... -> int..., no info loss possible *)
+	      (* TODO *)
+	      assert false
+	    else if is_present SC_FLOAT_PROM then
+	      (* 4.6: float -> double, no info loss possible *)
+	      (* TODO *)
+	      assert false
+	    else if is_present SC_INT_CONV then
+	      (* 4.7: int... -> int..., info loss possible *)
+	      (* TODO *)
+	      assert false
+	    else if is_present SC_FLOAT_CONV then
+	      (* 4.8: float... -> float..., info loss possible *)
+	      (* TODO *)
+	      assert false
+	    else if is_present SC_FLOAT_INT_CONV then
+	      (* 4.9: int... <-> float..., info loss possible *)
+	      (* TODO *)
+	      assert false
+	    else if is_present SC_PTR_CONV then
+	      (* 4.10: 0 -> Foo*, Child* -> Parent* *)
+	      (* TODO *)
+	      assert false
+	    else if is_present SC_PTR_MEMB_CONV then
+	      (* 4.11: int Child::* -> int Parent::* *)
+	      (* TODO *)
+	      assert false
+	    else if is_present SC_BOOL_CONV then
+	      (* 4.12: various types <-> bool *)
+	      (* TODO *)
+	      assert false
+	    else if is_present SC_DERIVED_TO_BASE then
+	      (* 13.3.3.1p6: Child -> Parent *)
+	      (* TODO *)
+	      assert false;
+
+	    (* conversion group 1 (comes first) *)
+	    if is_present SC_LVAL_TO_RVAL then
+	      (* 4.1: int& -> int *)
+	      (* TODO *)
+	      assert false
+	    else if is_present SC_ARRAY_TO_PTR then
+	      (* 4.2: char[] -> char* *)
+	      (* TODO *)
+	      assert false
+	    else if is_present SC_FUNC_TO_PTR then
+	      (* 4.3: int ()(int) -> int ( * )(int) *)
+	      (* TODO *)
+	      assert false;
+	    expression_fun expression;
+	  end
+*)
 
 and fullExpression_fun (annot, expression_opt, fullExpressionAnnot) =
   begin
