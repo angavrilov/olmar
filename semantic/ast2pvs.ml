@@ -703,6 +703,14 @@ and cType_fun x =
 	array_size_fun array_size;
 	trace ")";
 
+    | DependentSizeArrayType (annot, cType, expression) ->
+	trace "DependentSizeArrayType(";
+	(*TODO*)
+	assert false;
+	cType_fun cType;
+	expression_fun expression;
+	trace ")";
+
     | PointerToMemberType(annot, atomicType (* = NamedAtomicType *), 
 			 cVFlags, cType) ->
 	assert false;
@@ -716,6 +724,11 @@ and cType_fun x =
 	atomicType_fun atomicType;
 	cVFlags_fun cVFlags;
 	cType_fun cType
+
+
+and derefType = function
+    ReferenceType (_, cType) -> cType
+  | cType -> cType
 
 
 and sTemplateArgument_fun ta = 
@@ -957,19 +970,34 @@ and func_fun (annot, declFlags, typeSpecifier, declarator, memberInit_list,
 		      Format.printf "@[<2>receiver ##@ (@[<2>lambda@ @[<2>(receiver_addr@ :@ Address)@]@]:@\n"
 		  else
 *)
-		    begin
-		      Format.printf "@[<2>with_new_stackvar(@[<2>lambda@ @[<2>(";
-		      variable_fun v;
-		      Format.printf "_addr@ :@ Address)@]@]:@\n";
-		      Format.printf "@[<2>e2s(assign(pm, dt_";
-		      assert (Option.isSome !(v.var_type));
-		      Option.app cType_fun !(v.var_type);
-		      Format.printf ")(id(";
-		      variable_fun v;
-		      Format.printf "_addr),@ ";
-		      variable_fun v;
-		      Format.printf "))@] ##@\n";
-		    end)
+		  (*reference arguments are not copied onto the stack*)
+		  let has_reference_type v =
+		    match Option.valOf !(v.var_type) with
+		      | ReferenceType _ -> true
+		      | _ -> false
+		  in
+		    if has_reference_type v then
+			begin
+			  Format.printf "@[<2>";
+			  variable_fun v;
+			  Format.printf "@ ##@ @[<2>(lambda@ @[<2>(";
+			  variable_fun v;
+			  Format.printf "_addr@ :@ Address)@]@]:@\n";
+			end
+		    else
+			begin
+			  Format.printf "@[<2>with_new_stackvar(@[<2>lambda@ @[<2>(";
+			  variable_fun v;
+			  Format.printf "_addr@ :@ Address)@]@]:@\n";
+			  Format.printf "@[<2>e2s(assign(pm, dt_";
+			  assert (Option.isSome !(v.var_type));
+			  Option.app cType_fun !(v.var_type);
+			  Format.printf ")(id(";
+			  variable_fun v;
+			  Format.printf "_addr),@ ";
+			  variable_fun v;
+			  Format.printf "))@] ##@\n";
+			end)
 		  (* evaluation order in gcc is right to left *)
 		  (List.rev variable_list);
 	      end;
@@ -1543,7 +1571,9 @@ and declarator_fun (annot, iDeclarator, init_opt,
       match iDeclarator with
 
         (* function declaration *)
-	| D_func _ ->
+	| D_func _
+	| D_reference _ (*(annot, loc, iDeclarator)*) ->
+
 	    (*TODO*)
 	    Option.app (fun i ->
 	      Format.printf ">>>>>";
@@ -2129,7 +2159,8 @@ and expression_fun x =
 	expression_fun expression;
 	Format.printf ",@ offsets_";
 	assert (Option.isSome (expression_type expression));
-	Option.app cType_fun (expression_type expression);
+	Option.app (fun t -> cType_fun (derefType t))
+	  (expression_type expression);
 	Format.print_string "`";
 	(* field name (difference between this and var_opt?) *)
 	(*pQName_fun pQName;*)
@@ -2241,7 +2272,7 @@ and expression_fun x =
     | E_new(annot, type_opt, bool, argExpression_list, aSTTypeId, 
 	   argExpressionListOpt_opt, array_size_opt, ctor_opt, 
 	   statement_opt, heep_var_opt) ->
-        trace "E_new";
+        trace "E_new(";
 	(*TODO*)
 	Option.app cType_fun type_opt;
 	bool_fun bool;
