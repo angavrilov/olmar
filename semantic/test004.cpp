@@ -19,9 +19,9 @@ int main() {
   bool b = false;
 
   {
-    // our scope rules are slightly different from those of C++,
-    // so that this declaration would not work as expected --
-    // it's best to use unique identifiers everywhere!
+    // our scope rules are slightly different from those of C++, so that this
+    // declaration would not work as expected -- it's best to use unique
+    // identifiers everywhere!
     // int i = i;
     int i = 1;
     j = i;
