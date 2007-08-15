@@ -2121,18 +2121,26 @@ and expression_fun x =
 	  | E_variable (_, _, _, var_opt, _) ->
 	      assert (Option.isSome var_opt);
 	      Option.app variable_fun var_opt
+	  | E_fieldAcc _ ->
+	      expression_fun expression_func
 	  | _ ->
-	      Format.printf ">>>>>";
-	      expression_fun expression_func;
-	      Format.printf "<<<<<") expression_func;
+	      assert false) expression_func;
 
-	if (List.length argExpression_list > 0) then
-	  begin
-	    Format.printf "(@[<2>";
-	    separate argExpression_fun (fun () -> Format.printf ",@ ")
-	      argExpression_list;
-	    Format.printf "@])";
-	  end;
+	(* for member functions: prepend receiver object to argument list *)
+	let receiver_argExpression_list = (function
+	  | E_fieldAcc (_, _, expression, _, _) ->
+	      (annot, expression) :: argExpression_list
+	  | _ ->
+	      argExpression_list) expression_func
+	in
+	  if (List.length receiver_argExpression_list > 0) then
+	    begin
+	      Format.printf "(@[<2>";
+	      separate argExpression_fun (fun () -> Format.printf ",@ ")
+		receiver_argExpression_list;
+	      Format.printf "@])";
+	    end;
+
 	(* TODO: what is this? *)
 	assert (not (Option.isSome expression_retobj_opt));
 	(*Option.app expression_fun expression_retobj_opt;*)
@@ -2152,23 +2160,35 @@ and expression_fun x =
 
     | E_fieldAcc(annot, type_opt, expression, pQName, var_opt) ->
         trace "E_fieldAcc(";
-	(* result type (?) *)
-	(*Option.app cType_fun type_opt;*)
-	Format.printf "@[<2>member(";
-	(* object *)
-	expression_fun expression;
-	Format.printf ",@ offsets_";
-	assert (Option.isSome (expression_type expression));
-	Option.app (fun t -> cType_fun (derefType t))
-	  (expression_type expression);
-	Format.print_string "`";
-	(* field name (difference between this and var_opt?) *)
-	(*pQName_fun pQName;*)
-	(* field name *)
-	assert (Option.isSome var_opt);
-	Option.app variable_fun var_opt;
-	Format.printf ")@]";
-        trace ")";
+	let isFunctionType = function
+	  | FunctionType _ -> true
+	  | _ -> false
+	in
+	  (* result type (?) *)
+	  (*Option.app cType_fun type_opt;*)
+	  if isFunctionType (Option.valOf type_opt) then
+	    begin
+	      (* field name (difference between this and var_opt?) *)
+	      (*pQName_fun pQName;*)
+	      assert (Option.isSome var_opt);
+	      Option.app variable_fun var_opt;  (* field name *)
+	    end
+	  else
+	    begin
+	      Format.printf "@[<2>member(";
+	      expression_fun expression;  (* receiver object *)
+	      Format.printf ",@ offsets_";
+	      assert (Option.isSome (expression_type expression));
+	      Option.app (fun t -> cType_fun (derefType t))
+		(expression_type expression);  (* class type *)
+	      Format.print_string "`";
+	      (* field name (difference between this and var_opt?) *)
+	      (*pQName_fun pQName;*)
+	      assert (Option.isSome var_opt);
+	      Option.app variable_fun var_opt;  (* field name *)
+	      Format.printf ")@]";
+	    end;
+          trace ")";
 
     | E_sizeof(annot, type_opt, expression, int) ->
 	(*TODO*)
