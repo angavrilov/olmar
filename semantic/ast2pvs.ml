@@ -2280,9 +2280,10 @@ and expression_fun x =
     | E_assign(annot, type_opt, expression_target, binaryOp, expression_src) ->
         trace "E_assign(";
         assert (Option.isSome type_opt);
-	(*Option.app cType_fun type_opt;*)
 	assignOp_fun binaryOp;
-        Format.printf "(pm, dt_int)@[<2>(";
+        Format.print_string "(pm, dt_";
+	Option.app (fun t -> cType_fun (derefType t)) type_opt;
+	Format.printf ")@[<2>(";
 	expression_fun expression_target;
         Format.printf ",@ ";
 	l2r_expression_fun expression_src;
