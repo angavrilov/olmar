@@ -727,6 +727,14 @@ and memberInit_fun(annot, pQName, argExpression_list,
 		   full_expr_annot, statement_opt) =
   if visited annot then retval annot
   else begin
+    (* it's either a member or base class init, therefore not both
+     * of variable_opt_1 and compound_opt is Some _
+     * Both can aparently be None if the member to initialize is a 
+     * template parameter.
+     *)
+    assert(match (variable_opt_1, compound_opt) with
+    	     | (Some _, Some _) -> false
+    	     | _ -> true);
     assert(match compound_opt with
       | None
       | Some(CompoundType _) -> true
@@ -1555,8 +1563,7 @@ and init_fun i =
 	| IN_ctor(_annot, _loc, fullExpressionAnnot, 
 		 argExpression_list, var_opt, bool) -> 
 	    inode "IN_ctor" 
-	      [("was_IN_expr", string_of_bool bool);
-	       ("was_IN_expr", string_of_bool bool)]
+	      [("was_IN_expr", string_of_bool bool)]
 	      (let x1 = fullExpressionAnnot_fun fullExpressionAnnot, "annot" in
 	       let l2 = count_rev "args" 
 		 (List.rev_map argExpression_fun argExpression_list) in

@@ -55,7 +55,7 @@ fi
 cd upstream
 
 set -x
-cvs -d $repo import -m "$comment" src/elsa elsa-vendor $tag
+cvs -d $repo import -m "$comment" elsa elsa-vendor $tag
 set +x
 
 cd ..
@@ -64,8 +64,11 @@ cd ..
 cp -a head-before-import merge
 
 echo "update in head-before-import and delete all new/updated files there"
+echo
 echo "then do the merge"
 echo "cd $dir/merge; cvs up; cvs up -j $last_tag -j $tag 2>&1 | tee merge.log"
-
+echo
+echo "finally tag after commiting with"
+echo "cvs tag merged-$tag"
 
 

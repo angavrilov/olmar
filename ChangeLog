@@ -1,6 +1,11 @@
+2007-08-17  Hendrik Tews  <tews@tandem.cs.ru.nl>
+
+        * added one assertion for the MemberInit constructor
+        * fix upstream-import for solo repository
+
 2007-08-13  Tjark Weber
 
-	* asttools/ast_util.ml: tuned
+        * asttools/ast_util.ml: tuned
 
 2007-08-13  Hendrik Tews  <tews@tandem.cs.ru.nl>
 

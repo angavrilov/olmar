@@ -563,6 +563,14 @@ and memberInit_fun((annot, pQName, argExpression_list,
 
   if visited annot then ()
   else begin
+    (* it's either a member or base class init, therefore not both
+     * of variable_opt_1 and compound_opt is Some _
+     * Both can aparently be None if the member to initialize is a 
+     * template parameter.
+     *)
+    assert(match (variable_opt_1, compound_opt) with
+    	     | (Some _, Some _) -> false
+    	     | _ -> true);
     assert(match compound_opt with
 	     | None
 	     | Some(CompoundType _) -> true
