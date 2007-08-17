@@ -1,10 +1,15 @@
 2007-08-17  Hendrik Tews  <tews@tandem.cs.ru.nl>
 
+        CFG
+        * add -sloppy option to ignore unimplemented things
+        * more minor things
+
         * add control-flow-graph generation in subdir cfg 
           handles function/method calls, declarations with constructors,
           new, delete, constructors on temporaries, base class and member
           constructor calls
 
+        ASTTOOLS
         * added one assertion for the MemberInit constructor
         * fix upstream-import for solo repository
 

@@ -10,13 +10,21 @@ trap "echo Interupted; exit 1" SIGINT
 # load variable ast-files
 . ../asttools/regtest-ast-files
 
+tempfile=./temp-cfg-out
+logfile=./regression-errors
+
+trap "rm -f $tempfile" EXIT
+
+
 function usage(){
     echo "usage: regrtest [-skip <n>]"
     exit 1
 }
 
 skip=0
+sloppy=0
 typeset -i count=0
+typeset -i error_count=0
 
 while [ $# -ge 1 ] ; do
     case $1 in
@@ -26,19 +34,43 @@ while [ $# -ge 1 ] ; do
 	    fi
 	    skip=$2
 	    shift;;
+	-sloppy)
+	    sloppy=1
+	    shift;;
 	*)  usage;;
     esac
     shift
 done
 
+if [ $sloppy = 1 ] ; then
+    cfg="./cfg -sloppy"
+else
+    cfg=./cfg
+fi
+
+rm -f $logfile
+
 for f in $ast_files ; do
     if [ $skip -gt $count ]; then
 	echo "[$count] skip $f"
     else
-	echo "[$count] cfg $f"
-	./cfg $f	
+	echo -n "[$count] $cfg $f"
+	$cfg $f	> $tempfile 2>&1
+	if [ $? = 0 ] ; then
+	    echo " [1;32mok[m"
+	    cat $tempfile
+	else
+	    echo "[1;31m failed[m"
+	    cat $tempfile
+
+	    echo "[$count] $cfg $f failed" >> $logfile
+	    cat $tempfile >> $logfile
+	    echo >> $logfile
+	    error_count=$error_count+1
+	fi
     fi
     count=$count+1
-    rm -f output-count-ast output-count-ast-new 
 done
 
+echo
+echo found $error_count errors

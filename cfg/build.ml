@@ -142,14 +142,15 @@ let redefinition_error entry other_loc name =
  *
  ***********************************************************************)
 
+let new_func_def_hash () = Hashtbl.create 2287
 
-let function_def_hash : cfg_type = Hashtbl.create 2287
+let function_def_hash : cfg_type ref = ref (new_func_def_hash ())
 
 
 let function_def fun_id sourceLoc oast =
-  if Hashtbl.mem function_def_hash fun_id 
+  if Hashtbl.mem !function_def_hash fun_id 
   then 
-    let entry = Hashtbl.find function_def_hash fun_id in
+    let entry = Hashtbl.find !function_def_hash fun_id in
     let check_hash = Hashtbl.create (2 * List.length entry.callees) in
     let call_hash = Hashtbl.create 73
     in
@@ -166,7 +167,7 @@ let function_def fun_id sourceLoc oast =
     } in
     let call_hash = Hashtbl.create 73      
     in
-      Hashtbl.add function_def_hash fun_id entry;
+      Hashtbl.add !function_def_hash fun_id entry;
       New(entry, call_hash)
 
 let add_callee current_fun f =
@@ -1027,4 +1028,7 @@ let do_file_gc file =
 let do_file_list files error_report_levels = 
   init_error_report_array error_report_levels;
   List.iter do_file files;
-  function_def_hash
+  let res = !function_def_hash
+  in
+    function_def_hash := new_func_def_hash();
+    res
