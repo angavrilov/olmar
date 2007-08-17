@@ -1,0 +1,9 @@
+digraph "CFG" {
+  node [ color = "lightblue"; style = filled ];
+  edge [ arrowtail=odot ];
+    "0" [label="CU test/t004.oast\nfile: test/t004.oast\nline 1"]
+    "0" -> "1";
+    "0" -> "2";
+    "2" [label="A::constructor-special\nfile: test/t004.cc\nline 2"]
+    "1" [label="A::~A\nfile: test/t004.cc\nline 2"]
+}

@@ -1,0 +1,32 @@
+digraph "CFG" {
+  node [ color = "lightblue"; style = filled ];
+  edge [ arrowtail=odot ];
+    "13" [label="B::constructor-special\nArg 1: reference(const(B))\nfile: test/t003.cc\nline 18"]
+    "13" -> "5";
+    "10" [label="Z::constructor-special\nArg 1: int\nfile: test/t003.cc\nline 4"]
+    "6" [label="Z::constructor-special\nArg 1: reference(const(Z))\nfile: test/t003.cc\nline 2"]
+    "7" [label="CU test/t003.oast\nfile: test/t003.oast\nline 1"]
+    "7" -> "1";
+    "7" -> "2";
+    "3" [label="B::operator=\nArg 1: reference(const(B))\nfile: test/t003.cc\nline 18"]
+    "3" -> "4";
+    "11" [label="d"]
+    "5" [label="A::constructor-special\nArg 1: reference(const(A))\nfile: test/t003.cc\nline 11"]
+    "5" -> "6";
+    "4" [label="A::operator=\nArg 1: reference(const(A))\nfile: test/t003.cc\nline 11"]
+    "4" -> "14";
+    "9" [label="f"]
+    "2" [label="B::~B\nfile: test/t003.cc\nline 18"]
+    "12" [label="g"]
+    "0" [label="h\nfile: test/t003.cc\nline 25"]
+    "0" -> "1";
+    "0" -> "2";
+    "14" [label="Z::operator=\nArg 1: reference(const(Z))\nfile: test/t003.cc\nline 2"]
+    "8" [label="A::constructor-special\nfile: test/t003.cc\nline 15"]
+    "8" -> "9";
+    "8" -> "10";
+    "8" -> "11";
+    "1" [label="B::constructor-special\nfile: test/t003.cc\nline 22"]
+    "1" -> "12";
+    "1" -> "8";
+}
