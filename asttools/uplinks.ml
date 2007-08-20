@@ -3,6 +3,7 @@
 (***********************************************************************)
 
 open Ast_annotation
+open Cc_ml_types
 open Cc_ast_gen_type
 open Ast_annotation
 open Superast
@@ -996,6 +997,15 @@ let ast_node_fun up down myindex = function
       add_links up down myindex
 	(opt_link cType_annotation type_opt [])
 
+  (* 167 *)
+  | Expression_type(E_stdConv(_annot, type_opt, expression, 
+			      scs, _conversionKind)) -> 
+      assert(check_standardConversion scs);
+      add_links up down myindex
+	(opt_link cType_annotation type_opt
+	   [expression_annotation expression])
+
+
   (* 126 *)
   | FullExpression_type(_annot, expression_opt, fullExpressionAnnot) ->
       add_links up down myindex
@@ -1244,6 +1254,10 @@ let ast_node_fun up down myindex = function
    * 
    * (\* 166 *\)
    * | CompilationUnit_type((_annot, name, tu)
+   * 
+   * (\* 167 *\)
+   * | Expression_type(E_stdConv(_annot, type_opt, expression, 
+   * 			      scs, conversionKind)) -> 
    *)
 
 

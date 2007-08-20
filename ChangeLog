@@ -1,3 +1,18 @@
+2007-08-20  Hendrik Tews  <tews@debian.lan>
+
+        * second attempt for standard conversions
+
+        Elsa:
+        * merge conversion-branch changes
+        * wrap now nontrivial conversions in E_stdConv nodes around the
+          expression in Env::makeConvertedArg
+        * ocaml reflection adopted
+        * cc_ml_constructors: sorry for the noise, lots of white space
+          changes because of delete-trailing-whitespace
+
+        Asttools, cfg:
+        * adoptions
+
 2007-08-20  Hendrik Tews  <tews@tandem.cs.ru.nl>
 
         * added cfg to toplevel Makfile

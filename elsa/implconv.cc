@@ -321,6 +321,19 @@ StandardConversion tryCallCtor
 }
 
 
+// ----------------- xml stuff -----------------------
+string toXml(ImplicitConversion_Kind c)
+{
+  throw_XUnimp("toXml(ImplicitConversion_Kind)");
+  return "";
+}
+
+void fromXml(ImplicitConversion_Kind &out, rostring str)
+{
+  throw_XUnimp("fromXml(ImplicitConversion_Kind)");
+}
+
+
 // ----------------- test_getImplicitConversion ----------------
 int getLine(SourceLoc loc)
 {

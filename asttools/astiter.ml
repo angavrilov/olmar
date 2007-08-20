@@ -89,6 +89,10 @@ let compoundType_Keyword_fun = function
 
 let templ_kind_fun(kind : templateThingKind) = ()
 
+let implicitConversion_fun(ic : implicitConversion_Kind) = ()
+
+let standardConversion_fun(scs : standardConversion) = ()
+
 
 (***************** variable ***************************)
 
@@ -1363,6 +1367,14 @@ and expression_fun x =
 	    opt_iter cType_fun type_opt;
 	    string_fun stringRef
 
+	| E_stdConv(annot, type_opt, expression, scs, 
+		    implicitConversion_Kind) ->
+	    assert(check_standardConversion scs);
+	    annotation_fun annot;
+	    opt_iter cType_fun type_opt;
+	    expression_fun expression;
+	    standardConversion_fun scs;
+	    implicitConversion_fun implicitConversion_Kind
 
 and fullExpression_fun((annot, expression_opt, fullExpressionAnnot) as x) =
   if visited annot then ()

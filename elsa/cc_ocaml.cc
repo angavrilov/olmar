@@ -2550,6 +2550,103 @@ value ocaml_from_TemplateThingKind(const TemplateThingKind &id,
 }
   
 
+// hand written ocaml serialization function
+value ocaml_from_ImplicitConversion_Kind(const ImplicitConversion_Kind &id, 
+				   ToOcamlData *d) {
+  // don't allocate here, so don't need the CAMLparam stuff
+
+  static value * create_IC_NONE_constructor_closure = NULL;
+  static value * create_IC_STANDARD_constructor_closure = NULL;
+  static value * create_IC_USER_DEFINED_constructor_closure = NULL;
+  static value * create_IC_ELLIPSIS_constructor_closure = NULL;
+  static value * create_IC_AMBIGUOUS_constructor_closure = NULL;
+
+  value result;
+
+  switch(id){
+
+  case ImplicitConversion::IC_NONE:
+    if(create_IC_NONE_constructor_closure == NULL)
+      create_IC_NONE_constructor_closure = 
+        caml_named_value("create_IC_NONE_constructor");
+    xassert(create_IC_NONE_constructor_closure);
+    result = caml_callback(*create_IC_NONE_constructor_closure, Val_unit);
+    xassert(IS_OCAML_AST_VALUE(result));
+    return result;
+
+  case ImplicitConversion::IC_STANDARD:
+    if(create_IC_STANDARD_constructor_closure == NULL)
+      create_IC_STANDARD_constructor_closure = 
+        caml_named_value("create_IC_STANDARD_constructor");
+    xassert(create_IC_STANDARD_constructor_closure);
+    result = caml_callback(*create_IC_STANDARD_constructor_closure, Val_unit);
+    xassert(IS_OCAML_AST_VALUE(result));
+    return result;
+
+  case ImplicitConversion::IC_USER_DEFINED:
+    if(create_IC_USER_DEFINED_constructor_closure == NULL)
+      create_IC_USER_DEFINED_constructor_closure = 
+        caml_named_value("create_IC_USER_DEFINED_constructor");
+    xassert(create_IC_USER_DEFINED_constructor_closure);
+    result = caml_callback(*create_IC_USER_DEFINED_constructor_closure, Val_unit);
+    xassert(IS_OCAML_AST_VALUE(result));
+    return result;
+
+  case ImplicitConversion::IC_ELLIPSIS:
+    if(create_IC_ELLIPSIS_constructor_closure == NULL)
+      create_IC_ELLIPSIS_constructor_closure = 
+        caml_named_value("create_IC_ELLIPSIS_constructor");
+    xassert(create_IC_ELLIPSIS_constructor_closure);
+    result = caml_callback(*create_IC_ELLIPSIS_constructor_closure, Val_unit);
+    xassert(IS_OCAML_AST_VALUE(result));
+    return result;
+
+  case ImplicitConversion::IC_AMBIGUOUS:
+    if(create_IC_AMBIGUOUS_constructor_closure == NULL)
+      create_IC_AMBIGUOUS_constructor_closure = 
+        caml_named_value("create_IC_AMBIGUOUS_constructor");
+    xassert(create_IC_AMBIGUOUS_constructor_closure);
+    result = caml_callback(*create_IC_AMBIGUOUS_constructor_closure, Val_unit);
+    xassert(IS_OCAML_AST_VALUE(result));
+    return result;
+
+  default:
+    xassert(false);
+    break;
+  }
+
+  // not reached, the above assertion takes us out before
+  xassert(false);
+}
+
+
+
+// hand written ocaml serialization function
+value ocaml_from_StandardConversion(const StandardConversion &scs, 
+				    ToOcamlData *d){
+  CAMLparam0();
+  CAMLlocal2(scs_int, result);
+  // cout << "DeclFlags start marshal\n" << flush;
+
+  static value * standardConversion_from_int_closure = NULL;
+  if(standardConversion_from_int_closure == NULL)
+    standardConversion_from_int_closure =
+      caml_named_value("standardConversion_from_int");
+  xassert(standardConversion_from_int_closure);
+
+  xassert(scs != SC_ERROR);
+
+  xassert(scs <= Max_long && Min_long <= scs);
+  scs_int = Val_int(scs);
+  xassert(IS_OCAML_AST_VALUE(scs_int));
+  result = caml_callback(*standardConversion_from_int_closure, scs_int);
+  xassert(IS_OCAML_AST_VALUE(result));
+
+  // cout << "DeclFlags end marshal\n" << flush;
+  CAMLreturn(result);
+}
+
+
 //**************************************************************************
 //******************************* debug caml roots *************************
 

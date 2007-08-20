@@ -76,7 +76,9 @@ let compoundType_Keyword_fun = function
 
 let templ_kind_fun(kind : templateThingKind) = ()
 
+let implicitConversion_fun(ic : implicitConversion_Kind) = ()
 
+let standardConversion_fun(scs : standardConversion) = ()
 
 let ast_node_fun = function
   | NoAstNode -> 
@@ -852,6 +854,13 @@ let ast_node_fun = function
   | Expression_type(E_addrOfLabel(annot, type_opt, stringRef)) -> 
       annotation_fun annot;
       string_fun stringRef
+
+  | Expression_type(E_stdConv(annot, type_opt, expression, scs, 
+			      implicitConversion_Kind)) ->
+      assert(check_standardConversion scs);
+      annotation_fun annot;
+      standardConversion_fun scs;
+      implicitConversion_fun implicitConversion_Kind
 
 
   | FullExpression_type(annot, expression_opt, fullExpressionAnnot) ->

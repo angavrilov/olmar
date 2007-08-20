@@ -1133,6 +1133,11 @@ module Into_array = struct
 	  | E_addrOfLabel(_annot, type_opt, _stringRef) -> 
 	      opt_iter (cType_fun ast_array) type_opt;
 
+	  | E_stdConv(_annot, type_opt, expression, scs, _conversionKind) ->
+	      assert(check_standardConversion scs);
+	      opt_iter (cType_fun ast_array) type_opt;
+	      expression_fun ast_array expression
+
 
   and fullExpression_fun ast_array
       ((annot, expression_opt, fullExpressionAnnot) as x) =

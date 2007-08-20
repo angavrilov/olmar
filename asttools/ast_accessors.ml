@@ -226,6 +226,7 @@ let expression_annotation = function
   | E_alignofExpr(annot, _, _, _)
   | E_gnuCond(annot, _, _, _)
   | E_addrOfLabel(annot, _, _)
+  | E_stdConv(annot, _, _, _, _)
     -> annot
 
 let fullExpression_annotation ((annot, _, _) : 'a fullExpression_type) = annot
@@ -469,4 +470,5 @@ let expression_type = function
   | E_alignofExpr(_, ex_type, _, _)
   | E_gnuCond(_, ex_type, _, _)
   | E_addrOfLabel(_, ex_type, _)
+  | E_stdConv(_, ex_type, _, _, _)
     -> ex_type

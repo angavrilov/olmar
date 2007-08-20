@@ -1035,6 +1035,12 @@ and expression_fun x =
 	| E_addrOfLabel(annot, type_opt, stringRef) -> 
 	    opt_iter cType_fun type_opt;
 
+	| E_stdConv(annot, type_opt, expression, scs, 
+		    implicitConversion_Kind) ->
+	    assert(check_standardConversion scs);
+	    opt_iter cType_fun type_opt;
+	    expression_fun expression;
+
 
 and fullExpression_fun((annot, expression_opt, fullExpressionAnnot) as x) =
   if visited annot then ()

@@ -1401,17 +1401,14 @@ and expression_fun ex =
 	       ("tchecked", string_of_bool bool)]
 	      [(aSTTypeId_fun aSTTypeId, "atype")]
 
-	| E_assign(_annot, _type_opt, expression_target, binaryOp, expression_src) -> 
+	| E_assign(_annot, _type_opt, expression_target, binaryOp, 
+		   expression_src) -> 
 	    exnode_1d "E_assign" "op" (string_of_binaryOp binaryOp)
 	      (let x1 = (expression_fun expression_target, "target") in
 	       let x2 = (expression_fun expression_src, "src")
 	       in
 		 [x1; x2])
 
-	(* 
-         * | E_new(_annot, type_opt, bool, argExpression_list, aSTTypeId, 
-	 * 	argExpressionListOpt_opt, statement_opt) -> 
-         *)
 	| E_new(_annot, _type_opt, bool, argExpression_list, aSTTypeId, 
 		argExpressionListOpt_opt, array_size_opt, ctor_opt,
 	        statement_opt, heap_var_opt) -> 
@@ -1514,6 +1511,17 @@ and expression_fun ex =
 
 	| E_addrOfLabel(_annot, _type_opt, stringRef) -> 
 	    exnode_1d "E_addrOfLabel" "labelName" stringRef []
+
+	| E_stdConv(_annot, _type_opt, expression, scs, 
+		    implicitConversion_Kind) ->
+	    assert(check_standardConversion scs);
+	    exnode "E_stdConv"
+	      [("stdConv", string_of_standardConversion scs);
+	       ("conversionKind", 
+		string_of_implicitConversionKind 
+		  implicitConversion_Kind)]
+	      [(expression_fun expression, "expr")]
+
 
 
 (* and fullExpression_fun(_annot, expression_opt) = *)

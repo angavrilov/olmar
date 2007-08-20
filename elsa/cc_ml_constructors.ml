@@ -9,14 +9,14 @@ open Cc_ml_types
 let debug_print_locs = false
 
 (* source loc hashing stuff *)
-type source_loc_hash = 
+type source_loc_hash =
     (string, string) Hashtbl.t * (nativeint, sourceLoc) Hashtbl.t
 
 let source_loc_hash_init () : source_loc_hash =
   ((Hashtbl.create 50), (Hashtbl.create 1543))
 
 let source_loc_hash_find ((strings, locs) : source_loc_hash) (loc : nativeint) =
-  (* 
+  (*
    * Printf.eprintf "hashing %nd ... " loc;
    * try
    *)
@@ -25,9 +25,9 @@ let source_loc_hash_find ((strings, locs) : source_loc_hash) (loc : nativeint) =
       (* Printf.eprintf "found\n%!"; *)
       (* raise End_of_file; *)
       ret
-  (* 
+  (*
    * with
-   *   | Not_found as ex -> 
+   *   | Not_found as ex ->
    * 	Printf.eprintf "raise Not_found\n%!";
    * 	raise ex
    *   | ex ->
@@ -35,14 +35,14 @@ let source_loc_hash_find ((strings, locs) : source_loc_hash) (loc : nativeint) =
    * 	raise ex
    *)
 
-let source_loc_hash_add ((strings, locs) : source_loc_hash) 
+let source_loc_hash_add ((strings, locs) : source_loc_hash)
     (loc : nativeint) ((file,line,char) as srcloc : sourceLoc) =
   assert(not (Hashtbl.mem locs loc));
   let new_file =
     try
       Hashtbl.find strings file
     with
-      | Not_found -> 
+      | Not_found ->
 	  Hashtbl.add strings file file;
 	  file
   in
@@ -102,7 +102,7 @@ let _ = assert(Array.length df_flag_array = 32)
 let declFlag_from_int32 (flags : int32) =
   let rec doit i accu =
     if i = 32 then accu
-    else 
+    else
       if Int32.logand (Int32.shift_left Int32.one i) flags <> Int32.zero
       then
 	doit (i+1) (df_flag_array.(i) :: accu)
@@ -112,10 +112,10 @@ let declFlag_from_int32 (flags : int32) =
   let res = doit 0 []
   in
     res
-	  
-  
 
-(* SimpleTypeId from cc_flags.h 
+
+
+(* SimpleTypeId from cc_flags.h
  *)
 
 let create_ST_CHAR_constructor () = ST_CHAR
@@ -262,7 +262,7 @@ let register_ST_callbacks () =
 
 
 
-(* TypeIntr from cc_flags.h 
+(* TypeIntr from cc_flags.h
  *)
 
 let create_TI_STRUCT_constructor () = TI_STRUCT
@@ -271,16 +271,16 @@ let create_TI_UNION_constructor () = TI_UNION
 let create_TI_ENUM_constructor () = TI_ENUM
 
 let register_TI_callbacks () =
-  Callback.register 
+  Callback.register
     "create_TI_STRUCT_constructor"
     create_TI_STRUCT_constructor;
-  Callback.register 
+  Callback.register
     "create_TI_CLASS_constructor"
     create_TI_CLASS_constructor;
-  Callback.register 
+  Callback.register
     "create_TI_UNION_constructor"
     create_TI_UNION_constructor;
-  Callback.register 
+  Callback.register
     "create_TI_ENUM_constructor"
     create_TI_ENUM_constructor;
   ()
@@ -297,16 +297,16 @@ let create_AK_PRIVATE_constructor () = AK_PRIVATE
 let create_AK_UNSPECIFIED_constructor () = AK_UNSPECIFIED
 
 let register_AK_callbacks () =
-  Callback.register 
+  Callback.register
     "create_AK_PUBLIC_constructor"
     create_AK_PUBLIC_constructor;
-  Callback.register 
+  Callback.register
     "create_AK_PROTECTED_constructor"
     create_AK_PROTECTED_constructor;
-  Callback.register 
+  Callback.register
     "create_AK_PRIVATE_constructor"
     create_AK_PRIVATE_constructor;
-  Callback.register 
+  Callback.register
     "create_AK_UNSPECIFIED_constructor"
     create_AK_UNSPECIFIED_constructor;
   ()
@@ -331,15 +331,15 @@ let _ = assert(Array.length cv_flag_array = 4)
 let cv_mask =
   Int32.lognot(
     Int32.of_int(int_of_float(
-	2.0 ** (float_of_int (Array.length cv_flag_array)) -. 1.0) 
+	2.0 ** (float_of_int (Array.length cv_flag_array)) -. 1.0)
 	     lsl cv_shift_amount))
 
 
 let cVFlag_from_int32 (flags : int32) =
   let rec doit i accu =
     if i = 4 then accu
-    else 
-      if Int32.logand(Int32.shift_left Int32.one (i + cv_shift_amount)) flags 
+    else
+      if Int32.logand(Int32.shift_left Int32.one (i + cv_shift_amount)) flags
 	<> Int32.zero
       then
 	doit (i+1) (cv_flag_array.(i) :: accu)
@@ -396,127 +396,127 @@ let create_OP_MINIMUM_constructor () = OP_MINIMUM
 let create_OP_MAXIMUM_constructor () = OP_MAXIMUM
 
 let register_OP_callbacks () =
-  Callback.register 
+  Callback.register
     "create_OP_NOT_constructor"
     create_OP_NOT_constructor;
-  Callback.register 
+  Callback.register
     "create_OP_BITNOT_constructor"
     create_OP_BITNOT_constructor;
-  Callback.register 
+  Callback.register
     "create_OP_PLUSPLUS_constructor"
     create_OP_PLUSPLUS_constructor;
-  Callback.register 
+  Callback.register
     "create_OP_MINUSMINUS_constructor"
     create_OP_MINUSMINUS_constructor;
-  Callback.register 
+  Callback.register
     "create_OP_PLUS_constructor"
     create_OP_PLUS_constructor;
-  Callback.register 
+  Callback.register
     "create_OP_MINUS_constructor"
     create_OP_MINUS_constructor;
-  Callback.register 
+  Callback.register
     "create_OP_STAR_constructor"
     create_OP_STAR_constructor;
-  Callback.register 
+  Callback.register
     "create_OP_AMPERSAND_constructor"
     create_OP_AMPERSAND_constructor;
-  Callback.register 
+  Callback.register
     "create_OP_DIV_constructor"
     create_OP_DIV_constructor;
-  Callback.register 
+  Callback.register
     "create_OP_MOD_constructor"
     create_OP_MOD_constructor;
-  Callback.register 
+  Callback.register
     "create_OP_LSHIFT_constructor"
     create_OP_LSHIFT_constructor;
-  Callback.register 
+  Callback.register
     "create_OP_RSHIFT_constructor"
     create_OP_RSHIFT_constructor;
-  Callback.register 
+  Callback.register
     "create_OP_BITXOR_constructor"
     create_OP_BITXOR_constructor;
-  Callback.register 
+  Callback.register
     "create_OP_BITOR_constructor"
     create_OP_BITOR_constructor;
-  Callback.register 
+  Callback.register
     "create_OP_ASSIGN_constructor"
     create_OP_ASSIGN_constructor;
-  Callback.register 
+  Callback.register
     "create_OP_PLUSEQ_constructor"
     create_OP_PLUSEQ_constructor;
-  Callback.register 
+  Callback.register
     "create_OP_MINUSEQ_constructor"
     create_OP_MINUSEQ_constructor;
-  Callback.register 
+  Callback.register
     "create_OP_MULTEQ_constructor"
     create_OP_MULTEQ_constructor;
-  Callback.register 
+  Callback.register
     "create_OP_DIVEQ_constructor"
     create_OP_DIVEQ_constructor;
-  Callback.register 
+  Callback.register
     "create_OP_MODEQ_constructor"
     create_OP_MODEQ_constructor;
-  Callback.register 
+  Callback.register
     "create_OP_LSHIFTEQ_constructor"
     create_OP_LSHIFTEQ_constructor;
-  Callback.register 
+  Callback.register
     "create_OP_RSHIFTEQ_constructor"
     create_OP_RSHIFTEQ_constructor;
-  Callback.register 
+  Callback.register
     "create_OP_BITANDEQ_constructor"
     create_OP_BITANDEQ_constructor;
-  Callback.register 
+  Callback.register
     "create_OP_BITXOREQ_constructor"
     create_OP_BITXOREQ_constructor;
-  Callback.register 
+  Callback.register
     "create_OP_BITOREQ_constructor"
     create_OP_BITOREQ_constructor;
-  Callback.register 
+  Callback.register
     "create_OP_EQUAL_constructor"
     create_OP_EQUAL_constructor;
-  Callback.register 
+  Callback.register
     "create_OP_NOTEQUAL_constructor"
     create_OP_NOTEQUAL_constructor;
-  Callback.register 
+  Callback.register
     "create_OP_LESS_constructor"
     create_OP_LESS_constructor;
-  Callback.register 
+  Callback.register
     "create_OP_GREATER_constructor"
     create_OP_GREATER_constructor;
-  Callback.register 
+  Callback.register
     "create_OP_LESSEQ_constructor"
     create_OP_LESSEQ_constructor;
-  Callback.register 
+  Callback.register
     "create_OP_GREATEREQ_constructor"
     create_OP_GREATEREQ_constructor;
-  Callback.register 
+  Callback.register
     "create_OP_AND_constructor"
     create_OP_AND_constructor;
-  Callback.register 
+  Callback.register
     "create_OP_OR_constructor"
     create_OP_OR_constructor;
-  Callback.register 
+  Callback.register
     "create_OP_ARROW_constructor"
     create_OP_ARROW_constructor;
-  Callback.register 
+  Callback.register
     "create_OP_ARROW_STAR_constructor"
     create_OP_ARROW_STAR_constructor;
-  Callback.register 
+  Callback.register
     "create_OP_BRACKETS_constructor"
     create_OP_BRACKETS_constructor;
-  Callback.register 
+  Callback.register
     "create_OP_PARENS_constructor"
     create_OP_PARENS_constructor;
-  Callback.register 
+  Callback.register
     "create_OP_COMMA_constructor"
     create_OP_COMMA_constructor;
-  Callback.register 
+  Callback.register
     "create_OP_QUESTION_constructor"
     create_OP_QUESTION_constructor;
-  Callback.register 
+  Callback.register
     "create_OP_MINIMUM_constructor"
     create_OP_MINIMUM_constructor;
-  Callback.register 
+  Callback.register
     "create_OP_MAXIMUM_constructor"
     create_OP_MAXIMUM_constructor;
   ()
@@ -532,16 +532,16 @@ let create_UNY_NOT_constructor () = UNY_NOT
 let create_UNY_BITNOT_constructor () = UNY_BITNOT
 
 let register_UNY_callbacks () =
-  Callback.register 
+  Callback.register
     "create_UNY_PLUS_constructor"
     create_UNY_PLUS_constructor;
-  Callback.register 
+  Callback.register
     "create_UNY_MINUS_constructor"
     create_UNY_MINUS_constructor;
-  Callback.register 
+  Callback.register
     "create_UNY_NOT_constructor"
     create_UNY_NOT_constructor;
-  Callback.register 
+  Callback.register
     "create_UNY_BITNOT_constructor"
     create_UNY_BITNOT_constructor;
   ()
@@ -557,16 +557,16 @@ let create_EFF_PREINC_constructor () = EFF_PREINC
 let create_EFF_PREDEC_constructor () = EFF_PREDEC
 
 let register_EFF_callbacks () =
-  Callback.register 
+  Callback.register
     "create_EFF_POSTINC_constructor"
     create_EFF_POSTINC_constructor;
-  Callback.register 
+  Callback.register
     "create_EFF_POSTDEC_constructor"
     create_EFF_POSTDEC_constructor;
-  Callback.register 
+  Callback.register
     "create_EFF_PREINC_constructor"
     create_EFF_PREINC_constructor;
-  Callback.register 
+  Callback.register
     "create_EFF_PREDEC_constructor"
     create_EFF_PREDEC_constructor;
   ()
@@ -605,85 +605,85 @@ let create_BIN_IMPLIES_constructor () = BIN_IMPLIES
 let create_BIN_EQUIVALENT_constructor () = BIN_EQUIVALENT
 
 let register_BIN_callbacks () =
-  Callback.register 
+  Callback.register
     "create_BIN_EQUAL_constructor"
     create_BIN_EQUAL_constructor;
-  Callback.register 
+  Callback.register
     "create_BIN_NOTEQUAL_constructor"
     create_BIN_NOTEQUAL_constructor;
-  Callback.register 
+  Callback.register
     "create_BIN_LESS_constructor"
     create_BIN_LESS_constructor;
-  Callback.register 
+  Callback.register
     "create_BIN_GREATER_constructor"
     create_BIN_GREATER_constructor;
-  Callback.register 
+  Callback.register
     "create_BIN_LESSEQ_constructor"
     create_BIN_LESSEQ_constructor;
-  Callback.register 
+  Callback.register
     "create_BIN_GREATEREQ_constructor"
     create_BIN_GREATEREQ_constructor;
-  Callback.register 
+  Callback.register
     "create_BIN_MULT_constructor"
     create_BIN_MULT_constructor;
-  Callback.register 
+  Callback.register
     "create_BIN_DIV_constructor"
     create_BIN_DIV_constructor;
-  Callback.register 
+  Callback.register
     "create_BIN_MOD_constructor"
     create_BIN_MOD_constructor;
-  Callback.register 
+  Callback.register
     "create_BIN_PLUS_constructor"
     create_BIN_PLUS_constructor;
-  Callback.register 
+  Callback.register
     "create_BIN_MINUS_constructor"
     create_BIN_MINUS_constructor;
-  Callback.register 
+  Callback.register
     "create_BIN_LSHIFT_constructor"
     create_BIN_LSHIFT_constructor;
-  Callback.register 
+  Callback.register
     "create_BIN_RSHIFT_constructor"
     create_BIN_RSHIFT_constructor;
-  Callback.register 
+  Callback.register
     "create_BIN_BITAND_constructor"
     create_BIN_BITAND_constructor;
-  Callback.register 
+  Callback.register
     "create_BIN_BITXOR_constructor"
     create_BIN_BITXOR_constructor;
-  Callback.register 
+  Callback.register
     "create_BIN_BITOR_constructor"
     create_BIN_BITOR_constructor;
-  Callback.register 
+  Callback.register
     "create_BIN_AND_constructor"
     create_BIN_AND_constructor;
-  Callback.register 
+  Callback.register
     "create_BIN_OR_constructor"
     create_BIN_OR_constructor;
-  Callback.register 
+  Callback.register
     "create_BIN_COMMA_constructor"
     create_BIN_COMMA_constructor;
-  Callback.register 
+  Callback.register
     "create_BIN_MINIMUM_constructor"
     create_BIN_MINIMUM_constructor;
-  Callback.register 
+  Callback.register
     "create_BIN_MAXIMUM_constructor"
     create_BIN_MAXIMUM_constructor;
-  Callback.register 
+  Callback.register
     "create_BIN_BRACKETS_constructor"
     create_BIN_BRACKETS_constructor;
-  Callback.register 
+  Callback.register
     "create_BIN_ASSIGN_constructor"
     create_BIN_ASSIGN_constructor;
-  Callback.register 
+  Callback.register
     "create_BIN_DOT_STAR_constructor"
     create_BIN_DOT_STAR_constructor;
-  Callback.register 
+  Callback.register
     "create_BIN_ARROW_STAR_constructor"
     create_BIN_ARROW_STAR_constructor;
-  Callback.register 
+  Callback.register
     "create_BIN_IMPLIES_constructor"
     create_BIN_IMPLIES_constructor;
-  Callback.register 
+  Callback.register
     "create_BIN_EQUIVALENT_constructor"
     create_BIN_EQUIVALENT_constructor;
   ()
@@ -698,10 +698,10 @@ let create_CK_REINTERPRET_constructor () = CK_REINTERPRET
 let create_CK_CONST_constructor () = CK_CONST
 
 let register_CK_callbacks () =
-  Callback.register 
+  Callback.register
     "create_CK_DYNAMIC_constructor" create_CK_DYNAMIC_constructor;
   Callback.register "create_CK_STATIC_constructor" create_CK_STATIC_constructor;
-  Callback.register 
+  Callback.register
     "create_CK_REINTERPRET_constructor" create_CK_REINTERPRET_constructor;
   Callback.register "create_CK_CONST_constructor" create_CK_CONST_constructor;
   ()
@@ -737,79 +737,79 @@ let create_DC_E_ALIGNOFTYPE_constructor () = DC_E_ALIGNOFTYPE
 let create_DC_E_BUILTIN_VA_ARG_constructor () = DC_E_BUILTIN_VA_ARG
 
 let register_DC_callbacks () =
-  Callback.register 
+  Callback.register
     "create_DC_UNKNOWN_constructor"
     create_DC_UNKNOWN_constructor;
-  Callback.register 
+  Callback.register
     "create_DC_FUNCTION_constructor"
     create_DC_FUNCTION_constructor;
-  Callback.register 
+  Callback.register
     "create_DC_TF_DECL_constructor"
     create_DC_TF_DECL_constructor;
-  Callback.register 
+  Callback.register
     "create_DC_TF_EXPLICITINST_constructor"
     create_DC_TF_EXPLICITINST_constructor;
-  Callback.register 
+  Callback.register
     "create_DC_MR_DECL_constructor"
     create_DC_MR_DECL_constructor;
-  Callback.register 
+  Callback.register
     "create_DC_S_DECL_constructor"
     create_DC_S_DECL_constructor;
-  Callback.register 
+  Callback.register
     "create_DC_TD_DECL_constructor"
     create_DC_TD_DECL_constructor;
   Callback.register
     "create_DC_FEA_constructor"
     create_DC_FEA_constructor;
-  Callback.register 
+  Callback.register
     "create_DC_D_FUNC_constructor"
     create_DC_D_FUNC_constructor;
-  Callback.register 
+  Callback.register
     "create_DC_EXCEPTIONSPEC_constructor"
     create_DC_EXCEPTIONSPEC_constructor;
-  Callback.register 
+  Callback.register
     "create_DC_ON_CONVERSION_constructor"
     create_DC_ON_CONVERSION_constructor;
-  Callback.register 
+  Callback.register
     "create_DC_CN_DECL_constructor"
     create_DC_CN_DECL_constructor;
-  Callback.register 
+  Callback.register
     "create_DC_HANDLER_constructor"
     create_DC_HANDLER_constructor;
-  Callback.register 
+  Callback.register
     "create_DC_E_CAST_constructor"
     create_DC_E_CAST_constructor;
-  Callback.register 
+  Callback.register
     "create_DC_E_SIZEOFTYPE_constructor"
     create_DC_E_SIZEOFTYPE_constructor;
-  Callback.register 
+  Callback.register
     "create_DC_E_NEW_constructor"
     create_DC_E_NEW_constructor;
-  Callback.register 
+  Callback.register
     "create_DC_E_KEYWORDCAST_constructor"
     create_DC_E_KEYWORDCAST_constructor;
-  Callback.register 
+  Callback.register
     "create_DC_E_TYPEIDTYPE_constructor"
     create_DC_E_TYPEIDTYPE_constructor;
-  Callback.register 
+  Callback.register
     "create_DC_TP_TYPE_constructor"
     create_DC_TP_TYPE_constructor;
-  Callback.register 
+  Callback.register
     "create_DC_TP_NONTYPE_constructor"
     create_DC_TP_NONTYPE_constructor;
-  Callback.register 
+  Callback.register
     "create_DC_TA_TYPE_constructor"
     create_DC_TA_TYPE_constructor;
-  Callback.register 
+  Callback.register
     "create_DC_TS_TYPEOF_TYPE_constructor"
     create_DC_TS_TYPEOF_TYPE_constructor;
-  Callback.register 
+  Callback.register
     "create_DC_E_COMPOUNDLIT_constructor"
     create_DC_E_COMPOUNDLIT_constructor;
-  Callback.register 
+  Callback.register
     "create_DC_E_ALIGNOFTYPE_constructor"
     create_DC_E_ALIGNOFTYPE_constructor;
-  Callback.register 
+  Callback.register
     "create_DC_E_BUILTIN_VA_ARG_constructor"
     create_DC_E_BUILTIN_VA_ARG_constructor;
   ()
@@ -827,30 +827,92 @@ let create_SK_TEMPLATE_ARGS_constructor () = SK_TEMPLATE_ARGS
 let create_SK_NAMESPACE_constructor () = SK_NAMESPACE
 
 let register_SK_callbacks () =
-  Callback.register 
+  Callback.register
     "create_SK_UNKNOWN_constructor"
     create_SK_UNKNOWN_constructor;
-  Callback.register 
+  Callback.register
     "create_SK_GLOBAL_constructor"
     create_SK_GLOBAL_constructor;
-  Callback.register 
+  Callback.register
     "create_SK_PARAMETER_constructor"
     create_SK_PARAMETER_constructor;
-  Callback.register 
+  Callback.register
     "create_SK_FUNCTION_constructor"
     create_SK_FUNCTION_constructor;
-  Callback.register 
+  Callback.register
     "create_SK_CLASS_constructor"
     create_SK_CLASS_constructor;
-  Callback.register 
+  Callback.register
     "create_SK_TEMPLATE_PARAMS_constructor"
     create_SK_TEMPLATE_PARAMS_constructor;
-  Callback.register 
+  Callback.register
     "create_SK_TEMPLATE_ARGS_constructor"
     create_SK_TEMPLATE_ARGS_constructor;
-  Callback.register 
+  Callback.register
     "create_SK_NAMESPACE_constructor"
     create_SK_NAMESPACE_constructor;
+  ()
+
+
+
+let standardConversion_from_int (scs : int) =
+  let res =
+    if scs = 0 then [SC_IDENTITY]
+    else
+      (match scs land 0x03 with
+	 | 0 -> []
+	 | 1 -> [SC_LVAL_TO_RVAL]
+	 | 2 -> [SC_ARRAY_TO_PTR]
+	 | 3 -> [SC_FUNC_TO_PTR]
+	 | _ -> assert false
+      )
+      @ (match scs land 0xF0 with
+	   | 0 -> []
+	   | 0x10 -> [SC_INT_PROM]
+	   | 0x20 -> [SC_FLOAT_PROM]
+	   | 0x30 -> [SC_INT_CONV]
+	   | 0x40 -> [SC_FLOAT_CONV]
+	   | 0x50 -> [SC_FLOAT_INT_CONV]
+	   | 0x60 -> [SC_PTR_CONV]
+	   | 0x70 -> [SC_PTR_MEMB_CONV]
+	   | 0x80 -> [SC_BOOL_CONV]
+	   | 0x90 -> [SC_DERIVED_TO_BASE]
+	   | _ -> assert(false)
+	)
+      @ (match scs land 0x04 with
+	   | 0 -> []
+	   | 0x04 -> [SC_QUAL_CONV]
+	   | _ -> assert false)
+  in
+    assert(check_standardConversion res);
+    res
+
+
+(* from implconv.h *)
+
+
+let create_IC_NONE_constructor () = IC_NONE
+let create_IC_STANDARD_constructor () = IC_STANDARD
+let create_IC_USER_DEFINED_constructor () = IC_USER_DEFINED
+let create_IC_ELLIPSIS_constructor () = IC_ELLIPSIS
+let create_IC_AMBIGUOUS_constructor () = IC_AMBIGUOUS
+
+let register_IC_callbacks () =
+  Callback.register
+    "create_IC_NONE_constructor"
+    create_IC_NONE_constructor;
+  Callback.register
+    "create_IC_STANDARD_constructor"
+    create_IC_STANDARD_constructor;
+  Callback.register
+    "create_IC_USER_DEFINED_constructor"
+    create_IC_USER_DEFINED_constructor;
+  Callback.register
+    "create_IC_ELLIPSIS_constructor"
+    create_IC_ELLIPSIS_constructor;
+  Callback.register
+    "create_IC_AMBIGUOUS_constructor"
+    create_IC_AMBIGUOUS_constructor;
   ()
 
 
@@ -871,6 +933,8 @@ let register_cc_ml_constructor_callbacks () =
   register_CK_callbacks();
   register_DC_callbacks();
   register_SK_callbacks();
+  Callback.register "standardConversion_from_int" standardConversion_from_int;
+  register_IC_callbacks();
   ()
 
 
@@ -907,7 +971,7 @@ to create enum constructors and their callbacks:
     (insert "_callbacks () =\n")
     (yank)
     (goto-char (mark))
-    (replace-regexp "\\(.+\\)" "  Callback.register 
+    (replace-regexp "\\(.+\\)" "  Callback.register
     \"create_\\1_constructor\"
     create_\\1_constructor;")
     (insert "\n  ()\n\n")

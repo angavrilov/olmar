@@ -14,6 +14,7 @@
 #include "variable.h"      // Variable
 #include "cc_type.h"       // CType, FunctonType, CompoundType
 #include "template.h"
+#include "implconv.h"
 
 #define DEBUG_CAML_GLOBAL_ROOTS
 #ifdef DEBUG_CAML_GLOBAL_ROOTS
@@ -120,6 +121,7 @@ int get_max_annotation(void);
 value ocaml_from_DeclFlags(const DeclFlags &, ToOcamlData *);
 value ocaml_from_CVFlags(const CVFlags &, ToOcamlData *);
 value ocaml_from_function_flags(const FunctionFlags &f, ToOcamlData *d);
+value ocaml_from_StandardConversion(const StandardConversion &, ToOcamlData *);
 
 // for real enums
 value ocaml_from_SimpleTypeId(const SimpleTypeId &, ToOcamlData *);
@@ -135,6 +137,8 @@ value ocaml_from_CompoundType_Keyword(const CompoundType::Keyword &,
 value ocaml_from_DeclaratorContext(const DeclaratorContext &, ToOcamlData *);
 value ocaml_from_ScopeKind(const ScopeKind &, ToOcamlData *);
 value ocaml_from_TemplateThingKind(const TemplateThingKind &, ToOcamlData *);
+value ocaml_from_ImplicitConversion_Kind(const ImplicitConversion_Kind &id, 
+					 ToOcamlData *d);
 
 // for other types
 value ocaml_from_unsigned_long(const unsigned long &, ToOcamlData *);
@@ -169,5 +173,8 @@ inline void detach_ocaml_unsigned_long(const unsigned long &) {}
 inline void detach_ocaml_double(const double &) {}
 inline void detach_ocaml_unsigned_int(const unsigned int &) {}
 inline void detach_ocaml_DeclaratorContext(const DeclaratorContext &) {}
+inline void detach_ocaml_ImplicitConversion_Kind(
+					 const ImplicitConversion_Kind &) {}
+inline void detach_ocaml_StandardConversion(const StandardConversion &) {}
 
 #endif // CC_OCAML_H

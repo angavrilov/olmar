@@ -86,6 +86,18 @@ string toString(StandardConversion c)
   return sb;
 }
 
+//HT: stolen from Scott's conversion patch
+string toXml(StandardConversion c)
+{
+  throw_XUnimp("toXml(StandardConversion)");
+  return "";
+}
+
+void fromXml(StandardConversion &out, rostring str)
+{
+  throw_XUnimp("fromXml(StandardConversion)");
+}
+
 
 StandardConversion removeLval(StandardConversion scs)
 {

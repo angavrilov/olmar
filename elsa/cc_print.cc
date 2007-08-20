@@ -1525,8 +1525,15 @@ void FullExpression::print(PrintEnv &env)
 void Expression::print(PrintEnv &env)
 {
   TreeWalkDebug treeDebug("Expression");
-  PairDelim pair(*env.out, "", "(", ")"); // this will put parens around every expression
-  iprint(env);
+  if(isE_stdConv()) {
+    // don't print parenthesis around E_stdConv 
+    // to let idempotence checks pass
+    iprint(env);
+  }
+  else{
+    PairDelim pair(*env.out, "", "(", ")"); // this will put parens around every expression
+    iprint(env);
+  }
 }
 
 string Expression::exprToString() const
@@ -2013,6 +2020,21 @@ void E_grouping::iprint(PrintEnv &env)
   // idly plan some sort of precedence-aware paren-inserter mechanism.
 
   expr->iprint(env);    // iprint means Expression won't put parens either
+}
+
+
+void E_stdConv::iprint(PrintEnv &env)
+{
+  TreeWalkDebug treeDebug("E_stdConv::iprint");
+
+  // HT: XXX just guessing here, no idea what iprint is supposed to do!!
+  *env.out << "/""*" 
+	   << toString(stdConv) 
+	   << " "
+	   << toString(conversionKind)
+	   << "*/";
+
+  expr->print(env);
 }
 
 // ----------------------- Initializer --------------------

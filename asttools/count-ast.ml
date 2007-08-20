@@ -20,6 +20,7 @@
  * This is the recursive variant. It uses straightforward tree recursion.
  *)
 
+open Cc_ml_types
 open Cc_ast_gen_type
 open Ml_ctype
 open Ast_annotation
@@ -1192,7 +1193,8 @@ and expression_fun x =
 	    sourceLoc_fun sourceLoc;
 	    expression_fun expression
 
-	| E___builtin_va_arg(_annot, type_opt, sourceLoc, expression, aSTTypeId) -> 
+	| E___builtin_va_arg(_annot, type_opt, sourceLoc, expression, 
+			     aSTTypeId) -> 
 	    opt_iter cType_fun type_opt;
 	    sourceLoc_fun sourceLoc;
 	    expression_fun expression;
@@ -1216,6 +1218,12 @@ and expression_fun x =
 	| E_addrOfLabel(_annot, type_opt, stringRef) -> 
 	    opt_iter cType_fun type_opt;
 	    string_fun stringRef
+
+	| E_stdConv(_annot, type_opt, expression, scs, 
+		    _implicitConversion_Kind) ->
+	    assert(check_standardConversion scs);
+	    opt_iter cType_fun type_opt;
+	    expression_fun expression;
 
 
 and fullExpression_fun((annot, expression_opt, fullExpressionAnnot) ) =

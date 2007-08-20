@@ -25,6 +25,11 @@ class CType;            // cc_type.h
 class Env;             // cc_env.h
 class TypeFactory;     // cc_type.h
 
+// ATTENTION: If something changes here, especially also the 
+// commented masks do check the ocaml reflection code in 
+// cc_ml_types and cc_ml_constructors!
+// Some of the bitlayout is hardwired there!
+// 
 // The kinds of Standard Conversions.  Any given pair of convertible
 // types will be related by the conversions permitted as one or more
 // of the following kinds.  ORing together zero or one conversion from
@@ -73,6 +78,9 @@ ENUM_BITWISE_NOT(StandardConversion, SC_ERROR);
 // render in C++ syntax as bitwise OR of the constants above
 string toString(StandardConversion c);
 
+// for XML
+string toXml(StandardConversion c);
+void fromXml(StandardConversion &out, rostring str);
 
 // remove SC_LVAL_TO_RVAL from a conversion sequence
 StandardConversion removeLval(StandardConversion scs);

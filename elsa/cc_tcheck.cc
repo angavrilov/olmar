@@ -8850,6 +8850,32 @@ CType *E_grouping::itcheck_grouping_set(Env &env, Expression *&replacement,
 }
 
 
+CType *E_stdConv::itcheck_x(Env &env, Expression *&replacement)
+{               
+  // This node does not carry enough information to be type checked
+  // from scratch.  However, it might end up inside an AST fragment
+  // that needs to be re-type-checked, in which case it should not
+  // interfere.
+  
+  // HT: we don't really set E_stdConv::type,
+  // it just carries the type of the wrapped expression.
+  // ... though, it would be nice someone wrote the code to set it correctly
+  xassert(type != NULL);
+  
+  // Remember the source expr's type.
+  CType *origExprType = expr->type;
+
+  // Propagate the tcheck request.
+  expr->tcheck(env, expr);
+
+  // Make sure the expr's type did not change; if it did, that would
+  // potentially invalidate this conversion.
+  xassert(expr->type->equals(origExprType));
+
+  return type;
+}
+
+
 // --------------------- Expression constEval ------------------
 // TODO: Currently I do not implement the notion of "value-dependent
 // expression" (cppstd 14.6.2.3).  But, I believe a good way to do

@@ -69,6 +69,14 @@ public:    // funcs
 };
 
 
+// typedef to avoid astgen parsing problems
+typedef ImplicitConversion::Kind ImplicitConversion_Kind;
+
+
+string toXml(ImplicitConversion_Kind c);
+void fromXml(ImplicitConversion_Kind &out, rostring str);
+
+
 // given two types, find an implicit conversion between them, or
 // return IC_NONE if none exists (do *not* insert error messages
 // into the environment, either way)

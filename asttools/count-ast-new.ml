@@ -701,6 +701,11 @@ let ast_node_fun = function
   | Expression_type(E_addrOfLabel(_annot, _type_opt, stringRef)) -> 
       string_fun stringRef
 
+  | Expression_type(E_stdConv(_annot, _type_opt, _expression, 
+			      scs, _conversionKind)) -> 
+      assert(check_standardConversion scs);
+      ()
+
 
   | FullExpression_type(_annot, _expression_opt, _fullExpressionAnnot) ->
       ()

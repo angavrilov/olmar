@@ -5518,13 +5518,22 @@ Expression *Env::makeConvertedArg(Expression * const arg,
     if (ic.scs & SC_GROUP_1_MASK) {
       switch (ic.scs & SC_GROUP_1_MASK) {
       case SC_LVAL_TO_RVAL:
+	newarg = new E_stdConv(arg, ic.scs, ic.kind);
+	newarg->type = arg->type;
         // TODO
         break;
       case SC_ARRAY_TO_PTR:
+	newarg = new E_stdConv(arg, ic.scs, ic.kind);
+	newarg->type = arg->type;
         // TODO
         break;
       case SC_FUNC_TO_PTR:
         newarg = makeAddr(env.tfac, env.loc(), arg);
+	if(ic.scs & ~SC_GROUP_1_MASK) {
+	  CType * new_arg_type = newarg->type;
+	  newarg = new E_stdConv(newarg, ic.scs & ~SC_GROUP_1_MASK, ic.kind);
+	  newarg->type = new_arg_type;
+	}
         break;
       default:
         // only 3 kinds in SC_GROUP_1_MASK
@@ -5532,13 +5541,21 @@ Expression *Env::makeConvertedArg(Expression * const arg,
         break;
       }
     } else {
+      if(ic.scs != SC_IDENTITY) {
+	newarg = new E_stdConv(arg, ic.scs, ic.kind);
+	newarg->type = arg->type;
+      }
       // TODO
     }
     break;
   case ImplicitConversion::IC_USER_DEFINED:
+    newarg = new E_stdConv(arg, ic.scs, ic.kind);
+    newarg->type = arg->type;
     // TODO
     break;
   case ImplicitConversion::IC_ELLIPSIS:
+    newarg = new E_stdConv(arg, ic.scs, ic.kind);
+    newarg->type = arg->type;
     // TODO
     break;
   case ImplicitConversion::IC_AMBIGUOUS:

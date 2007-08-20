@@ -133,6 +133,7 @@ and 'a expression_type =
   | E_typeidType of 'a * 'a cType option * 'a aSTTypeId_type 
   | E_grouping of 'a * 'a cType option * 'a expression_type 
   | E_arrow of 'a * 'a cType option * 'a expression_type * 'a pQName_type 
+  | E_stdConv of 'a * 'a cType option * 'a expression_type * standardConversion * implicitConversion_Kind 
   | E_statement of 'a * 'a cType option * 'a statement_type (* = S_compound  *) 
   | E_compoundLit of 'a * 'a cType option * 'a aSTTypeId_type * 'a initializer_type (* = IN_compound  *) 
   | E___builtin_constant_p of 'a * 'a cType option * sourceLoc * 'a expression_type 

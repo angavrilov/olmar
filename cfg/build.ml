@@ -986,6 +986,10 @@ and expression_fun current_func sourceLoc = function
 
   | E_addrOfLabel(_annot, _type_opt, _stringRef) -> ()
 
+  | E_stdConv(_annot, _type_opt, expression, scs, _implicitConversion_Kind) ->
+      assert(check_standardConversion scs);
+      expression_fun current_func sourceLoc expression
+
 
 
 and argExpression_fun current_func sourceLoc (_annot, expression) =

@@ -1909,6 +1909,8 @@ class Statement {
 
 
 verbatim {
+  #include "implconv.h"		// ImplicitConversion::Kind, StandardConversion
+
   class ElabVisitor;             // cc_elaborate.h
   string refersTo(Variable *v);  // cc_ast_aux.cc
 }
@@ -2093,6 +2095,30 @@ class Expression {
 
     public bool elaborate(ElabVisitor &env);
   }
+
+  // Carry an implicit standard conversion.  The reason I do not
+  // re-use E_cast is that E_cast wants to carry a syntactic name for
+  // the destination type, but I don't want to waste space by
+  // constructing it (nor do I want to make E_cast::type nullable).
+  //
+  // 'stdConv' is the overall description of the conversion; it is
+  // never SC_ERROR nor SC_IDENTITY.  The exact conversion is
+  // 'expr->type' being converted to 'this->type'.
+  //
+  // HT: Insert the conversion kind to make the detection of a missing user
+  // conversion possible. Once all user conversions are in the ast, the 
+  // conversion kind should go.
+  -> E_stdConv(Expression expr, StandardConversion stdConv,
+	       ImplicitConversion_Kind conversionKind) {
+       ctor {
+         xassert(stdConv != SC_ERROR 
+		 && conversionKind != ImplicitConversion::IC_NONE
+		 && (conversionKind != ImplicitConversion::IC_STANDARD  
+		     || stdConv != SC_IDENTITY));
+       };
+     }
+
+
 }
 
 

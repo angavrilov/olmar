@@ -81,9 +81,11 @@ config.status: configure.pl $(SMBASE)/sm_config.pm
 
 COUNTAST_ML=\
 	dense_set.ml \
+	$(ELSA)/elsa_util.ml \
 	$(ELSA)/ast_annotation.ml \
 	$(ELSA)/oast_header_version.ml \
 	$(ELSA)/oast_header.ml \
+	$(ELSA)/cc_ml_types.ml \
 	ast_accessors.ml \
 	count-ast.ml
 
@@ -94,9 +96,11 @@ count-ast: $(COUNTAST_ML:.ml=.$(OCAML_OBJ_EXT))
 
 COUNTASTNEW_ML=\
 	dense_set.ml \
+	$(ELSA)/elsa_util.ml \
 	$(ELSA)/ast_annotation.ml \
 	$(ELSA)/oast_header_version.ml \
 	$(ELSA)/oast_header.ml \
+	$(ELSA)/cc_ml_types.ml \
 	ast_accessors.ml \
 	superast.ml \
 	count-ast-new.ml

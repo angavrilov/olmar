@@ -712,3 +712,119 @@ let string_of_scopeKind = function
   | SK_TEMPLATE_PARAMS-> "SK_TEMPLATE_PARAMS"
   | SK_TEMPLATE_ARGS  -> "SK_TEMPLATE_ARGS"
   | SK_NAMESPACE      -> "SK_NAMESPACE"
+
+
+
+(* from stdconv.h *)
+(* ATTENTION: If something changes here, especially also the 
+ * commented masks do check the related functions in cc_ml_constructors!
+ * Some of the bitlayout is hardwired there!
+ *)
+type standardConversionElement =
+  | SC_IDENTITY        (* = 0x00,  // types are identical *)
+
+  (* // conversion group 1 (comes first) *)
+  | SC_LVAL_TO_RVAL    (* = 0x01,  // 4.1: int& -> int *)
+  | SC_ARRAY_TO_PTR    (* = 0x02,  // 4.2: char[] -> char* *)
+  | SC_FUNC_TO_PTR     (* = 0x03,  // 4.3: int ()(int) -> int ( * )(int) *)
+  (* | SC_GROUP_1_MASK    (\* = 0x03, *\) *)
+
+  (* // conversion group 3 (comes last conceptually) *)
+  | SC_QUAL_CONV       (* = 0x04,  // 4.4: int* -> int const* *)
+  (* | SC_GROUP_3_MASK    (\* = 0x04, *\) *)
+
+  (* // conversion group 2 (goes in the middle) *)
+  | SC_INT_PROM        (* = 0x10,  // 4.5: int... -> int..., no info loss  *)
+  | SC_FLOAT_PROM      (* = 0x20,  // 4.6: float -> double, no info loss  *)
+  | SC_INT_CONV        (* = 0x30,  // 4.7: int... -> int..., info loss  *)
+  | SC_FLOAT_CONV      (* = 0x40,  // 4.8: float... -> float..., info loss  *)
+  | SC_FLOAT_INT_CONV  (* = 0x50,  // 4.9: int... <-> float..., info loss  *)
+  | SC_PTR_CONV        (* = 0x60,  // 4.10: 0 -> Foo*, Child* -> Parent* *)
+  | SC_PTR_MEMB_CONV   (* = 0x70,  // 4.11: int Child::* -> int Parent::* *)
+  | SC_BOOL_CONV       (* = 0x80,  // 4.12: various types <-> bool *)
+  | SC_DERIVED_TO_BASE (* = 0x90,  // 13.3.3.1p6: Child -> Parent *)
+  (* | SC_GROUP_2_MASK    (\* = 0xF0, *\) *)
+
+
+let string_of_standardConversionElement = function
+  | SC_IDENTITY        -> "SC_IDENTITY"
+  | SC_LVAL_TO_RVAL    -> "SC_LVAL_TO_RVAL"
+  | SC_ARRAY_TO_PTR    -> "SC_ARRAY_TO_PTR"
+  | SC_FUNC_TO_PTR     -> "SC_FUNC_TO_PTR"
+  | SC_QUAL_CONV       -> "SC_QUAL_CONV"
+  | SC_INT_PROM        -> "SC_INT_PROM"
+  | SC_FLOAT_PROM      -> "SC_FLOAT_PROM"
+  | SC_INT_CONV        -> "SC_INT_CONV"
+  | SC_FLOAT_CONV      -> "SC_FLOAT_CONV"
+  | SC_FLOAT_INT_CONV  -> "SC_FLOAT_INT_CONV"
+  | SC_PTR_CONV        -> "SC_PTR_CONV"
+  | SC_PTR_MEMB_CONV   -> "SC_PTR_MEMB_CONV"
+  | SC_BOOL_CONV       -> "SC_BOOL_CONV"
+  | SC_DERIVED_TO_BASE -> "SC_DERIVED_TO_BASE"
+
+
+type standardConversion = standardConversionElement list
+
+let check_standardConversion scs =
+  if scs = [SC_IDENTITY]
+  then true
+  else if scs = []
+  then false
+  else
+    let rec doit group_1 group_2 group_3 = function
+      | [] -> true
+      | el::els ->
+	  match el with
+	    | SC_IDENTITY
+              -> false
+
+	    (* group 1 *)
+	    | SC_LVAL_TO_RVAL
+	    | SC_ARRAY_TO_PTR
+	    | SC_FUNC_TO_PTR
+	      ->
+		if group_1 then false
+		else doit true group_2 group_3 els
+
+	    (* group 2 *)
+	    | SC_INT_PROM
+	    | SC_FLOAT_PROM
+	    | SC_INT_CONV
+	    | SC_FLOAT_CONV
+	    | SC_FLOAT_INT_CONV
+	    | SC_PTR_CONV
+	    | SC_PTR_MEMB_CONV
+	    | SC_BOOL_CONV
+	    | SC_DERIVED_TO_BASE
+	      ->
+		if group_2 then false
+		else doit group_1 true group_3 els
+
+	    (* group 3 *)
+	    | SC_QUAL_CONV
+	      ->
+		if group_3 then false
+		else doit group_1 group_2 true els
+    in
+      doit false false false scs
+
+let string_of_standardConversion scs =
+  assert(check_standardConversion scs);
+  Elsa_util.string_of_flag_list string_of_standardConversionElement scs
+
+
+(* from implconv.h *)
+type implicitConversion_Kind =
+  |  IC_NONE          (* no conversion possible *)
+  |  IC_STANDARD      (* 13.3.3.1.1: standard conversion sequence *)
+  |  IC_USER_DEFINED  (* 13.3.3.1.2: user-defined conversion sequence *)
+  |  IC_ELLIPSIS      (* 13.3.3.1.3: ellipsis conversion sequence *)
+  |  IC_AMBIGUOUS     (* 13.3.3.1 para 10 *)
+
+
+let string_of_implicitConversionKind = function
+  |  IC_NONE         -> "IC_NONE"
+  |  IC_STANDARD     -> "IC_STANDARD"
+  |  IC_USER_DEFINED -> "IC_USER_DEFINED"
+  |  IC_ELLIPSIS     -> "IC_ELLIPSIS"
+  |  IC_AMBIGUOUS    -> "IC_AMBIGUOUS"

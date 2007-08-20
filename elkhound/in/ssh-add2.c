@@ -18,7 +18,17 @@ ssh-add.c
 /*
  * $Id$
  * $Log$
- * Revision 1.4  2006/11/08 12:44:42  tews
+ * Revision 1.5  2007/08/20 21:24:48  tews
+ * * second attempt for standard conversions
+ * * merge conversion-branch changes
+ * * wrap now nontrivial conversions in E_stdConv nodes around the
+ *   expression in Env::makeConvertedArg
+ * * ocaml reflection adopted
+ * * cc_ml_constructors: sorry for the noise, lots of white space
+ *   changes because of delete-trailing-whitespace
+ * * adoptions in Asttools, cfg
+ *
+ * Revision 1.4  2006-11-08 12:44:42  tews
  * * completed merge with changes from
  *   smbase-484-ast-278-elkhound-1036-elsa-2439, a few issues are
  *   delayed/ignored for a while, see TODO

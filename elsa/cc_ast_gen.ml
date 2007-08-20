@@ -288,6 +288,8 @@ let create_E_grouping_constructor a0 a1 a2 = E_grouping(a0, a1, a2)
 
 let create_E_arrow_constructor a0 a1 a2 a3 = E_arrow(a0, a1, a2, a3)
 
+let create_E_stdConv_constructor a0 a1 a2 a3 a4 = E_stdConv(a0, a1, a2, a3, a4)
+
 let create_E_statement_constructor a0 a1 a2 = E_statement(a0, a1, a2)
 
 let create_E_compoundLit_constructor a0 a1 a2 a3 = E_compoundLit(a0, a1, a2, a3)
@@ -740,6 +742,9 @@ let register_cc_ast_callbacks () =
   Callback.register
     "create_E_arrow_constructor"
     create_E_arrow_constructor;
+  Callback.register
+    "create_E_stdConv_constructor"
+    create_E_stdConv_constructor;
   Callback.register
     "create_E_statement_constructor"
     create_E_statement_constructor;
