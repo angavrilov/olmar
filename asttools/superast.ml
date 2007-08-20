@@ -8,6 +8,7 @@ open Ast_annotation
 open Ast_accessors
 
 type 'a super_ast =
+  | CompilationUnit_type of 'a compilationUnit_type
   | TranslationUnit_type of 'a translationUnit_type
   | TopForm_type of 'a topForm_type
   | Function_type of 'a function_type
@@ -451,8 +452,17 @@ module Into_array = struct
 
   (***************** generated ast nodes ****************)
 
-  and translationUnit_fun ast_array
-      ((annot, topForm_list, scope_opt) as x : annotated translationUnit_type) =
+  and compilationUnit_fun ast_array 
+      ((annot, _name, tu) as x : annotated compilationUnit_type) =
+    if visited annot then ()
+    else begin
+      ast_array.(id_annotation annot) <- CompilationUnit_type x;
+      visit annot;
+      translationUnit_fun ast_array tu
+    end
+
+
+  and translationUnit_fun ast_array ((annot, topForm_list, scope_opt) as x) =
     if visited annot then ()
     else begin
       ast_array.(id_annotation annot) <- TranslationUnit_type x;
@@ -1343,7 +1353,7 @@ end    (* of module Into_array *)
 let into_array max_node ast =
   let ast_array = Array.create (max_node +1) NoAstNode 
   in
-    Into_array.translationUnit_fun ast_array ast;
+    Into_array.compilationUnit_fun ast_array ast;
     assert(let res = ref true
 	   in
 	     for i = 1 to max_node do
@@ -1395,6 +1405,7 @@ let node_loc = function
   | Attribute_type x -> Some(attribute_loc x)
   | Variable v -> Some(v.loc)
 
+  | CompilationUnit_type _
   | TranslationUnit_type _
   | Function_type _
   | MemberInit_type _
@@ -1432,6 +1443,7 @@ let node_loc = function
 
 let node_annotation node = 
   match node with
+    | CompilationUnit_type x -> compilationUnit_annotation x
     | TranslationUnit_type x -> translationUnit_annotation x
     | TopForm_type x -> topForm_annotation x
     | Function_type x -> func_annotation x

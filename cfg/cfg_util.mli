@@ -7,3 +7,5 @@ open Cfg_type
 val fun_id_name : function_id_type -> string
 
 val fun_def_name : function_def -> string
+
+val make_overload_hash : cfg_type -> overload_hash_type

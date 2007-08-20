@@ -151,6 +151,7 @@ let ast_loc_node color annot loc name labels childs =
 
 (***************** colors *****************************)
 
+let color_CompilationUnit = "LightCoral"
 let color_TranslationUnit = "red"
 let color_TF = "firebrick2"
 let color_Declaration = "cyan"
@@ -628,8 +629,17 @@ and scope_fun s =
 
 (***************** generated ast nodes ****************)
 
-and translationUnit_fun 
-          ((annot, topForm_list, scope_opt) : annotated translationUnit_type) =
+and compilationUnit_fun
+    ((annot, name, tu) : annotated compilationUnit_type) =
+  if visited annot then retval annot
+  else begin
+    visit annot;
+    ast_node color_CompilationUnit annot "CompilationUnit" 
+      [("name", name);]
+      [(translationUnit_fun tu, "unit")]
+  end
+
+and translationUnit_fun (annot, topForm_list, scope_opt) =
   if visited annot then retval annot
   else begin
     visit annot;
@@ -1917,9 +1927,9 @@ let mark_all_nodes flag =
 
 let mark_direction ast_array visited dir_fun nodes = 
   let top_scope_opt = match ast_array.(1) with
-    | TranslationUnit_type(_,_, Some(scope)) -> 
+    | CompilationUnit_type(_, _, (_,_, Some(scope))) -> 
 	Some(id_annotation scope.poly_scope)
-    | TranslationUnit_type _ -> None
+    | CompilationUnit_type(_, _, _) -> None
     | _ -> 
 	prerr_endline "Couldn't find top level node at index 1";
 	assert false
@@ -2080,7 +2090,7 @@ let main () =
     print_node := print_node_array;
     List.iter (mark_nodes ast_array up down) sels;
     start_file !file;
-    ignore(translationUnit_fun ast);
+    ignore(compilationUnit_fun ast);
     finish_file ();
     Printf.printf "graph with %d nodes and %d edges generated\n%!"
       !nodes_counter !edge_counter

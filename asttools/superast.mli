@@ -7,6 +7,7 @@ open Cc_ast_gen_type
 open Ast_annotation
 
 type 'a super_ast =
+  | CompilationUnit_type of 'a compilationUnit_type
   | TranslationUnit_type of 'a translationUnit_type
   | TopForm_type of 'a topForm_type
   | Function_type of 'a function_type
@@ -61,7 +62,7 @@ type 'a super_ast =
 
 
 val into_array : 
-  int -> annotated translationUnit_type -> annotated super_ast array
+  int -> annotated compilationUnit_type -> annotated super_ast array
 
 val load_marshaled_ast_array : string -> annotated super_ast array
 

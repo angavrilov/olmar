@@ -11,6 +11,13 @@ open Cc_ast_gen_type;;   (* ast type definition *)
 
 
 (* *********************************************************************
+ * *********** callbacks for CompilationUnit ******************
+ * ********************************************************************* *)
+
+let create_CompilationUnit_tuple a0 a1 a2 = (a0, a1, a2)
+
+
+(* *********************************************************************
  * *********** callbacks for TranslationUnit ******************
  * ********************************************************************* *)
 
@@ -457,6 +464,9 @@ let create_AT_func_constructor a0 a1 a2 a3 = AT_func(a0, a1, a2, a3)
  * ********************************************************************* *)
 
 let register_cc_ast_callbacks () =
+  Callback.register
+    "create_CompilationUnit_tuple"
+    create_CompilationUnit_tuple;
   Callback.register
     "create_TranslationUnit_tuple"
     create_TranslationUnit_tuple;

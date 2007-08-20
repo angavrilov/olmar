@@ -78,7 +78,7 @@ let main () =
   let (_size, ast) = Oast_header.unmarshal_oast !file in
   let res = 
     Memcheck.check !check_flags ast 
-      (translationUnit_type_type_descr annotated_type_descr)
+      (compilationUnit_type_type_descr annotated_type_descr)
   in
     exit (if res then 0 else 1)
 ;;

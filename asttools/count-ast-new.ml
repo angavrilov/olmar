@@ -256,8 +256,11 @@ let ast_node_fun = function
 	  (fun str _var -> string_fun str)
 	  s.type_tags
 
-  | TranslationUnit_type((_annot, _topForm_list, _scope_opt) 
-			   as _x : annotated translationUnit_type) ->
+  | CompilationUnit_type((_annot, name, _tu)
+			   as _x : annotated compilationUnit_type) ->
+      string_fun name
+
+  | TranslationUnit_type(_annot, _topForm_list, _scope_opt) ->
       ()
 
   | TopForm_type(TF_decl(_annot, sourceLoc, _declaration)) -> 

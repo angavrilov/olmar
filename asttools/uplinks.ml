@@ -310,6 +310,12 @@ let ast_node_fun up down myindex = function
 		(opt_link compound_info_annotation !(s.scope_compound) [])))
 
 
+  (* 166 *)
+  | CompilationUnit_type((_annot, _name, tu)
+			   as _x : annotated compilationUnit_type) ->
+      add_links up down myindex
+	[translationUnit_annotation tu]
+
   (* 27 *)
   | TranslationUnit_type((_annot, topForm_list, scope_opt) 
 			   as _x : annotated translationUnit_type) ->
@@ -1235,6 +1241,9 @@ let ast_node_fun up down myindex = function
    * 
    * (\* 165 *\)
    * | CType(DependentSizeArrayType(_annot, cType, size_expr)) ->
+   * 
+   * (\* 166 *\)
+   * | CompilationUnit_type((_annot, name, tu)
    *)
 
 

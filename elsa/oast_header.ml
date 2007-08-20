@@ -24,7 +24,7 @@ let read_header ic =
     (Marshal.from_channel ic : int)
 
 
-let marshal_oast (u : annotated translationUnit_type) fname =
+let marshal_oast (u : annotated compilationUnit_type) fname =
   let oc = open_out fname 
   in
     output_header oc (max_annotation());
@@ -44,7 +44,7 @@ let unmarshal_oast file =
   in
     try
       let max_node = read_header ic in
-      let ast = (Marshal.from_channel ic : annotated translationUnit_type)
+      let ast = (Marshal.from_channel ic : annotated compilationUnit_type)
       in
 	close_in ic;
 	(max_node, ast)

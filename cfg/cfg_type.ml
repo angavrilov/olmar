@@ -40,3 +40,6 @@ type function_entry =
       sourceLoc * bool ref
 
 type cfg_type = (function_id_type, function_def) Hashtbl.t
+
+
+type overload_hash_type = (string, function_id_type list) Hashtbl.t

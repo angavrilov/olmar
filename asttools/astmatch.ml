@@ -298,8 +298,12 @@ let ast_node_fun = function
 	  s.type_tags;
 	scopeKind_fun s.scope_kind
 
-  | TranslationUnit_type((annot, topForm_list, scope_opt) 
-			   as x : annotated translationUnit_type) ->
+  | CompilationUnit_type((annot, name, tu)
+			   as x : annotated compilationUnit_type) ->
+      annotation_fun annot;
+      string_fun name;
+
+  | TranslationUnit_type(annot, topForm_list, scope_opt) ->
       annotation_fun annot;
 
   | TopForm_type(TF_decl(annot, sourceLoc, declaration)) -> 

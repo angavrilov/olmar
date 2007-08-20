@@ -7,6 +7,7 @@ all:
 	$(MAKE) -C elkhound
 	$(MAKE) -C elsa
 	$(MAKE) -C asttools all
+	$(MAKE) -C cfg all
 
 check:
 	$(MAKE) -C smbase check
@@ -14,6 +15,7 @@ check:
 	$(MAKE) -C elkhound check
 	$(MAKE) -C elsa check
 	$(MAKE) -C asttools check
+	$(MAKE) -C cfg check
 
 clean:
 	$(MAKE) -C smbase clean
@@ -21,6 +23,7 @@ clean:
 	$(MAKE) -C elkhound clean
 	$(MAKE) -C elsa clean
 	$(MAKE) -C asttools clean
+	$(MAKE) -C cfg clean
 
 # I generate distributions out of cvs, where there are no Makefiles
 distclean:
@@ -29,6 +32,7 @@ distclean:
 	$(MAKE) -C elkhound -f Makefile.in distclean
 	$(MAKE) -C elsa -f Makefile.in distclean
 	$(MAKE) -C asttools -f Makefile.in distclean
+	$(MAKE) -C cfg -f Makefile.in distclean
 	rm -rf test semantic TODO cvsanon-filter
 
 doc:
@@ -37,6 +41,7 @@ doc:
 	$(MAKE) -C elkhound doc
 	$(MAKE) -C elsa doc
 	$(MAKE) -C asttools doc
+	$(MAKE) -C cfg doc
 
 docclean:
 	$(MAKE) -C smbase docclean
@@ -44,6 +49,7 @@ docclean:
 	$(MAKE) -C elkhound docclean
 	$(MAKE) -C elsa docclean
 	$(MAKE) -C asttools docclean
+	$(MAKE) -C cfg docclean
 
 stable:
 	cvs tag -d latest-stable

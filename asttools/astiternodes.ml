@@ -378,8 +378,16 @@ and scope_fun s =
 
 (***************** generated ast nodes ****************)
 
-and translationUnit_fun 
-    ((annot, topForm_list, scope_opt) as x : annotated translationUnit_type) =
+and compilationUnit_fun
+    ((annot, name, tu) as x : annotated compilationUnit_type) =
+  if visited annot then ()
+  else begin
+    visit annot;
+    translationUnit_fun tu
+  end
+
+
+and translationUnit_fun (annot, topForm_list, scope_opt) =
   if visited annot then ()
   else begin
     visit annot;

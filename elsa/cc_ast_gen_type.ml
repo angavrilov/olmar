@@ -15,7 +15,9 @@
   open Ml_ctype;;
 (* ocaml type verbatim end *)
 
-type 'a translationUnit_type = 'a * 'a topForm_type list * 'a scope option 
+type 'a compilationUnit_type = 'a * stringRef * 'a translationUnit_type 
+
+and 'a translationUnit_type = 'a * 'a topForm_type list * 'a scope option 
 
 and 'a topForm_type = 
   | TF_decl of 'a * sourceLoc * 'a declaration_type 

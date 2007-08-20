@@ -216,6 +216,9 @@ void marshal_to_ocaml(char ** argv, const char * inputFname,
 		      TranslationUnit *unit){
   CAMLparam0();
   CAMLlocal2(ocaml_unit, of);
+  // Put the translation unit into a compilation unit.
+  CompilationUnit cu(inputFname);
+  cu.unit = unit;
 
   if (!caml_start_up_done){
     caml_startup(argv);
@@ -229,10 +232,10 @@ void marshal_to_ocaml(char ** argv, const char * inputFname,
   { // start a block here to limit the livetime of ocaml_data
     ToOcamlData ocaml_data;
 
-    ocaml_unit = unit->toOcaml(&ocaml_data);
+    ocaml_unit = cu.toOcaml(&ocaml_data);
     xassert(ocaml_data.stack.size() == 0);
     finish_circular_pointers(&ocaml_data);
-    unit->detachOcaml();
+    cu.detachOcaml();
   }
 #ifdef DEBUG_CAML_GLOBAL_ROOTS
   check_caml_root_status();

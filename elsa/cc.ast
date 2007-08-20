@@ -74,6 +74,19 @@ option identityManager IdentityManager;
 option gdb;
 
 
+// a whole compilation unit
+// HT: cannot use TranslationUnit because it is used in TF_linkage
+class CompilationUnit (
+  StringRef name			// name of the source file
+  ) {
+  // HT: annotate the unit as xml: That's the only way I found to
+  // - reflect unit to Ocaml
+  // - make it serf  and don't destroy it in the destructor
+  // - avoid a PRINT_GENERIC (which gives compilation errors) on it
+  public(xml) TranslationUnit * unit = NULL;
+};
+
+
 // ---------------- file -------------
 // an entire file (with #included stuff) of toplevel forms; I use
 // an ASTList here because I want to use left recursion, and

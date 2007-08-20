@@ -3,9 +3,9 @@ digraph "CFG" {
   edge [ arrowtail=odot ];
     "0" [label="Z::constructor-special\nArg 1: int\nfile: test/t007.cc\nline 7"]
     "0" -> "1";
-    "3" [label="Z::~Z\nfile: test/t007.cc\nline 5"]
-    "2" [label="CU test/t007.oast\nfile: test/t007.oast\nline 1"]
+    "2" [label="CU test/t007.cc\nfile: test/t007.cc\nline 1"]
     "2" -> "3";
     "2" -> "0";
+    "3" [label="Z::~Z\nfile: test/t007.cc\nline 5"]
     "1" [label="printf\nArg 1: pointer(const(char))"]
 }

@@ -245,8 +245,14 @@ and sTemplateArgument_fun = function
 
 (***************** generated ast nodes ****************)
 
-and translationUnit_fun 
-                      ((annot, topForm_list) : annotated translationUnit_type) =
+and compilationUnit_fun
+    ((annot, name, tu) as x : annotated compilationUnit_type) =
+  (annotation_fun annot,
+   string_fun name,
+   translationUnit_fun tu)
+
+
+and translationUnit_fun (annot, topForm_list) =
   (annotation_fun annot, 
    List.map topForm_fun topForm_list)
 

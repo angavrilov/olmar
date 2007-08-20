@@ -71,6 +71,9 @@ let sTemplateArgument_annotation = function
   | STA_ATOMIC(annot, _) ->
       annot
 
+let compilationUnit_annotation ((annot, _, _) : 'a compilationUnit_type) =
+  annot
+
 let translationUnit_annotation ((annot, _, _) : 'a translationUnit_type) =
   annot
 

@@ -469,8 +469,17 @@ and scope_fun s =
 
 (***************** generated ast nodes ****************)
 
-and translationUnit_fun 
-    ((annot, topForm_list, scope_opt)  : annotated translationUnit_type) =
+and compilationUnit_fun
+    ((annot, name, tu) : annotated compilationUnit_type) =
+  if visited annot then ()
+  else begin
+    visit annot;
+    string_fun name;
+    translationUnit_fun tu
+  end
+      
+
+and translationUnit_fun (annot, topForm_list, scope_opt) =
   if visited annot then ()
   else begin
     visit annot;
@@ -1490,11 +1499,9 @@ let main () =
   Arg.parse arguments anonfun usage_msg;
   if not !file_set then
     usage();				(* does not return *)
-  let ic = open_in !file in
-  let o_max_node = Oast_header.read_header ic in
-  let ast = (Marshal.from_channel ic : annotated translationUnit_type)
+  let (o_max_node, ast) = Oast_header.unmarshal_oast !file 
   in
-    translationUnit_fun ast;
+    compilationUnit_fun ast;
     print_stats o_max_node
 ;;
 

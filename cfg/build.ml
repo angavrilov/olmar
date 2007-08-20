@@ -492,7 +492,20 @@ let opt_iter f = function
   | Some x -> f x
 
 
-let rec translationUnit_fun comp_unit
+let rec compilationUnit_fun 
+    ((_annot, name, tu) : annotated compilationUnit_type) =
+  let comp_unit_id = {
+    name = ["CU " ^ name];
+    param_types = []
+  } in
+  let comp_unit_loc = (name, 1, 0) in
+  let comp_unit = function_def comp_unit_id comp_unit_loc name
+  in
+    translationUnit_fun comp_unit tu;
+    finish_fun_call comp_unit
+
+
+and translationUnit_fun comp_unit
     ((_annot, topForm_list, _scope_opt)  : annotated translationUnit_type) =
   List.iter (topForm_fun comp_unit) topForm_list
 
@@ -1007,16 +1020,9 @@ let print_gc_stat () =
 
 let do_file file =
   let _ = current_oast := file in
-  let (_, ast) = Oast_header.unmarshal_oast file in
-  let comp_unit_id = {
-    name = ["CU " ^ file];
-    param_types = []
-  } in
-  let comp_unit_loc = (file, 1, 0) in
-  let comp_unit = function_def comp_unit_id comp_unit_loc file
+  let (_, ast) = Oast_header.unmarshal_oast file
   in
-    translationUnit_fun comp_unit ast;
-    finish_fun_call comp_unit
+    compilationUnit_fun ast
 
 
 let do_file_gc file =

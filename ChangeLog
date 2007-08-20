@@ -1,3 +1,13 @@
+2007-08-20  Hendrik Tews  <tews@tandem.cs.ru.nl>
+
+        * added cfg to toplevel Makfile
+
+        Elsa:
+        * added node CompilationUnit as top node to every ocaml ast
+
+        Asttools/cfg:
+        * adjustments
+
 2007-08-17  Hendrik Tews  <tews@tandem.cs.ru.nl>
 
         CFG
