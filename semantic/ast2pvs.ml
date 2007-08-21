@@ -42,11 +42,18 @@
 (*   is a type" view, or the "composition of members" view?  Note that the   *)
 (*   former, due to what could be considered a deficiency in our PVS C++     *)
 (*   memory model, will not allow compound types to contain padding (i.e.    *)
-(*   bits that are never affected by write operations).                      *)
+(*   bits that are never affected by write operations).  Edit: default       *)
+(*   constructors take an address (although in C++/Elsa, they technically    *)
+(*   take no argument at all) and return an object.  This can be achieved    *)
+(*   only through interpreting the memory contents at the address as an      *)
+(*   object, i.e. we need the from_byte function provided by                 *)
+(*   interpreted_data_type? .                                                *)
 (* - (Non-static, non-constructor) member functions in the AST take an extra *)
 (*   "receiver" argument which is a reference to the associated object.  We  *)
 (*   treat references as addresses; unlike pointers, they are never stored   *)
 (*   in memory directly.                                                     *)
+(* - If a function's body does not end with a return statement, we append a  *)
+(*   "return_void" statement when the function body is rendered.             *)
 
 (* TODO: most AST constructors are not translated yet.  For some, "assert    *)
 (*       false" will raise an exception, but others are just ignored         *)
@@ -59,9 +66,7 @@
 (*         whitespace, certain comments etc.                                 *)
 (*       - It would be nice if the pre-/postcondition was taken from an      *)
 (*         annotation in the C++ program.                                    *)
-(*       - "Flowing off" the end of a void function is not permitted.  We    *)
-(*         could easily fix this by appending a return_unit statement in     *)
-(*         case a void function ends with a different statement.             *)
+(*       - arrays                                                            *)
 
 (* flag for debug output *)
 
@@ -219,8 +224,8 @@ let string_of_simpleTypeId = function
   | ST_LONG_DOUBLE_IMAGINARY -> assert false; "long double imaginary"
   | ST_VOID                  -> "void"
   (* encoding "hacks" *)
-  | ST_ELLIPSIS              -> ">>>>>ellipsis<<<<<"  (*TODO*)
-  | ST_CDTOR                 -> ">>>>>cdtor<<<<<"  (*TODO*)
+  | ST_ELLIPSIS              -> assert false; ">>>>>ellipsis<<<<<"  (*TODO*)
+  | ST_CDTOR                 -> assert false; ">>>>>cdtor<<<<<"  (*TODO*)
   | ST_ERROR                 -> assert false; "error"
   | ST_DEPENDENT             -> assert false; "dependent"
   | ST_IMPLINT               -> assert false; "implint"
@@ -242,38 +247,38 @@ let string_of_simpleTypeId = function
   | ST_PRET_SECOND_PTR2REF   -> assert false; "pret second ptr2ref"
 
 let string_of_declFlag = function
-  | DF_AUTO         		-> "auto"
-  | DF_REGISTER     		-> "register"
-  | DF_STATIC       		-> "static"
-  | DF_EXTERN       		-> "extern"
-  | DF_MUTABLE      		-> "mutable"
-  | DF_INLINE       		-> "inline"
-  | DF_VIRTUAL      		-> "virtual"
-  | DF_EXPLICIT     		-> "explicit"
-  | DF_FRIEND       		-> "friend"
-  | DF_TYPEDEF      		-> "typedef"
-  | DF_NAMESPACE    		-> "namespace"
-  | DF_ENUMERATOR   		-> "enumerator"
-  | DF_GLOBAL       		-> "global"
-  | DF_INITIALIZED  		-> "initialized"
-  | DF_BUILTIN      		-> "builtin"
-  | DF_PARAMETER    		-> "parameter"
-  | DF_MEMBER       		-> "member"
-  | DF_DEFINITION   		-> "definition"
-  | DF_INLINE_DEFN  		-> "inline_defn"
-  | DF_IMPLICIT     		-> "implicit"
-  | DF_FORWARD      		-> "forward"
-  | DF_TEMPORARY    		-> "temporary"
-  | DF_EXTERN_C     		-> "extern_c"
-  | DF_SELFNAME     		-> "selfname"
-  | DF_BOUND_TPARAM 		-> "bound_tparam"
-  | DF_TEMPL_PARAM  		-> "templ_param"
-  | DF_USING_ALIAS  		-> "using_alias"
-  | DF_BITFIELD     		-> "bitfield"
-  | DF_GNU_EXTERN_INLINE 	-> "gnu extern inline"
-  | DF_ADDRTAKEN		-> "addrtaken"
-  | DF_UNIVERSAL		-> "universal"
-  | DF_EXISTENTIAL		-> "existential"
+  | DF_AUTO         		-> assert false; "auto"
+  | DF_REGISTER     		-> assert false; "register"
+  | DF_STATIC       		-> assert false; "static"
+  | DF_EXTERN       		-> assert false; "extern"
+  | DF_MUTABLE      		-> assert false; "mutable"
+  | DF_INLINE       		-> assert false; "inline"
+  | DF_VIRTUAL      		-> assert false; "virtual"
+  | DF_EXPLICIT     		-> assert false; "explicit"
+  | DF_FRIEND       		-> assert false; "friend"
+  | DF_TYPEDEF      		-> assert false; "typedef"
+  | DF_NAMESPACE    		-> assert false; "namespace"
+  | DF_ENUMERATOR   		-> assert false; "enumerator"
+  | DF_GLOBAL       		-> assert false; "global"
+  | DF_INITIALIZED  		-> assert false; "initialized"
+  | DF_BUILTIN      		-> assert false; "builtin"
+  | DF_PARAMETER    		-> assert false; "parameter"
+  | DF_MEMBER       		-> assert false; "member"
+  | DF_DEFINITION   		-> assert false; "definition"
+  | DF_INLINE_DEFN  		-> assert false; "inline_defn"
+  | DF_IMPLICIT     		-> assert false; "implicit"
+  | DF_FORWARD      		-> assert false; "forward"
+  | DF_TEMPORARY    		-> assert false; "temporary"
+  | DF_EXTERN_C     		-> assert false; "extern_c"
+  | DF_SELFNAME     		-> assert false; "selfname"
+  | DF_BOUND_TPARAM 		-> assert false; "bound_tparam"
+  | DF_TEMPL_PARAM  		-> assert false; "templ_param"
+  | DF_USING_ALIAS  		-> assert false; "using_alias"
+  | DF_BITFIELD     		-> assert false; "bitfield"
+  | DF_GNU_EXTERN_INLINE 	-> assert false; "gnu extern inline"
+  | DF_ADDRTAKEN		-> assert false; "addrtaken"
+  | DF_UNIVERSAL		-> assert false; "universal"
+  | DF_EXISTENTIAL		-> assert false; "existential"
 
 
 (* ------------------------------------------------------------------------- *)
@@ -433,33 +438,32 @@ let rec variable_fun (v : annotated variable) =
   }
   in
     trace "variable_fun(";
-    if Option.isSome v.var_name then
-      begin
-	Option.app string_fun v.var_name;
-(*
-	Format.print_string "_";
-	Format.print_int (id_annotation v.poly_var);
-*)
-      end;
-    trace ")";
-(*
+    (match v.var_name with
+      | Some s -> string_fun s;
+	  (*
+	    Format.print_string "_";
+	    Format.print_int (id_annotation v.poly_var);
+	  *)
+      | None   -> assert false);
+    (*
     (* POSSIBLY CIRCULAR *)
-    Option.app cType_fun !(v.var_type);
-    declFlags_fun v.flags;
+      Option.app cType_fun !(v.var_type);
+      declFlags_fun v.flags;
     (* POSSIBLY CIRCULAR *)
-    Option.app expression_fun !(v.value);
-    Option.app cType_fun v.defaultParam;
+      Option.app expression_fun !(v.value);
+      Option.app cType_fun v.defaultParam;
 
     (* POSSIBLY CIRCULAR *)
-    Option.app func_fun !(v.funcDefn);
+      Option.app func_fun !(v.funcDefn);
     (* POSSIBLY CIRCULAR *)
-    List.iter variable_fun !(v.overload);
-    List.iter variable_fun v.virtuallyOverride;
-*)
-    Option.app scope_fun v.scope;
-(*
-    Option.app templ_info_fun v.templ_info;
-*)
+      List.iter variable_fun !(v.overload);
+      List.iter variable_fun v.virtuallyOverride;
+
+      Option.app scope_fun v.scope;
+
+      Option.app templ_info_fun v.templ_info;
+    *)
+    trace ")";
 
 (**************** templateInfo ************************)
 
@@ -868,23 +872,12 @@ and topForm_fun x =
 	trace ")";
 
 
-(* pQName: name of enclosing class *)
-and member_func_fun pQName
-    (annot, declFlags, typeSpecifier, declarator, memberInit_list,
-    s_compound_opt, handler_list, func, variable_opt_1,
-    variable_opt_2, statement_opt, bool) =
-  trace "member_func_fun(";
-  func_fun (annot, declFlags, typeSpecifier, declarator, memberInit_list,
-	   s_compound_opt, handler_list, func, variable_opt_1,
-	   variable_opt_2, statement_opt, bool);
-  trace ")";
-
-
 and func_fun (annot, declFlags, typeSpecifier, declarator, memberInit_list,
 	     s_compound_opt, handler_list, func, variable_opt_1,
 	     variable_opt_2, statement_opt, bool) =
   begin
     trace "func_fun(";
+
     assert(match s_compound_opt with
       | None -> true
       | Some (S_compound _) -> true
@@ -917,37 +910,85 @@ and func_fun (annot, declFlags, typeSpecifier, declarator, memberInit_list,
     assert (Option.isSome s_compound_opt);
     Option.app statement_fun s_compound_opt;
 
+    (match declarator with (_, _, _, variable_opt, _, _, _, _) ->
+      if (Option.valOf variable_opt).var_name = Some "constructor_special" then
+	(* append return statement to the function body if this function is a constructor *)
+	begin
+	  Format.printf " ##@\nreturn(read_data(pm, dt_";
+	  Format.print_string
+	    (enclosing_classname_of_member (Option.valOf variable_opt));
+	  Format.printf ")(receiver))";
+	end
+      else
+	(* append "return_void" to the function body if necessary *)
+	(match s_compound_opt with
+	  | Some (S_compound (_, _, statement_list)) ->
+	      if List.length statement_list = 0 ||
+		(match last statement_list with
+		  | S_return _ -> false
+		  | _ -> true) then
+		Format.printf " ##@\nreturn_void";
+	  | _ ->
+	      assert false)
+    );
+
     Format.printf "@]@\n@\n";
 
     (* call function: call_f(expressions) = ... *)
 
     Format.printf "@[<2>call_";
 
-    (fun (annot, iDeclarator, init_opt, variable_opt, ctype_opt,
-	 declaratorContext, statement_opt_ctor, statement_opt_dtor) ->
+    (match declarator with
+	(annot, iDeclarator, init_opt, variable_opt, ctype_opt,
+	declaratorContext, statement_opt_ctor, statement_opt_dtor) ->
 
       (* name of function *)
       Option.app variable_fun variable_opt;
+      (* append the class name in case it's a constructor or assignment
+	 operator *)
+      if (Option.valOf variable_opt).var_name = Some "constructor_special"
+	|| (Option.valOf variable_opt).var_name = Some "operator="
+      then
+	begin
+	  Format.print_string "_";
+	  Format.print_string
+	    (enclosing_classname_of_member (Option.valOf variable_opt));
+	end;
       Format.printf "@[<2>";
       (* arguments of function *)
-      Option.app (function
-	| FunctionType (_, _, _, variable_list, _) ->
-	    if List.length variable_list > 0 then
-	      begin
-		Format.printf "@[<2>(";
-		separate (fun v ->
-		  Format.printf "@[<2>";
-		  assert (Option.isSome v.var_name);
-		  variable_fun v;
-		  Format.printf "@ :@ ET[State,@ Semantics_";
-		  assert (Option.isSome !(v.var_type));
-		  Option.app cType_fun !(v.var_type);
-		  Format.printf "]@]")
-		  (fun () -> Format.printf ",@ ") variable_list;
-		Format.printf ")@]";
-	      end;
+      (match ctype_opt with
+	| Some (FunctionType (_, _, _, variable_list, _)) ->
+	    let 
+		var_opt_list = List.map (fun x -> Some x) variable_list
+	    in let
+		var_list = if (Option.valOf variable_opt).var_name =
+		  Some "constructor_special" then
+		  None :: var_opt_list else var_opt_list
+	    in
+		 if List.length var_list > 0 then
+		   begin
+		     Format.printf "@[<2>(";
+		     separate (fun v ->
+		       (match v with
+			 | Some var ->
+			     Format.printf "@[<2>";
+			     variable_fun var;
+			     Format.printf "@ :@ ET[State,@ Semantics_";
+			     assert (Option.isSome !(var.var_type));
+			     Option.app cType_fun !(var.var_type);
+			     Format.printf "]@]";
+			 | None     ->
+			     Format.printf
+			       "@[<2>receiver@ :@ ET[State,@ Semantics_reference[dt_";
+			     Format.print_string
+			       (enclosing_classname_of_member (Option.valOf variable_opt));
+			     Format.printf "]]@]";
+		       ))
+		       (fun () -> Format.printf ",@ ") var_list;
+		     Format.printf ")@]";
+		   end;
 	| _ ->
-	    assert false) ctype_opt;
+	    assert false);
       Format.printf "@ :@ ET[State,@ Semantics_";
       (* remainder of return value type *)
       (* TODO: is this different from the return type? What does
@@ -960,69 +1001,93 @@ and func_fun (annot, declFlags, typeSpecifier, declarator, memberInit_list,
       Format.printf "]@ =@]@\n";
 
       (* arguments of function *)
-      Option.app (function
-	| FunctionType (_, _, _, variable_list, _) ->
-	    if List.length variable_list > 0 then
-	      begin
-		List.iter (fun v ->
-(*
-		  if Option.valOf v.var_name = "__receiver" then
-		      Format.printf "@[<2>receiver ##@ (@[<2>lambda@ @[<2>(receiver_addr@ :@ Address)@]@]:@\n"
-		  else
-*)
-		  (*reference arguments are not copied onto the stack*)
-		  let has_reference_type v =
-		    match Option.valOf !(v.var_type) with
-		      | ReferenceType _ -> true
-		      | _ -> false
-		  in
-		    if has_reference_type v then
-			begin
-			  Format.printf "@[<2>";
-			  variable_fun v;
-			  Format.printf "@ ##@ @[<2>(lambda@ @[<2>(";
-			  variable_fun v;
-			  Format.printf "_addr@ :@ Address)@]@]:@\n";
-			end
-		    else
-			begin
-			  Format.printf "@[<2>with_new_stackvar(@[<2>lambda@ @[<2>(";
-			  variable_fun v;
-			  Format.printf "_addr@ :@ Address)@]@]:@\n";
-			  Format.printf "@[<2>e2s(assign(pm, dt_";
-			  assert (Option.isSome !(v.var_type));
-			  Option.app cType_fun !(v.var_type);
-			  Format.printf ")(id(";
-			  variable_fun v;
-			  Format.printf "_addr),@ ";
-			  variable_fun v;
-			  Format.printf "))@] ##@\n";
-			end)
-		  (* evaluation order in gcc is right to left *)
-		  (List.rev variable_list);
-	      end;
+      (match ctype_opt with
+	| Some (FunctionType (_, _, _, variable_list, _)) ->
+	    let 
+		var_opt_list = List.map (fun x -> Some x) variable_list
+	    in let
+		var_list = if (Option.valOf variable_opt).var_name =
+		  Some "constructor_special" then
+		  None :: var_opt_list else var_opt_list
+	    in
+		 if List.length var_list > 0 then
+		   List.iter (fun v ->
+		     (match v with
+		       | Some var ->
+			   (*reference arguments are not copied onto the stack*)
+			   let has_reference_type var =
+			     match Option.valOf !(var.var_type) with
+			       | ReferenceType _ -> true
+			       | _ -> false
+			   in
+			     if has_reference_type var then
+			       begin
+				 Format.printf "@[<2>";
+				 variable_fun var;
+				 Format.printf "@ ##@ @[<2>(lambda@ @[<2>(";
+				 variable_fun var;
+				 Format.printf "_addr@ :@ Address)@]@]:@\n";
+			       end
+			     else
+			       begin
+				 Format.printf "@[<2>with_new_stackvar(@[<2>lambda@ @[<2>(";
+				 variable_fun var;
+				 Format.printf "_addr@ :@ Address)@]@]:@\n";
+				 Format.printf "@[<2>e2s(assign(pm, dt_";
+				 assert (Option.isSome !(var.var_type));
+				 Option.app cType_fun !(var.var_type);
+				 Format.printf ")(id(";
+				 variable_fun var;
+				 Format.printf "_addr),@ ";
+				 variable_fun var;
+				 Format.printf "))@] ##@\n";
+			       end
+		       | None ->
+			   Format.printf "@[<2>receiver@ ##@ @[<2>(lambda@ @[<2>(receiver_addr@ :@ Address)@]@]:@\n"))
+		     (* evaluation order in gcc is right to left *)
+		     (List.rev var_list);
 	| _ ->
-	    assert false) ctype_opt;
+	    assert false);
 
       (* name of function *)
       Option.app variable_fun variable_opt;
+      (* append the class name in case it's a constructor or assignment
+	 operator *)
+      if (Option.valOf variable_opt).var_name = Some "constructor_special"
+	|| (Option.valOf variable_opt).var_name = Some "operator="
+      then
+	begin
+	  Format.print_string "_";
+	  Format.print_string
+	    (enclosing_classname_of_member (Option.valOf variable_opt));
+	end;
       (* arguments of function *)
-      Option.app (function
-	| FunctionType (_, _, _, variable_list, _) ->
-	    if List.length variable_list > 0 then
-	      begin
-		Format.printf "@[<2>(";
-		separate (fun v ->
-		  variable_fun v;
-		  Format.print_string "_addr")
-		  (fun () -> Format.printf ",@ ") variable_list;
-		Format.printf ")@]";
-		List.iter (fun _ -> Format.printf ")@]") variable_list;
-	      end;
+      (match ctype_opt with 
+	| Some (FunctionType (_, _, _, variable_list, _)) ->
+	    let 
+		var_opt_list = List.map (fun x -> Some x) variable_list
+	    in let
+		var_list = if (Option.valOf variable_opt).var_name =
+		  Some "constructor_special" then
+		  None :: var_opt_list else var_opt_list
+	    in
+		 if List.length var_list > 0 then
+		   begin
+		     Format.printf "@[<2>(";
+		     separate (fun v ->
+		       (match v with
+			 | Some var ->
+			     variable_fun var;
+			     Format.print_string "_addr";
+			 | None ->
+			     Format.print_string "receiver_addr";
+		       )) (fun () -> Format.printf ",@ ") var_list;
+		     Format.printf ")@]";
+		     List.iter (fun _ -> Format.printf ")@]") var_list;
+		   end;
 	| _ ->
-	    assert false) ctype_opt;
-
-    ) declarator;
+	    assert false);
+    );
 
     Format.printf " ##@\n";
     Format.print_string "catch_return";
@@ -1034,37 +1099,41 @@ and func_fun (annot, declFlags, typeSpecifier, declarator, memberInit_list,
 
     (* TODO: what is this? contains return type, argument list - how is this
              different from the information in declarator? *)
-    (*cType_fun func;*)
+    (*
+      cType_fun func;
+    *)
+
+    (* TODO: what is this; a "receiver" variable in case of member functions? *)
+    (*
+      Option.app variable_fun v variable_opt_1;
+    *)
+
+    (* TODO: what is this; a "<retVar>" variable in case of constructors? *)
+    (*
+      Option.app variable_fun variable_opt_2;
+    *)
+
+    (* TODO: what is this; an empty compound statement for trivial destructors? *)
+    assert (match statement_opt with
+      | None -> true
+      | Some (S_compound (_, _, [])) -> true
+      | _ -> false);
+    (*
+      Option.app statement_fun statement_opt;
+    *)
 
     (* TODO: what is this? *)
-(*
-    Option.app (fun v ->
-      Format.printf ">>>>>";
-      variable_fun v;
-      Format.printf "<<<<<") variable_opt_1;
-*)
-
-    (* TODO: what is this? *)
-(*
-    Option.app (fun v ->
-      Format.printf ">>>>>";
-      variable_fun v;
-      Format.printf "<<<<<") variable_opt_2;
-*)
-
-    (* TODO: what is this? *)
-(*
-    Option.app (fun s ->
-      Format.printf ">>>>>";
-      statement_fun s;
-      Format.printf "<<<<<") statement_opt;
-*)
-
-    (* TODO: what is this? *)
-    (*bool_fun bool;*)
+    (*
+      bool_fun bool;
+    *)
 
     trace ")";
   end
+
+
+and enclosing_classname_of_member (v : annotated variable) : string =
+  Option.valOf
+    (Option.valOf !((Option.valOf v.scope).scope_compound)).compound_name
 
 
 and memberInit_fun (annot, pQName, argExpression_list, 
@@ -1084,21 +1153,29 @@ and memberInit_fun (annot, pQName, argExpression_list,
 	  Option.app cType_fun !(variable.var_type);
       | _ ->
 	  assert false) pQName;
-    Format.printf ")(@[<2>member(@[<2>id(receiver),@ offsets_CLASSTYPE`";
-    pQName_fun pQName;
+    Format.printf ")(@[<2>member(@[<2>id(receiver),@ offsets_";
+    (* class type *)
+    Format.print_string
+      (enclosing_classname_of_member (Option.valOf variable_opt_1));
+    Format.print_string  "`";
+    pQName_fun pQName;  (* name of member *)
     Format.printf "@]),@ ";
     assert (List.length argExpression_list = 1);
     List.iter argExpression_fun argExpression_list;
     Format.printf "@])) ##@\n";
-    (* ?
-    Option.app variable_fun variable_opt_1;
-    Option.app atomicType_fun compound_opt;
-    Option.app variable_fun variable_opt_2;
-    fullExpressionAnnot_fun full_expr_annot;
-    *)
+
+    (* TODO: ? *)
+    (* is this different from pQName ? *)
+    assert (Option.isSome variable_opt_1);
+    assert (not (Option.isSome compound_opt));
+    assert (not (Option.isSome variable_opt_2));
     assert (not (Option.isSome statement_opt));
-    (* ?
-    Option.app statement_fun statement_opt;
+    (*
+      Option.app variable_fun variable_opt_1;
+      Option.app atomicType_fun compound_opt;
+      Option.app variable_fun variable_opt_2;
+      fullExpressionAnnot_fun full_expr_annot;
+      Option.app statement_fun statement_opt;
     *)
     trace ")";
   end
@@ -1140,24 +1217,9 @@ and declaration_fun (annot, declFlags, typeSpecifier, declarator_list) =
   end
 
 
-(* pQName: name of enclosing class *)
-and member_declaration_fun pQName
-    (annot, declFlags, typeSpecifier, declarator_list) =
-  begin
-    trace "member_declaration_fun(";
-    (*member variable declarations are handled at the class node*)
-    (*
-    Format.printf "@[<2>";
-    separate (member_declarator_fun pQName)
-      (fun () -> Format.printf ",@ ") declarator_list;
-    Format.printf "@ :@ nat@]";
-    *)
-    trace ")";
-  end
-
-
 and aSTTypeId_fun (annot, typeSpecifier, declarator) =
   begin
+    assert false;
     annotation_fun annot;
     typeSpecifier_fun typeSpecifier;
     declarator_fun declarator
@@ -1294,12 +1356,10 @@ and typeSpecifier_fun x =
 	  end;
 	Format.printf "@]@\n";
 
-	(* dt_<type> : (uninterpreted_data_type?) *)
-	(* since we define access member-wise, the datatype itself is *)
-	(* currently left uninterpreted                               *)
+	(* dt_<type> : (interpreted_data_type?) *)
 	Format.printf "@[<2>dt_";
 	Option.app pQName_fun pQName_opt;  (* name of class type *)
-	Format.printf "@ :@ (uninterpreted_data_type?)@]@\n@\n";
+	Format.printf "@ :@ (interpreted_data_type?)@]@\n@\n";
 
 	(* offsets_<type> : [# ... #] *)
 	Format.printf "@[<2>offsets_";
@@ -1388,7 +1448,7 @@ and typeSpecifier_fun x =
 	Format.printf "@\n";
 
 	(* print member functions *)
-	memberList_fun (Option.valOf pQName_opt) memberList;
+	memberList_fun memberList;
 
 	(*atomicType_fun compoundType;*)  (* same as pQName_opt ??? *)
 	trace ")";
@@ -1463,30 +1523,28 @@ and enumerator_fun (annot, sourceLoc, stringRef,
   end
 
 
-(* pQName: name of enclosing class *)
-and memberList_fun pQName (annot, member_list) =
+and memberList_fun (annot, member_list) =
   begin
     trace "memberList_fun(";
-    separate (member_fun pQName) (fun () -> Format.printf "@\n@\n")
+    separate member_fun (fun () -> Format.printf "@\n@\n")
       (List.filter (function | MR_func _ -> true | _ -> false) member_list);
     trace ")";
   end
 
 
-(* pQName: name of enclosing class *)
-and member_fun pQName x = 
+and member_fun x = 
   match x with
-    | MR_decl(annot, sourceLoc, declaration) ->
+    | MR_decl (annot, sourceLoc, declaration) ->
 	trace "MR_decl(";
-	member_declaration_fun pQName declaration;
+	declaration_fun declaration;
 	trace ")";
 
-    | MR_func(annot, sourceLoc, func) -> 
+    | MR_func (annot, sourceLoc, func) -> 
 	trace "MR_func(";
-	member_func_fun pQName func;
+	func_fun func;
 	trace ")";
 
-    | MR_access(annot, sourceLoc, accessKeyword) ->
+    | MR_access (annot, sourceLoc, accessKeyword) ->
 	(* TODO: access specifier are just ignored at the moment *)
 	trace "MR_access(";
 	(*
@@ -1496,14 +1554,14 @@ and member_fun pQName x =
 	*)
 	trace ")";
 
-    | MR_usingDecl(annot, sourceLoc, nd_usingDecl) -> 
+    | MR_usingDecl (annot, sourceLoc, nd_usingDecl) -> 
 	assert false;
 	assert(match nd_usingDecl with ND_usingDecl _ -> true | _ -> false);
 	annotation_fun annot;
 	sourceLoc_fun sourceLoc;
 	namespaceDecl_fun nd_usingDecl;
 
-    | MR_template(annot, sourceLoc, templateDeclaration) -> 
+    | MR_template (annot, sourceLoc, templateDeclaration) -> 
 	assert false;
 	annotation_fun annot;
 	sourceLoc_fun sourceLoc;
@@ -1529,139 +1587,134 @@ and typedef_declarator_fun (annot, iDeclarator, init_opt,
   end;
 
 
-(* pQName: name of enclosing class *)
-and member_declarator_fun pQName
-    (annot, iDeclarator, init_opt,
-    variable_opt, ctype_opt, declaratorContext,
-    statement_opt_ctor, statement_opt_dtor) =
-  begin
-    trace "member_declarator_fun(";
-
-    (* TODO: what is this? *)
-    (*iDeclarator_fun iDeclarator;*)
-
-    assert (not (Option.isSome init_opt));
-    assert (Option.isSome variable_opt);
-    assert (Option.isSome ctype_opt);
-    assert (not (Option.isSome statement_opt_ctor));
-    assert (not (Option.isSome statement_opt_dtor));
-
-    (* name of new member *)
-    Option.app variable_fun variable_opt;
-
-    (* TODO: what is this ? *)
-    declaratorContext_fun declaratorContext;
-
-    trace ")";
-  end
-
-
 and declarator_fun (annot, iDeclarator, init_opt,
 		   variable_opt, ctype_opt, declaratorContext,
 		   statement_opt_ctor, statement_opt_dtor) =
   begin
     trace "declarator_fun(";
 
-    (* TODO: what is this? *)
-    (*iDeclarator_fun iDeclarator;*)
+    (* a description of the (return) type *)
+    iDeclarator_fun iDeclarator;  (* only for tracing *)
 
-    (* TODO: is this the proper way to distinguish between function and
-             variable declarations? *)
-    begin
-      match iDeclarator with
+    declaratorContext_fun declaratorContext;  (* only for tracing *)
 
-        (* function declaration *)
-	| D_func _
-	| D_reference _ (*(annot, loc, iDeclarator)*) ->
+    (match declaratorContext with
+      | DC_UNKNOWN          -> assert false;
 
-	    (*TODO*)
-	    Option.app (fun i ->
-	      Format.printf ">>>>>";
-	      init_fun i;
-	      Format.printf "<<<<<") init_opt;
+      (* function declaration *)
+      | DC_FUNCTION         ->
 
-	    assert (Option.isSome variable_opt);
-	    assert (Option.isSome ctype_opt);
-	    assert (not (Option.isSome statement_opt_ctor));
-	    assert (not (Option.isSome statement_opt_dtor));
+	  assert (not (Option.isSome init_opt));
+	  assert (Option.isSome variable_opt);
+	  assert (Option.isSome ctype_opt);
+	  assert (not (Option.isSome statement_opt_ctor));
+	  assert (not (Option.isSome statement_opt_dtor));
 
-	    Format.printf "@[<2>";
-
-	    (* name of function *)
-	    Option.app variable_fun variable_opt;
-
-	    (* arguments of function *)
-	    Option.app (function
-	      | FunctionType (_, _, _, variable_list, _) ->
-		  if List.length variable_list > 0 then
+	  Format.printf "@[<2>";
+	  (* name of function *)
+	  Option.app variable_fun variable_opt;
+	  (* append the class name in case it's a constructor or assignment
+	     operator *)
+	  if (Option.valOf variable_opt).var_name = Some "constructor_special"
+	    || (Option.valOf variable_opt).var_name = Some "operator="
+	  then
+	    begin
+	      Format.print_string "_";
+	      Format.print_string
+		(enclosing_classname_of_member (Option.valOf variable_opt));
+	    end;
+	  (* arguments of function *)
+	  (match ctype_opt with
+	    | Some (FunctionType (_, _, _, variable_list, _)) ->
+		let 
+		    var_opt_list = List.map (fun x -> Some x) variable_list
+		in let
+		    var_list = if (Option.valOf variable_opt).var_name =
+		      Some "constructor_special" then
+		      None :: var_opt_list else var_opt_list
+		in
+		  if List.length var_list > 0 then
 		    begin
 		      Format.printf "@[<2>(";
 		      separate (fun v ->
 			Format.printf "@[<2>";
-			variable_fun v;
+			(match v with
+			  | Some var -> variable_fun var;
+			  | None     -> Format.print_string "receiver");
 			Format.printf "@ :@ Address@]")
-			(fun () -> Format.printf ",@ ") variable_list;
+			(fun () -> Format.printf ",@ ") var_list;
 		      Format.printf ")@]";
 		    end;
-	      | t ->
-		  (*TODO*)
-		  Format.printf ">>>>>";
-		  cType_fun t;
-		  Format.printf "<<<<<") ctype_opt;
+	    | _ ->
+		assert false);
+	  Format.printf "@ :@ ST[State,@ Semantics_";
+	  (* remainder of return value type *)
+	  (* TODO: is this different from the return type? What does
+	     "remainder" mean? *)
+	  (match ctype_opt with
+	    | Some (FunctionType (_, _, cType, _, _)) ->
+		cType_fun cType;
+	    | _ ->
+		assert false);
+	  Format.printf "]@ =@]@\n";
 
-	    Format.printf "@ :@ ST[State,@ Semantics_";
+      | DC_TF_DECL          -> assert false;
+      | DC_TF_EXPLICITINST  -> assert false;
+      | DC_MR_DECL          -> assert false;
 
-	    (* remainder of return value type *)
-	    (* TODO: is this different from the return type? What does
-               "remainder" mean? *)
-	    Option.app (function
-	      | FunctionType (_, _, cType, _, _) ->
-		  cType_fun cType;
-	      | t ->
-		  (*TODO*)
-		  Format.printf ">>>>>";
-		  cType_fun t;
-		  Format.printf "<<<<<") ctype_opt;
+      (* declaration statement *)
+      | DC_S_DECL           ->
 
-	    Format.printf "]@ =@]@\n";
+	  Format.printf "assign(pm, dt_";
+	  assert (Option.isSome variable_opt);
+	  assert (Option.isSome !((Option.valOf variable_opt).var_type));
+	  Option.app cType_fun !((Option.valOf variable_opt).var_type);
+	  Format.printf ")(@[<2>id(";
+	  Option.app variable_fun variable_opt;
+	  Format.printf "),@ ";
+	  (* TODO: default initialization (§8.5) not modelled yet *)
+	  if Option.isSome init_opt then
+	    Option.app init_fun init_opt
+	  else
+	    Format.print_string ">>>>>default-initialization<<<<<";
+	  Format.printf "@])";
+	  
+	  (* TODO: what is this ? *)
+	  Option.app (fun s -> Format.print_string ">>>>>ctor:"; statement_fun s; Format.print_string "<<<<<") statement_opt_ctor;
 
-	| D_name _
-	| D_pointer _ ->
-	    Format.printf "assign(pm, dt_";
-	    assert (Option.isSome variable_opt);
-	    assert (Option.isSome !((Option.valOf variable_opt).var_type));
-	    Option.app cType_fun !((Option.valOf variable_opt).var_type);
-	    Format.printf ")(@[<2>id(";
-	    Option.app variable_fun variable_opt;
-	    Format.printf "),@ ";
-	    (* TODO: default initialization (§8.5) not modelled yet *)
-	    if Option.isSome init_opt then
-	      Option.app init_fun init_opt
-	    else
-	      Format.print_string ">>>>>default-initialization<<<<<";
-	    Format.printf "@])";
+	  (* TODO: what is this ? *)
+	  Option.app (fun s -> Format.print_string ">>>>>dtor:"; statement_fun s; Format.print_string "<<<<<") statement_opt_dtor;
 
-	| D_attribute _ ->
-	    (*TODO*)
-	    Format.printf ">>>>> declarator_fun: D_attribute _<<<<<";
+      | DC_TD_DECL          -> assert false;
 
-	| D_array _ -> 
-	    (*TODO*)
-	    Format.printf ">>>>> declarator_fun: D_array _<<<<<";
+      (* full expression annotation *)
+      | DC_FEA		    ->
 
-	| _ ->
-	    (*TODO*)
-	    Format.printf ">>>>> declarator_fun: TODO <<<<<";
-    end;
+	  assert (not (Option.isSome init_opt));
+	  assert (Option.isSome variable_opt);
+	  assert (Option.isSome ctype_opt);
+	  assert (not (Option.isSome statement_opt_ctor));
+	  assert (Option.isSome statement_opt_dtor);
 
-    (* TODO: what is this ? *)
-    declaratorContext_fun declaratorContext;
+	  assert false;
 
-    (* TODO: what is this ? *)
-    Option.app statement_fun statement_opt_ctor;
-
-    (* TODO: what is this ? *)
-    Option.app statement_fun statement_opt_dtor;
+      | DC_D_FUNC           -> assert false;
+      | DC_EXCEPTIONSPEC    -> assert false;
+      | DC_ON_CONVERSION    -> assert false;
+      | DC_CN_DECL          -> assert false;
+      | DC_HANDLER          -> assert false;
+      | DC_E_CAST           -> assert false;
+      | DC_E_SIZEOFTYPE     -> assert false;
+      | DC_E_NEW            -> assert false;
+      | DC_E_KEYWORDCAST    -> assert false;
+      | DC_E_TYPEIDTYPE     -> assert false;
+      | DC_TP_TYPE          -> assert false;
+      | DC_TP_NONTYPE       -> assert false;
+      | DC_TA_TYPE          -> assert false;
+      | DC_TS_TYPEOF_TYPE   -> assert false;
+      | DC_E_COMPOUNDLIT    -> assert false;
+      | DC_E_ALIGNOFTYPE    -> assert false;
+      | DC_E_BUILTIN_VA_ARG -> assert false);
 
     trace ")";
   end
@@ -1671,60 +1724,66 @@ and iDeclarator_fun x =
   match x with
     | D_name (annot, sourceLoc, pQName_opt) ->
 	trace "D_name(";
-	(*Option.app pQName_fun pQName_opt;*)
+	(*
+	  Option.app pQName_fun pQName_opt;
+	*)
 	trace ")";
 
     | D_pointer (annot, sourceLoc, cVFlags, iDeclarator) ->
 	trace "D_pointer(";
-	(*TODO*)
-	(*cVFlags_fun cVFlags;*)
-	(*iDeclarator_fun iDeclarator*)
+	(*
+	  cVFlags_fun cVFlags;
+	  iDeclarator_fun iDeclarator;
+	*)
 	trace ")";
 
     | D_reference (annot, sourceLoc, iDeclarator) ->
-	assert false;
-	iDeclarator_fun iDeclarator;
+	trace "D_reference(";
+	(*
+	  iDeclarator_fun iDeclarator;
+	*)
+	trace ")";
 
     | D_func (annot, sourceLoc, iDeclarator, aSTTypeId_list, cVFlags, 
 	     exceptionSpec_opt, pq_name_list, bool) ->
 	trace "D_func(";
 	assert (List.for_all (function PQ_name _ -> true | _ -> false)
 		   pq_name_list);
-(*TODO
-	iDeclarator_fun iDeclarator;
-	List.iter aSTTypeId_fun aSTTypeId_list;
-	cVFlags_fun cVFlags;
-	Option.app exceptionSpec_fun exceptionSpec_opt;
-	List.iter pQName_fun pq_name_list;
-	bool_fun bool;
-*)
+	(*
+	  iDeclarator_fun iDeclarator;
+	  List.iter aSTTypeId_fun aSTTypeId_list;
+	  cVFlags_fun cVFlags;
+	  Option.app exceptionSpec_fun exceptionSpec_opt;
+	  List.iter pQName_fun pq_name_list;
+	  bool_fun bool;
+	*)
 	trace ")";
 
-    | D_array (annot, sourceLoc, iDeclarator, expression_opt, bool) -> 
+    | D_array (annot, sourceLoc, iDeclarator, expression_opt, bool) ->
 	assert false;
 	iDeclarator_fun iDeclarator;
 	Option.app expression_fun expression_opt;
-	bool_fun bool
+	bool_fun bool;
 
     | D_bitfield (annot, sourceLoc, pQName_opt, expression, int) -> 
 	assert false;
 	Option.app pQName_fun pQName_opt;
 	expression_fun expression;
-	int_fun int
+	int_fun int;
 
     | D_ptrToMember (annot, sourceLoc, pQName, cVFlags, iDeclarator) -> 
 	assert false;
 	pQName_fun pQName;
 	cVFlags_fun cVFlags;
-	iDeclarator_fun iDeclarator
+	iDeclarator_fun iDeclarator;
 
     | D_grouping (annot, sourceLoc, iDeclarator) -> 
 	assert false;
-	iDeclarator_fun iDeclarator
+	iDeclarator_fun iDeclarator;
 
     | D_attribute (annot, sourceLoc, iDeclarator, attribute_list_list) ->
 	trace "D_attribute(";
-	(*TODO*)
+	assert false;
 	iDeclarator_fun iDeclarator;
 	List.iter (List.iter attribute_fun) attribute_list_list;
 	trace ")";
@@ -1875,7 +1934,7 @@ and statement_fun x =
               Format.print_string "return(";
               fullExpression_fun fullExpression;
               Format.print_string ")");
-        assert (statement_opt = None); (* ? *)
+        assert (not (Option.isSome statement_opt)); (* ? *)
 	Option.app statement_fun statement_opt;
 
     | S_goto(annot, sourceLoc, stringRef) ->
@@ -2532,11 +2591,16 @@ and init_fun x =
     | IN_ctor(annot, sourceLoc, fullExpressionAnnot, 
 	     argExpression_list, var_opt, bool) ->
 	trace "IN_ctor(";
-	(*TODO*)
-	fullExpressionAnnot_fun fullExpressionAnnot;
-	List.iter argExpression_fun argExpression_list;
+	assert (Option.isSome var_opt);
+	Format.print_string "call_";
 	Option.app variable_fun var_opt;
-	bool_fun bool;
+	Format.printf "(@[<2>";
+	separate argExpression_fun (fun () -> Format.printf ",@ ")
+	  argExpression_list;
+	Format.printf "@])";
+	(* What is this? *)
+	fullExpressionAnnot_fun fullExpressionAnnot;
+	(*bool_fun bool;*)
 	trace ")";
 
     | IN_designated(annot, sourceLoc, fullExpressionAnnot, 
@@ -2739,8 +2803,8 @@ let ast_node_fun = function
   | TypeSpecifier_type ts -> assert false; typeSpecifier_fun ts
   | BaseClassSpec_type bcs -> assert false; baseClassSpec_fun bcs
   | Enumerator_type e -> assert false; enumerator_fun e
-  | MemberList_type ml -> assert false; (*memberList_fun ml*)
-  | Member_type m -> assert false; (*member_fun m*)
+  | MemberList_type ml -> assert false; memberList_fun ml
+  | Member_type m -> assert false; member_fun m
   | Declarator_type d -> assert false; declarator_fun d
   | IDeclarator_type id -> assert false; iDeclarator_fun id
   | ExceptionSpec_type es -> assert false; exceptionSpec_fun es
