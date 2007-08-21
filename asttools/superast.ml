@@ -84,16 +84,11 @@ module Into_array = struct
   open Ast_accessors
 
 
-  module DS = Dense_set
+  let visited visited_nodes (annot : annotated) =
+    Dense_set.mem (id_annotation annot) visited_nodes
 
-  let visited_nodes = DS.make ()
-
-  let visited (annot : annotated) =
-    DS.mem (id_annotation annot) visited_nodes
-
-  let visit (annot : annotated) =
-    (* Printf.eprintf "visit %d\n%!" (id_annotation annot); *)
-    DS.add (id_annotation annot) visited_nodes
+  let visit visited_nodes (annot : annotated) =
+    Dense_set.add (id_annotation annot) visited_nodes
 
 
   (**************************************************************************
@@ -109,7 +104,7 @@ module Into_array = struct
 
   (***************** variable ***************************)
 
-  let rec variable_fun ast_array (v : annotated variable) =
+  let rec variable_fun ast_array visited_nodes (v : annotated variable) =
     (* unused record copy to provoke compilation errors for new fields *)
     let _dummy = {			
       poly_var = v.poly_var; loc = v.loc; var_name = v.var_name;
@@ -121,30 +116,30 @@ module Into_array = struct
     in
     let annot = variable_annotation v
     in
-      if visited annot then ()
+      if visited visited_nodes annot then ()
       else begin
 	ast_array.(id_annotation annot) <- Variable v;
-	visit annot;
+	visit visited_nodes annot;
 
 
 	(* POSSIBLY CIRCULAR *)
-	opt_iter (cType_fun ast_array) !(v.var_type);
+	opt_iter (cType_fun ast_array visited_nodes) !(v.var_type);
 	(* POSSIBLY CIRCULAR *)
-	opt_iter (expression_fun ast_array) !(v.value);
-	opt_iter (cType_fun ast_array) v.defaultParam;
+	opt_iter (expression_fun ast_array visited_nodes) !(v.value);
+	opt_iter (cType_fun ast_array visited_nodes) v.defaultParam;
 
 	(* POSSIBLY CIRCULAR *)
-	opt_iter (func_fun ast_array) !(v.funcDefn);
+	opt_iter (func_fun ast_array visited_nodes) !(v.funcDefn);
 	(* POSSIBLY CIRCULAR *)
-	List.iter (variable_fun ast_array) !(v.overload);
-	List.iter (variable_fun ast_array) v.virtuallyOverride;
-	opt_iter (scope_fun ast_array) v.scope;
-	opt_iter (templ_info_fun ast_array) v.templ_info;
+	List.iter (variable_fun ast_array visited_nodes) !(v.overload);
+	List.iter (variable_fun ast_array visited_nodes) v.virtuallyOverride;
+	opt_iter (scope_fun ast_array visited_nodes) v.scope;
+	opt_iter (templ_info_fun ast_array visited_nodes) v.templ_info;
       end
 
   (**************** templateInfo ************************)
 
-  and templ_info_fun ast_array ti =
+  and templ_info_fun ast_array visited_nodes ti =
     (* unused record copy to provoke compilation errors for new fields *)
     let _dummy = {
       poly_templ = ti.poly_templ; templ_kind = ti.templ_kind;
@@ -168,38 +163,38 @@ module Into_array = struct
     in
     let annot = templ_info_annotation ti
     in
-      if visited annot then ()
+      if visited visited_nodes annot then ()
       else begin
 	ast_array.(id_annotation annot) <- TemplateInfo ti;
-	visit annot;
+	visit visited_nodes annot;
 
-	List.iter (variable_fun ast_array) ti.template_params;
-
-	(* POSSIBLY CIRCULAR *)
-	opt_iter (variable_fun ast_array) !(ti.template_var);
-	List.iter (inherited_templ_params_fun ast_array) ti.inherited_params;
+	List.iter (variable_fun ast_array visited_nodes) ti.template_params;
 
 	(* POSSIBLY CIRCULAR *)
-	opt_iter (variable_fun ast_array) !(ti.instantiation_of);
-	List.iter (variable_fun ast_array) ti.instantiations;
+	opt_iter (variable_fun ast_array visited_nodes) !(ti.template_var);
+	List.iter (inherited_templ_params_fun ast_array visited_nodes) ti.inherited_params;
 
 	(* POSSIBLY CIRCULAR *)
-	opt_iter (variable_fun ast_array) !(ti.specialization_of);
-	List.iter (variable_fun ast_array) ti.specializations;
-	List.iter (sTemplateArgument_fun ast_array) ti.arguments;
+	opt_iter (variable_fun ast_array visited_nodes) !(ti.instantiation_of);
+	List.iter (variable_fun ast_array visited_nodes) ti.instantiations;
 
 	(* POSSIBLY CIRCULAR *)
-	opt_iter (variable_fun ast_array) !(ti.partial_instantiation_of);
-	List.iter (variable_fun ast_array) ti.partial_instantiations;
-	List.iter (sTemplateArgument_fun ast_array) ti.arguments_to_primary;
-	opt_iter (scope_fun ast_array) ti.defn_scope;
-	opt_iter (templ_info_fun ast_array) ti.definition_template_info;
-	List.iter (cType_fun ast_array) ti.dependent_bases;
+	opt_iter (variable_fun ast_array visited_nodes) !(ti.specialization_of);
+	List.iter (variable_fun ast_array visited_nodes) ti.specializations;
+	List.iter (sTemplateArgument_fun ast_array visited_nodes) ti.arguments;
+
+	(* POSSIBLY CIRCULAR *)
+	opt_iter (variable_fun ast_array visited_nodes) !(ti.partial_instantiation_of);
+	List.iter (variable_fun ast_array visited_nodes) ti.partial_instantiations;
+	List.iter (sTemplateArgument_fun ast_array visited_nodes) ti.arguments_to_primary;
+	opt_iter (scope_fun ast_array visited_nodes) ti.defn_scope;
+	opt_iter (templ_info_fun ast_array visited_nodes) ti.definition_template_info;
+	List.iter (cType_fun ast_array visited_nodes) ti.dependent_bases;
       end
 
   (************* inheritedTemplateParams ****************)
 
-  and inherited_templ_params_fun ast_array itp =
+  and inherited_templ_params_fun ast_array visited_nodes itp =
     (* unused record copy to provoke compilation errors for new fields *)
     let _dummy = {
       poly_inherited_templ = itp.poly_inherited_templ;
@@ -209,22 +204,22 @@ module Into_array = struct
     in
     let annot = inherited_templ_params_annotation itp
     in
-      if visited annot then ()
+      if visited visited_nodes annot then ()
       else begin
 	assert(!(itp.enclosing) <> None);
 	ast_array.(id_annotation annot) <- InheritedTemplateParams itp;
 
-	visit annot;
+	visit visited_nodes annot;
 
-	List.iter (variable_fun ast_array) itp.inherited_template_params;
+	List.iter (variable_fun ast_array visited_nodes) itp.inherited_template_params;
 
 	(* POSSIBLY CIRCULAR *)
-	opt_iter (compound_info_fun ast_array) !(itp.enclosing);
+	opt_iter (compound_info_fun ast_array visited_nodes) !(itp.enclosing);
       end
 
   (***************** cType ******************************)
 
-  and baseClass_fun ast_array baseClass =
+  and baseClass_fun ast_array visited_nodes baseClass =
     (* unused record copy to provoke compilation errors for new fields *)
     let _dummy = {
       poly_base = baseClass.poly_base; compound = baseClass.compound;
@@ -233,15 +228,15 @@ module Into_array = struct
     in
     let annot = baseClass_annotation baseClass
     in
-      if visited annot then ()
+      if visited visited_nodes annot then ()
       else begin
 	ast_array.(id_annotation annot) <- BaseClass baseClass;
-	visit annot;
-	compound_info_fun ast_array baseClass.compound;
+	visit visited_nodes annot;
+	compound_info_fun ast_array visited_nodes baseClass.compound;
       end
 
 
-  and compound_info_fun ast_array i = 
+  and compound_info_fun ast_array visited_nodes i = 
     (* unused record copy to provoke compilation errors for new fields *)
     let _dummy = {
       compound_info_poly = i.compound_info_poly;
@@ -257,41 +252,41 @@ module Into_array = struct
     in
     let annot = compound_info_annotation i
     in
-      if visited annot then ()
+      if visited visited_nodes annot then ()
       else begin
 	ast_array.(id_annotation annot) <- Compound_info i;
-	visit annot;
+	visit visited_nodes annot;
 	assert(match !(i.syntax) with
 		 | None
 		 | Some(TS_classSpec _) -> true
 		 | _ -> false);
-	variable_fun ast_array i.typedef_var;
-	scope_fun ast_array i.compound_scope;
-	List.iter (variable_fun ast_array) i.data_members;
-	List.iter (baseClass_fun ast_array) i.bases;
-	List.iter (variable_fun ast_array) i.conversion_operators;
-	List.iter (variable_fun ast_array) i.friends;
+	variable_fun ast_array visited_nodes i.typedef_var;
+	scope_fun ast_array visited_nodes i.compound_scope;
+	List.iter (variable_fun ast_array visited_nodes) i.data_members;
+	List.iter (baseClass_fun ast_array visited_nodes) i.bases;
+	List.iter (variable_fun ast_array visited_nodes) i.conversion_operators;
+	List.iter (variable_fun ast_array visited_nodes) i.friends;
 
 	(* POSSIBLY CIRCULAR *)
-	opt_iter (typeSpecifier_fun ast_array) !(i.syntax);
+	opt_iter (typeSpecifier_fun ast_array visited_nodes) !(i.syntax);
 
 	(* POSSIBLY CIRCULAR *)
-	opt_iter (cType_fun ast_array) !(i.self_type)
+	opt_iter (cType_fun ast_array visited_nodes) !(i.self_type)
       end
 
 
-  and enum_value_fun ast_array ((annot, _string, _nativeint) as x) =
-    if visited annot then ()
+  and enum_value_fun ast_array visited_nodes ((annot, _string, _nativeint) as x) =
+    if visited visited_nodes annot then ()
     else begin
       ast_array.(id_annotation annot) <- EnumType_Value_type x;
-      visit annot;
+      visit visited_nodes annot;
     end
 	
 
-  and atomicType_fun ast_array x = 
+  and atomicType_fun ast_array visited_nodes x = 
     let annot = atomicType_annotation x
     in
-      if visited annot then ()
+      if visited visited_nodes annot then ()
       else 
 	match x with
 	  (*
@@ -300,71 +295,71 @@ module Into_array = struct
 
 	| SimpleType(annot, _simpleTypeId) ->
 	    ast_array.(id_annotation annot) <- AtomicType x;
-	    visit annot
+	    visit visited_nodes annot
 
 	| CompoundType(compound_info) ->
 	    (* assign a Compound_info into ast_array *)
-	    compound_info_fun ast_array compound_info
+	    compound_info_fun ast_array visited_nodes compound_info
 
 	| PseudoInstantiation(annot, _str, variable_opt, _accessKeyword, 
 			      compound_info, sTemplateArgument_list) ->
 	    ast_array.(id_annotation annot) <- AtomicType x;
-	    visit annot;
-	    opt_iter (variable_fun ast_array) variable_opt;
-	    compound_info_fun ast_array compound_info;
-	    List.iter (sTemplateArgument_fun ast_array) sTemplateArgument_list
+	    visit visited_nodes annot;
+	    opt_iter (variable_fun ast_array visited_nodes) variable_opt;
+	    compound_info_fun ast_array visited_nodes compound_info;
+	    List.iter (sTemplateArgument_fun ast_array visited_nodes) sTemplateArgument_list
 
 	| EnumType(annot, _string, variable, _accessKeyword, 
 		   enum_value_list, _has_negatives) ->
 	    ast_array.(id_annotation annot) <- AtomicType x;
-	    visit annot;
-	    opt_iter (variable_fun ast_array) variable;
-	    List.iter (enum_value_fun ast_array) enum_value_list
+	    visit visited_nodes annot;
+	    opt_iter (variable_fun ast_array visited_nodes) variable;
+	    List.iter (enum_value_fun ast_array visited_nodes) enum_value_list
 
 	| TypeVariable(annot, _string, variable, _accessKeyword) ->
 	    ast_array.(id_annotation annot) <- AtomicType x;
-	    visit annot;
-	    variable_fun ast_array variable;
+	    visit visited_nodes annot;
+	    variable_fun ast_array visited_nodes variable;
 
 	| DependentQType(annot, _string, variable, 
 			_accessKeyword, atomic, pq_name) ->
 	    ast_array.(id_annotation annot) <- AtomicType x;
-	    visit annot;
-	    variable_fun ast_array variable;
-	    atomicType_fun ast_array atomic;
-	    pQName_fun ast_array pq_name
+	    visit visited_nodes annot;
+	    variable_fun ast_array visited_nodes variable;
+	    atomicType_fun ast_array visited_nodes atomic;
+	    pQName_fun ast_array visited_nodes pq_name
 
 
 
-  and cType_fun ast_array x = 
+  and cType_fun ast_array visited_nodes x = 
     let annot = cType_annotation x
     in
-      if visited annot then ()
+      if visited visited_nodes annot then ()
       else
 	let _ = ast_array.(id_annotation annot) <- CType x in
-	let _ = visit annot 
+	let _ = visit visited_nodes annot 
 	in match x with
 	| CVAtomicType(_annot, _cVFlags, atomicType) ->
-	    atomicType_fun ast_array atomicType
+	    atomicType_fun ast_array visited_nodes atomicType
 
 	| PointerType(_annot, _cVFlags, cType) ->
-	    cType_fun ast_array cType
+	    cType_fun ast_array visited_nodes cType
 
 	| ReferenceType(_annot, cType) ->
-	    cType_fun ast_array cType
+	    cType_fun ast_array visited_nodes cType
 
 	| FunctionType(_annot, _function_flags, cType, 
 		       variable_list, cType_list_opt) ->
-	    cType_fun ast_array cType;
-	    List.iter (variable_fun ast_array) variable_list;
-	    opt_iter (List.iter (cType_fun ast_array)) cType_list_opt
+	    cType_fun ast_array visited_nodes cType;
+	    List.iter (variable_fun ast_array visited_nodes) variable_list;
+	    opt_iter (List.iter (cType_fun ast_array visited_nodes)) cType_list_opt
 
 	| ArrayType(_annot, cType, _array_size) ->
-	    cType_fun ast_array cType;
+	    cType_fun ast_array visited_nodes cType;
 
 	| DependentSizeArrayType(_annot, cType, size_expr) ->
-	    cType_fun ast_array cType;
-	    expression_fun ast_array size_expr
+	    cType_fun ast_array visited_nodes cType;
+	    expression_fun ast_array visited_nodes size_expr
 
 	| PointerToMemberType(_annot, atomicType (* = NamedAtomicType *), 
 			      _cVFlags, cType) ->
@@ -375,50 +370,50 @@ module Into_array = struct
 		     | EnumType _
 		     | TypeVariable _ 
 		     | DependentQType _ -> true);
-	    atomicType_fun ast_array atomicType;
-	    cType_fun ast_array cType
+	    atomicType_fun ast_array visited_nodes atomicType;
+	    cType_fun ast_array visited_nodes cType
 
 
-  and sTemplateArgument_fun ast_array ta = 
+  and sTemplateArgument_fun ast_array visited_nodes ta = 
     let annot = sTemplateArgument_annotation ta
     in
-      if visited annot then ()
+      if visited visited_nodes annot then ()
       else 
 	let _ = ast_array.(id_annotation annot) <- STemplateArgument ta in
-	let _ = visit annot 
+	let _ = visit visited_nodes annot 
 	in match ta with
 	  | STA_NONE _annot -> 
 	      ()
 
 	  | STA_TYPE(_annot, cType) -> 
-	      cType_fun ast_array cType
+	      cType_fun ast_array visited_nodes cType
 
 	  | STA_INT(_annot, _int) -> 
 	      ()
 
 	  | STA_ENUMERATOR(_annot, variable) -> 
-	      variable_fun ast_array variable
+	      variable_fun ast_array visited_nodes variable
 
 	  | STA_REFERENCE(_annot, variable) -> 
-	      variable_fun ast_array variable
+	      variable_fun ast_array visited_nodes variable
 
 	  | STA_POINTER(_annot, variable) -> 
-	      variable_fun ast_array variable
+	      variable_fun ast_array visited_nodes variable
 
 	  | STA_MEMBER(_annot, variable) -> 
-	      variable_fun ast_array variable
+	      variable_fun ast_array visited_nodes variable
 
 	  | STA_DEPEXPR(_annot, expression) -> 
-	      expression_fun ast_array expression
+	      expression_fun ast_array visited_nodes expression
 
 	  | STA_TEMPLATE _annot -> 
 	      ()
 
 	  | STA_ATOMIC(_annot, atomicType) -> 
-	      atomicType_fun ast_array atomicType
+	      atomicType_fun ast_array visited_nodes atomicType
 
 
-  and scope_fun ast_array s = 
+  and scope_fun ast_array visited_nodes s = 
     (* unused record copy to provoke compilation errors for new fields *)
     let _dummy = {
       poly_scope = s.poly_scope; variables = s.variables; 
@@ -431,91 +426,91 @@ module Into_array = struct
     in
     let annot = scope_annotation s
     in
-      if visited annot then ()
+      if visited visited_nodes annot then ()
       else begin
 	ast_array.(id_annotation annot) <- Scope s;
-	visit annot;
+	visit visited_nodes annot;
 	Hashtbl.iter 
-	  (fun _str var -> variable_fun ast_array var)
+	  (fun _str var -> variable_fun ast_array visited_nodes var)
 	  s.variables;
 	Hashtbl.iter
-	  (fun _str var -> variable_fun ast_array var)
+	  (fun _str var -> variable_fun ast_array visited_nodes var)
 	  s.type_tags;
-	opt_iter (scope_fun ast_array) s.parent_scope;
-	opt_iter (variable_fun ast_array) !(s.namespace_var);
-	List.iter (variable_fun ast_array) s.scope_template_params;
-	opt_iter (variable_fun ast_array) s.parameterized_entity;
-	opt_iter (compound_info_fun ast_array) !(s.scope_compound);
+	opt_iter (scope_fun ast_array visited_nodes) s.parent_scope;
+	opt_iter (variable_fun ast_array visited_nodes) !(s.namespace_var);
+	List.iter (variable_fun ast_array visited_nodes) s.scope_template_params;
+	opt_iter (variable_fun ast_array visited_nodes) s.parameterized_entity;
+	opt_iter (compound_info_fun ast_array visited_nodes) !(s.scope_compound);
       end
 
 
 
   (***************** generated ast nodes ****************)
 
-  and compilationUnit_fun ast_array 
+  and compilationUnit_fun ast_array visited_nodes 
       ((annot, _name, tu) as x : annotated compilationUnit_type) =
-    if visited annot then ()
+    if visited visited_nodes annot then ()
     else begin
       ast_array.(id_annotation annot) <- CompilationUnit_type x;
-      visit annot;
-      translationUnit_fun ast_array tu
+      visit visited_nodes annot;
+      translationUnit_fun ast_array visited_nodes tu
     end
 
 
-  and translationUnit_fun ast_array ((annot, topForm_list, scope_opt) as x) =
-    if visited annot then ()
+  and translationUnit_fun ast_array visited_nodes ((annot, topForm_list, scope_opt) as x) =
+    if visited visited_nodes annot then ()
     else begin
       ast_array.(id_annotation annot) <- TranslationUnit_type x;
-      visit annot;
-      List.iter (topForm_fun ast_array) topForm_list;
-      opt_iter (scope_fun ast_array) scope_opt
+      visit visited_nodes annot;
+      List.iter (topForm_fun ast_array visited_nodes) topForm_list;
+      opt_iter (scope_fun ast_array visited_nodes) scope_opt
     end
 
 
-  and topForm_fun ast_array x = 
+  and topForm_fun ast_array visited_nodes x = 
     let annot = topForm_annotation x
     in
-      if visited annot then ()
+      if visited visited_nodes annot then ()
       else
 	let _ = ast_array.(id_annotation annot) <- TopForm_type x in
-	let _ = visit annot 
+	let _ = visit visited_nodes annot 
 	in match x with
 	  | TF_decl(_annot, _sourceLoc, declaration) -> 
-	      declaration_fun ast_array declaration
+	      declaration_fun ast_array visited_nodes declaration
 
 	  | TF_func(_annot, _sourceLoc, func) -> 
-	      func_fun ast_array func
+	      func_fun ast_array visited_nodes func
 
 	  | TF_template(_annot, _sourceLoc, templateDeclaration) -> 
-	      templateDeclaration_fun ast_array templateDeclaration
+	      templateDeclaration_fun ast_array visited_nodes templateDeclaration
 
 	  | TF_explicitInst(_annot, _sourceLoc, _declFlags, declaration) -> 
-	      declaration_fun ast_array declaration
+	      declaration_fun ast_array visited_nodes declaration
 
 	  | TF_linkage(_annot, _sourceLoc, _stringRef, translationUnit) -> 
-	      translationUnit_fun ast_array translationUnit
+	      translationUnit_fun ast_array visited_nodes translationUnit
 
 	  | TF_one_linkage(_annot, _sourceLoc, _stringRef, topForm) -> 
-	      topForm_fun ast_array topForm
+	      topForm_fun ast_array visited_nodes topForm
 
 	  | TF_asm(_annot, _sourceLoc, e_stringLit) -> 
 	      assert(match e_stringLit with | E_stringLit _ -> true | _ -> false);
-	      expression_fun ast_array e_stringLit
+	      expression_fun ast_array visited_nodes e_stringLit
 
 	  | TF_namespaceDefn(_annot, _sourceLoc, _stringRef_opt, topForm_list) -> 
-	      List.iter (topForm_fun ast_array) topForm_list
+	      List.iter (topForm_fun ast_array visited_nodes) topForm_list
 
 	  | TF_namespaceDecl(_annot, _sourceLoc, namespaceDecl) -> 
-	      namespaceDecl_fun ast_array namespaceDecl
+	      namespaceDecl_fun ast_array visited_nodes namespaceDecl
 
 
 
-  and func_fun ast_array
+  and func_fun ast_array visited_nodes
       ((annot, _declFlags, typeSpecifier, declarator, memberInit_list, 
 	s_compound_opt, handler_list, func, variable_opt_1, 
 	variable_opt_2, statement_opt, _bool) as x) =
 
-    if visited annot then ()
+    if visited visited_nodes annot then ()
     else begin
       assert(match s_compound_opt with
 	       | None -> true
@@ -527,24 +522,25 @@ module Into_array = struct
 	| FunctionType _ -> true
 	| _ -> false);
       ast_array.(id_annotation annot) <- Function_type x;
-      visit annot;
-      typeSpecifier_fun ast_array typeSpecifier;
-      declarator_fun ast_array declarator;
-      List.iter (memberInit_fun ast_array) memberInit_list;
-      opt_iter (statement_fun ast_array) s_compound_opt;
-      List.iter (handler_fun ast_array) handler_list;
-      cType_fun ast_array func;
-      opt_iter (variable_fun ast_array) variable_opt_1;
-      opt_iter (variable_fun ast_array) variable_opt_2;
-      opt_iter (statement_fun ast_array) statement_opt;
+      visit visited_nodes annot;
+      typeSpecifier_fun ast_array visited_nodes typeSpecifier;
+      declarator_fun ast_array visited_nodes declarator;
+      List.iter (memberInit_fun ast_array visited_nodes) memberInit_list;
+      opt_iter (statement_fun ast_array visited_nodes) s_compound_opt;
+      List.iter (handler_fun ast_array visited_nodes) handler_list;
+      cType_fun ast_array visited_nodes func;
+      opt_iter (variable_fun ast_array visited_nodes) variable_opt_1;
+      opt_iter (variable_fun ast_array visited_nodes) variable_opt_2;
+      opt_iter (statement_fun ast_array visited_nodes) statement_opt;
     end
 
 
-  and memberInit_fun ast_array((annot, pQName, argExpression_list, 
-		     variable_opt_1, compound_opt, variable_opt_2, 
-		     full_expr_annot, statement_opt) as x) =
+  and memberInit_fun ast_array visited_nodes
+      ((annot, pQName, argExpression_list, 
+	variable_opt_1, compound_opt, variable_opt_2, 
+	full_expr_annot, statement_opt) as x) =
 
-    if visited annot then ()
+    if visited visited_nodes annot then ()
     else begin
       (* it's either a member or base class init, therefore not both
        * of variable_opt_1 and compound_opt is Some _
@@ -559,82 +555,83 @@ module Into_array = struct
 	       | Some(CompoundType _) -> true
 	       | _ -> false);
       ast_array.(id_annotation annot) <- MemberInit_type x;
-      visit annot;
-      pQName_fun ast_array pQName;
-      List.iter (argExpression_fun ast_array) argExpression_list;
-      opt_iter (variable_fun ast_array) variable_opt_1;
-      opt_iter (atomicType_fun ast_array) compound_opt;
-      opt_iter (variable_fun ast_array) variable_opt_2;
-      fullExpressionAnnot_fun ast_array full_expr_annot;
-      opt_iter (statement_fun ast_array) statement_opt
+      visit visited_nodes annot;
+      pQName_fun ast_array visited_nodes pQName;
+      List.iter (argExpression_fun ast_array visited_nodes) argExpression_list;
+      opt_iter (variable_fun ast_array visited_nodes) variable_opt_1;
+      opt_iter (atomicType_fun ast_array visited_nodes) compound_opt;
+      opt_iter (variable_fun ast_array visited_nodes) variable_opt_2;
+      fullExpressionAnnot_fun ast_array visited_nodes full_expr_annot;
+      opt_iter (statement_fun ast_array visited_nodes) statement_opt
     end
 
 
-  and declaration_fun ast_array((annot, _declFlags, typeSpecifier, declarator_list) as x) =
-    if visited annot then ()
+  and declaration_fun ast_array visited_nodes
+      ((annot, _declFlags, typeSpecifier, declarator_list) as x) =
+    if visited visited_nodes annot then ()
     else begin
       ast_array.(id_annotation annot) <- Declaration_type x;
-      visit annot;
-      typeSpecifier_fun ast_array typeSpecifier;
-      List.iter (declarator_fun ast_array) declarator_list
+      visit visited_nodes annot;
+      typeSpecifier_fun ast_array visited_nodes typeSpecifier;
+      List.iter (declarator_fun ast_array visited_nodes) declarator_list
     end
 
 
-  and aSTTypeId_fun ast_array((annot, typeSpecifier, declarator) as x) =
-    if visited annot then ()
+  and aSTTypeId_fun ast_array visited_nodes ((annot, typeSpecifier, declarator) as x) =
+    if visited visited_nodes annot then ()
     else begin
       ast_array.(id_annotation annot) <- ASTTypeId_type x;
-      visit annot;
-      typeSpecifier_fun ast_array typeSpecifier;
-      declarator_fun ast_array declarator
+      visit visited_nodes annot;
+      typeSpecifier_fun ast_array visited_nodes typeSpecifier;
+      declarator_fun ast_array visited_nodes declarator
     end
 
 
-  and pQName_fun ast_array x = 
+  and pQName_fun ast_array visited_nodes x = 
     let annot = pQName_annotation x
     in
-      if visited annot then ()
+      if visited visited_nodes annot then ()
       else
 	let _ = ast_array.(id_annotation annot) <- PQName_type x in
-	let _ = visit annot 
+	let _ = visit visited_nodes annot 
 	in match x with
 	  | PQ_qualifier(_annot, _sourceLoc, _stringRef_opt, 
 			 templateArgument_opt, pQName, 
 			variable_opt, s_template_arg_list) -> 
-	      opt_iter (templateArgument_fun ast_array) templateArgument_opt;
-	      pQName_fun ast_array pQName;
-	      opt_iter (variable_fun ast_array) variable_opt;
-	      List.iter (sTemplateArgument_fun ast_array) s_template_arg_list
+	      opt_iter (templateArgument_fun ast_array visited_nodes) templateArgument_opt;
+	      pQName_fun ast_array visited_nodes pQName;
+	      opt_iter (variable_fun ast_array visited_nodes) variable_opt;
+	      List.iter (sTemplateArgument_fun ast_array visited_nodes) s_template_arg_list
 
 	  | PQ_name(_annot, _sourceLoc, _stringRef) -> 
 	      ()
 
 	  | PQ_operator(_annot, _sourceLoc, operatorName, _stringRef) -> 
-	      operatorName_fun ast_array operatorName;
+	      operatorName_fun ast_array visited_nodes operatorName;
 
 	  | PQ_template(_annot, _sourceLoc, _stringRef, templateArgument_opt, 
 		       s_template_arg_list) -> 
-	      opt_iter (templateArgument_fun ast_array) templateArgument_opt;
-	      List.iter (sTemplateArgument_fun ast_array) s_template_arg_list
+	      opt_iter (templateArgument_fun ast_array visited_nodes) templateArgument_opt;
+	      List.iter (sTemplateArgument_fun ast_array visited_nodes) s_template_arg_list
 
 	  | PQ_variable(_annot, _sourceLoc, variable) -> 
-	      variable_fun ast_array variable
+	      variable_fun ast_array visited_nodes variable
 
 
 
-  and typeSpecifier_fun ast_array x = 
+  and typeSpecifier_fun ast_array visited_nodes x = 
     let annot = typeSpecifier_annotation x
     in
-      if visited annot then ()
+      if visited visited_nodes annot then ()
       else
 	let _ = ast_array.(id_annotation annot) <- TypeSpecifier_type x in
-	let _ = visit annot 
+	let _ = visit visited_nodes annot 
 	in match x with
 	  | TS_name(_annot, _sourceLoc, _cVFlags, pQName, _bool, 
 		   var_opt_1, var_opt_2) -> 
-	      pQName_fun ast_array pQName;
-	      opt_iter (variable_fun ast_array) var_opt_1;
-	      opt_iter (variable_fun ast_array) var_opt_2
+	      pQName_fun ast_array visited_nodes pQName;
+	      opt_iter (variable_fun ast_array visited_nodes) var_opt_1;
+	      opt_iter (variable_fun ast_array visited_nodes) var_opt_2
 
 	  | TS_simple(_annot, _sourceLoc, _cVFlags, _simpleTypeId) -> 
 	      ()
@@ -644,175 +641,175 @@ module Into_array = struct
 	      assert(match namedAtomicType_opt with
 		| Some(SimpleType _) -> false
 		| _ -> true);
-	      pQName_fun ast_array pQName;
-	      opt_iter (atomicType_fun ast_array) namedAtomicType_opt
+	      pQName_fun ast_array visited_nodes pQName;
+	      opt_iter (atomicType_fun ast_array visited_nodes) namedAtomicType_opt
 
 	  | TS_classSpec(_annot, _sourceLoc, _cVFlags, _typeIntr, pQName_opt, 
 			 baseClassSpec_list, memberList, compoundType) -> 
 	      assert(match compoundType with
 		| CompoundType _ -> true
 		| _ -> false);
-	      opt_iter (pQName_fun ast_array) pQName_opt;
-	      List.iter (baseClassSpec_fun ast_array) baseClassSpec_list;
-	      memberList_fun ast_array memberList;
-	      atomicType_fun ast_array compoundType
+	      opt_iter (pQName_fun ast_array visited_nodes) pQName_opt;
+	      List.iter (baseClassSpec_fun ast_array visited_nodes) baseClassSpec_list;
+	      memberList_fun ast_array visited_nodes memberList;
+	      atomicType_fun ast_array visited_nodes compoundType
 
 	  | TS_enumSpec(_annot, _sourceLoc, _cVFlags, 
 			_stringRef_opt, enumerator_list, enumType) -> 
 	      assert(match enumType with 
 		| EnumType _ -> true
 		| _ -> false);
-	      List.iter (enumerator_fun ast_array) enumerator_list;
-	      atomicType_fun ast_array enumType
+	      List.iter (enumerator_fun ast_array visited_nodes) enumerator_list;
+	      atomicType_fun ast_array visited_nodes enumType
 
 	  | TS_type(_annot, _sourceLoc, _cVFlags, cType) -> 
-	      cType_fun ast_array cType
+	      cType_fun ast_array visited_nodes cType
 
 	  | TS_typeof(_annot, _sourceLoc, _cVFlags, aSTTypeof) -> 
-	      aSTTypeof_fun ast_array aSTTypeof
+	      aSTTypeof_fun ast_array visited_nodes aSTTypeof
 
 
-  and baseClassSpec_fun ast_array
+  and baseClassSpec_fun ast_array visited_nodes
       ((annot, _bool, _accessKeyword, pQName, compoundType_opt) as x) =
-    if visited annot then ()
+    if visited visited_nodes annot then ()
     else begin
       assert(match compoundType_opt with
 	       | None
 	       | Some(CompoundType _ ) -> true
 	       | _ -> false);
       ast_array.(id_annotation annot) <- BaseClassSpec_type x;
-      visit annot;
-      pQName_fun ast_array pQName;
-      opt_iter (atomicType_fun ast_array) compoundType_opt
+      visit visited_nodes annot;
+      pQName_fun ast_array visited_nodes pQName;
+      opt_iter (atomicType_fun ast_array visited_nodes) compoundType_opt
     end
 
 
-  and enumerator_fun ast_array((annot, _sourceLoc, _stringRef, 
+  and enumerator_fun ast_array visited_nodes ((annot, _sourceLoc, _stringRef, 
 		     expression_opt, variable, _int32) as x) =
-    if visited annot then ()
+    if visited visited_nodes annot then ()
     else begin
       ast_array.(id_annotation annot) <- Enumerator_type x;
-      visit annot;
-      opt_iter (expression_fun ast_array) expression_opt;
-      variable_fun ast_array variable;
+      visit visited_nodes annot;
+      opt_iter (expression_fun ast_array visited_nodes) expression_opt;
+      variable_fun ast_array visited_nodes variable;
     end
 
 
-  and memberList_fun ast_array((annot, member_list) as x) =
-    if visited annot then ()
+  and memberList_fun ast_array visited_nodes ((annot, member_list) as x) =
+    if visited visited_nodes annot then ()
     else begin
       ast_array.(id_annotation annot) <- MemberList_type x;
-      visit annot;
-      List.iter (member_fun ast_array) member_list
+      visit visited_nodes annot;
+      List.iter (member_fun ast_array visited_nodes) member_list
     end
 
 
-  and member_fun ast_array x = 
+  and member_fun ast_array visited_nodes x = 
     let annot = member_annotation x
     in
-      if visited annot then ()
+      if visited visited_nodes annot then ()
       else
 	let _ = ast_array.(id_annotation annot) <- Member_type x in
-	let _ = visit annot 
+	let _ = visit visited_nodes annot 
 	in match x with
 	  | MR_decl(_annot, _sourceLoc, declaration) -> 
-	      declaration_fun ast_array declaration
+	      declaration_fun ast_array visited_nodes declaration
 
 	  | MR_func(_annot, _sourceLoc, func) -> 
-	      func_fun ast_array func
+	      func_fun ast_array visited_nodes func
 
 	  | MR_access(_annot, _sourceLoc, _accessKeyword) -> 
 	      ()
 
 	  | MR_usingDecl(_annot, _sourceLoc, nd_usingDecl) -> 
 	      assert(match nd_usingDecl with ND_usingDecl _ -> true | _ -> false);
-	      namespaceDecl_fun ast_array nd_usingDecl
+	      namespaceDecl_fun ast_array visited_nodes nd_usingDecl
 
 	  | MR_template(_annot, _sourceLoc, templateDeclaration) -> 
-	      templateDeclaration_fun ast_array templateDeclaration
+	      templateDeclaration_fun ast_array visited_nodes templateDeclaration
 
 
-  and declarator_fun ast_array((annot, iDeclarator, init_opt, 
+  and declarator_fun ast_array visited_nodes ((annot, iDeclarator, init_opt, 
 		     variable_opt, ctype_opt, _declaratorContext,
 		     statement_opt_ctor, statement_opt_dtor) as x) =
-    if visited annot then ()
+    if visited visited_nodes annot then ()
     else begin
       ast_array.(id_annotation annot) <- Declarator_type x;
-      visit annot;
-      iDeclarator_fun ast_array iDeclarator;
-      opt_iter (init_fun ast_array) init_opt;
-      opt_iter (variable_fun ast_array) variable_opt;
-      opt_iter (cType_fun ast_array) ctype_opt;
-      opt_iter (statement_fun ast_array) statement_opt_ctor;
-      opt_iter (statement_fun ast_array) statement_opt_dtor
+      visit visited_nodes annot;
+      iDeclarator_fun ast_array visited_nodes iDeclarator;
+      opt_iter (init_fun ast_array visited_nodes) init_opt;
+      opt_iter (variable_fun ast_array visited_nodes) variable_opt;
+      opt_iter (cType_fun ast_array visited_nodes) ctype_opt;
+      opt_iter (statement_fun ast_array visited_nodes) statement_opt_ctor;
+      opt_iter (statement_fun ast_array visited_nodes) statement_opt_dtor
     end
 
 
-  and iDeclarator_fun ast_array x = 
+  and iDeclarator_fun ast_array visited_nodes x = 
     let annot = iDeclarator_annotation x
     in
-      if visited annot then ()
+      if visited visited_nodes annot then ()
       else
 	let _ = ast_array.(id_annotation annot) <- IDeclarator_type x in
-	let _ = visit annot 
+	let _ = visit visited_nodes annot 
 	in match x with
 	  | D_name(_annot, _sourceLoc, pQName_opt) -> 
-	      opt_iter (pQName_fun ast_array) pQName_opt
+	      opt_iter (pQName_fun ast_array visited_nodes) pQName_opt
 
 	  | D_pointer(_annot, _sourceLoc, _cVFlags, iDeclarator) -> 
-	      iDeclarator_fun ast_array iDeclarator
+	      iDeclarator_fun ast_array visited_nodes iDeclarator
 
 	  | D_reference(_annot, _sourceLoc, iDeclarator) -> 
-	      iDeclarator_fun ast_array iDeclarator
+	      iDeclarator_fun ast_array visited_nodes iDeclarator
 
 	  | D_func(_annot, _sourceLoc, iDeclarator, aSTTypeId_list, _cVFlags, 
 		   exceptionSpec_opt, pq_name_list, _bool) -> 
 	      assert(List.for_all (function | PQ_name _ -> true | _ -> false) 
 		       pq_name_list);
-	      iDeclarator_fun ast_array iDeclarator;
-	      List.iter (aSTTypeId_fun ast_array) aSTTypeId_list;
-	      opt_iter (exceptionSpec_fun ast_array) exceptionSpec_opt;
-	      List.iter (pQName_fun ast_array) pq_name_list;
+	      iDeclarator_fun ast_array visited_nodes iDeclarator;
+	      List.iter (aSTTypeId_fun ast_array visited_nodes) aSTTypeId_list;
+	      opt_iter (exceptionSpec_fun ast_array visited_nodes) exceptionSpec_opt;
+	      List.iter (pQName_fun ast_array visited_nodes) pq_name_list;
 
 	  | D_array(_annot, _sourceLoc, iDeclarator, expression_opt, _bool) -> 
-	      iDeclarator_fun ast_array iDeclarator;
-	      opt_iter (expression_fun ast_array) expression_opt;
+	      iDeclarator_fun ast_array visited_nodes iDeclarator;
+	      opt_iter (expression_fun ast_array visited_nodes) expression_opt;
 
 	  | D_bitfield(_annot, _sourceLoc, pQName_opt, expression, _int) -> 
-	      opt_iter (pQName_fun ast_array) pQName_opt;
-	      expression_fun ast_array expression;
+	      opt_iter (pQName_fun ast_array visited_nodes) pQName_opt;
+	      expression_fun ast_array visited_nodes expression;
 
 	  | D_ptrToMember(_annot, _sourceLoc, pQName, _cVFlags, iDeclarator) -> 
-	      pQName_fun ast_array pQName;
-	      iDeclarator_fun ast_array iDeclarator
+	      pQName_fun ast_array visited_nodes pQName;
+	      iDeclarator_fun ast_array visited_nodes iDeclarator
 
 	  | D_grouping(_annot, _sourceLoc, iDeclarator) -> 
-	      iDeclarator_fun ast_array iDeclarator
+	      iDeclarator_fun ast_array visited_nodes iDeclarator
 
 	  | D_attribute(_annot, _sourceLoc, iDeclarator, attribute_list_list) ->
-	      iDeclarator_fun ast_array iDeclarator;
+	      iDeclarator_fun ast_array visited_nodes iDeclarator;
 	      List.iter
-		(List.iter (attribute_fun ast_array)) 
+		(List.iter (attribute_fun ast_array visited_nodes)) 
 		attribute_list_list
 
 
 
-  and exceptionSpec_fun ast_array((annot, aSTTypeId_list) as x) =
-    if visited annot then ()
+  and exceptionSpec_fun ast_array visited_nodes ((annot, aSTTypeId_list) as x) =
+    if visited visited_nodes annot then ()
     else begin
       ast_array.(id_annotation annot) <- ExceptionSpec_type x;
-      visit annot;
-      List.iter (aSTTypeId_fun ast_array) aSTTypeId_list
+      visit visited_nodes annot;
+      List.iter (aSTTypeId_fun ast_array visited_nodes) aSTTypeId_list
     end
 
 
-  and operatorName_fun ast_array x = 
+  and operatorName_fun ast_array visited_nodes x = 
     let annot = operatorName_annotation x
     in
-      if visited annot then ()
+      if visited visited_nodes annot then ()
       else
 	let _ = ast_array.(id_annotation annot) <- OperatorName_type x in
-	let _ = visit annot 
+	let _ = visit visited_nodes annot 
 	in match x with
 	  | ON_newDel(_annot, _bool_is_new, _bool_is_array) -> 
 	      ()
@@ -821,59 +818,59 @@ module Into_array = struct
 	      ()
 
 	  | ON_conversion(_annot, aSTTypeId) -> 
-	      aSTTypeId_fun ast_array aSTTypeId
+	      aSTTypeId_fun ast_array visited_nodes aSTTypeId
 
 
-  and statement_fun ast_array x = 
+  and statement_fun ast_array visited_nodes x = 
     let annot = statement_annotation x
     in
-      if visited annot then ()
+      if visited visited_nodes annot then ()
       else
 	let _ = ast_array.(id_annotation annot) <- Statement_type x in
-	let _ = visit annot 
+	let _ = visit visited_nodes annot 
 	in match x with
 	  | S_skip(_annot, _sourceLoc) -> 
 	      ()
 
 	  | S_label(_annot, _sourceLoc, _stringRef, statement) -> 
-	      statement_fun ast_array statement
+	      statement_fun ast_array visited_nodes statement
 
 	  | S_case(_annot, _sourceLoc, expression, statement, _int) -> 
-	      expression_fun ast_array expression;
-	      statement_fun ast_array statement;
+	      expression_fun ast_array visited_nodes expression;
+	      statement_fun ast_array visited_nodes statement;
 
 	  | S_default(_annot, _sourceLoc, statement) -> 
-	      statement_fun ast_array statement
+	      statement_fun ast_array visited_nodes statement
 
 	  | S_expr(_annot, _sourceLoc, fullExpression) -> 
-	      fullExpression_fun ast_array fullExpression
+	      fullExpression_fun ast_array visited_nodes fullExpression
 
 	  | S_compound(_annot, _sourceLoc, statement_list) -> 
-	      List.iter (statement_fun ast_array) statement_list
+	      List.iter (statement_fun ast_array visited_nodes) statement_list
 
 	  | S_if(_annot, _sourceLoc, condition, statement_then, statement_else) -> 
-	      condition_fun ast_array condition;
-	      statement_fun ast_array statement_then;
-	      statement_fun ast_array statement_else
+	      condition_fun ast_array visited_nodes condition;
+	      statement_fun ast_array visited_nodes statement_then;
+	      statement_fun ast_array visited_nodes statement_else
 
 	  | S_switch(_annot, _sourceLoc, condition, statement) -> 
-	      condition_fun ast_array condition;
-	      statement_fun ast_array statement
+	      condition_fun ast_array visited_nodes condition;
+	      statement_fun ast_array visited_nodes statement
 
 	  | S_while(_annot, _sourceLoc, condition, statement) -> 
-	      condition_fun ast_array condition;
-	      statement_fun ast_array statement
+	      condition_fun ast_array visited_nodes condition;
+	      statement_fun ast_array visited_nodes statement
 
 	  | S_doWhile(_annot, _sourceLoc, statement, fullExpression) -> 
-	      statement_fun ast_array statement;
-	      fullExpression_fun ast_array fullExpression
+	      statement_fun ast_array visited_nodes statement;
+	      fullExpression_fun ast_array visited_nodes fullExpression
 
 	  | S_for(_annot, _sourceLoc, statement_init, condition, fullExpression, 
 		  statement_body) -> 
-	      statement_fun ast_array statement_init;
-	      condition_fun ast_array condition;
-	      fullExpression_fun ast_array fullExpression;
-	      statement_fun ast_array statement_body
+	      statement_fun ast_array visited_nodes statement_init;
+	      condition_fun ast_array visited_nodes condition;
+	      fullExpression_fun ast_array visited_nodes fullExpression;
+	      statement_fun ast_array visited_nodes statement_body
 
 	  | S_break(_annot, _sourceLoc) -> 
 	      ()
@@ -882,86 +879,86 @@ module Into_array = struct
 	      ()
 
 	  | S_return(_annot, _sourceLoc, fullExpression_opt, statement_opt) -> 
-	      opt_iter (fullExpression_fun ast_array) fullExpression_opt;
-	      opt_iter (statement_fun ast_array) statement_opt
+	      opt_iter (fullExpression_fun ast_array visited_nodes) fullExpression_opt;
+	      opt_iter (statement_fun ast_array visited_nodes) statement_opt
 
 	  | S_goto(_annot, _sourceLoc, _stringRef) -> 
 	      ()
 
 	  | S_decl(_annot, _sourceLoc, declaration) -> 
-	      declaration_fun ast_array declaration
+	      declaration_fun ast_array visited_nodes declaration
 
 	  | S_try(_annot, _sourceLoc, statement, handler_list) -> 
-	      statement_fun ast_array statement;
-	      List.iter (handler_fun ast_array) handler_list
+	      statement_fun ast_array visited_nodes statement;
+	      List.iter (handler_fun ast_array visited_nodes) handler_list
 
 	  | S_asm(_annot, _sourceLoc, e_stringLit) -> 
 	      assert(match e_stringLit with | E_stringLit _ -> true | _ -> false);
-	      expression_fun ast_array e_stringLit
+	      expression_fun ast_array visited_nodes e_stringLit
 
 	  | S_namespaceDecl(_annot, _sourceLoc, namespaceDecl) -> 
-	      namespaceDecl_fun ast_array namespaceDecl
+	      namespaceDecl_fun ast_array visited_nodes namespaceDecl
 
 	  | S_function(_annot, _sourceLoc, func) -> 
-	      func_fun ast_array func
+	      func_fun ast_array visited_nodes func
 
 	  | S_rangeCase(_annot, _sourceLoc, 
 			expression_lo, expression_hi, statement, 
 		       _label_lo, _label_hi) -> 
-	      expression_fun ast_array expression_lo;
-	      expression_fun ast_array expression_hi;
-	      statement_fun ast_array statement;
+	      expression_fun ast_array visited_nodes expression_lo;
+	      expression_fun ast_array visited_nodes expression_hi;
+	      statement_fun ast_array visited_nodes statement;
 
 	  | S_computedGoto(_annot, _sourceLoc, expression) -> 
-	      expression_fun ast_array expression
+	      expression_fun ast_array visited_nodes expression
 
 
-  and condition_fun ast_array x = 
+  and condition_fun ast_array visited_nodes x = 
     let annot = condition_annotation x
     in
-      if visited annot then ()
+      if visited visited_nodes annot then ()
       else
 	let _ = ast_array.(id_annotation annot) <- Condition_type x in
-	let _ = visit annot 
+	let _ = visit visited_nodes annot 
 	in match x with
 	  | CN_expr(_annot, fullExpression) -> 
-	      fullExpression_fun ast_array fullExpression
+	      fullExpression_fun ast_array visited_nodes fullExpression
 
 	  | CN_decl(_annot, aSTTypeId) -> 
-	      aSTTypeId_fun ast_array aSTTypeId
+	      aSTTypeId_fun ast_array visited_nodes aSTTypeId
 
 
-  and handler_fun ast_array((annot, aSTTypeId, statement_body, variable_opt, 
+  and handler_fun ast_array visited_nodes ((annot, aSTTypeId, statement_body, variable_opt, 
 		  fullExpressionAnnot, expression_opt, statement_gdtor) as x) =
-    if visited annot then ()
+    if visited visited_nodes annot then ()
     else begin
       ast_array.(id_annotation annot) <- Handler_type x;
-      visit annot;
-      aSTTypeId_fun ast_array aSTTypeId;
-      statement_fun ast_array statement_body;
-      opt_iter (variable_fun ast_array) variable_opt;
-      fullExpressionAnnot_fun ast_array fullExpressionAnnot;
-      opt_iter (expression_fun ast_array) expression_opt;
-      opt_iter (statement_fun ast_array) statement_gdtor
+      visit visited_nodes annot;
+      aSTTypeId_fun ast_array visited_nodes aSTTypeId;
+      statement_fun ast_array visited_nodes statement_body;
+      opt_iter (variable_fun ast_array visited_nodes) variable_opt;
+      fullExpressionAnnot_fun ast_array visited_nodes fullExpressionAnnot;
+      opt_iter (expression_fun ast_array visited_nodes) expression_opt;
+      opt_iter (statement_fun ast_array visited_nodes) statement_gdtor
     end
 
 
-  and expression_fun ast_array x = 
+  and expression_fun ast_array visited_nodes x = 
     let annot = expression_annotation x
     in
-      if visited annot then ()
+      if visited visited_nodes annot then ()
       else
 	let _ = ast_array.(id_annotation annot) <- Expression_type x in
-	let _ = visit annot 
+	let _ = visit visited_nodes annot 
 	in match x with
 	  | E_boolLit(_annot, type_opt, _bool) -> 
-	      opt_iter (cType_fun ast_array) type_opt;
+	      opt_iter (cType_fun ast_array visited_nodes) type_opt;
 
 	  | E_intLit(_annot, type_opt, _stringRef, _ulong) -> 
-	      opt_iter (cType_fun ast_array) type_opt;
+	      opt_iter (cType_fun ast_array visited_nodes) type_opt;
 
 	  | E_floatLit(_annot, type_opt, _stringRef, _double) -> 
-	      opt_iter (cType_fun ast_array) type_opt;
+	      opt_iter (cType_fun ast_array visited_nodes) type_opt;
 
 	  | E_stringLit(_annot, type_opt, _stringRef, 
 			e_stringLit_opt, _stringRef_opt) -> 
@@ -969,364 +966,372 @@ module Into_array = struct
 		       | Some(E_stringLit _) -> true 
 		       | None -> true
 		       | _ -> false);
-	      opt_iter (cType_fun ast_array) type_opt;
-	      opt_iter (expression_fun ast_array) e_stringLit_opt
+	      opt_iter (cType_fun ast_array visited_nodes) type_opt;
+	      opt_iter (expression_fun ast_array visited_nodes) e_stringLit_opt
 
 	  | E_charLit(_annot, type_opt, _stringRef, _int32) -> 
-	      opt_iter (cType_fun ast_array) type_opt;
+	      opt_iter (cType_fun ast_array visited_nodes) type_opt;
 
 	  | E_this(_annot, type_opt, variable) -> 
-	      opt_iter (cType_fun ast_array) type_opt;
-	      variable_fun ast_array variable
+	      opt_iter (cType_fun ast_array visited_nodes) type_opt;
+	      variable_fun ast_array visited_nodes variable
 
 	  | E_variable(_annot, type_opt, pQName, var_opt, nondep_var_opt) -> 
-	      opt_iter (cType_fun ast_array) type_opt;
-	      pQName_fun ast_array pQName;
-	      opt_iter (variable_fun ast_array) var_opt;
-	      opt_iter (variable_fun ast_array) nondep_var_opt
+	      opt_iter (cType_fun ast_array visited_nodes) type_opt;
+	      pQName_fun ast_array visited_nodes pQName;
+	      opt_iter (variable_fun ast_array visited_nodes) var_opt;
+	      opt_iter (variable_fun ast_array visited_nodes) nondep_var_opt
 
 	  | E_funCall(_annot, type_opt, expression_func, 
 		      argExpression_list, expression_retobj_opt) -> 
-	      opt_iter (cType_fun ast_array) type_opt;
-	      expression_fun ast_array expression_func;
-	      List.iter (argExpression_fun ast_array) argExpression_list;
-	      opt_iter (expression_fun ast_array) expression_retobj_opt
+	      opt_iter (cType_fun ast_array visited_nodes) type_opt;
+	      expression_fun ast_array visited_nodes expression_func;
+	      List.iter (argExpression_fun ast_array visited_nodes) argExpression_list;
+	      opt_iter (expression_fun ast_array visited_nodes) expression_retobj_opt
 
 	  | E_constructor(_annot, type_opt, typeSpecifier, argExpression_list, 
 			  var_opt, _bool, expression_opt) -> 
-	      opt_iter (cType_fun ast_array) type_opt;
-	      typeSpecifier_fun ast_array typeSpecifier;
-	      List.iter (argExpression_fun ast_array) argExpression_list;
-	      opt_iter (variable_fun ast_array) var_opt;
-	      opt_iter (expression_fun ast_array) expression_opt
+	      opt_iter (cType_fun ast_array visited_nodes) type_opt;
+	      typeSpecifier_fun ast_array visited_nodes typeSpecifier;
+	      List.iter (argExpression_fun ast_array visited_nodes) argExpression_list;
+	      opt_iter (variable_fun ast_array visited_nodes) var_opt;
+	      opt_iter (expression_fun ast_array visited_nodes) expression_opt
 
 	  | E_fieldAcc(_annot, type_opt, expression, pQName, var_opt) -> 
-	      opt_iter (cType_fun ast_array) type_opt;
-	      expression_fun ast_array expression;
-	      pQName_fun ast_array pQName;
-	      opt_iter (variable_fun ast_array) var_opt
+	      opt_iter (cType_fun ast_array visited_nodes) type_opt;
+	      expression_fun ast_array visited_nodes expression;
+	      pQName_fun ast_array visited_nodes pQName;
+	      opt_iter (variable_fun ast_array visited_nodes) var_opt
 
 	  | E_sizeof(_annot, type_opt, expression, _int) -> 
-	      opt_iter (cType_fun ast_array) type_opt;
-	      expression_fun ast_array expression;
+	      opt_iter (cType_fun ast_array visited_nodes) type_opt;
+	      expression_fun ast_array visited_nodes expression;
 
 	  | E_unary(_annot, type_opt, _unaryOp, expression) -> 
-	      opt_iter (cType_fun ast_array) type_opt;
-	      expression_fun ast_array expression
+	      opt_iter (cType_fun ast_array visited_nodes) type_opt;
+	      expression_fun ast_array visited_nodes expression
 
 	  | E_effect(_annot, type_opt, _effectOp, expression) -> 
-	      opt_iter (cType_fun ast_array) type_opt;
-	      expression_fun ast_array expression
+	      opt_iter (cType_fun ast_array visited_nodes) type_opt;
+	      expression_fun ast_array visited_nodes expression
 
-	  | E_binary(_annot, type_opt, expression_left, _binaryOp, expression_right) -> 
-	      opt_iter (cType_fun ast_array) type_opt;
-	      expression_fun ast_array expression_left;
-	      expression_fun ast_array expression_right
+	  | E_binary(_annot, type_opt, expression_left, _binaryOp, 
+		     expression_right) -> 
+	      opt_iter (cType_fun ast_array visited_nodes) type_opt;
+	      expression_fun ast_array visited_nodes expression_left;
+	      expression_fun ast_array visited_nodes expression_right
 
 	  | E_addrOf(_annot, type_opt, expression) -> 
-	      opt_iter (cType_fun ast_array) type_opt;
-	      expression_fun ast_array expression
+	      opt_iter (cType_fun ast_array visited_nodes) type_opt;
+	      expression_fun ast_array visited_nodes expression
 
 	  | E_deref(_annot, type_opt, expression) -> 
-	      opt_iter (cType_fun ast_array) type_opt;
-	      expression_fun ast_array expression
+	      opt_iter (cType_fun ast_array visited_nodes) type_opt;
+	      expression_fun ast_array visited_nodes expression
 
 	  | E_cast(_annot, type_opt, aSTTypeId, expression, _bool) -> 
-	      opt_iter (cType_fun ast_array) type_opt;
-	      aSTTypeId_fun ast_array aSTTypeId;
-	      expression_fun ast_array expression;
+	      opt_iter (cType_fun ast_array visited_nodes) type_opt;
+	      aSTTypeId_fun ast_array visited_nodes aSTTypeId;
+	      expression_fun ast_array visited_nodes expression;
 
-	  | E_cond(_annot, type_opt, expression_cond, expression_true, expression_false) -> 
-	      opt_iter (cType_fun ast_array) type_opt;
-	      expression_fun ast_array expression_cond;
-	      expression_fun ast_array expression_true;
-	      expression_fun ast_array expression_false
+	  | E_cond(_annot, type_opt, expression_cond, expression_true, 
+		   expression_false) -> 
+	      opt_iter (cType_fun ast_array visited_nodes) type_opt;
+	      expression_fun ast_array visited_nodes expression_cond;
+	      expression_fun ast_array visited_nodes expression_true;
+	      expression_fun ast_array visited_nodes expression_false
 
 	  | E_sizeofType(_annot, type_opt, aSTTypeId, _int, _bool) -> 
-	      opt_iter (cType_fun ast_array) type_opt;
-	      aSTTypeId_fun ast_array aSTTypeId;
+	      opt_iter (cType_fun ast_array visited_nodes) type_opt;
+	      aSTTypeId_fun ast_array visited_nodes aSTTypeId;
 
-	  | E_assign(_annot, type_opt, expression_target, _binaryOp, expression_src) -> 
-	      opt_iter (cType_fun ast_array) type_opt;
-	      expression_fun ast_array expression_target;
-	      expression_fun ast_array expression_src
+	  | E_assign(_annot, type_opt, expression_target, _binaryOp, 
+		     expression_src) -> 
+	      opt_iter (cType_fun ast_array visited_nodes) type_opt;
+	      expression_fun ast_array visited_nodes expression_target;
+	      expression_fun ast_array visited_nodes expression_src
 
 	  | E_new(_annot, type_opt, _bool, argExpression_list, aSTTypeId, 
 		  argExpressionListOpt_opt, array_size_opt, ctor_opt,
 		  statement_opt, heep_var) -> 
-	      opt_iter (cType_fun ast_array) type_opt;
-	      List.iter (argExpression_fun ast_array) argExpression_list;
-	      aSTTypeId_fun ast_array aSTTypeId;
-	      opt_iter (argExpressionListOpt_fun ast_array) argExpressionListOpt_opt;
-	      opt_iter (expression_fun ast_array) array_size_opt;
-	      opt_iter (variable_fun ast_array) ctor_opt;
-	      opt_iter (statement_fun ast_array) statement_opt;
-	      opt_iter (variable_fun ast_array) heep_var
+	      opt_iter (cType_fun ast_array visited_nodes) type_opt;
+	      List.iter (argExpression_fun ast_array visited_nodes) argExpression_list;
+	      aSTTypeId_fun ast_array visited_nodes aSTTypeId;
+	      opt_iter (argExpressionListOpt_fun ast_array visited_nodes) 
+		argExpressionListOpt_opt;
+	      opt_iter (expression_fun ast_array visited_nodes) array_size_opt;
+	      opt_iter (variable_fun ast_array visited_nodes) ctor_opt;
+	      opt_iter (statement_fun ast_array visited_nodes) statement_opt;
+	      opt_iter (variable_fun ast_array visited_nodes) heep_var
 
 	  | E_delete(_annot, type_opt, _bool_colon, _bool_array, 
 		     expression_opt, statement_opt) -> 
-	      opt_iter (cType_fun ast_array) type_opt;
-	      opt_iter (expression_fun ast_array) expression_opt;
-	      opt_iter (statement_fun ast_array) statement_opt
+	      opt_iter (cType_fun ast_array visited_nodes) type_opt;
+	      opt_iter (expression_fun ast_array visited_nodes) expression_opt;
+	      opt_iter (statement_fun ast_array visited_nodes) statement_opt
 
-	  | E_throw(_annot, type_opt, expression_opt, var_opt, statement_opt) -> 
-	      opt_iter (cType_fun ast_array) type_opt;
-	      opt_iter (expression_fun ast_array) expression_opt;
-	      opt_iter (variable_fun ast_array) var_opt;
-	      opt_iter (statement_fun ast_array) statement_opt
+	  | E_throw(_annot, type_opt, expression_opt, var_opt, 
+		    statement_opt) -> 
+	      opt_iter (cType_fun ast_array visited_nodes) type_opt;
+	      opt_iter (expression_fun ast_array visited_nodes) expression_opt;
+	      opt_iter (variable_fun ast_array visited_nodes) var_opt;
+	      opt_iter (statement_fun ast_array visited_nodes) statement_opt
 
-	  | E_keywordCast(_annot, type_opt, _castKeyword, aSTTypeId, expression) -> 
-	      opt_iter (cType_fun ast_array) type_opt;
-	      aSTTypeId_fun ast_array aSTTypeId;
-	      expression_fun ast_array expression
+	  | E_keywordCast(_annot, type_opt, _castKeyword, aSTTypeId, 
+			  expression) -> 
+	      opt_iter (cType_fun ast_array visited_nodes) type_opt;
+	      aSTTypeId_fun ast_array visited_nodes aSTTypeId;
+	      expression_fun ast_array visited_nodes expression
 
 	  | E_typeidExpr(_annot, type_opt, expression) -> 
-	      opt_iter (cType_fun ast_array) type_opt;
-	      expression_fun ast_array expression
+	      opt_iter (cType_fun ast_array visited_nodes) type_opt;
+	      expression_fun ast_array visited_nodes expression
 
 	  | E_typeidType(_annot, type_opt, aSTTypeId) -> 
-	      opt_iter (cType_fun ast_array) type_opt;
-	      aSTTypeId_fun ast_array aSTTypeId
+	      opt_iter (cType_fun ast_array visited_nodes) type_opt;
+	      aSTTypeId_fun ast_array visited_nodes aSTTypeId
 
 	  | E_grouping(_annot, type_opt, expression) -> 
-	      opt_iter (cType_fun ast_array) type_opt;
-	      expression_fun ast_array expression
+	      opt_iter (cType_fun ast_array visited_nodes) type_opt;
+	      expression_fun ast_array visited_nodes expression
 
 	  | E_arrow(_annot, type_opt, expression, pQName) -> 
-	      opt_iter (cType_fun ast_array) type_opt;
-	      expression_fun ast_array expression;
-	      pQName_fun ast_array pQName
+	      opt_iter (cType_fun ast_array visited_nodes) type_opt;
+	      expression_fun ast_array visited_nodes expression;
+	      pQName_fun ast_array visited_nodes pQName
 
 	  | E_statement(_annot, type_opt, s_compound) -> 
 	      assert(match s_compound with | S_compound _ -> true | _ -> false);
-	      opt_iter (cType_fun ast_array) type_opt;
-	      statement_fun ast_array s_compound
+	      opt_iter (cType_fun ast_array visited_nodes) type_opt;
+	      statement_fun ast_array visited_nodes s_compound
 
 	  | E_compoundLit(_annot, type_opt, aSTTypeId, in_compound) -> 
-	      assert(match in_compound with | IN_compound _ -> true | _ -> false);
-	      opt_iter (cType_fun ast_array) type_opt;
-	      aSTTypeId_fun ast_array aSTTypeId;
-	      init_fun ast_array in_compound
+	      assert(match in_compound with 
+		       | IN_compound _ -> true | _ -> false);
+	      opt_iter (cType_fun ast_array visited_nodes) type_opt;
+	      aSTTypeId_fun ast_array visited_nodes aSTTypeId;
+	      init_fun ast_array visited_nodes in_compound
 
 	  | E___builtin_constant_p(_annot, type_opt, _sourceLoc, expression) -> 
-	      opt_iter (cType_fun ast_array) type_opt;
-	      expression_fun ast_array expression
+	      opt_iter (cType_fun ast_array visited_nodes) type_opt;
+	      expression_fun ast_array visited_nodes expression
 
-	  | E___builtin_va_arg(_annot, type_opt, _sourceLoc, expression, aSTTypeId) -> 
-	      opt_iter (cType_fun ast_array) type_opt;
-	      expression_fun ast_array expression;
-	      aSTTypeId_fun ast_array aSTTypeId
+	  | E___builtin_va_arg(_annot, type_opt, _sourceLoc, expression, 
+			       aSTTypeId) -> 
+	      opt_iter (cType_fun ast_array visited_nodes) type_opt;
+	      expression_fun ast_array visited_nodes expression;
+	      aSTTypeId_fun ast_array visited_nodes aSTTypeId
 
 	  | E_alignofType(_annot, type_opt, aSTTypeId, _int) -> 
-	      opt_iter (cType_fun ast_array) type_opt;
-	      aSTTypeId_fun ast_array aSTTypeId;
+	      opt_iter (cType_fun ast_array visited_nodes) type_opt;
+	      aSTTypeId_fun ast_array visited_nodes aSTTypeId;
 
 	  | E_alignofExpr(_annot, type_opt, expression, _int) -> 
-	      opt_iter (cType_fun ast_array) type_opt;
-	      expression_fun ast_array expression;
+	      opt_iter (cType_fun ast_array visited_nodes) type_opt;
+	      expression_fun ast_array visited_nodes expression;
 
 	  | E_gnuCond(_annot, type_opt, expression_cond, expression_false) -> 
-	      opt_iter (cType_fun ast_array) type_opt;
-	      expression_fun ast_array expression_cond;
-	      expression_fun ast_array expression_false
+	      opt_iter (cType_fun ast_array visited_nodes) type_opt;
+	      expression_fun ast_array visited_nodes expression_cond;
+	      expression_fun ast_array visited_nodes expression_false
 
 	  | E_addrOfLabel(_annot, type_opt, _stringRef) -> 
-	      opt_iter (cType_fun ast_array) type_opt;
+	      opt_iter (cType_fun ast_array visited_nodes) type_opt;
 
 	  | E_stdConv(_annot, type_opt, expression, scs, _conversionKind) ->
 	      assert(check_standardConversion scs);
-	      opt_iter (cType_fun ast_array) type_opt;
-	      expression_fun ast_array expression
+	      opt_iter (cType_fun ast_array visited_nodes) type_opt;
+	      expression_fun ast_array visited_nodes expression
 
 
-  and fullExpression_fun ast_array
+  and fullExpression_fun ast_array visited_nodes
       ((annot, expression_opt, fullExpressionAnnot) as x) =
-    if visited annot then ()
+    if visited visited_nodes annot then ()
     else begin
       ast_array.(id_annotation annot) <- FullExpression_type x;
-      visit annot;
-      opt_iter (expression_fun ast_array) expression_opt;
-      fullExpressionAnnot_fun ast_array fullExpressionAnnot
+      visit visited_nodes annot;
+      opt_iter (expression_fun ast_array visited_nodes) expression_opt;
+      fullExpressionAnnot_fun ast_array visited_nodes fullExpressionAnnot
     end
 
 
-  and argExpression_fun ast_array((annot, expression) as x) =
-    if visited annot then ()
+  and argExpression_fun ast_array visited_nodes ((annot, expression) as x) =
+    if visited visited_nodes annot then ()
     else begin
       ast_array.(id_annotation annot) <- ArgExpression_type x;
-      visit annot;
-      expression_fun ast_array expression
+      visit visited_nodes annot;
+      expression_fun ast_array visited_nodes expression
     end
 
 
-  and argExpressionListOpt_fun ast_array((annot, argExpression_list) as x) =
-    if visited annot then ()
+  and argExpressionListOpt_fun ast_array visited_nodes ((annot, argExpression_list) as x) =
+    if visited visited_nodes annot then ()
     else begin
       ast_array.(id_annotation annot) <- ArgExpressionListOpt_type x;
-      visit annot;
-      List.iter (argExpression_fun ast_array) argExpression_list
+      visit visited_nodes annot;
+      List.iter (argExpression_fun ast_array visited_nodes) argExpression_list
     end
 
 
-  and init_fun ast_array x = 
+  and init_fun ast_array visited_nodes x = 
     let annot = init_annotation x
     in
-      if visited annot then ()
+      if visited visited_nodes annot then ()
       else
 	let _ = ast_array.(id_annotation annot) <- Initializer_type x in
-	let _ = visit annot 
+	let _ = visit visited_nodes annot 
 	in match x with
 	  | IN_expr(_annot, _sourceLoc, fullExpressionAnnot, expression_opt) -> 
-	      fullExpressionAnnot_fun ast_array fullExpressionAnnot;
-	      opt_iter (expression_fun ast_array) expression_opt
+	      fullExpressionAnnot_fun ast_array visited_nodes fullExpressionAnnot;
+	      opt_iter (expression_fun ast_array visited_nodes) expression_opt
 
 	  | IN_compound(_annot, _sourceLoc, fullExpressionAnnot, init_list) -> 
-	      fullExpressionAnnot_fun ast_array fullExpressionAnnot;
-	      List.iter (init_fun ast_array) init_list
+	      fullExpressionAnnot_fun ast_array visited_nodes fullExpressionAnnot;
+	      List.iter (init_fun ast_array visited_nodes) init_list
 
 	  | IN_ctor(_annot, _sourceLoc, fullExpressionAnnot, 
 		   argExpression_list, var_opt, _bool) -> 
-	      fullExpressionAnnot_fun ast_array fullExpressionAnnot;
-	      List.iter (argExpression_fun ast_array) argExpression_list;
-	      opt_iter (variable_fun ast_array) var_opt;
+	      fullExpressionAnnot_fun ast_array visited_nodes fullExpressionAnnot;
+	      List.iter (argExpression_fun ast_array visited_nodes) argExpression_list;
+	      opt_iter (variable_fun ast_array visited_nodes) var_opt;
 
 	  | IN_designated(_annot, _sourceLoc, fullExpressionAnnot, 
 			 designator_list, init) -> 
-	      fullExpressionAnnot_fun ast_array fullExpressionAnnot;
-	      List.iter (designator_fun ast_array) designator_list;
-	      init_fun ast_array init
+	      fullExpressionAnnot_fun ast_array visited_nodes fullExpressionAnnot;
+	      List.iter (designator_fun ast_array visited_nodes) designator_list;
+	      init_fun ast_array visited_nodes init
 
 
-  and templateDeclaration_fun ast_array x = 
+  and templateDeclaration_fun ast_array visited_nodes x = 
     let annot = templateDeclaration_annotation x
     in
-      if visited annot then ()
+      if visited visited_nodes annot then ()
       else
 	let _ = ast_array.(id_annotation annot) <- TemplateDeclaration_type x in
-	let _ = visit annot 
+	let _ = visit visited_nodes annot 
 	in match x with
 	  | TD_func(_annot, templateParameter_opt, func) -> 
-	      opt_iter (templateParameter_fun ast_array) templateParameter_opt;
-	      func_fun ast_array func
+	      opt_iter (templateParameter_fun ast_array visited_nodes) templateParameter_opt;
+	      func_fun ast_array visited_nodes func
 
 	  | TD_decl(_annot, templateParameter_opt, declaration) -> 
-	      opt_iter (templateParameter_fun ast_array) templateParameter_opt;
-	      declaration_fun ast_array declaration
+	      opt_iter (templateParameter_fun ast_array visited_nodes) templateParameter_opt;
+	      declaration_fun ast_array visited_nodes declaration
 
 	  | TD_tmember(_annot, templateParameter_opt, templateDeclaration) -> 
-	      opt_iter (templateParameter_fun ast_array) templateParameter_opt;
-	      templateDeclaration_fun ast_array templateDeclaration
+	      opt_iter (templateParameter_fun ast_array visited_nodes) templateParameter_opt;
+	      templateDeclaration_fun ast_array visited_nodes templateDeclaration
 
 
-  and templateParameter_fun ast_array x = 
+  and templateParameter_fun ast_array visited_nodes x = 
     let annot = templateParameter_annotation x
     in
-      if visited annot then ()
+      if visited visited_nodes annot then ()
       else
 	let _ = ast_array.(id_annotation annot) <- TemplateParameter_type x in
-	let _ = visit annot 
+	let _ = visit visited_nodes annot 
 	in match x with
 	  | TP_type(_annot, _sourceLoc, variable, _stringRef, 
 		    aSTTypeId_opt, templateParameter_opt) -> 
-	      variable_fun ast_array variable;
-	      opt_iter (aSTTypeId_fun ast_array) aSTTypeId_opt;
-	      opt_iter (templateParameter_fun ast_array) templateParameter_opt
+	      variable_fun ast_array visited_nodes variable;
+	      opt_iter (aSTTypeId_fun ast_array visited_nodes) aSTTypeId_opt;
+	      opt_iter (templateParameter_fun ast_array visited_nodes) templateParameter_opt
 
 	  | TP_nontype(_annot, _sourceLoc, variable,
 		      aSTTypeId, templateParameter_opt) -> 
-	      variable_fun ast_array variable;
-	      aSTTypeId_fun ast_array aSTTypeId;
-	      opt_iter (templateParameter_fun ast_array) templateParameter_opt
+	      variable_fun ast_array visited_nodes variable;
+	      aSTTypeId_fun ast_array visited_nodes aSTTypeId;
+	      opt_iter (templateParameter_fun ast_array visited_nodes) templateParameter_opt
 
 
-  and templateArgument_fun ast_array x = 
+  and templateArgument_fun ast_array visited_nodes x = 
     let annot = templateArgument_annotation x
     in
-      if visited annot then ()
+      if visited visited_nodes annot then ()
       else
 	let _ = ast_array.(id_annotation annot) <- TemplateArgument_type x in
-	let _ = visit annot 
+	let _ = visit visited_nodes annot 
 	in match x with
 	  | TA_type(_annot, aSTTypeId, templateArgument_opt) -> 
-	      aSTTypeId_fun ast_array aSTTypeId;
-	      opt_iter (templateArgument_fun ast_array) templateArgument_opt
+	      aSTTypeId_fun ast_array visited_nodes aSTTypeId;
+	      opt_iter (templateArgument_fun ast_array visited_nodes) templateArgument_opt
 
 	  | TA_nontype(_annot, expression, templateArgument_opt) -> 
-	      expression_fun ast_array expression;
-	      opt_iter (templateArgument_fun ast_array) templateArgument_opt
+	      expression_fun ast_array visited_nodes expression;
+	      opt_iter (templateArgument_fun ast_array visited_nodes) templateArgument_opt
 
 	  | TA_templateUsed(_annot, templateArgument_opt) -> 
-	      opt_iter (templateArgument_fun ast_array) templateArgument_opt
+	      opt_iter (templateArgument_fun ast_array visited_nodes) templateArgument_opt
 
 
-  and namespaceDecl_fun ast_array x = 
+  and namespaceDecl_fun ast_array visited_nodes x = 
     let annot = namespaceDecl_annotation x
     in
-      if visited annot then ()
+      if visited visited_nodes annot then ()
       else
 	let _ = ast_array.(id_annotation annot) <- NamespaceDecl_type x in
-	let _ = visit annot 
+	let _ = visit visited_nodes annot 
 	in match x with
 	  | ND_alias(_annot, _stringRef, pQName) -> 
-	      pQName_fun ast_array pQName
+	      pQName_fun ast_array visited_nodes pQName
 
 	  | ND_usingDecl(_annot, pQName) -> 
-	      pQName_fun ast_array pQName
+	      pQName_fun ast_array visited_nodes pQName
 
 	  | ND_usingDir(_annot, pQName) -> 
-	      pQName_fun ast_array pQName
+	      pQName_fun ast_array visited_nodes pQName
 
 
-  and fullExpressionAnnot_fun ast_array((annot, declaration_list) as x) =
-    if visited annot then ()
+  and fullExpressionAnnot_fun ast_array visited_nodes ((annot, declaration_list) as x) =
+    if visited visited_nodes annot then ()
     else begin
       ast_array.(id_annotation annot) <- FullExpressionAnnot_type x;
-      visit annot;
-      List.iter (declaration_fun ast_array) declaration_list
+      visit visited_nodes annot;
+      List.iter (declaration_fun ast_array visited_nodes) declaration_list
     end
 
 
-  and aSTTypeof_fun ast_array x = 
+  and aSTTypeof_fun ast_array visited_nodes x = 
     let annot = aSTTypeof_annotation x
     in
-      if visited annot then ()
+      if visited visited_nodes annot then ()
       else
 	let _ = ast_array.(id_annotation annot) <- ASTTypeof_type x in
-	let _ = visit annot 
+	let _ = visit visited_nodes annot 
 	in match x with
 	  | TS_typeof_expr(_annot, ctype, fullExpression) -> 
-	      cType_fun ast_array ctype;
-	      fullExpression_fun ast_array fullExpression
+	      cType_fun ast_array visited_nodes ctype;
+	      fullExpression_fun ast_array visited_nodes fullExpression
 
 	  | TS_typeof_type(_annot, ctype, aSTTypeId) -> 
-	      cType_fun ast_array ctype;
-	      aSTTypeId_fun ast_array aSTTypeId
+	      cType_fun ast_array visited_nodes ctype;
+	      aSTTypeId_fun ast_array visited_nodes aSTTypeId
 
 
-  and designator_fun ast_array x = 
+  and designator_fun ast_array visited_nodes x = 
     let annot = designator_annotation x
     in
-      if visited annot then ()
+      if visited visited_nodes annot then ()
       else
 	let _ = ast_array.(id_annotation annot) <- Designator_type x in
-	let _ = visit annot 
+	let _ = visit visited_nodes annot 
 	in match x with
 	  | FieldDesignator(_annot, _sourceLoc, _stringRef) -> 
 	      ()
 
 	  | SubscriptDesignator(_annot, _sourceLoc, expression, expression_opt, 
 			       _idx_start, _idx_end) -> 
-	      expression_fun ast_array expression;
-	      opt_iter (expression_fun ast_array) expression_opt;
+	      expression_fun ast_array visited_nodes expression;
+	      opt_iter (expression_fun ast_array visited_nodes) expression_opt;
 
 
-  and attribute_fun ast_array x = 
+  and attribute_fun ast_array visited_nodes x = 
     let annot = attribute_annotation x
     in
-      if visited annot then ()
+      if visited visited_nodes annot then ()
       else
 	let _ = ast_array.(id_annotation annot) <- Attribute_type x in
-	let _ = visit annot 
+	let _ = visit visited_nodes annot 
 	in match x with
 	  | AT_empty(_annot, _sourceLoc) -> 
 	      ()
@@ -1335,7 +1340,7 @@ module Into_array = struct
 	      ()
 
 	  | AT_func(_annot, _sourceLoc, _stringRef, argExpression_list) -> 
-	      List.iter (argExpression_fun ast_array) argExpression_list
+	      List.iter (argExpression_fun ast_array visited_nodes) argExpression_list
 
 
   (**************************************************************************
@@ -1356,9 +1361,10 @@ end    (* of module Into_array *)
 
 
 let into_array max_node ast =
-  let ast_array = Array.create (max_node +1) NoAstNode 
+  let ast_array = Array.create (max_node +1) NoAstNode in
+  let visited_nodes = Dense_set.make ()
   in
-    Into_array.compilationUnit_fun ast_array ast;
+    Into_array.compilationUnit_fun ast_array visited_nodes ast;
     assert(let res = ref true
 	   in
 	     for i = 1 to max_node do

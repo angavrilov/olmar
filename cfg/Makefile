@@ -58,9 +58,11 @@ CFG_ML=\
 	$(ELSA)/elsa_util.ml \
 	$(ELSA)/cc_ml_types.ml \
 	$(ELSA)/ast_annotation.ml \
-	$(ASTTOOLS)/ast_accessors.ml \
 	$(ELSA)/oast_header_version.ml \
 	$(ELSA)/oast_header.ml \
+	$(ASTTOOLS)/ast_accessors.ml \
+	$(ASTTOOLS)/dense_set.ml \
+	$(ASTTOOLS)/superast.ml \
 	cfg_type.ml \
 	cfg_util.ml \
 	build.ml \

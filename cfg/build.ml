@@ -89,10 +89,6 @@ let init_error_report_array report_levels =
   end
 
 
-let error_location (file, line, char) =
-  Printf.sprintf "File \"%s\", line %d, character %d"
-    file line char
-
 let found sourceLoc annot level mesg =
   if error_report_array.(error_level_index level) then
     Printf.eprintf "%s: (node %d)\nFound %s\n" 
@@ -147,7 +143,7 @@ let new_func_def_hash () = Hashtbl.create 2287
 let function_def_hash : cfg_type ref = ref (new_func_def_hash ())
 
 
-let function_def fun_id sourceLoc oast =
+let function_def fun_id sourceLoc oast node =
   if Hashtbl.mem !function_def_hash fun_id 
   then 
     let entry = Hashtbl.find !function_def_hash fun_id in
@@ -163,6 +159,7 @@ let function_def fun_id sourceLoc oast =
       fun_id = fun_id;
       loc = sourceLoc;
       oast = oast;
+      node_id = node;
       callees = []
     } in
     let call_hash = Hashtbl.create 73      
@@ -499,7 +496,7 @@ let rec compilationUnit_fun
     param_types = []
   } in
   let comp_unit_loc = (name, 1, 0) in
-  let comp_unit = function_def comp_unit_id comp_unit_loc name
+  let comp_unit = function_def comp_unit_id comp_unit_loc name 0
   in
     translationUnit_fun comp_unit tu;
     finish_fun_call comp_unit
@@ -572,7 +569,7 @@ and member_fun = function
 
 
 and function_fun sourceLoc 
-    (_annot, _declFlags, _typeSpecifier, declarator, memberInit_list, 
+    (annot, _declFlags, _typeSpecifier, declarator, memberInit_list, 
      s_compound_opt, _handler_list, _func, _variable_opt_1, 
      _variable_opt_2, _statement_opt, _bool) =
   (* XXX handler_list?? And the FullExpressionAnnot therein?? *)
@@ -580,7 +577,7 @@ and function_fun sourceLoc
   (* XXX declarator might contain initializers or other expressions? *)
   let entry = 
     function_def (get_function_definition_id sourceLoc declarator) 
-      sourceLoc !current_oast;
+      sourceLoc !current_oast (id_annotation annot);
   in
     List.iter 
       (memberInit_fun entry sourceLoc)

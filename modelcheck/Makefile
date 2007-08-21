@@ -12,6 +12,7 @@ all: test
 # directories of other software; 
 ELSA      := ../elsa
 ASTTOOLS  := ../asttools
+CFG	  := ../cfg
 
 # external tools
 OCAMLC   := ocamlc.opt
@@ -31,14 +32,22 @@ TOCLEAN =
 
 .PHONY: test
 test: kernel_prop_model test/t001.oast test/t001.dot
-	./kernel_prop_model -o - test/t001.oast
+	./kernel_prop_model -fn f test/t001.oast
 
 
 KERNEL_PROP_MODEL_ML=\
+	$(ELSA)/elsa_util.ml \
 	$(ELSA)/ast_annotation.ml \
 	$(ELSA)/oast_header_version.ml \
 	$(ELSA)/oast_header.ml \
+	$(ELSA)/cc_ml_types.ml \
+	$(ASTTOOLS)/ast_accessors.ml \
 	$(ASTTOOLS)/ast_util.ml \
+	$(ASTTOOLS)/dense_set.ml \
+	$(ASTTOOLS)/superast.ml \
+	$(CFG)/cfg_type.ml \
+	$(CFG)/cfg_util.ml \
+	$(CFG)/build.ml \
 	kernel_prop_model.ml
 
 TOCLEAN += kernel_prop_model
@@ -55,15 +64,16 @@ clean:
 
 TOCLEAN += *.cmo
 %.cmo: %.ml
-	$(OCAMLC) $(OCAML_BYTE_FLAGS) $(OCAML_FLAGS) -I $(ELSA) -I $(ASTTOOLS) -c $<
+	$(OCAMLC) $(OCAML_BYTE_FLAGS) $(OCAML_FLAGS) \
+		-I $(CFG) -I $(ELSA) -I $(ASTTOOLS) -c $<
 
 TOCLEAN += *.cmx *.o
 %.cmx: %.ml
-	$(OCAMLOPT) $(OCAML_FLAGS) -I $(ELSA) -I $(ASTTOOLS) -c $<
+	$(OCAMLOPT) $(OCAML_FLAGS) -I $(CFG) -I $(ELSA) -I $(ASTTOOLS) -c $<
 
 TOCLEAN += *.cmi
 %.cmi: %.mli
-	$(OCAMLC) $(OCAML_FLAGS) -I $(ELSA) -I $(ASTTOOLS) -c $<
+	$(OCAMLC) $(OCAML_FLAGS) -I $(CFG) -I $(ELSA) -I $(ASTTOOLS) -c $<
 
 TOCLEAN += test/*.oast
 %.oast: %.cc
@@ -79,4 +89,4 @@ TOCLEAN += test/*.dot
 .PHONY: mldeps
 depend: mldeps
 mldeps:
-	ocamldep -I $(ELSA) *ml *mli > mldeps.mk
+	ocamldep -I $(CFG) -I $(ELSA) -I $(ASTTOOLS) *ml *mli > mldeps.mk

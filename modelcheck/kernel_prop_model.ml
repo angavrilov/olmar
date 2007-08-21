@@ -5,6 +5,9 @@
 open Cc_ast_gen_type
 open Ast_annotation
 open Ast_util
+open Cfg_type
+open Cfg_util
+open Build
 
 (***********************************************************************
  *
@@ -14,16 +17,13 @@ open Ast_util
 
 let default_extension = ".pml"
 
-let file = ref None
-
 let the = function
   | None -> assert false
   | Some x -> x
 
 let output_name = ref None
 
-
-
+let saved_command_line = ref ""
 
 (***********************************************************************
  *
@@ -35,7 +35,13 @@ let out_channel = ref stdout
 
 let p s = output_string !out_channel s
 
-let pc s = p ("/* " ^ s ^ " */\n")
+let pc = function
+  | [] -> ()
+  | [s] -> p ("/* " ^ s ^ " */\n")
+  | s::sl ->
+      p ("/* " ^ s ^ "\n");
+      List.iter (fun s -> p (" * " ^ s ^ "\n")) sl;
+      p (" */\n")
 
 let pf fmt = Printf.fprintf !out_channel fmt
 
@@ -47,7 +53,7 @@ let print_header () =
     p " *\n";
     p " * kernel property model\n";
     p " *\n";
-    pf " * automatically generated from %s\n" (the !file);
+    pf " * automatically generated from %s\n" !saved_command_line;
     pf " * on %d.%02d.%d %d:%d:%d\n"
       tm.U.tm_mday
       (tm.U.tm_mon +1)
@@ -59,115 +65,152 @@ let print_header () =
     p " **********************************************************/\n\n\n"
       
 
-let rec translationUnit_fun 
-    ((_annot, topForm_list, _scope_opt)  : annotated translationUnit_type) =
-  pf "/* translation unit with %d top forms */\n\n" (List.length topForm_list);
-  List.iter topForm_fun topForm_list
+(***********************************************************************
+ *
+ * misc
+ *
+ ***********************************************************************)
+
+let id () = ()
+
+let gc_report () =
+  let stat = Gc.stat()
+  in
+    Printf.printf "GC size %d\n"
+      stat.Gc.live_words
+
+(***********************************************************************
+ *
+ * ast recursion
+ *
+ ***********************************************************************)
 
 
-and topForm_fun = function
-    (* a function declaration *)
-  | TF_func(_annot, _sourceLoc, func) -> 
-      pf "/* function %s */\n" (name_of_function func);
-      block_fun (body_of_function func)
-      
-      (* ignore the following *)
-  | TF_decl _
-  | TF_template _
-  | TF_explicitInst _
-  | TF_linkage _
-  | TF_one_linkage _
-  | TF_asm _
-  | TF_namespaceDefn _
-  | TF_namespaceDecl _
-      -> ()
-
-
-and block_fun = function
+let rec block_fun = function
   | S_skip(_annot, _sourceLoc) -> 
-      pc "skip statement"
+      pc ["skip statement"]
 
   | S_label(_annot, _sourceLoc, _stringRef, statement) -> 
-      pc "label statement";
+      pc ["label statement"];
       block_fun statement
 
   | S_case(_annot, _sourceLoc, _expression, statement, _int32) -> 
-      pc "case statement";
+      pc ["case statement"];
       block_fun statement;
 
   | S_default(_annot, _sourceLoc, statement) -> 
-      pc "default statement";
+      pc ["default statement"];
       block_fun statement
 
   | S_expr(_annot, _sourceLoc, _fullExpression) -> 
-      pc "expression statement"
+      pc ["expression statement"]
 
   | S_compound(_annot, _sourceLoc, statement_list) -> 
-      pc "block";
+      pc ["block"];
       List.iter block_fun statement_list
 
   | S_if(_annot, _sourceLoc, _condition, statement_then, statement_else) -> 
-      pc "if statement";
+      pc ["if statement"];
       block_fun statement_then;
-      pc "else branch";
+      pc ["else branch"];
       block_fun statement_else	
 
   | S_switch(_annot, _sourceLoc, _condition, statement) -> 
-      pc "switch statement";
+      pc ["switch statement"];
       block_fun statement
 
   | S_while(_annot, _sourceLoc, _condition, statement) -> 
-      pc "while statement";
+      pc ["while statement"];
       block_fun statement
 
   | S_doWhile(_annot, _sourceLoc, statement, _fullExpression) -> 
-      pc "do while statement";
+      pc ["do while statement"];
       block_fun statement
 
   | S_for(_annot, _sourceLoc, _statement_init, _condition, _fullExpression, 
 	  statement_body) -> 
-      pc "for statement";
+      pc ["for statement"];
       block_fun statement_body
 
   | S_break(_annot, _sourceLoc) -> 
-      pc "break statement"
+      pc ["break statement"]
 
   | S_continue(_annot, _sourceLoc) -> 
-      pc "continue statement"
+      pc ["continue statement"]
 
   | S_return(_annot, _sourceLoc, _fullExpression_opt, _statement_opt) -> 
-      pc "return statement"
+      pc ["return statement"]
 
   | S_goto(_annot, _sourceLoc, _stringRef) -> 
-      pc "goto statement"
+      pc ["goto statement"]
 
   | S_decl(_annot, _sourceLoc, _declaration) -> 
-      pc "declaration"
+      pc ["declaration"]
 
   | S_try(_annot, _sourceLoc, statement, _handler_list) -> 
-      pc "try statement";
+      pc ["try statement"];
       block_fun statement
 
   | S_asm(_annot, _sourceLoc, _e_stringLit) -> 
-      pc "S_asm ??"
+      pc ["S_asm ??"]
 
   | S_namespaceDecl(_annot, _sourceLoc, _namespaceDecl) -> 
-      pc "namespace declaration"
+      pc ["namespace declaration"]
 
   | S_function(_annot, _sourceLoc, _func) -> 
-      pc "nested function def"
+      pc ["nested function def"]
 
   | S_rangeCase(_annot, _sourceLoc, 
 		_expression_lo, _expression_hi, statement, 
 		_label_lo, _label_hi) -> 
-      pc "case range statement";
+      pc ["case range statement"];
       block_fun statement
 
   | S_computedGoto(_annot, _sourceLoc, _expression) -> 
-      pc "computed goto statement"
+      pc ["computed goto statement"]
 
 
       
+let report_func context_opt fun_id func_appl = 
+  let con_text =
+    match context_opt with
+      | None -> "no caller known"
+      | Some caller ->
+	  Printf.sprintf "called from %s (%s)"
+	    (fun_def_name caller) (error_location caller.loc)
+  in
+    match func_appl with
+      | Func_def(def, func) ->
+	  pc ["Function " ^ (fun_def_name def);
+	      "defined in " ^ error_location def.loc;
+	      Printf.sprintf "node %d in %s" def.node_id def.oast;
+	      con_text
+	     ];
+	  block_fun (body_of_function func);
+	  p "\n\n";
+	  
+      | Short_oast def -> 
+	  pc ["Error on " ^ fun_def_name def;
+	      "defined in " ^ error_location def.loc;
+	      Printf.sprintf "Oast index too large (%d) in %s"
+		def.node_id def.oast;
+	      con_text];
+	  p "\n\n";
+
+      | Bad_oast(def, _) ->
+	  pc ["Error on " ^ fun_def_name def;
+	      "defined in " ^ error_location def.loc;
+	      Printf.sprintf "Node %d in %s is not a function def"
+		def.node_id def.oast;
+	      con_text];
+	  p "\n\n";
+
+      | Undefined ->
+	  pc ["Error on " ^ fun_id_name fun_id;
+	      "Function undefined";
+	      con_text];
+	  p "\n\n"
+
 
 (***********************************************************************
  *
@@ -175,59 +218,73 @@ and block_fun = function
  *
  ***********************************************************************)
 
+let funs = ref []
+
+let oasts = ref []
+
 let arguments = Arg.align
   [
+    ("-fn", Arg.String (fun s -> funs := s :: !funs),
+     "f process function f (and all dependencies)");
     ("-o", Arg.String (fun s -> output_name := Some s),
      "out save output in file out");
   ]
 
 let usage_msg = 
-  "usage: kernel_prop_model [options...] <file>\n\
+  "usage: kernel_prop_model [options...] <files>\n\
    recognized options are:"
 
 let usage () =
   Arg.usage arguments usage_msg;  
   exit(1)
   
-let anonfun fn = 
-  if !file <> None
-  then
-    begin
-      Printf.eprintf "don't know what to do with %s\n" fn;
-      usage()
-    end
-  else
-    file := Some fn
+let anonfun oast = 
+  oasts := oast :: !oasts
 
 let get_output_channel () =
   if !output_name = None 
-  then
-    let fname = 
-      (if Filename.check_suffix (the !file) ".oast"
-       then
-	 Filename.chop_suffix (the !file) ".oast"
-       else 
-	 the !file)
-      ^ default_extension
-    in 
-      open_out fname
-  else if !output_name = Some "-"
-  then stdout
+  then stdout 
   else
     open_out (the !output_name)
 
 
+let get_ids overload funs =
+  List.fold_left
+    (fun res f_name ->
+       try 
+	 match Hashtbl.find overload f_name with
+	   | [] -> assert false
+	   | [id] -> id :: res
+	   | ids -> 
+	       Printf.eprintf 
+		 "Function name %s is overloaded. Process all %d candidates\n"
+		 f_name (List.length ids);
+	       ids @ res
+       with
+	 | Not_found ->
+	     Printf.eprintf "Function %s unknown\n" f_name;
+	     res)
+    []
+    funs
+       
+
 let main () =
+  saved_command_line := String.concat " " (Array.to_list Sys.argv);
   Arg.parse arguments anonfun usage_msg;
-  if !file = None then
+  if !oasts = [] or !funs = [] then
     usage();				(* does not return *)
-  let ic = open_in (the !file) in
-  let _ = Oast_header.read_header ic in
-  let ast = (Marshal.from_channel ic : annotated translationUnit_type) 
+  let cfg = do_file_list !oasts [] in
+  let overload = make_overload_hash cfg in
+  let fun_ids = get_ids overload !funs in
+  let _ = if fun_ids = [] then usage()
   in
     out_channel := get_output_channel();
     print_header ();
-    translationUnit_fun ast
+    iter_callees (apply_func_def report_func) cfg fun_ids
+    (* 
+     * iter_callees (apply_func_def_gc gc_report report_func id) cfg fun_ids;
+     * gc_report()
+     *)
 ;;
 
 

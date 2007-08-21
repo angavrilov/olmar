@@ -29,6 +29,7 @@ type function_def = {
   fun_id : function_id_type;
   loc : sourceLoc;
   oast : string;
+  node_id : int;
   mutable callees : function_id_type list
 }
 

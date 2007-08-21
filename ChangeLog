@@ -1,3 +1,10 @@
+2007-08-21  Hendrik Tews  <tews@tandem.cs.ru.nl>
+
+        * fixed superast local state problem
+        * added iter_callees to cfg_util
+        * modelcheck: use iter_callees to iterate over a complete call
+          graph 
+        
 2007-08-20  Hendrik Tews  <tews@debian.lan>
 
         * second attempt for standard conversions
