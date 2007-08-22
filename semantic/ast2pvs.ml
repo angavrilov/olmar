@@ -1229,10 +1229,15 @@ and declaration_fun (annot, declFlags, typeSpecifier, declarator_list) =
 
 and aSTTypeId_fun (annot, typeSpecifier, declarator) =
   begin
-    assert false;
-    annotation_fun annot;
+    trace "aSTTypeId_fun(";
+    (*TODO*)
+    Format.printf ">>>>>aSTTypeId_fun(";
     typeSpecifier_fun typeSpecifier;
-    declarator_fun declarator
+    (*
+      declarator_fun declarator;
+    *)
+    Format.printf ")<<<<<";
+    trace ")";
   end
 
 
@@ -1668,7 +1673,10 @@ and declarator_fun (annot, iDeclarator, init_opt,
 		assert false);
 	  Format.printf "]@ =@]@\n";
 
-      | DC_TF_DECL          -> assert false;
+      | DC_TF_DECL          ->
+	  (*TODO*)
+	  Format.print_string ">>>>>DC_TF_DECL<<<<<";
+
       | DC_TF_EXPLICITINST  -> assert false;
       | DC_MR_DECL          -> assert false;
 
@@ -2024,11 +2032,12 @@ and statement_fun x =
 
     | S_asm(annot, sourceLoc, e_stringLit) ->
 	trace "S_asm(";
-(* TODO        assert false;  (* asm statements are not supported *) *)
+	(* TODO: I don't think we can/want to model assembler statements, or do
+	   we? *)
 	assert(match e_stringLit with | E_stringLit _ -> true | _ -> false);
-        Format.print_string "asm(";
+        Format.print_string ">>>>>asm(";
 	expression_fun e_stringLit;
-        Format.print_string ")";
+        Format.print_string ")<<<<<";
 	trace ")";
 
     | S_namespaceDecl(annot, sourceLoc, namespaceDecl) ->
@@ -2604,7 +2613,7 @@ and expression_fun x =
 	    else if is_present SC_INT_CONV then
 	      (* 4.7: int... -> int..., info loss possible *)
 	      (* TODO *)
-	      assert false
+	      Format.printf ">>>>>SC_INT_CONV<<<<<(@[<2>"
 	    else if is_present SC_FLOAT_CONV then
 	      (* 4.8: float... -> float..., info loss possible *)
 	      (* TODO *)
@@ -2641,7 +2650,7 @@ and expression_fun x =
 	    else if is_present SC_ARRAY_TO_PTR then
 	      (* 4.2: char[] -> char* *)
 	      (* TODO *)
-	      assert false
+	      Format.printf ">>>>>SC_ARRAY_TO_PTR<<<<<(@[<2>"
 	    else if is_present SC_FUNC_TO_PTR then
 	      (* 4.3: int ()(int) -> int ( * )(int) *)
 	      (* TODO *)

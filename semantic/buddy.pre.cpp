@@ -1,12 +1,24 @@
 /*
- * Modifications & caveats to make this code compile with the (current version
- * of the) semantics compiler:
+ * $Id$
+ *
+ * Author: Tjark Weber
+ * (c) 2007 Radboud University
+ *
+ * This file was initially obtained through
+ *
+ *   g++ -E -o buddy.pre.cpp buddy.cpp
+ *
+ * but has been edited manually since then.
+ *
+ * Modifications & caveats to make this code compile with (the current version
+ * of) the semantics compiler:
  *
  * - virtual functions are not allowed
  * - access modifiers (private/public/protected) are unsupported
  * - class inheritance / base classes are not allowed
  * - templates are not allowed
  * - assembler statements are not allowed
+ * - global variables are not allowed
  */
 
 
@@ -617,7 +629,8 @@ class Cpu
 */
 # 17 "include/stdio.h" 2
 # 32 "include/stdio.h"
-enum {
+enum TRACE_ENUM {
+  // anonymous enums are not supported by the semantics compiler
     TRACE_CPU = 1u << 0,
     TRACE_VMX = 1u << 1,
     TRACE_SMX = 1u << 2,
@@ -632,21 +645,22 @@ enum {
 
 
 
-
-unsigned const trace_mask =
-
-                            TRACE_CPU |
-                            TRACE_VMX |
-                            TRACE_SMX |
-                            TRACE_APIC |
-                            TRACE_MEMORY |
-
-                            TRACE_TIMER |
-
-                            TRACE_ACPI |
-                            TRACE_KEYB |
-
-                            0;
+// global variables (even const ones) are not supported by the semantics
+// compiler
+/*
+unsigned const trace_mask = (TRACE_CPU |
+			     TRACE_VMX |
+			     TRACE_SMX |
+			     TRACE_APIC |
+			     TRACE_MEMORY |
+			     
+			     TRACE_TIMER |
+			     
+			     TRACE_ACPI |
+			     TRACE_KEYB |
+			     
+			     0);
+*/
 
 __attribute__((format (printf, (1),(0))))
 void
@@ -743,9 +757,9 @@ class Buddy
         Block * index;
         Block * head;
 
-        static unsigned const page_ord = 12;
-        static unsigned const page_size = 1u << page_ord;
-        static unsigned const page_mask = ~(page_size - 1);
+  static unsigned const page_ord;// = 12;
+  static unsigned const page_size;// = 1u << page_ord;
+  static unsigned const page_mask;// = ~(page_size - 1);
 
         __attribute__((always_inline))
         inline signed long
@@ -884,6 +898,21 @@ Buddy::Buddy (mword p_addr, mword l_addr, mword f_addr, size_t size)
 
 
     order = bit - page_ord + 1;
+
+    // copied here because global variables are not supported by the semantics
+    // compiler
+    unsigned const trace_mask = (TRACE_CPU |
+				 TRACE_VMX |
+				 TRACE_SMX |
+				 TRACE_APIC |
+				 TRACE_MEMORY |
+				 
+				 TRACE_TIMER |
+				 
+				 TRACE_ACPI |
+				 TRACE_KEYB |
+				 
+				 0);
 
     do { register mword __esp asm ("esp"); if (__builtin_expect(((trace_mask & TRACE_MEMORY) == TRACE_MEMORY), false)) printf ("[%d] " "POOL: %#010lx-%#010lx O:%u" "\n", ((__esp - 1) & ~0xfff) == 0xcfffe000 ? ~0u /*Cpu::id*/ : ~0u, p_addr, p_addr + size, order); } while (0);
 
