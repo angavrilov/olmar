@@ -224,8 +224,8 @@ let string_of_simpleTypeId = function
   | ST_LONG_DOUBLE_IMAGINARY -> assert false; "long double imaginary"
   | ST_VOID                  -> "void"
   (* encoding "hacks" *)
-  | ST_ELLIPSIS              -> assert false; ">>>>>ellipsis<<<<<"  (*TODO*)
-  | ST_CDTOR                 -> assert false; ">>>>>cdtor<<<<<"  (*TODO*)
+  | ST_ELLIPSIS              -> ">>>>>ellipsis<<<<<"  (*TODO*)
+  | ST_CDTOR                 -> ">>>>>cdtor<<<<<"  (*TODO*)
   | ST_ERROR                 -> assert false; "error"
   | ST_DEPENDENT             -> assert false; "dependent"
   | ST_IMPLINT               -> assert false; "implint"
@@ -1672,22 +1672,35 @@ and declarator_fun (annot, iDeclarator, init_opt,
 	  Format.printf ")(@[<2>id(";
 	  Option.app variable_fun variable_opt;
 	  Format.printf "),@ ";
-	  (* TODO: default initialization (§8.5) not modelled yet *)
-	  if Option.isSome init_opt then
-	    Option.app init_fun init_opt
-	  else
-	    Format.print_string ">>>>>default-initialization<<<<<";
+	  (match init_opt with
+	    | Some init ->
+		init_fun init;
+		(match init with
+		  | IN_ctor _ ->
+		      (match statement_opt_ctor with
+			| Some (S_expr (_, _,fullExpression)) ->
+			    fullExpression_fun fullExpression;
+			| _ ->
+			    assert false);
+		  | _ ->
+		      assert (not (Option.isSome statement_opt_ctor)));
+	    | None ->
+		(* TODO: default initialization (§8.5) not modelled yet *)
+		Format.print_string ">>>>>default-initialization<<<<<";
+	  );
 	  Format.printf "@])";
 	  
-	  (* TODO: what is this ? *)
-	  Option.app (fun s -> Format.print_string ">>>>>ctor:"; statement_fun s; Format.print_string "<<<<<") statement_opt_ctor;
-
-	  (* TODO: what is this ? *)
-	  Option.app (fun s -> Format.print_string ">>>>>dtor:"; statement_fun s; Format.print_string "<<<<<") statement_opt_dtor;
+          (* If a destructor is associated with this variable, then it needs to
+	     be called at the end of the enclosing block; therefore the
+	     destructor call (as well as the allocation of stack memory for
+	     this variable) is dealt with in the code for S_compound. *)
+	  (*
+	    Option.app statement_fun statement_opt_dtor;
+	  *)
 
       | DC_TD_DECL          -> assert false;
 
-      (* full expression annotation *)
+      (* full expression annotation (what is this?) *)
       | DC_FEA		    ->
 
 	  assert (not (Option.isSome init_opt));
@@ -1696,7 +1709,11 @@ and declarator_fun (annot, iDeclarator, init_opt,
 	  assert (not (Option.isSome statement_opt_ctor));
 	  assert (Option.isSome statement_opt_dtor);
 
-	  assert false;
+	  Format.print_string ">>>>>DC_FEA(";
+	  Option.app variable_fun variable_opt;
+	  Option.app cType_fun ctype_opt;
+	  Option.app statement_fun statement_opt_dtor;
+	  Format.print_string ")<<<<<";
 
       | DC_D_FUNC           -> assert false;
       | DC_EXCEPTIONSPEC    -> assert false;
@@ -1819,7 +1836,9 @@ and operatorName_fun x =
 and statement_fun x =
   match x with
     | S_skip (annot, sourceLoc) ->
+	trace "S_skip(";
         Format.print_string "skip";
+	trace ")";
 
     | S_label (annot, sourceLoc, stringRef, statement) ->
         assert false; (* labels are not supported, for they are useless *)
@@ -1828,47 +1847,58 @@ and statement_fun x =
 	statement_fun statement;
 
     | S_case (annot, sourceLoc, expression, statement, int32) ->
+	trace "S_case(";
         Format.print_string "case(";
 	intLit_expression_fun expression;
         Format.printf ") ##@\n";
 	statement_fun statement;
 	(* int32_fun int32 *) (* TODO: what is this for? *)
+	trace ")";
 
     | S_default (annot, sourceLoc, statement) ->
+	trace "S_default(";
         Format.printf "default ##@\n";
 	statement_fun statement;
+	trace ")";
 
     | S_expr (annot, sourceLoc, fullExpression) ->
+	trace "S_expr(";
         Format.print_string "e2s(";
 	fullExpression_fun fullExpression;
         Format.print_string ")";
+	trace ")";
 
     | S_compound (annot, sourceLoc, statement_list) ->
+	trace "S_compound(";
 	if (List.length statement_list = 0) then
 	  Format.print_string "skip"
 	else
-	  (* collect all variable declarations in this block *)
-	  let decls_in_stmt = function
-	      S_decl (_, _, declaration) ->
-		(match declaration with (_, _, _, declarator_list) ->
-		  List.map (fun (_, _, _, variable_opt, _, _, _, _) ->
-		    match variable_opt with
-			Some v -> v
-		      | None -> assert false) declarator_list)
-	    | _ -> [] in
-	  let variable_list =
-	    List.flatten (List.map decls_in_stmt statement_list)
-	  in
-	    List.iter (fun v ->
-	      Format.printf "@[<2>with_new_stackvar(@[<2>lambda@ @[<2>(";
-	      variable_fun v;
-	      Format.printf "@ :@ Address)@]:@]@\n") variable_list;
-	    separate statement_fun (fun () -> Format.printf " ##@\n")
-	      statement_list;
-	    List.iter (fun v ->
-	      Format.printf ")@]") variable_list;
+	  begin
+	    (* collect all variable declarations in this block *)
+	    let decls_in_stmt = function
+		S_decl (_, _, declaration) ->
+		  (match declaration with (_, _, _, declarator_list) ->
+		    List.map (fun (_, _, _, variable_opt, _, _, _, _) ->
+		      match variable_opt with
+			  Some v -> v
+			| None -> assert false) declarator_list)
+	      | _ -> [] in
+	    let variable_list =
+	      List.flatten (List.map decls_in_stmt statement_list)
+	    in
+	      List.iter (fun v ->
+		Format.printf "@[<2>with_new_stackvar(@[<2>lambda@ @[<2>(";
+		variable_fun v;
+		Format.printf "@ :@ Address)@]:@]@\n") variable_list;
+	      separate statement_fun (fun () -> Format.printf " ##@\n")
+		statement_list;
+	      List.iter (fun v ->
+		Format.printf ")@]") variable_list;
+	  end;
+	trace ")";
 
-    | S_if(annot, sourceLoc, condition, statement_then, statement_else) -> 
+    | S_if(annot, sourceLoc, condition, statement_then, statement_else) ->
+	trace "S_if(";
         Format.printf "@[<2>if_else(";
 	condition_fun condition;
         Format.printf ",@\n";
@@ -1876,8 +1906,10 @@ and statement_fun x =
         Format.printf ",@\n";
 	statement_fun statement_else;
         Format.printf ")@]";
+	trace ")";
 
     | S_switch(annot, sourceLoc, condition, statement) -> 
+	trace "S_switch(";
         Format.printf "switch@[<2>(";
 	condition_fun condition;
         Format.printf ",@ @[(: ";
@@ -1893,23 +1925,29 @@ and statement_fun x =
         Format.printf " :)@],@\n";
 	statement_fun statement;
         Format.printf ")@]";
+	trace ")";
 
     | S_while(annot, sourceLoc, condition, statement) ->
+	trace "S_while(";
         Format.printf "@[<2>while(";
 	bool_condition_fun condition;
         Format.printf ",@\n";
 	statement_fun statement;
         Format.printf ")@]";
+	trace ")";
 
     | S_doWhile(annot, sourceLoc, statement, fullExpression) ->
+	trace "S_doWhile(";
         Format.printf "@[<2>do_while(@\n";
 	statement_fun statement;
         Format.printf ",@]@\n";
 	fullExpression_fun fullExpression;
         Format.printf ")";
+	trace ")";
 
     | S_for(annot, sourceLoc, statement_init, condition, fullExpression,
 	   statement_body) ->
+	trace "S_for(";
         Format.printf "@[<2>for(";
 	statement_fun statement_init;
         Format.printf ",@ ";
@@ -1919,14 +1957,20 @@ and statement_fun x =
         Format.printf ",@\n";
 	statement_fun statement_body;
         Format.printf ")@]";
+	trace ")";
 
     | S_break(annot, sourceLoc) -> 
-        Format.print_string "break"
+	trace "S_break(";
+        Format.print_string "break";
+	trace ")";
 
     | S_continue(annot, sourceLoc) ->
+	trace "S_continue(";
         Format.print_string "continue";
+	trace ")";
 
     | S_return(annot, sourceLoc, fullExpression_opt, statement_opt) ->
+	trace "S_return(";
         (match fullExpression_opt with
           | None ->
               Format.print_string "return_void"
@@ -1936,6 +1980,7 @@ and statement_fun x =
               Format.print_string ")");
         assert (not (Option.isSome statement_opt)); (* ? *)
 	Option.app statement_fun statement_opt;
+	trace ")";
 
     | S_goto(annot, sourceLoc, stringRef) ->
         assert false;  (* goto is not supported *)
@@ -1945,10 +1990,12 @@ and statement_fun x =
 	(* variable declarations are translated to stack allocations before  *)
 	(* the entire statement block; here only the initializing assignment *)
 	(* (if present) still needs to be considered                         *)
+	trace "S_decl(";
 	(*TODO*)
         Format.print_string "e2s(";
 	declaration_fun declaration;
         Format.print_string ")";
+	trace ")";
 
     | S_try(annot, sourceLoc, statement, handler_list) ->
         assert false;  (* try is not supported *)
@@ -1956,11 +2003,13 @@ and statement_fun x =
 	List.iter handler_fun handler_list;
 
     | S_asm(annot, sourceLoc, e_stringLit) ->
+	trace "S_asm(";
 (* TODO        assert false;  (* asm statements are not supported *) *)
 	assert(match e_stringLit with | E_stringLit _ -> true | _ -> false);
         Format.print_string "asm(";
 	expression_fun e_stringLit;
         Format.print_string ")";
+	trace ")";
 
     | S_namespaceDecl(annot, sourceLoc, namespaceDecl) ->
 	assert false;
@@ -1975,13 +2024,13 @@ and statement_fun x =
 		 label_lo, label_hi) ->
 	(*TODO*)
 	trace "S_rangeCase(";
-	Format.printf ">>>>>";
+	Format.printf ">>>>>(";
 	expression_fun expression_lo;
 	expression_fun expression_hi;
 	statement_fun statement;
 	int_fun label_lo;
 	int_fun label_hi;
-	Format.printf "<<<<<";
+	Format.printf ")<<<<<";
 	trace ")";
 
     | S_computedGoto(annot, sourceLoc, expression) ->
@@ -2208,13 +2257,32 @@ and expression_fun x =
     | E_constructor(annot, type_opt, typeSpecifier, argExpression_list, 
 		   var_opt, bool, expression_opt) ->
         trace "E_constructor(";
-	(*TODO*)
-	Option.app cType_fun type_opt;
-	typeSpecifier_fun typeSpecifier;
-	List.iter argExpression_fun argExpression_list;
+	Format.print_string "call_";
+	(* constructor name (?) *)
+	assert (Option.isSome var_opt);
 	Option.app variable_fun var_opt;
-	bool_fun bool;
+	(* class name (?) *)
+	Format.print_string "_";
+	assert (Option.isSome type_opt);
+	Option.app cType_fun type_opt;
+	Format.printf "(@[<2>";
+	(* receiver object (?) *)
+	assert (Option.isSome expression_opt);
 	Option.app expression_fun expression_opt;
+	(* arguments (?) *)
+	if (List.length argExpression_list > 0) then
+	  Format.printf ",@ ";
+	separate argExpression_fun (fun () -> Format.printf ",@ ")
+	  argExpression_list;
+	Format.printf "@])";
+	(* TODO: What's the difference between type_opt and typeSpecifier? *)
+	(*
+	  typeSpecifier_fun typeSpecifier;
+	*)
+	(* TODO: What is this? *)
+	(*
+	  bool_fun bool;
+	*)
         trace ")";
 
     | E_fieldAcc(annot, type_opt, expression, pQName, var_opt) ->
@@ -2425,6 +2493,7 @@ and expression_fun x =
 	statement_fun s_compound
 
     | E_compoundLit(annot, type_opt, aSTTypeId, in_compound) ->
+	assert false;
 	assert(match in_compound with | IN_compound _ -> true | _ -> false);
 	annotation_fun annot;
 	Option.app cType_fun type_opt;
@@ -2574,33 +2643,49 @@ and argExpressionListOpt_fun (annot, argExpression_list) =
 
 and init_fun x = 
   match x with
-      IN_expr(annot, sourceLoc, fullExpressionAnnot, expression_opt) ->
+      IN_expr (annot, sourceLoc, fullExpressionAnnot, expression_opt) ->
 	trace "IN_expr(";
+	(* TODO: what is this? *)
 	fullExpressionAnnot_fun fullExpressionAnnot;
 	assert (Option.isSome expression_opt);
 	Option.app expression_fun expression_opt;
 	trace ")";
 
-    | IN_compound(annot, sourceLoc, fullExpressionAnnot, init_list) ->
+    | IN_compound (annot, sourceLoc, fullExpressionAnnot, init_list) ->
 	assert false;
 	annotation_fun annot;
 	sourceLoc_fun sourceLoc;
 	fullExpressionAnnot_fun fullExpressionAnnot;
 	List.iter init_fun init_list
 
-    | IN_ctor(annot, sourceLoc, fullExpressionAnnot, 
+    | IN_ctor (annot, sourceLoc, fullExpressionAnnot,
 	     argExpression_list, var_opt, bool) ->
 	trace "IN_ctor(";
-	assert (Option.isSome var_opt);
-	Format.print_string "call_";
-	Option.app variable_fun var_opt;
-	Format.printf "(@[<2>";
-	separate argExpression_fun (fun () -> Format.printf ",@ ")
-	  argExpression_list;
-	Format.printf "@])";
-	(* What is this? *)
+	(* In case we have an IN_ctor in a statement declaration, we also have a
+	   constructor statement, which really contains all the necessary
+	   information (in particular the constructor's arguments) and is therefore
+	   printed instead of this IN_ctor node's data. *)
+
+	(* TODO: what is this? *)
 	fullExpressionAnnot_fun fullExpressionAnnot;
-	(*bool_fun bool;*)
+
+	(* the constructor function *)
+	assert (Option.isSome var_opt);
+	(*
+	  Option.app variable_fun var_opt;
+	*)
+
+	(* somewhat surprisingly, this list does NOT seem to contain the
+	   constructor's arguments ... I wonder what it does contain then? *)
+	assert (List.length argExpression_list = 0);
+	(*
+	  List.iter argExpression_fun argExpression_list;
+	*)
+
+	(* TODO: what is this? *)
+	(*
+	  bool_fun bool;
+	*)
 	trace ")";
 
     | IN_designated(annot, sourceLoc, fullExpressionAnnot, 
