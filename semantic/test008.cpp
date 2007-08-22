@@ -8,6 +8,7 @@
 
 class C {
 public:  // access modifiers are ignored; everything is assumed to be public
+  C(int j) {};
   int i;
   bool b;
   int get_i() { return i; }
@@ -15,7 +16,7 @@ public:  // access modifiers are ignored; everything is assumed to be public
 };
 
 int main() {
-  C c;
+  C c(42);
 
   c.i = 0;
   c.get_i();

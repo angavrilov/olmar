@@ -14,7 +14,7 @@ int main() {
   // int i;
 
   int i = 0;
-  int j = i;  // FIXME: l2r conversion required
+  int j = i;
 
   bool b = false;
 

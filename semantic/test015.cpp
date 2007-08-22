@@ -3,19 +3,18 @@
  * Author: Tjark Weber
  * (c) 2007 Radboud University
  *
- * Function calls
+ * Variable initialization
  */
 
-void f() {
-  return;
-}
-
-int g(int i, bool b) {
-  return i;
-}
+class A {
+public:
+  A(int i) {};
+};
 
 int main() {
-  f();
-  g(0, true);
+  A a0(0);
+
+  A a1 = A(1);
+
   return 0;
 }
