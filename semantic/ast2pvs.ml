@@ -55,9 +55,12 @@
 (* - If a function's body does not end with a return statement, we append a  *)
 (*   "return_void" statement when the function body is rendered.             *)
 
-(* TODO: most AST constructors are not translated yet.  For some, "assert    *)
+(* TODO: many AST constructors are not translated yet.  For some, "assert    *)
 (*       false" will raise an exception, but others are just ignored         *)
 (*       silently. This is certainly more harmful than good ...              *)
+(*       Where we don't want to abort by raising an assertion, we sometimes  *)
+(*       produce output of the form ">>>>>...<<<<<" (which shouldn't be      *)
+(*       valid PVS).                                                         *)
 
 (* TODO: - type casts, conversions (eg. int to bool)?                        *)
 (*       - __attribute__                                                     *)
@@ -413,17 +416,24 @@ let declaratorContext_fun (dc : declaratorContext) =
 let scopeKind_fun (_ : scopeKind) = ()
 
 let array_size_fun = function
-  | NO_SIZE -> assert false
-  | DYN_SIZE -> assert false
+  | NO_SIZE      -> assert false
+  | DYN_SIZE     -> assert false
   | FIXED_SIZE i -> assert false; int_fun i
 
 let compoundType_Keyword_fun = function
   | K_STRUCT -> Format.print_string "struct"
-  | K_CLASS -> Format.print_string "class"
-  | K_UNION -> Format.print_string "union"
+  | K_CLASS  -> Format.print_string "class"
+  | K_UNION  -> Format.print_string "union"
 
 let templ_kind_fun (kind : templateThingKind) =
   assert false
+
+let implicitConversion_Kind_fun = function
+  | IC_NONE         -> trace "IC_NONE"; assert false;
+  | IC_STANDARD     -> trace "IC_STANDARD";
+  | IC_USER_DEFINED -> trace "IC_USER_DEFINED"
+  | IC_ELLIPSIS     -> trace "IC_ELLIPSIS"; assert false;
+  | IC_AMBIGUOUS    -> trace "IC_AMBIGUOUS"; assert false
 
 (***************** variable ***************************)
 
@@ -2555,8 +2565,23 @@ and expression_fun x =
 	Option.app cType_fun type_opt;
 	string_fun stringRef
 
-(* TODO
-    | E_stdConv (annot, type_opt, expression, stdConv) ->
+    | E_stdConv (annot, type_opt, expression, stdConv, conversionKind) ->
+	trace "E_stdConv(";
+	(* TODO: type_opt currently contains the same type as the expression,
+	   which is conceptually wrong, and does not (in general) allow us to
+	   figure out which conversions precisely need to be applied.  Instead
+	   type_opt should be the type of the expression after all conversions
+	   are applied. *)
+	assert (Option.isSome type_opt);
+	implicitConversion_Kind_fun conversionKind;
+	(* TODO: user-defined conversions are currently not recorded properly
+	   in the ast by Elsa.  A user-defined conversion should be broken
+	   apart into a standard conversion sequence (scs), followed by a
+	   function call and another scs. *)
+	(match conversionKind with
+	  | IC_USER_DEFINED ->
+	      Format.print_string ">>>>>IC_USER_DEFINED<<<<<"
+	  | _ -> ());
 	(* standard conversion sequence: contains at most one conversion each
 	   from 3 different groups of conversions *)
 	let is_present sc = List.mem sc stdConv in 
@@ -2571,7 +2596,7 @@ and expression_fun x =
 	    if is_present SC_INT_PROM then
               (* 4.5: int... -> int..., no info loss possible *)
 	      (* TODO *)
-	      assert false
+	      Format.printf ">>>>>SC_INT_PROM<<<<<(@[<2>"
 	    else if is_present SC_FLOAT_PROM then
 	      (* 4.6: float -> double, no info loss possible *)
 	      (* TODO *)
@@ -2591,7 +2616,7 @@ and expression_fun x =
 	    else if is_present SC_PTR_CONV then
 	      (* 4.10: 0 -> Foo*, Child* -> Parent* *)
 	      (* TODO *)
-	      assert false
+	      Format.printf ">>>>>SC_PTR_CONV<<<<<(@[<2>"
 	    else if is_present SC_PTR_MEMB_CONV then
 	      (* 4.11: int Child::* -> int Parent::* *)
 	      (* TODO *)
@@ -2608,8 +2633,11 @@ and expression_fun x =
 	    (* conversion group 1 (comes first) *)
 	    if is_present SC_LVAL_TO_RVAL then
 	      (* 4.1: int& -> int *)
-	      (* TODO *)
-	      assert false
+	      begin
+		Format.printf "l2r(@[<2>pm,@ dt_";
+		Option.app cType_fun type_opt;
+		Format.print_string ")(";
+	      end
 	    else if is_present SC_ARRAY_TO_PTR then
 	      (* 4.2: char[] -> char* *)
 	      (* TODO *)
@@ -2618,9 +2646,11 @@ and expression_fun x =
 	      (* 4.3: int ()(int) -> int ( * )(int) *)
 	      (* TODO *)
 	      assert false;
-	    expression_fun expression;
-	  end
-*)
+	  end;
+	  expression_fun expression;
+	  List.iter (fun _ -> Format.printf ")@]") stdConv;
+	  trace ")";
+
 
 and fullExpression_fun (annot, expression_opt, fullExpressionAnnot) =
   begin
@@ -2856,6 +2886,12 @@ and attribute_fun x =
 	trace ")";
 
 
+and compilationUnit_fun (annot, name, tu) =
+  trace "compilationUnit_fun(";
+  translationUnit_fun tu;
+  trace ")";
+
+
 (**************************************************************************
  *
  * end of astiter.ml 
@@ -2886,9 +2922,10 @@ let ast_node_fun = function
   | CType ct -> assert false; cType_fun ct
   | STemplateArgument ta -> assert false; sTemplateArgument_fun ta
   | Scope s -> assert false; scope_fun s
-  | TranslationUnit_type tu ->
-      (* this is the only case possible *)
-      translationUnit_fun tu
+  | CompilationUnit_type cu ->
+      (* this is the ONLY case possible *)
+      compilationUnit_fun cu
+  | TranslationUnit_type tu -> assert false; translationUnit_fun tu
   | TopForm_type tf -> assert false; topForm_fun tf
   | Function_type fn -> assert false; func_fun fn
   | MemberInit_type mi -> assert false; memberInit_fun mi
@@ -2974,7 +3011,7 @@ let main () =
     begin
       assert (Array.length ast_array >= 2);
       assert (ast_array.(0) == NoAstNode);
-      assert (match ast_array.(1) with TranslationUnit_type _ -> true
+      assert (match ast_array.(1) with CompilationUnit_type _ -> true
                                      | _ -> false);
       out := open_out !out_file_name;
       Format.set_margin 79;
@@ -2989,7 +3026,7 @@ let main () =
           @[pm@ :@ Plain_Memory[State]@]@\n\
           @\n" theory_name;
       ast_node_fun ast_array.(1);
-      (* this only works for int main(), not for int main(argc, argv)
+      (* TODO: this only works for int main(), not for int main(argc, argv)
 	 (cf. C++ Standard, 3.6.1.2) *)
       Format.printf "@[<2>PRECONDITION@ :@ PRED[State]@]@\n\
           @\n\
