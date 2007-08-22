@@ -1876,24 +1876,34 @@ and statement_fun x =
 	  begin
 	    (* collect all variable declarations in this block *)
 	    let decls_in_stmt = function
-		S_decl (_, _, declaration) ->
+	      | S_decl (_, _, declaration) ->
 		  (match declaration with (_, _, _, declarator_list) ->
-		    List.map (fun (_, _, _, variable_opt, _, _, _, _) ->
+		    List.map (fun (_, _, _, variable_opt, _, _, _, statement_opt_dtor) ->
 		      match variable_opt with
-			  Some v -> v
-			| None -> assert false) declarator_list)
+			| Some v -> (v, statement_opt_dtor)
+			| None   -> assert false) declarator_list)
 	      | _ -> [] in
-	    let variable_list =
+	    let var_dtor_list =
 	      List.flatten (List.map decls_in_stmt statement_list)
 	    in
-	      List.iter (fun v ->
+	      (* allocate local variables on the stack *)
+	      List.iter (fun (v, _) ->
 		Format.printf "@[<2>with_new_stackvar(@[<2>lambda@ @[<2>(";
 		variable_fun v;
-		Format.printf "@ :@ Address)@]:@]@\n") variable_list;
+		Format.printf "@ :@ Address)@]:@]@\n") var_dtor_list;
+	      (* the compound statement itself *)
 	      separate statement_fun (fun () -> Format.printf " ##@\n")
 		statement_list;
-	      List.iter (fun v ->
-		Format.printf ")@]") variable_list;
+	      (* destructor calls, in reverse allocation order *)
+	      List.iter (fun (_, statement_opt_dtor) ->
+		(match statement_opt_dtor with
+		  | Some stmt ->
+		      Format.printf " ##@\n";
+		      Format.print_string "lift_destructor(";
+		      statement_fun stmt;
+		      Format.print_string ")";
+		  | None -> ());
+		Format.printf ")@]") (List.rev var_dtor_list);
 	  end;
 	trace ")";
 
