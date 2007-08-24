@@ -117,7 +117,11 @@ __attribute__((always_inline)) __attribute__((nonnull))
 inline void *
 memcpy (void *d, void const *s, size_t n)
 {
+  // uninitialized variables are not supported by the semantics compiler
+  /*
     mword dummy;
+  */
+    mword dummy = 0UL;
     asm volatile ("rep; movsb"
                   : "=D" (dummy), "+S" (s), "+c" (n)
                   : "0" (d)
@@ -130,7 +134,11 @@ __attribute__((always_inline)) __attribute__((nonnull))
 inline void *
 memset (void *d, int c, size_t n)
 {
+  // uninitialized variables are not supported by the semantics compiler
+  /*
     mword dummy;
+  */
+    mword dummy = 0UL;
     asm volatile ("rep; stosb"
                   : "=D" (dummy), "+c" (n)
                   : "0" (d), "a" (c)
@@ -662,6 +670,10 @@ unsigned const trace_mask = (TRACE_CPU |
 			     0);
 */
 
+// these function declarations are not supported by the semantics compiler yet
+// ... which probably has more to do with the missing implementation than with
+// the printf format attribute.
+/*
 __attribute__((format (printf, (1),(0))))
 void
 vprintf (char const *format, va_list args);
@@ -673,6 +685,7 @@ printf (char const *format, ...);
 __attribute__((format (printf, (1),(2)))) __attribute__((noreturn))
 void
 panic (char const *format, ...);
+*/
 
 /*
 extern Console_screen screen;
@@ -727,10 +740,8 @@ class Spinlock
 */
 # 15 "include/buddy.h" 2
 
-
-class Buddy
-{
-    private:
+// moved here because the semantics compiler does not allow nested class
+// declarations
         class Block
         {
             public:
@@ -738,13 +749,19 @@ class Buddy
                 Block * next;
                 unsigned short ord;
                 unsigned short tag;
+        };
 
-                enum {
+// moved here because the semantics compiler does not allow nested enum
+// declarations
+                enum UsedFreeEnum {
                     Used = 0,
                     Free = 1
                 };
-        };
 
+
+class Buddy
+{
+    private:
 /*
         Spinlock lock;
 */
@@ -757,6 +774,7 @@ class Buddy
         Block * index;
         Block * head;
 
+  // TODO: static variables are not supported by the semantics compiler
   static unsigned const page_ord;// = 12;
   static unsigned const page_size;// = 1u << page_ord;
   static unsigned const page_mask;// = ~(page_size - 1);
@@ -871,17 +889,22 @@ class Lock_guard
 # 15 "buddy.cpp" 2
 
 
-
+// TODO: extern variables are not supported by the semantics compiler
+/*
 extern char _mempool_p, _mempool_l, _mempool_f;
+*/
 
 
 
-
+// TODO: initialization of static/global vars is not supported yet
+/*
 __attribute__((init_priority((((100 + 1) + 1)))))
 Buddy Buddy::allocator (reinterpret_cast<mword>(&_mempool_p),
                         reinterpret_cast<mword>(&_mempool_l),
                         reinterpret_cast<mword>(&_mempool_f),
                         0x00800000);
+*/
+
 
 Buddy::Buddy (mword p_addr, mword l_addr, mword f_addr, size_t size)
 {
@@ -914,8 +937,10 @@ Buddy::Buddy (mword p_addr, mword l_addr, mword f_addr, size_t size)
 				 
 				 0);
 
-    do { register mword __esp asm ("esp"); if (__builtin_expect(((trace_mask & TRACE_MEMORY) == TRACE_MEMORY), false)) printf ("[%d] " "POOL: %#010lx-%#010lx O:%u" "\n", ((__esp - 1) & ~0xfff) == 0xcfffe000 ? ~0u /*Cpu::id*/ : ~0u, p_addr, p_addr + size, order); } while (0);
-
+    // TODO: printf was commented out above
+    /*
+    do { register mword __esp asm ("esp"); if (__builtin_expect(((trace_mask & TRACE_MEMORY) == TRACE_MEMORY), false)) printf ("[%d] " "POOL: %#010lx-%#010lx O:%u" "\n", ((__esp - 1) & ~0xfff) == 0xcfffe000 ? ~0u [was Cpu::id] : ~0u, p_addr, p_addr + size, order); } while (0);
+    */
 
 
 
@@ -959,20 +984,26 @@ Buddy::alloc (unsigned ord, bool zero)
         block->prev->next = block->next;
         block->next->prev = block->prev;
         block->ord = ord;
-        block->tag = Block::Used;
+	// Used made global for the semantics compiler
+        block->tag = /*Block::*/Used;
 
         while (j-- != ord) {
             Block *buddy = block + (1ul << j);
             buddy->prev = buddy->next = head + j;
             buddy->ord = j;
-            buddy->tag = Block::Free;
+	    // Free made global for the semantics compiler
+            buddy->tag = /*Block::*/Free;
+            buddy->tag = Free;
             head[j].next = head[j].prev = buddy;
         }
 
         mword l_addr = index_to_page (block_to_index (block));
 
 
+	// TODO: panic was commented out above
+	/*
         do { if (__builtin_expect((!((page_to_frame (l_addr) & ((1ul << (block->ord + page_ord)) - 1)) == 0)), false)) panic ("Assertion \"%s\" failed at %s:%d\n", "(page_to_frame (l_addr) & ((1ul << (block->ord + page_ord)) - 1)) == 0", "buddy.cpp", 101); } while (0);
+	*/
 
         if (zero)
             memset (reinterpret_cast<void *>(l_addr), 0, 1ul << (block->ord + page_ord));
@@ -980,7 +1011,10 @@ Buddy::alloc (unsigned ord, bool zero)
         return reinterpret_cast<void *>(l_addr);
     }
 
+    // TODO: panic was commented out above
+    /*
     panic ("Out of memory");
+    */
 }
 
 
@@ -993,21 +1027,33 @@ Buddy::free (mword l_addr)
     signed long idx = page_to_index (l_addr);
 
 
+    // TODO: panic was commented out above
+    /*
     do { if (__builtin_expect((!(idx >= min_idx && idx < max_idx)), false)) panic ("Assertion \"%s\" failed at %s:%d\n", "idx >= min_idx && idx < max_idx", "buddy.cpp", 122); } while (0);
+    */
 
     Block *block = index_to_block (idx);
 
 
+    // TODO: panic was commented out above
+    /*
     do { if (__builtin_expect((!(block->tag == Block::Used)), false)) panic ("Assertion \"%s\" failed at %s:%d\n", "block->tag == Block::Used", "buddy.cpp", 127); } while (0);
+    */
 
-
+    // TODO: panic was commented out above
+    /*
     do { if (__builtin_expect((!((page_to_frame (l_addr) & ((1ul << (block->ord + page_ord)) - 1)) == 0)), false)) panic ("Assertion \"%s\" failed at %s:%d\n", "(page_to_frame (l_addr) & ((1ul << (block->ord + page_ord)) - 1)) == 0", "buddy.cpp", 130); } while (0);
+    */
 
 /*
     Lock_guard <Spinlock> guard (lock);
 */
 
+    // uninitialized variables are not supported
+    /*
     unsigned ord;
+    */
+    unsigned ord = 0U;
     for (ord = block->ord; ord < order - 1; ord++) {
 
 
@@ -1021,7 +1067,8 @@ Buddy::free (mword l_addr)
         Block *buddy = index_to_block (buddy_idx);
 
 
-        if (buddy->tag == Block::Used || buddy->ord != ord)
+	// Used made global for the semantics compiler
+        if (buddy->tag == /*Block::*/Used || buddy->ord != ord)
             break;
 
 
@@ -1034,8 +1081,8 @@ Buddy::free (mword l_addr)
     }
 
     block->ord = ord;
-    block->tag = Block::Free;
-
+    // Free made global for the semantics compiler
+    block->tag = /*Block::*/Free;
 
     Block *h = head + ord;
     block->prev = h;

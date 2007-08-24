@@ -1329,23 +1329,54 @@ and typeSpecifier_fun x =
 
 	Format.print_string "% ";
 	(* keyword: class/struct/union *)
-        compoundType_Keyword_fun
-	  ((function | CompoundType ct -> ct.keyword
-	             | _ -> assert false) compoundType);
+	(match compoundType with
+	  | CompoundType ct -> compoundType_Keyword_fun ct.keyword;
+	  | _ -> assert false);
 	Format.print_string " ";
 	Option.app pQName_fun pQName_opt;  (* name of class type *)
 	Format.printf "@\n@\n";
 
-	(* collect all field names (with their type) of this class
-	   declaration *)
+	(* collect all field names of this class declaration; ignore member
+	   functions *)
 	let fields = List.flatten (List.map (function
 		| MR_decl (_, _, declaration) ->
 		    (match declaration with
 			(_, _, typeSpecifier, declarator_list) ->
-			  List.map (fun (_, _, _, variable_opt, _, _, _, _) ->
-			    match variable_opt with
-			      | Some v -> (typeSpecifier, v)
-			      | None -> assert false) declarator_list)
+
+			  (* we disallow nested class declarations etc. *)
+			  (match typeSpecifier with
+			    | TS_name _ -> ();
+			    | TS_simple _ -> ();
+			    | TS_elaborated _ -> assert false;
+			    | TS_classSpec _ -> assert false;
+			    | TS_enumSpec _ -> assert false;
+			    | TS_type _ -> assert false;
+			    | TS_typeof _ -> assert false);
+
+			  List.flatten
+			    (List.map
+				(fun (_, _, _, variable_opt, _, _, _, _) ->
+				  match variable_opt with
+				    | Some var ->
+					(match !(var.var_type) with
+					  | Some cType ->
+					      (match cType with
+						| CVAtomicType _
+						| PointerType _ ->
+						    [var];
+						| FunctionType _ ->
+						    (* ignore member functions here *)
+						    [];
+						| ReferenceType _
+						| ArrayType _
+						| DependentSizeArrayType _
+						| PointerToMemberType _ ->
+						    (* not supported as member types yet *)
+						    assert false);
+					  | None ->
+					      assert false);
+				    | None ->
+					assert false) declarator_list));
 		| _ ->
 		    []) (snd memberList)) in
 
@@ -1360,11 +1391,12 @@ and typeSpecifier_fun x =
 	  begin
 	    Format.printf "@ =@ @[<2>[#@ ";
 	    separate
-	      (fun (t, v) ->
+	      (fun var ->
 		Format.printf "@[<2>";
-		variable_fun v;
+		variable_fun var;  (* name of field *)
 		Format.printf ":@ Semantics_";
-		typeSpecifier_fun t;
+		assert (Option.isSome !(var.var_type));
+		Option.app cType_fun !(var.var_type);  (* type of field *)
 		Format.printf "@]")
 	      (fun () -> Format.printf ",@ ") fields;
 	    Format.printf "@ #]@]";
@@ -1381,9 +1413,9 @@ and typeSpecifier_fun x =
 	Option.app pQName_fun pQName_opt;  (* name of class type *)
 	Format.printf "@ :@ @[<2>[#@ ";
 	separate
-	  (fun (_, v) ->
+	  (fun var ->
 	    Format.printf "@[<2>";
-	    variable_fun v;
+	    variable_fun var;
 	    Format.printf ":@ nat@]")
 	  (fun () -> Format.printf ",@ ") fields;
 	Format.printf "@ #]@]@]@\n";
@@ -1396,31 +1428,31 @@ and typeSpecifier_fun x =
 	List.iter baseClassSpec_fun baseClassSpec_list;
 
 	(*additional axioms about memory layout etc.*)
-	ignore (List.fold_left (fun prev_opt (typeSpecifier, variable) ->
+	ignore (List.fold_left (fun prev_opt var ->
 	  begin
 	    match prev_opt with
 	      | None ->
 		  Format.printf "@[<2>";
 		  Option.app pQName_fun pQName_opt;  (* name of class type *)
 		  Format.print_string "_";
-		  variable_fun variable;  (* name of field *)
+		  variable_fun var;  (* name of field *)
 		  Format.printf "_axiom@ :@ AXIOM@ offsets_";
 		  Option.app pQName_fun pQName_opt;  (* name of class type *)
 		  Format.print_string "`";
-		  variable_fun variable;  (* name of field *)
+		  variable_fun var;  (* name of field *)
 		  (* the C++ standard only implies >= 0 here, but also *)
 		  (* that the amount of padding is the same between    *)
 		  (* different classes with identical initial segments *)
 		  Format.printf "@ =@ 0@]@\n";
-	      | Some (prev_ts, prev_var) ->
+	      | Some prev_var ->
 		  Format.printf "@[<2>";
 		  Option.app pQName_fun pQName_opt;  (* name of class type *)
 		  Format.print_string "_";
-		  variable_fun variable;  (* name of field *)
+		  variable_fun var;  (* name of field *)
 		  Format.printf "_axiom@ :@ AXIOM@ offsets_";
 		  Option.app pQName_fun pQName_opt;  (* name of class type *)
 		  Format.print_string "`";
-		  variable_fun variable;  (* name of field *)
+		  variable_fun var;  (* name of field *)
 		  (* the C++ standard only implies >= here, but also   *)
 		  (* that the amount of padding is the same between    *)
 		  (* different classes with identical initial segments *)
@@ -1436,17 +1468,18 @@ and typeSpecifier_fun x =
 		      Format.print_string "`";
 		      variable_fun prev_var;  (* name of field *)
 		      Format.printf "@ +@ size(uidt(dt_";
-		      typeSpecifier_fun prev_ts;
+		      assert (Option.isSome !(var.var_type));
+		      Option.app cType_fun !(var.var_type);  (* type of field *)
 		      Format.print_string "))";
 		    end;
 		  Format.printf "@]@\n";
 	  end;
-	  Some (typeSpecifier, variable)) None fields);
+	  Some var) None fields);
 
 	(* total size of the datatype *)
 	(* TODO: for unions, we need to take the maximum of the member sizes *)
 	if (List.length fields > 0) then
-	  let (t, v) = last fields in
+	  let var = last fields in
 	    begin
 	      Format.printf "@[<2>dt_";
 	      Option.app pQName_fun pQName_opt;  (* name of class type *)
@@ -1455,9 +1488,10 @@ and typeSpecifier_fun x =
 	      Format.printf ")@ >= offsets_";
 	      Option.app pQName_fun pQName_opt;  (* name of class type *)
 	      Format.print_string "`";
-	      variable_fun v;  (* name of field *)
+	      variable_fun var;  (* name of field *)
 	      Format.printf "@ +@ size(uidt(dt_";
-	      typeSpecifier_fun t;
+	      assert (Option.isSome !(var.var_type));
+	      Option.app cType_fun !(var.var_type);  (* type of field *)
 	      Format.printf "))@]@\n";
 	  end;
 	Format.printf "@\n";
@@ -1673,10 +1707,7 @@ and declarator_fun (annot, iDeclarator, init_opt,
 		assert false);
 	  Format.printf "]@ =@]@\n";
 
-      | DC_TF_DECL          ->
-	  (*TODO*)
-	  Format.print_string ">>>>>DC_TF_DECL<<<<<";
-
+      | DC_TF_DECL          -> assert false;
       | DC_TF_EXPLICITINST  -> assert false;
       | DC_MR_DECL          -> assert false;
 
