@@ -111,7 +111,7 @@ enum DeclFlags {
   DF_EXTERN_C    = 0x08000000,    // name is marked extern "C"
   DF_SELFNAME    = 0x10000000,    // section 9 para 2: name of class inside its own scope
   DF_BOUND_TPARAM= 0x00004000,    // template parameter bound to a concrete argument
-  DF_TEMPL_PARAM = 0x20000000,    // template parameter (bound only to itself)
+  DF_TEMPL_PARAM = 0x20000000,    // template parameter; bound iff also DF_BOUND_TPARAM
   DF_USING_ALIAS = 0x40000000,    // this is a 'using' alias
   DF_BITFIELD    = 0x80000000,    // this is a bitfield
   DF_GNU_EXTERN_INLINE            // dsw: was extern inline (record since might be changed to static inline)
@@ -622,6 +622,18 @@ inline char const *toXml(DeclaratorContext id)
   { return toString(id); }
 void fromXml(DeclaratorContext &out, rostring str);
 
+
+
+// ----------------- kinds of template parameters ----------------
+// the possible kinds of template parameters (cppstd 14.1)
+enum TemplateParameterKind {
+  TPK_TYPE,         // template <class T>
+  TPK_NON_TYPE,     // template <int n>
+  TPK_TEMPLATE,     // template <template <class T> class U>
+  NUM_TEMPLATE_PARAMETER_KINDS
+};
+
+char const *toString(TemplateParameterKind tpk);
 
 
 #endif // CC_FLAGS_H

@@ -49,13 +49,15 @@ public:
 class PseudoInstantiation : public NamedAtomicType {
 public:      // data
   // class template primary to which we are adding arguments
-  CompoundType *primary;
+  //
+  // This will either be a CompoundType or a TemplateTypeVariable.
+  NamedAtomicType *primary;
 
   // the arguments, some of which contain type variables
   ObjList<STemplateArgument> args;
 
 public:      // funcs
-  PseudoInstantiation(CompoundType *p);
+  PseudoInstantiation(NamedAtomicType *p);
   ~PseudoInstantiation();
 
   // AtomicType interface
@@ -478,7 +480,7 @@ public: // data ?
     STA_POINTER,     // pointer to global object
     STA_MEMBER,      // pointer to class member
     STA_DEPEXPR,     // value-dependent expression
-    STA_TEMPLATE,    // template argument (not implemented)
+    STA_TEMPLATE,    // template argument
     STA_ATOMIC,      // private to mtype: bind var to AtomicType
     NUM_STA_KINDS
   } kind;
@@ -488,6 +490,11 @@ public: // data ?
     int i;           // for STA_INT
     Variable *v;     // (serf) for STA_ENUMERATOR, STA_REFERENCE, STA_POINTER, STA_MEMBER
     Expression *e;   // (serf) for STA_DEPEXPR
+    
+    // (serf) for STA_TEMPLATE; this will be a CompoundType if this is
+    // a concrete argument, and to TemplateTypeVariable if abstract
+    NamedAtomicType *templNat;
+
     AtomicType const *at;  // (serf) for STA_ATOMIC
   } sta_value;
 
@@ -514,6 +521,7 @@ public:
   Variable *getPointer()   const { xassert(kind==STA_POINTER);   return sta_value.v; }
   Variable *getMember()    const { xassert(kind==STA_MEMBER);    return sta_value.v; }
   Expression *getDepExpr() const { xassert(kind==STA_DEPEXPR);   return sta_value.e; }
+  NamedAtomicType *getTemplate() const { xassert(kind==STA_TEMPLATE); return sta_value.templNat; }
 
   // set 'sta_value', ensuring correspondence between it and 'kind'
   void setType(CType *t)          { kind=STA_TYPE;      sta_value.t=t; }
@@ -523,6 +531,7 @@ public:
   void setDepExpr(Expression *e) { kind=STA_DEPEXPR;   sta_value.e=e; }
   void setPointer(Variable *v)   { kind=STA_POINTER;   sta_value.v=v; }
   void setMember(Variable *v)    { kind=STA_MEMBER;    sta_value.v=v; }
+  void setTemplate(NamedAtomicType *nat) { kind=STA_TEMPLATE; sta_value.templNat=nat; }
 
   bool isObject() const;         // "non-type non-template" in the spec
   bool isType() const            { return kind==STA_TYPE;         }
@@ -680,6 +689,39 @@ public:
   DelayedFuncInst(Variable *v, ArrayStack<SourceLoc> const &s,
                   SourceLoc loc);
   ~DelayedFuncInst();
+};
+
+
+// a template template parameter, i.e., a type variable that
+// itself accepts class template arguments
+class TemplateTypeVariable : public NamedAtomicType {
+public:      // data
+  // parameter list; any actual template that is bound to this
+  // TemplateTypeVariable must have an equivalent parameter list
+  TemplateParams params;
+  
+public:      // funcs
+  TemplateTypeVariable(StringRef name);
+  ~TemplateTypeVariable();
+
+  // AtomicType interface
+  virtual Tag getTag() const { return T_TEMPLATETYPEVAR; }
+  virtual string toCString() const;
+  virtual string toMLString() const;
+  virtual int reprSize() const;
+  virtual void traverse(TypeVisitor &vis);
+
+  // True if this template parameter has been associated with a
+  // specific enclosing template.  This does not imply that it is
+  // bound to an argument; it's just saying whether the parameter has
+  // been attached to the thing it parameterizes, and is only false
+  // during an early parsing stage.  Being bound does imply being
+  // associated.
+  bool isAssociated() const;
+
+  // ocaml serialization method
+  value toOcaml(ToOcamlData *);
+  void detachOcaml();
 };
 
 

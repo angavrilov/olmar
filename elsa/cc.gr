@@ -2368,13 +2368,12 @@ nonterm(/*fakelist*/TemplateParameter*) TemplateParameterList {
   // list, we do not currently disambiguate it properly; see in/t0465.cc
   fun merge(L,R) { L->addAmbiguity(R); return L; }
 
-  -> ClassOrTypename i:IdentifierOpt t:DefaultTypeOpt
-     { return new TP_type(loc, i, t, NULL /*next*/); }
-
-  -> ClassOrTypename i:IdentifierOpt t:DefaultTypeOpt "," next:TemplateParameterList
+  // non-template type parameter
+  -> ClassOrTypename i:IdentifierOpt t:DefaultTypeOpt next:TemplateParameterListContinuation
      { return new TP_type(loc, i, t, next); }
 
-  -> p:ParameterDeclaration
+  // non-type parameter
+  -> p:ParameterDeclaration next:TemplateParameterListContinuation
      {
        // if the specifier is a TS_elaborated, then it could be a type
        // parameter; cppstd 14.1 para 3 seems to say that in that case it
@@ -2384,40 +2383,41 @@ nonterm(/*fakelist*/TemplateParameter*) TemplateParameterList {
          return NULL;   // don't keep this, it's really a TP_type
        }
        else {
-         return new TP_nontype(loc, p, NULL /*next*/);
-       }
-     }
-
-  -> p:ParameterDeclaration "," next:TemplateParameterList
-     {
-       if (p->spec->canBeTypeParam()) {
-         TRACE("cancel", loc << ": template parameter can be type param");
-         return NULL;
-       }
-       else {
          return new TP_nontype(loc, p, next);
        }
      }
+
+  // template type parameter
+  -> "template" "<" pl:TemplateParameterList ">" "class" i:IdentifierOpt
+       t:DefaultTemplateOpt next:TemplateParameterListContinuation
+     {
+       return new TP_template(loc, FakeList<TemplateParameter>::makeList(pl), 
+                              i, t, next);
+     }
+}
+
+// what comes after a template paramter: nothing, or else
+// a comma and then more parameters
+nonterm(/*nullable fakelist*/TemplateParameter*) TemplateParameterListContinuation {
+  fun merge(L,R) { L->addAmbiguity(R); return L; }
+
+  -> empty                             { return NULL; }
+  -> "," next:TemplateParameterList    { return next; }
 }
 
 nonterm ClassOrTypename {
   -> "class";
   -> "typename";
-
-  // quarl 2006-06-06
-  //    Recognize templatized template parameter list; this is not the right
-  //    place to put it, but I just wanted to see a descriptive error message,
-  //    in order to categorize parse errors.
-  -> "template" "<" plist:TemplateParameterList ">" "class"
-     {
-       xunimp(stringc << loc << " templatized template parameter list"
-              " (25eb7000-851c-4028-b762-4e365a5b10bf)");
-     }
 }
 
 nonterm(ASTTypeId*) DefaultTypeOpt {
   -> empty                    { return NULL; }
   -> "=" t:TypeId             { return t; }
+}
+
+nonterm(PQName*) DefaultTemplateOpt {
+  -> empty                    { return NULL; }
+  -> "=" t:IdExpression       { return t; }
 }
 
 

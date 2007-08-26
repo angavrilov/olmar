@@ -129,6 +129,10 @@ bool IMType::imatchAtomicType(AtomicType const *conc, AtomicType const *pat, Mat
     return imatchAtomicTypeWithVariable(conc, pat->asTypeVariableC(), flags);
   }
 
+  if (pat->isTemplateTypeVariable()) {
+    xunimp("IMType::imatchAtomicType: pattern is template type variable");
+  }
+
   if (conc->getTag() != pat->getTag()) {
     // match an instantiation with a PseudoInstantiation
     if ((flags & MF_MATCH) &&
@@ -138,9 +142,15 @@ bool IMType::imatchAtomicType(AtomicType const *conc, AtomicType const *pat, Mat
         conc->asCompoundTypeC()->typedefVar->templateInfo()->isCompleteSpecOrInstantiation()) {
       TemplateInfo *concTI = conc->asCompoundTypeC()->typedefVar->templateInfo();
       PseudoInstantiation const *patPI = pat->asPseudoInstantiationC();
-      
+
+      // can't match against a PI on a TemplateTypeVariable
+      if (patPI->primary->isTemplateTypeVariable()) {
+        return false;
+      }
+      CompoundType *patPIprimaryCT = patPI->primary->asCompoundType();
+
       // these must be instantiations of the same primary
-      if (concTI->getPrimary() != patPI->primary->templateInfo()->getPrimary()) {
+      if (concTI->getPrimary() != patPIprimaryCT->templateInfo()->getPrimary()) {
         return false;
       }
       
@@ -262,6 +272,9 @@ bool IMType::imatchSTemplateArgument(STemplateArgument const *conc,
 
     case STemplateArgument::STA_DEPEXPR:
       return imatchExpression(conc->getDepExpr(), pat->getDepExpr(), flags);
+      
+    case STemplateArgument::STA_TEMPLATE:
+      return imatchAtomicType(conc->getTemplate(), pat->getTemplate(), flags);
   }
 }
 
@@ -416,6 +429,10 @@ bool IMType::imatchType(CType const *conc, CType const *pat, MatchFlags flags)
                                   pat->getCVFlags(), flags);
   }
 
+  if (pat->isTemplateTypeVariable()) {
+    xunimp("IMType::imatchType: pattern is template type variable");
+  }
+
   if ((flags & MF_MATCH) &&
       !(flags & MF_ISOMORPHIC) &&
       pat->isCVAtomicType() &&
@@ -475,7 +492,7 @@ bool IMType::imatchTypeWithVariable(CType const *conc, TypeVariable const *pat,
                                     CVFlags tvCV, MatchFlags flags)
 {
   if ((flags & MF_ISOMORPHIC) &&
-      !conc->isTypeVariable()) {
+      !conc->isTypeOrTemplateTypeVariable()) {
     return false;      // MF_ISOMORPHIC requires that we only bind to variables
   }
 
@@ -724,7 +741,7 @@ bool IMType::imatchAtomicTypeWithVariable(AtomicType const *conc,
                                           MatchFlags flags)
 {
   if ((flags & MF_ISOMORPHIC) &&
-      !conc->isTypeVariable()) {
+      !conc->isTypeOrTemplateTypeVariable()) {
     return false;      // MF_ISOMORPHIC requires that we only bind to variables
   }
 

@@ -139,6 +139,11 @@ new class ASTTypeof {
   // pattern that is used to resolve ambiguities.
   public(xml_TY) CType *type;
 
+  // SGM 2007-08-25: TODO: I think the following two classes should
+  // be renamed to begin with "ATO" rather than "TS".  The latter
+  // incorrectly implies they are specializations of TypeSpecifier,
+  // whereas in fact they are specializations of ASTTypeof.
+
   // dsw: I'm assuming that ASTTypeof should terminate the top of the
   // Expression tree, but I don't feel absolutely sure about it.
   -> TS_typeof_expr(FullExpression expr);

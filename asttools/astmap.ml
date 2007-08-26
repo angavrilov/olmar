@@ -169,6 +169,12 @@ and atomicType_fun = function
 		   variable_fun variable,
 		   accessKeyword_fun accessKeyword)
 
+  | TemplateTypeVariable(annot, string, variable, accessKeyword, params) ->
+      TemplateTypeVariable(annotation_fun annot,
+                           string_fun string,
+                           variable_fun variable,
+                           accessKeyword_fun accessKeyword,
+                           List.map variable_fun params)
 
 and cType_fun = function
   | CVAtomicType(annot, cVFlags, atomicType) ->
@@ -204,7 +210,8 @@ and cType_fun = function
 	       | CompoundType _
 	       | PseudoInstantiation _
 	       | EnumType _
-	       | TypeVariable _ -> true);
+	       | TypeVariable _
+               | TemplateTypeVariable _ -> true);
       PointerToMemberType(annotation_fun annot,
 			  atomicType_fun atomicType,
 			  cVFlags_fun cVFlags,
@@ -241,8 +248,8 @@ and sTemplateArgument_fun = function
   | STA_DEPEXPR(annot, expression) -> 
       STA_DEPEXPR(annotation_fun annot, expression_fun expression)
 
-  | STA_TEMPLATE annot -> 
-      STA_TEMPLATE(annotation_fun annot)
+  | STA_TEMPLATE(annot, atomicType) -> 
+      STA_TEMPLATE(annotation_fun annot, atomicType_fun atomicType)
 
   | STA_ATOMIC(annot, atomicType) -> 
       STA_ATOMIC(annotation_fun annot, atomicType_fun atomicType)
@@ -970,6 +977,14 @@ and templateParameter_fun = function
 		 aSTTypeId_fun aSTTypeId,
 		 opt_map templateParameter_fun templateParameter_opt)
 
+  | TP_template(annot, sourceLoc, variable, params, stringRef, pqname, templateParameter_opt) -> 
+      TP_type(annotation_fun annot,
+              sourceLoc_fun sourceLoc,
+              variable_fun variable,
+              List.map templateParameter_fun params,
+              string_fun stringRef,
+              opt_map pQName_fun pqname,
+              opt_map templateParameter_fun templateParameter_opt)
 
 and templateArgument_fun = function
   | TA_type(annot, aSTTypeId, templateArgument_opt) -> 

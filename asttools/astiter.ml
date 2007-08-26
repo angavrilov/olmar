@@ -331,6 +331,14 @@ and atomicType_fun x =
 	  variable_fun variable;
 	  accessKeyword_fun accessKeyword
 
+      | TemplateTypeVariable(annot, string, variable, accessKeyword, params) ->
+          visit annot;
+          annotation_fun annot;
+          string_fun string;
+          variable_fun variable;
+          accessKeyword_fun accessKeyword;
+          List.iter variable_fun params
+
       | DependentQType(annot, string, variable, 
 		      accessKeyword, atomic, pq_name) ->
 	  visit annot;
@@ -385,7 +393,8 @@ and cType_fun x =
 		   | PseudoInstantiation _
 		   | EnumType _
 		   | TypeVariable _ 
-		   | DependentQType _ -> true);
+                   | TemplateTypeVariable _ 
+                   | DependentQType _ -> true);
 	  annotation_fun annot;
 	  atomicType_fun atomicType;
 	  cVFlags_fun cVFlags;
@@ -435,8 +444,9 @@ and sTemplateArgument_fun ta =
 	    annotation_fun annot;
 	    expression_fun expression
 
-	| STA_TEMPLATE annot -> 
-	    annotation_fun annot
+	| STA_TEMPLATE(annot, atomicType) -> 
+            annotation_fun annot;
+            atomicType_fun atomicType
 
 	| STA_ATOMIC(annot, atomicType) -> 
 	    annotation_fun annot;
@@ -1456,6 +1466,15 @@ and templateParameter_fun x =
 	    aSTTypeId_fun aSTTypeId;
 	    opt_iter templateParameter_fun templateParameter_opt
 
+        | TP_template(annot, sourceLoc, variable, params, stringRef,
+                  pqname, templateParameter_opt) -> 
+            annotation_fun annot;
+            sourceLoc_fun sourceLoc;
+            variable_fun variable;
+            List.iter templateParameter_fun params;
+            string_fun stringRef;
+            opt_iter pQName_fun pqname;
+            opt_iter templateParameter_fun templateParameter_opt
 
 and templateArgument_fun x = 
   let annot = templateArgument_annotation x

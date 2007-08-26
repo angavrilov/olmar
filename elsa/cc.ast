@@ -695,6 +695,11 @@ class TemplateParameter (SourceLoc loc)(nullable TemplateParameter next) {
 
   // non-type paramters
   -> TP_nontype(ASTTypeId param);
+  
+  // template template parameter
+  -> TP_template(FakeList<TemplateParameter> *parameters,
+                 StringRef /*nullable*/ name,
+                 nullable PQName defaultTemplate);
 }
 
 verbatim {

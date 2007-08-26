@@ -2038,7 +2038,7 @@ void ElabVisitor::postvisitInitializer(Initializer *in)
 
 // =================== extra AST nodes =====================
 // ------------------------ TS_type ------------------------
-CType *TS_type::itcheck(Env &env, DeclFlags dflags)
+CType *TS_type::itcheck(Env &env, DeclFlags dflags, LookupFlags lflags)
 {
   return type;
 }

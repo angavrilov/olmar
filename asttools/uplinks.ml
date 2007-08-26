@@ -176,6 +176,11 @@ let ast_node_fun up down myindex = function
       add_links up down myindex
 	[variable_annotation variable]
 
+  | AtomicType(TemplateTypeVariable(_annot, _string, variable, _accessKeyword, params)) ->
+      add_links up down myindex
+        ([variable_annotation variable]
+         @ (List.map variable_annotation params))
+
   (* 9 *)
   | AtomicType(DependentQType(_annot, _string, variable, _accessKeyword, 
 			      atomic, pq_name)) ->
@@ -223,6 +228,7 @@ let ast_node_fun up down myindex = function
 	       | PseudoInstantiation _
 	       | EnumType _
 	       | TypeVariable _ 
+               | TemplateTypeVariable _
 	       | DependentQType _ -> true);
       add_links up down myindex
 	[atomicType_annotation atomicType;
@@ -272,9 +278,9 @@ let ast_node_fun up down myindex = function
 	[expression_annotation expression]
 
   (* 24 *)
-  | STemplateArgument(STA_TEMPLATE _annot) ->
+  | STemplateArgument(STA_TEMPLATE(_annot, atomicType)) ->
       add_links up down myindex
-	[]
+        [atomicType_annotation atomicType]
 
   (* 25 *)
   | STemplateArgument(STA_ATOMIC(_annot, atomicType)) ->
@@ -1061,6 +1067,15 @@ let ast_node_fun up down myindex = function
 	((variable_annotation variable)
 	 :: (aSTTypeId_annotation aSTTypeId)
 	 :: (opt_link templateParameter_annotation templateParameter_opt []))
+
+  | TemplateParameter_type(TP_template(_annot, _sourceLoc, variable, params, _stringRef, 
+                                   pqname, templateParameter_opt)) ->
+      add_links up down myindex
+        ((variable_annotation variable)
+         :: (opt_link pQName_annotation pqname [])
+          @ (opt_link templateParameter_annotation 
+                   templateParameter_opt [])
+          @ (List.map templateParameter_annotation params))
 
   (* 138 *)
   | TemplateArgument_type(TA_type(_annot, aSTTypeId, templateArgument_opt)) ->

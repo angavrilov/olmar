@@ -467,7 +467,15 @@ and atomicType_fun at =
 	       ("access", string_of_accessKeyword accessKeyword)]
 	      [(variable_fun variable, "typedefVar")]
 
-	| DependentQType(annot, string, variable, 
+        | TemplateTypeVariable(annot, string, variable, accessKeyword, params) ->
+            visit annot;
+            atnode "TemplateTypeVariable" 
+              [("name", string);
+               ("access", string_of_accessKeyword accessKeyword)]
+              ([(variable_fun variable, "typedefVar")] 
+                  @ (List.map (fun v -> (variable_fun v, "arg")) params))
+	
+        | DependentQType(annot, string, variable, 
 			 accessKeyword, atomic, pq_name) ->
 	    visit annot;
 	    atnode "DependentQType"
@@ -535,6 +543,7 @@ and cType_fun t =
 		     | PseudoInstantiation _
 		     | EnumType _
 		     | TypeVariable _ 
+                     | TemplateTypeVariable _
 		     | DependentQType _ -> true);
 	    tnode_1d "PointerToMemberType" "cv" (string_of_cVFlags cVFlags)
 	      (let x1 = (atomicType_fun atomicType, "inClassNat") in
@@ -581,8 +590,8 @@ and sTemplateArgument_fun ta =
 	| STA_DEPEXPR(_annot, expression) -> 
 	    tanode_1c "STA_DEPEXPR" "sta_value.e" (expression_fun expression)
 
-	| STA_TEMPLATE _annot -> 
-	    tanode "STA_TEMPLATE" [] []
+	| STA_TEMPLATE(_annot, atomicType) -> 
+            tanode_1c "STA_TEMPLATE" "sta_value.at" (atomicType_fun atomicType)
 
 	| STA_ATOMIC(_annot, atomicType) -> 
 	    tanode_1c "STA_ATOMIC" "sta_value.at" (atomicType_fun atomicType)
@@ -1632,6 +1641,15 @@ and templateParameter_fun tp =
 	       in
 		 [x1; x2])
 
+        | TP_template(_annot, _loc, variable, params, stringRef,
+                  pqname, templateParameter_opt) -> 
+            tpnode "TP_template" templateParameter_opt 
+              [("name", stringRef)]
+              (let x1 = variable_fun variable, "var" in
+               let l2 = opt_child pQName_fun "pqname" pqname
+               and l3 = List.map (fun p -> templateParameter_fun p, "param") params
+               in
+                 x1 :: (l2 @ l3))
 
 
 and templateArgument_fun ta = 

@@ -44,6 +44,7 @@ let atomicType_annotation = function
   | PseudoInstantiation(annot, _, _, _, _, _)
   | EnumType(annot, _, _, _, _, _)
   | TypeVariable(annot, _, _, _)
+  | TemplateTypeVariable(annot, _, _, _, _)
   | DependentQType(annot, _, _, _, _, _)
     -> annot
   | CompoundType(compound_info) -> compound_info.compound_info_poly
@@ -67,7 +68,7 @@ let sTemplateArgument_annotation = function
   | STA_POINTER(annot, _)
   | STA_MEMBER(annot, _)
   | STA_DEPEXPR(annot, _)
-  | STA_TEMPLATE annot
+  | STA_TEMPLATE(annot, _)
   | STA_ATOMIC(annot, _) ->
       annot
 
@@ -248,6 +249,7 @@ let templateDeclaration_annotation = function
 let templateParameter_annotation = function
   | TP_type(annot, _, _, _, _, _)
   | TP_nontype(annot, _, _, _, _)
+  | TP_template(annot, _, _, _, _, _, _)
     -> annot
 
 let templateArgument_annotation = function
@@ -390,6 +392,7 @@ let init_loc = function
 let templateParameter_loc = function
   | TP_type(_, loc, _, _, _, _)
   | TP_nontype(_, loc, _, _, _)
+  | TP_template(_, loc, _, _, _, _, _)
     -> loc
 
 let designator_loc = function

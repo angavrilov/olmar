@@ -25,13 +25,13 @@ enum LookupFlags {
   LF_FUNCTION_NAME     = 0x00000100,   // looking up the name at a function call site
   LF_DECLARATOR        = 0x00000200,   // context is a declarator name lookup; for templates, this means to pick the primary or a specialization, but don't instantiate
   LF_SELFNAME          = 0x00000400,   // the DF_SELFNAME is visible
-  LF_unused_value2     = 0x00000800,   // (available)
+  LF_TA_TYPE           = 0x00000800,   // syntactic context is a TA_type
   LF_TEMPL_PARAM       = 0x00001000,   // return only template parameter/argument names
   LF_SUPPRESS_ERROR    = 0x00002000,   // during lookup, don't emit errors
   LF_SUPPRESS_NONEXIST = 0x00004000,   // suppress "does not exist" errors
   LF_IGNORE_USING      = 0x00008000,   // 3.4.2p3: ignore using-directives
   LF_NO_IMPL_THIS      = 0x00010000,   // do not insert implicit 'this->'
-  LF_unused_value3     = 0x00020000,   // (available)
+  LF_unused_value2     = 0x00020000,   // (available)
   LF_QUERY_TAGS        = 0x00040000,   // look in Scope::typeTags instead of Scope::variables
   LF_unused_value      = 0x00080000,   // (available for a new use)
   LF_EXPECTING_TYPE    = 0x00100000,   // do not apply template args to a non-type

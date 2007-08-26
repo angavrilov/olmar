@@ -206,6 +206,11 @@ let ast_node_fun = function
       string_fun string;
       accessKeyword_fun accessKeyword
 
+  | AtomicType(TemplateTypeVariable(annot, string, variable, accessKeyword, params)) ->
+      annotation_fun annot;
+      string_fun string;
+      accessKeyword_fun accessKeyword
+
   | AtomicType(DependentQType(annot, string, variable, accessKeyword, 
 			      atomic, pq_name)) ->
       annotation_fun annot;
@@ -240,7 +245,8 @@ let ast_node_fun = function
 	       | PseudoInstantiation _
 	       | EnumType _
 	       | TypeVariable _ 
-	       | DependentQType _ -> true);
+               | TemplateTypeVariable _ 
+               | DependentQType _ -> true);
       annotation_fun annot;
       cVFlags_fun cVFlags;
 
@@ -272,8 +278,8 @@ let ast_node_fun = function
   | STemplateArgument(STA_DEPEXPR(annot, expression)) -> 
       annotation_fun annot;
 
-  | STemplateArgument(STA_TEMPLATE annot) -> 
-      annotation_fun annot
+  | STemplateArgument(STA_TEMPLATE(annot, atomicType)) -> 
+      annotation_fun annot;
 
   | STemplateArgument(STA_ATOMIC(annot, atomicType)) -> 
       annotation_fun annot;
@@ -894,6 +900,11 @@ let ast_node_fun = function
       annotation_fun annot;
       sourceLoc_fun sourceLoc
 
+  | TemplateParameter_type(TP_template(annot, sourceLoc, variable, params, stringRef, 
+                                   pqname, templateParameter_opt)) -> 
+      annotation_fun annot;
+      sourceLoc_fun sourceLoc;
+      string_fun stringRef;
 
   | TemplateArgument_type(TA_type(annot, aSTTypeId, templateArgument_opt)) -> 
       annotation_fun annot;

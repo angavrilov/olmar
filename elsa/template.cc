@@ -158,13 +158,13 @@ void TypeVariable::detachOcaml() {
 
 // -------------------- PseudoInstantiation ------------------
 // Here, 'p' might be NULL only during deserialization.
-PseudoInstantiation::PseudoInstantiation(CompoundType *p)
+PseudoInstantiation::PseudoInstantiation(NamedAtomicType *p)
   : NamedAtomicType(p? p->name : NULL),
     primary(p),
     args()        // empty initially
 {
-  if (p) {
-    xassert(p->templateInfo()->isPrimary());
+  if (p && p->isCompoundType()) {
+    xassert(p->asCompoundType()->templateInfo()->isPrimary());
   }
 }
 
@@ -244,7 +244,7 @@ value PseudoInstantiation::toOcaml(ToOcamlData * data){
     childs[2] = Val_None;
 
   childs[3] = ocaml_from_AccessKeyword(access, data);
-  childs[4] = primary->toCompoundInfo(data);
+  childs[4] = primary->toOcaml(data);
 
 
   args_result = Val_emptylist;
@@ -274,7 +274,7 @@ void PseudoInstantiation::detachOcaml() {
   if(ocaml_val == 0) return;
   NamedAtomicType::detachOcaml();
 
-  primary->detachOcamlInfo();
+  primary->detachOcaml();
   FOREACH_OBJLIST_NC(STemplateArgument, args, iter)
     iter.data()->detachOcaml();
 }
@@ -580,16 +580,46 @@ bool TemplateParams::anyParamCtorSatisfies(TypePred &pred) const
 
 // ocaml serialization method
 // hand written ocaml serialization function
-value TemplateParams::toOcaml(ToOcamlData *){
-  // HT: XXX
-  cerr << "TemplateParams::toOcaml not implemented" << endl;
-  xassert(false);
+value TemplateParams::toOcaml(ToOcamlData *data){
+  CAMLparam0();
+  CAMLlocal3(list,elem,tmp);
+  if(ocaml_val) {
+    CAMLreturn(ocaml_val);
+  }
+
+  if(data->stack.contains(this)) {
+    cerr << "cyclic ast detected during ocaml serialization\n";
+    xassert(false);
+  } else {
+    data->stack.add(this);
+  }
+
+  list = Val_emptylist;
+  SFOREACH_OBJLIST_NC(Variable, params, list_iter) {
+    elem = list_iter.data()->toOcaml(data);
+    tmp = caml_alloc(2, Tag_cons); // allocate a cons cell
+    Store_field(tmp, 0, elem);  // store car
+    Store_field(tmp, 1, list);  // store cdr
+    list = tmp;
+  }
+
+  caml_register_global_root(&ocaml_val);
+  ocaml_val = ocaml_list_rev(list);
+  xassert(IS_OCAML_AST_VALUE(ocaml_val));
+
+  data->stack.remove(this);
+  CAMLreturn(ocaml_val);
 }
 
 void TemplateParams::detachOcaml(){
-  // HT: XXX
-  cerr << "TemplateParams::detachOcaml not implemented" << endl;
-  xassert(false);
+  if(ocaml_val == 0) return;
+
+  SFOREACH_OBJLIST_NC(Variable, params, list_iter) {
+    list_iter.data()->detachOcaml();
+  }
+
+  caml_remove_global_root(&ocaml_val);
+  ocaml_val = 0;
 }
 
 // --------------- InheritedTemplateParams ---------------
@@ -1491,7 +1521,7 @@ string STemplateArgument::toString() const
       << "/*member*/ &" << sta_value.v->scope->curCompound->name
       << "::" << sta_value.v->name;
     case STA_DEPEXPR:   return getDepExpr()->exprToString();
-    case STA_TEMPLATE:  return string("template (?)");
+    case STA_TEMPLATE:  return getTemplate()->typedefVar->name;
     case STA_ATOMIC:    return sta_value.at->toString();
   }
 }
@@ -1709,14 +1739,13 @@ value STemplateArgument::toOcaml(ToOcamlData * data){
     break;
 
   case STA_TEMPLATE:
-    xassert(false); 		// not implemented yet
     if(create_STA_TEMPLATE_constructor_closure == NULL)
       create_STA_TEMPLATE_constructor_closure = 
         caml_named_value("create_STA_TEMPLATE_constructor");
     xassert(create_STA_TEMPLATE_constructor_closure);
-    // arg = ??
-    ocaml_val = caml_callback(*create_STA_TEMPLATE_constructor_closure, 
-			      annot);
+    arg = getTemplate()->toOcaml(data);
+    ocaml_val = caml_callback2(*create_STA_TEMPLATE_constructor_closure, 
+			      annot, arg);
     break;
 
   case STA_ATOMIC:
@@ -1785,8 +1814,7 @@ void STemplateArgument::detachOcaml() {
     break;
 
   case STA_TEMPLATE:
-    xassert(false); 		// not implemented yet
-    // ??->detachOcaml();
+    getTemplate()->detachOcaml();
     break;
 
   case STA_ATOMIC:
@@ -2468,22 +2496,11 @@ bool Env::insertTemplateArgBindings_oneParamList
     // TODO: fully collapse this code to reflect that
     xassert(!argIter.isDone());       // should not get here with too few args
     STemplateArgument const *sarg = argIter.data();
+    xassert(sarg);
 
-    if (sarg && sarg->isTemplate()) {
-      xfailure("Template template parameters are not implemented");
-    }
-
-
-    if (param->hasFlag(DF_TYPEDEF) &&
-        (!sarg || sarg->isType())) {
-      if (!sarg && !param->defaultParamType) {
-        error(stringc
-          << "too few template arguments to `" << baseV->name << "'");
-        return false;
-      }
-
+    if (param->hasFlag(DF_TYPEDEF) && sarg->isType()) {
       // bind the type parameter to the type argument
-      CType *t = sarg? sarg->getType() : param->defaultParamType;
+      CType *t = sarg->getType();
       Variable *binding = makeVariable(param->loc, param->name, t, 
                                        DF_TYPEDEF | DF_TEMPL_PARAM | DF_BOUND_TPARAM);
       addVariableToScope(scope, binding);
@@ -2491,14 +2508,17 @@ bool Env::insertTemplateArgBindings_oneParamList
       // remember them in 'typeBindings' too (for local use)
       typeBindings.setBoundValue(param->name, *sarg);
     }
-    else if (!param->hasFlag(DF_TYPEDEF) &&
-             (!sarg || sarg->isObject())) {
-      if (!sarg && !param->varValue) {
-        error(stringc
-          << "too few template arguments to `" << baseV->name << "'");
-        return false;
-      }
+    else if (param->isTemplateTypeVariable() && sarg->isTemplate()) {
+      // very similar to the above case
+      CType *t = sarg->getTemplate()->typedefVar->type;
+      Variable *binding = makeVariable(param->loc, param->name, t,
+                                       DF_TYPEDEF | DF_TEMPL_PARAM | DF_BOUND_TPARAM);
+      addVariableToScope(scope, binding);
 
+      // remember them in 'typeBindings' too (for local use)
+      typeBindings.setBoundValue(param->name, *sarg);
+    }
+    else if (!param->hasFlag(DF_TYPEDEF) && sarg->isObject()) {
       // TODO: verify that the argument in fact matches the parameter type
 
       // bind the nontype parameter directly to the nontype expression;
@@ -2515,17 +2535,6 @@ bool Env::insertTemplateArgBindings_oneParamList
                                        bindType, DF_TEMPL_PARAM | DF_BOUND_TPARAM);
 
       // set 'bindings->value', in some cases creating AST
-      if (!sarg) {
-        binding->setValue(param->varValue);
-
-        // sm: the statement above seems reasonable, but I'm not at
-        // all convinced it's really right... has it been tcheck'd?
-        // has it been normalized?  are these things necessary?  so
-        // I'll wait for a testcase to remove this assertion... before
-        // this assertion *is* removed, someone should read over the
-        // applicable parts of cppstd
-        xunimp("default non-type argument");
-      }
       switch (sarg->kind) {
         // The following cases get progressively more difficult for
         // an analysis to "see" what the actual template argument is.
@@ -2564,7 +2573,7 @@ bool Env::insertTemplateArgBindings_oneParamList
           break;
         }
         default: {
-          xunimp("template template parameters");
+          xfailure("bad/unhandled template argument kind");
         }
       }
       xassert(binding->varValue);
@@ -4817,6 +4826,10 @@ CType *Env::applyArgumentMapToAtomicType
                                              sdqt->rest));
   }
 
+  else if (src->isTemplateTypeVariable()) {
+    xunimp("applyArgumentMapToAtomicType: template type variable");
+  }
+
   else {
     // all others do not refer to type variables; returning NULL
     // here means to use the original unchanged
@@ -5382,16 +5395,26 @@ CType *Env::pseudoSelfInstantiation(CompoundType *ct, CVFlags cv)
       // build a template argument that just refers to the template
       // parameter
       STemplateArgument *sta = new STemplateArgument;
-      if (param->type->isTypeVariable()) {
-        sta->setType(param->type);
-      }
-      else {
-        // perhaps there should be an STemplateArgument variant that
-        // is like STA_DEPEXPR but can only hold a single Variable?
-        PQ_name *name = new PQ_name(param->loc, param->name);
-        E_variable *evar = new E_variable(name);
-        evar->var = param;
-        sta->setDepExpr(evar);
+      switch (param->getTemplateParameterKind()) {
+        default: xfailure("bad tpk");
+
+        case TPK_TYPE:
+          sta->setType(param->type);
+          break;
+          
+        case TPK_NON_TYPE: {
+          // perhaps there should be an STemplateArgument variant that
+          // is like STA_DEPEXPR but can only hold a single Variable?
+          PQ_name *name = new PQ_name(param->loc, param->name);
+          E_variable *evar = new E_variable(name);
+          evar->var = param;
+          sta->setDepExpr(evar);
+          break;
+        }
+        
+        case TPK_TEMPLATE:
+          sta->setTemplate(param->type->asNamedAtomicType());
+          break;
       }
 
       pi->args.append(sta);
@@ -5848,7 +5871,14 @@ bool TemplateInfo::matchesPI(CompoundType *otherPrimary,
         argVar = iter.data()->getDepExpr()->asE_variable()->var;
       }
 
-      // TODO: template template parameter
+      // template template parameter?
+      else if (iter.data()->isType() &&
+               iter.data()->getType()->isTemplateTypeVariable()) {
+        xunimp("matchesPI: template template parameter");
+        
+        // might be something like this:
+        //argVar = iter.data()->getType()->asTemplateTypeVariable()->typedefVar;
+      }
 
       if (argVar &&
           argVar->isTemplateParam() &&
@@ -5948,5 +5978,103 @@ DelayedFuncInst::DelayedFuncInst(Variable *v, ArrayStack<SourceLoc> const &s,
 DelayedFuncInst::~DelayedFuncInst()
 {}
 
+
+// ------------------- TemplateTypeVariable ---------------------
+TemplateTypeVariable::TemplateTypeVariable(StringRef name)
+  : NamedAtomicType(name),
+    params()
+{}
+
+TemplateTypeVariable::~TemplateTypeVariable()
+{}
+
+
+string TemplateTypeVariable::toCString() const
+{
+  stringBuilder sb;
+  
+  sb << "template <" << params.paramsToCString() 
+     << "> class";
+  if (name) {
+    sb << " " << name;
+  }
+  
+  return sb;
+}
+
+
+string TemplateTypeVariable::toMLString() const
+{
+  xunimp("TemplateTypeVariable::toMLString");
+  return "";
+}
+
+
+int TemplateTypeVariable::reprSize() const
+{
+  throw XReprSize();
+}
+
+
+void TemplateTypeVariable::traverse(TypeVisitor &vis)
+{
+  if (!vis.visitAtomicType(this)) {
+    return;
+  }
+  vis.postvisitAtomicType(this);
+}
+
+
+bool TemplateTypeVariable::isAssociated() const
+{
+  return typedefVar->getParameterizedEntity() != NULL;
+}
+
+
+// ocaml serialization method
+// hand written ocaml serialization function
+value TemplateTypeVariable::toOcaml(ToOcamlData * data){
+  CAMLparam0();
+  CAMLlocalN(child, 5);
+  if(ocaml_val) {
+    // cerr << "shared ocaml value in Variable\n" << flush;
+    CAMLreturn(ocaml_val);
+  }
+  static value * create_atomic_TemplateTypeVariable_constructor_closure = NULL;
+  if(create_atomic_TemplateTypeVariable_constructor_closure == NULL)
+    create_atomic_TemplateTypeVariable_constructor_closure = 
+      caml_named_value("create_atomic_TemplateTypeVariable_constructor");
+  xassert(create_atomic_TemplateTypeVariable_constructor_closure);
+
+  if(data->stack.contains(this)) {
+    cerr << "cyclic ast detected during ocaml serialization\n";
+    xassert(false);
+  } else {
+    data->stack.add(this);
+  }
+
+  child[0] = ocaml_ast_annotation(this, data);
+  child[1] = ocaml_from_StringRef(name, data);
+  child[2] = typedefVar->toOcaml(data);
+  child[3] = ocaml_from_AccessKeyword(access, data);
+  child[4] = params.toOcaml(data);
+
+  caml_register_global_root(&ocaml_val);
+  ocaml_val = caml_callbackN(*create_atomic_TemplateTypeVariable_constructor_closure,
+                            5, child);
+  xassert(IS_OCAML_AST_VALUE(ocaml_val));
+
+  data->stack.remove(this);
+  CAMLreturn(ocaml_val);
+}
+
+// ocaml serialization, cleanup ocaml_val
+// hand written ocaml serialization function
+void TemplateTypeVariable::detachOcaml() {
+  if(ocaml_val == 0) return;
+  NamedAtomicType::detachOcaml();
+
+  params.detachOcaml();
+}
 
 // EOF

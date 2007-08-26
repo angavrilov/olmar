@@ -679,7 +679,7 @@ CType *TS_typeof_type::itcheck(Env &env, DeclFlags dflags)
 }
 
 
-CType *TS_typeof::itcheck(Env &env, DeclFlags dflags)
+CType *TS_typeof::itcheck(Env &env, DeclFlags dflags, LookupFlags lflags)
 {
   atype = atype->tcheck(env, dflags);
   return atype->type;

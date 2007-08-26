@@ -182,6 +182,9 @@ let ast_node_fun = function
   | AtomicType(TypeVariable(_annot, string, _variable, _accessKeyword)) ->
       string_fun string;
 
+  | AtomicType(TemplateTypeVariable(_annot, string, _variable, _accessKeyword, _params)) ->
+      string_fun string;
+  
   | AtomicType(DependentQType(_annot, string, _variable, _accessKeyword, 
 			      _atomic, _pq_name)) ->
       string_fun string;
@@ -210,7 +213,8 @@ let ast_node_fun = function
 	       | PseudoInstantiation _
 	       | EnumType _
 	       | TypeVariable _ 
-	       | DependentQType _ -> true);
+	       | DependentQType _
+               | TemplateTypeVariable _ -> true);
 
   | CType(DependentSizedArrayType(_annot, _cType, _array_size)) ->
       ()
@@ -239,7 +243,7 @@ let ast_node_fun = function
   | STemplateArgument(STA_DEPEXPR(_annot, _expression)) -> 
       ()
 
-  | STemplateArgument(STA_TEMPLATE _annot) -> 
+  | STemplateArgument(STA_TEMPLATE(_annot, _atomicType)) -> 
       ()
 
   | STemplateArgument(STA_ATOMIC(_annot, _atomicType)) -> 
@@ -744,6 +748,11 @@ let ast_node_fun = function
   | TemplateParameter_type(TP_nontype(_annot, sourceLoc, _variable, _aSTTypeId, 
 				      _templateParameter_opt)) -> 
       sourceLoc_fun sourceLoc
+
+  | TemplateParameter_type(TP_template(_annot, sourceLoc, _variable, _params, stringRef, 
+                                   _pqname, _templateParameter_opt)) -> 
+      sourceLoc_fun sourceLoc;
+      string_fun stringRef;
 
 
   | TemplateArgument_type(TA_type(_annot, _aSTTypeId, _templateArgument_opt)) -> 

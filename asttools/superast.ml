@@ -325,7 +325,13 @@ module Into_array = struct
 	    visit annot;
 	    variable_fun ast_array variable;
 
-	| DependentQType(annot, _string, variable, 
+        | TemplateTypeVariable(annot, _string, variable, _accessKeyword, params) ->
+            ast_array.(id_annotation annot) <- AtomicType x;
+            visit annot;
+            variable_fun ast_array variable;
+            List.iter (variable_fun ast_array) params
+	
+        | DependentQType(annot, _string, variable, 
 			_accessKeyword, atomic, pq_name) ->
 	    ast_array.(id_annotation annot) <- AtomicType x;
 	    visit annot;
@@ -369,7 +375,8 @@ module Into_array = struct
 		     | PseudoInstantiation _
 		     | EnumType _
 		     | TypeVariable _ 
-		     | DependentQType _ -> true);
+                     | TemplateTypeVariable _ 
+                     | DependentQType _ -> true);
 	    atomicType_fun ast_array atomicType;
 	    cType_fun ast_array cType
 
@@ -410,8 +417,8 @@ module Into_array = struct
 	  | STA_DEPEXPR(_annot, expression) -> 
 	      expression_fun ast_array expression
 
-	  | STA_TEMPLATE _annot -> 
-	      ()
+	  | STA_TEMPLATE(_annot, atomicType) -> 
+              atomicType_fun ast_array atomicType
 
 	  | STA_ATOMIC(_annot, atomicType) -> 
 	      atomicType_fun ast_array atomicType
@@ -1213,6 +1220,12 @@ module Into_array = struct
 	      aSTTypeId_fun ast_array aSTTypeId;
 	      opt_iter (templateParameter_fun ast_array) templateParameter_opt
 
+          | TP_template(_annot, _sourceLoc, variable, params, _stringRef,
+                    pqname, templateParameter_opt) -> 
+              variable_fun ast_array variable;
+              List.iter (templateParameter_fun ast_array) params;
+              opt_iter (pQName_fun ast_array) pqname;
+              opt_iter (templateParameter_fun ast_array) templateParameter_opt
 
   and templateArgument_fun ast_array x = 
     let annot = templateArgument_annotation x

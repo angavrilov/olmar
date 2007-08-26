@@ -218,8 +218,8 @@ class PQName {
 class TypeSpecifier {
   // yield the type named by the specifier; this type may of course
   // get refined when the declarator is considered
-  public CType *tcheck(Env &env, DeclFlags dflags);
-  pure_virtual CType *itcheck(Env &env, DeclFlags dflags);
+  public CType *tcheck(Env &env, DeclFlags dflags, LookupFlags lflags);
+  pure_virtual CType *itcheck(Env &env, DeclFlags dflags, LookupFlags lflags);
 
   // since several of the type specifiers use names, and names are
   // scoped, but we don't want later analyses to have to know about

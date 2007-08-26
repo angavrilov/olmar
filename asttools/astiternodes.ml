@@ -256,6 +256,11 @@ and atomicType_fun x =
 	  visit annot;
 	  variable_fun variable;
 
+      | TemplateTypeVariable(annot, string, variable, accessKeyword, params) ->
+          visit annot;
+          variable_fun variable;
+          List.iter variable_fun params
+
       | DependentQType(annot, string, variable, 
 		      accessKeyword, atomic, pq_name) ->
 	  visit annot;
@@ -298,7 +303,8 @@ and cType_fun x =
 		   | PseudoInstantiation _
 		   | EnumType _
 		   | TypeVariable _ 
-		   | DependentQType _ -> true);
+		   | DependentQType _
+                   | TemplateTypeVariable _ -> true);
 	  atomicType_fun atomicType;
 	  cType_fun cType
 
@@ -338,8 +344,8 @@ and sTemplateArgument_fun ta =
 	| STA_DEPEXPR(annot, expression) -> 
 	    expression_fun expression
 
-	| STA_TEMPLATE annot -> 
-	    ()
+	| STA_TEMPLATE(annot, atomicType) -> 
+            atomicType_fun atomicType
 
 	| STA_ATOMIC(annot, atomicType) -> 
 	    atomicType_fun atomicType
@@ -1109,6 +1115,13 @@ and templateParameter_fun x =
 	    variable_fun variable;
 	    aSTTypeId_fun aSTTypeId;
 	    opt_iter templateParameter_fun templateParameter_opt
+
+        | TP_template(_annot, _sourceLoc, variable, params, _stringRef,
+                    pqname, templateParameter_opt) -> 
+            variable_fun variable;
+            List.iter templateParameter_fun params;
+            opt_iter pQName_fun pqname;
+            opt_iter templateParameter_fun templateParameter_opt
 
 
 and templateArgument_fun x = 

@@ -207,6 +207,9 @@ and 'a atomicType =
   | DependentQType of 'a * string * 'a variable * accessKeyword * 
       'a atomicType * 'a pQName_type
 
+      (* TemplateTypeVariable( user given name, ?, public/protected, template params)  *)
+  | TemplateTypeVariable of 'a * string * 'a variable * accessKeyword * 'a variable list
+
 
 (* compoundType is an atomicType built with Compoundtype *)
 and 'a compoundType = 'a atomicType
@@ -260,7 +263,7 @@ and 'a sTemplateArgument =
                           (* value-dependent expression *)
   | STA_DEPEXPR of 'a * 'a expression_type
                           (* template argument (not implemented) *)
-  | STA_TEMPLATE of 'a
+  | STA_TEMPLATE of 'a * 'a atomicType
                           (* private to mtype: bind var to AtomicType *)
   | STA_ATOMIC of 'a * 'a atomicType
 

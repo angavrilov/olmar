@@ -178,6 +178,8 @@ let create_atomic_TypeVariable_constructor poly name variable key =
 let create_atomic_DependentQType_constructor 
     poly name variable key atomic pqname = 
   DependentQType(poly, name, variable, key, atomic, pqname)
+let create_atomic_TemplateTypeVariable_constructor poly name variable key params =
+  TemplateTypeVariable(poly, name, variable, key, params)
 
 
 
@@ -207,8 +209,8 @@ let create_STA_REFERENCE_constructor poly variable =
 let create_STA_POINTER_constructor poly variable = STA_POINTER(poly, variable)
 let create_STA_MEMBER_constructor poly variable = STA_MEMBER(poly, variable)
 let create_STA_DEPEXPR_constructor poly expr = STA_DEPEXPR(poly, expr)
-let create_STA_TEMPLATE_constructor poly = 
-  assert false (* not implemented yet *)
+let create_STA_TEMPLATE_constructor poly atomic_type = 
+  STA_TEMPLATE(poly, atomic_type)
 let create_STA_ATOMIC_constructor poly atomic_type = 
   STA_ATOMIC(poly, atomic_type)
 
@@ -294,6 +296,8 @@ let register_ml_ctype_constructor_callbacks () =
     create_atomic_TypeVariable_constructor;
   Callback.register "create_atomic_DependentQType_constructor" 
     create_atomic_DependentQType_constructor;
+  Callback.register "create_atomic_TemplateTypeVariable_constructor"
+    create_atomic_TemplateTypeVariable_constructor;
 
   (* from cType *)
   Callback.register "create_ctype_CVAtomicType_constructor" 

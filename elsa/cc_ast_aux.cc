@@ -1325,6 +1325,11 @@ bool TP_nontype::hasDefaultArg() const
   return !!param->decl->init;
 }
 
+bool TP_template::hasDefaultArg() const
+{
+  return !!defaultTemplate;
+}
+
 
 void TemplateParameter::printAmbiguities(ostream &os, int indent) const
 {
@@ -1414,6 +1419,15 @@ bool RealVarAndTypeASTVisitor::visitPQName(PQName *obj) {
     // and 2) also not get visited somehow else?
 //     visitVariable(obj->asPQ_qualifier()->qualifierVar);
 //   }
+
+  // SGM 2007-08-25: Do not look inside PQ_template argument lists.
+  // For template template parameters, the argument list may refer to
+  // an uninstantiated template, but client analyses will just treat
+  // the whole PQ_template as just a name; no need to look inside it.
+  if (obj->isPQ_template()) {
+    return false;
+  }
+
   return true;
 }
 

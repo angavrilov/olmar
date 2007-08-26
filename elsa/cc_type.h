@@ -54,6 +54,7 @@ class TypeVariable;       // template.h
 class PseudoInstantiation;// template.h
 class DependentQType;     // template.h
 class DependentSizedArrayType;   // template.h
+class TemplateTypeVariable;      // template.h
 class MType;              // mtype.h
 class XmlReader;
 
@@ -182,6 +183,7 @@ public:     // types
     T_TYPEVAR,               // T
     T_PSEUDOINSTANTIATION,   // C<T>
     T_DEPENDENTQTYPE,        // C<T>::some_type
+    T_TEMPLATETYPEVAR,       // template <class> class T
 
     NUM_TAGS
   };
@@ -200,7 +202,12 @@ public:     // funcs
   bool isTypeVariable() const { return getTag() == T_TYPEVAR; }
   bool isPseudoInstantiation() const { return getTag() == T_PSEUDOINSTANTIATION; }
   bool isDependentQType() const      { return getTag() == T_DEPENDENTQTYPE; }
+  bool isTemplateTypeVariable() const{ return getTag() == T_TEMPLATETYPEVAR; }
+
   virtual bool isNamedAtomicType() const;    // default impl returns false
+
+  bool isTypeOrTemplateTypeVariable() const
+    { return isTypeVariable() || isTemplateTypeVariable(); }
 
   // see smbase/macros.h
   DOWNCAST_FN(SimpleType)
@@ -210,10 +217,13 @@ public:     // funcs
   DOWNCAST_FN(TypeVariable)
   DOWNCAST_FN(PseudoInstantiation)
   DOWNCAST_FN(DependentQType)
+  DOWNCAST_FN(TemplateTypeVariable)
 
   // concrete types do not have holes
   bool isConcrete() const
-    { return !isTypeVariable() && !isPseudoInstantiation(); }
+    { return !isTypeVariable() && 
+             !isPseudoInstantiation() &&
+             !isTemplateTypeVariable(); }
 
   // this is type equality, *not* coercibility -- e.g. if
   // we say "extern type1 x" and then "extern type2 x" we
@@ -875,10 +885,19 @@ public:     // funcs
   BaseType *asRval() { return const_cast<BaseType*>(asRvalC()); }
 
   bool isCVAtomicType(AtomicType::Tag tag) const;
+
   bool isTypeVariable() const { return isCVAtomicType(AtomicType::T_TYPEVAR); }
   TypeVariable const *asTypeVariableC() const;
   TypeVariable *asTypeVariable()
     { return const_cast<TypeVariable*>(asTypeVariableC()); }
+
+  bool isTemplateTypeVariable() const { return isCVAtomicType(AtomicType::T_TEMPLATETYPEVAR); }
+  TemplateTypeVariable const *asTemplateTypeVariableC() const;
+  TemplateTypeVariable *asTemplateTypeVariable()
+    { return const_cast<TemplateTypeVariable*>(asTemplateTypeVariableC()); }
+
+  bool isTypeOrTemplateTypeVariable() const 
+    { return isTypeVariable() || isTemplateTypeVariable(); }
 
   // downcast etc. to NamedAtomicType
   bool isNamedAtomicType() const;

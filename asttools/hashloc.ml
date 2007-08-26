@@ -344,6 +344,13 @@ and atomicType_fun x =
 		     variable_fun variable,
 		     accessKeyword_fun accessKeyword)
 
+    | TemplateTypeVariable(annot, string, variable, accessKeyword, params) ->
+        TemplateTypeVariable(annotation_fun annot,
+                     string_fun string,
+                     variable_fun variable,
+                     accessKeyword_fun accessKeyword,
+                     List.map variable_fun params)
+
 
 and cType_fun x = 
   if visited (cType_annotation x) then
@@ -386,7 +393,8 @@ and cType_fun x =
 		     | CompoundType _
 		     | PseudoInstantiation _
 		     | EnumType _
-		     | TypeVariable _ -> true);
+		     | TypeVariable _ 
+                     | TemplateTypeVariable -> true);
 	    PointerToMemberType(annotation_fun annot,
 				atomicType_fun atomicType,
 				cVFlags_fun cVFlags,
@@ -428,8 +436,8 @@ and sTemplateArgument_fun x =
     | STA_DEPEXPR(annot, expression) -> 
 	STA_DEPEXPR(annotation_fun annot, expression_fun expression)
 
-    | STA_TEMPLATE annot -> 
-	STA_TEMPLATE(annotation_fun annot)
+    | STA_TEMPLATE(annot, atomicType) -> 
+	STA_TEMPLATE(annotation_fun annot, atomicType_fun atomicType)
 
     | STA_ATOMIC(annot, atomicType) -> 
 	STA_ATOMIC(annotation_fun annot, atomicType_fun atomicType)
@@ -1202,6 +1210,15 @@ and templateParameter_fun x =
 		   aSTTypeId_fun aSTTypeId,
 		   opt_map templateParameter_fun templateParameter_opt)
 
+    | TP_template(_annot, _sourceLoc, variable, params, _stringRef,
+                    pqname, templateParameter_opt) -> 
+        TP_template(annotation_fun annot,
+                   sourceLoc_fun sourceLoc,
+                   variable_fun variable,
+                   List.map templateParameter_fun params,
+                   string_fun stringRef,
+                   pQName_fun pqname,
+                   opt_map templateParameter_fun templateParameter_opt)
 
 and templateArgument_fun x = 
   visit (templateArgument_annotation x);
