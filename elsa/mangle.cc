@@ -347,6 +347,9 @@ string mangleVariable(Variable const *v)
       sb << v->type->asTypeVariable()->name << " " << v->name;
     }
   }
+  else if (v->type->isTemplateTypeVariable()) {
+    xunimp("mangleVariable: template type variable");
+  }
   else {
     sb << mangle(v->type);
   }
@@ -374,6 +377,9 @@ string mangleTemplateParams(TemplateInfo const *tp)
 
     if (p->type->isTypeVariable()) {
       sb << "class " << p->type->asTypeVariable()->name;
+    }
+    else if (p->type->isTemplateTypeVariable()) {
+      xunimp("mangleTemplateParams: template type variable");
     }
     else {
       // non-type parameter

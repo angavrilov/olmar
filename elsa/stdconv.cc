@@ -358,7 +358,16 @@ bool canConvertToBaseClass(Type const *src, Type const *dest, bool &ambig)
   else if (src->isPseudoInstantiation()) {
     // (e.g. in/t0386.cc) conversion from pseudoinstantiation: can
     // convert to any of the concrete bases
-    srcCt = src->asCVAtomicTypeC()->atomic->asPseudoInstantiationC()->primary;
+    NamedAtomicType *nat =
+      src->asCVAtomicTypeC()->atomic->asPseudoInstantiationC()->primary;
+    if (nat->isCompoundType()) {
+      srcCt = nat->asCompoundType();
+    }
+    else {
+      // we never know what base classes there might exist for a
+      // TemplateTypeVariable
+      return false;
+    }
   }
   else {
     return false;
@@ -378,6 +387,9 @@ bool couldBeAnything(Type const *t)
 {
   // PseudoInstantiation is left out because a PI has to be
   // a class type
+  //
+  // I guess TemplateTypeVariable should be left out for the
+  // same reason
   return t->isSimple(ST_DEPENDENT) ||
          t->isTypeVariable() ||
          t->isDependentQType();

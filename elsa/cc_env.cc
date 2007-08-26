@@ -1692,6 +1692,11 @@ Variable *Env::getPrimaryOrSpecialization
         allToplevelVars = false;
       }
     }
+    else if (arg->isTemplate()) {
+      if (!arg->getType()->isTemplateTypeVariable()) {
+        allToplevelVars = false;
+      }
+    }
     else if (arg->isDepExpr()) {
       if (!arg->getDepExpr()->isE_variable()) {
         allToplevelVars = false;
@@ -2096,9 +2101,16 @@ Variable *Env::applyPQNameTemplateArguments
   // to pass arguments for template classes, since template
   // functions can infer their arguments
   if (var->isTemplate(false /*considerInherited*/)) {
-    if (!final->isPQ_template()
-        && var->isTemplateClass() // can be inferred for template functions, so we duck
-        ) {
+    if (!final->isPQ_template() && var->isTemplateClass()) {
+      if (flags & LF_TA_TYPE) {
+        // we already have a grammatical restriction saying that a
+        // template type parameter is expected, so we don't need to
+        // worry about the pathological ambiguity below; since there
+        // are no template arguments, yield the template primary,
+        // which might be being used as a template template argument
+        return var;
+      }
+
       // this disambiguates
       //   new Foo< 3 > +4 > +5;
       // which could absorb the '3' as a template argument or not,
@@ -2117,9 +2129,10 @@ Variable *Env::applyPQNameTemplateArguments
       if (hadTcheckErrors(tqual->sargs)) {
         return var;           // recovery (in/t0546.cc)
       }
-      return instantiateClassTemplate_or_PI(var->type->asCompoundType(),
+      return instantiateClassTemplate_or_PI(var->type->asNamedAtomicType(),
                                             tqual->sargs);
     }
+
     else {                    // template function
       xassert(var->isTemplateFunction());
 
@@ -2163,17 +2176,17 @@ Variable *Env::applyPQNameTemplateArguments
 
 
 Variable *Env::instantiateClassTemplate_or_PI
-  (CompoundType *ct, ObjList<STemplateArgument> const &args)
+  (NamedAtomicType *nat, ObjList<STemplateArgument> const &args)
 {
-  // if the template arguments are not concrete, then create
-  // a PseudoInstantiation
-  if (containsVariables(args)) {
-    PseudoInstantiation *pi = createPseudoInstantiation(ct, args);
+  // if the template arguments are not concrete, or the 'nat'
+  // is itself a type variable, then create a PseudoInstantiation
+  if (nat->isTemplateTypeVariable() || containsVariables(args)) {
+    PseudoInstantiation *pi = createPseudoInstantiation(nat, args);
     xassert(pi->typedefVar);
     return pi->typedefVar;
   }
   else {
-    return instantiateClassTemplate(loc(), ct->typedefVar, args);
+    return instantiateClassTemplate(loc(), nat->typedefVar, args);
   }
 }
 
@@ -3855,22 +3868,40 @@ E_addrOf *Env::build_E_addrOf(Expression *underlying)
 // create a PseudoInstantiation, bind its arguments, and create
 // the associated typedef variable
 PseudoInstantiation *Env::createPseudoInstantiation
-  (CompoundType *ct, ObjList<STemplateArgument> const &args)
+  (NamedAtomicType *nat, ObjList<STemplateArgument> const &args)
 {
-  TRACE("pseudo", "creating " << ct->name << sargsToString(args));
+  TRACE("pseudo", "creating " << nat->name << sargsToString(args));
 
   // make the object itself
-  PseudoInstantiation *pi = new PseudoInstantiation(ct);
+  PseudoInstantiation *pi = new PseudoInstantiation(nat);
 
-  // attach the template arguments, using default args if needed
-  if (!supplyDefaultTemplateArguments(ct->templateInfo(), pi->args,
-                                      objToSObjListC(args))) {
-    // some error.. it will be reported, but we may as well continue
-    // anyway with the argument list we have
+  if (nat->isCompoundType()) {
+    // attach the template arguments, using default args if needed
+    CompoundType *ct = nat->asCompoundType();
+    if (!supplyDefaultTemplateArguments(ct->templateInfo(), pi->args,
+                                        objToSObjListC(args))) {
+      // some error.. it will be reported, but we may as well continue
+      // anyway with the argument list we have
+    }
+  }
+  else if (nat->isTemplateTypeVariable()) {
+    // not needed at the moment due to not processing default args
+    //TemplateTypeVariable *ttv = nat->asTemplateTypeVariable();
+
+    // attach template arguments w/o default argument checking
+    copyTemplateArgs(pi->args, args);
+
+    // TODO: TemplateTypeVariables need to be expanded to also
+    // carry default arguments, in which case I should be able
+    // to handle them nearly uniformly with CompoundTypes
+  }
+  else {
+    xfailure(stringb("createPseudoInstantiation: NAT not allowed in PI: " <<
+                     nat->toString()));
   }
 
   // make the typedef var; do *not* add it to the environment
-  pi->typedefVar = makeVariable(loc(), ct->name, makeType(pi),
+  pi->typedefVar = makeVariable(loc(), nat->name, makeType(pi),
                                 DF_TYPEDEF | DF_IMPLICIT);
 
   return pi;
@@ -4611,10 +4642,17 @@ Type *Env::resolveDQTs_atomic(SourceLoc loc, AtomicType *t)
   }
   PseudoInstantiation *firstPI = dqt->first->asPseudoInstantiation();
 
+  if (!firstPI->primary->isCompoundType()) {
+    // TODO: I'm sure I could construct a situation where a
+    // TemplateTypeVariable needs to be resolved in a DQT
+    return NULL;
+  }
+  CompoundType *firstPIprimaryCT = firstPI->primary->asCompoundType();
+
   // Is there a template definition whose primary is
   // 'firstPI->primary' somewhere on the scope stack?
   CompoundType *scopeCt =
-    getMatchingTemplateInScope(firstPI->primary, firstPI->args);
+    getMatchingTemplateInScope(firstPIprimaryCT, firstPI->args);
   if (scopeCt) {
     // re-start lookup from 'scopeCt'
     LookupSet set;

@@ -41,7 +41,7 @@ bool SomeTypeVarNotInTemplParams_Pred::operator() (Type const *t)
     return false;
   }
 
-  if (cv->isTypeVariable()) {
+  if (cv->isTypeOrTemplateTypeVariable()) {
     // check that this tvar occurs in the parameters list of the
     // template info
     Variable *tvar = cv->asTypeVariableC()->typedefVar;
@@ -52,7 +52,7 @@ bool SomeTypeVarNotInTemplParams_Pred::operator() (Type const *t)
   }
 
   return false;                 // some other type of compound type
-};
+}
 
 size_t Variable::numVariables = 0;
 
@@ -270,9 +270,78 @@ bool Variable::isUninstClassTemplMethod() const
 
 bool Variable::isTemplate(bool considerInherited) const
 {
-  return templateInfo() &&
-         templateInfo()->hasParametersEx(considerInherited);
+  if (templateInfo() &&
+      templateInfo()->hasParametersEx(considerInherited)) {
+    return true;
+  }
+
+  // not sure if this is a good idea ...
+  //
+  // template type variable?
+  if (isTemplateTypeVariable()) {
+    return true;
+  }
+
+  return false;
 }
+
+
+TemplateParameterKind Variable::getTemplateParameterKind() const
+{
+  xassert(isTemplateParam());
+
+  if (isBoundTemplateParam()) {
+    if (isType()) {
+      xassert(type);
+      if (type->isCVAtomicType()) {
+        AtomicType *at = type->asCVAtomicTypeC()->atomic;
+        if (at->isTemplateTypeVariable()) {
+          // bound to a template template param; probably we're
+          // still inside some surrounding template?  anyway,
+          // if bound to TTP, then is TTP
+          return TPK_TEMPLATE;
+        }
+        if (at->isCompoundType() &&
+            at->asCompoundType()->isTemplate()) {
+          // this is the usual "concrete" binding case
+          return TPK_TEMPLATE;
+        }
+      }
+      return TPK_TYPE;
+    }
+    else {
+      return TPK_NON_TYPE;
+    }
+  }
+
+  else {
+    xassert(isAbstractTemplateParam());
+
+    if (isType()) {
+      xassert(type && type->isCVAtomicType());
+      AtomicType *at = type->asCVAtomicTypeC()->atomic;
+      if (at->isTypeVariable()) {
+        return TPK_TYPE;
+      }
+      if (at->isTemplateTypeVariable()) {
+        return TPK_TEMPLATE;
+      }
+      xfailure("unexpected type for an unbound template parameter");
+    }
+
+    return TPK_NON_TYPE;
+  }
+}
+
+
+#if 0     // delete me
+bool Variable::isTemplateTypeVariable() const
+{
+  return type &&
+         type->isCVAtomicType() &&
+         type->asCVAtomicTypeC()->atomic->isTemplateTypeVariable();
+}
+#endif // 0
 
 
 bool Variable::isTemplateFunction(bool considerInherited) const
@@ -286,9 +355,18 @@ bool Variable::isTemplateFunction(bool considerInherited) const
 
 bool Variable::isTemplateClass(bool considerInherited) const
 {
-  return hasFlag(DF_TYPEDEF) &&
-         type->isCompoundType() &&
-         isTemplate(considerInherited);
+  if (hasFlag(DF_TYPEDEF)) {
+    if (type->isCompoundType() &&
+        isTemplate(considerInherited)) {
+      return true;
+    }
+    
+    if (isTemplateTypeVariable()) {
+      return true;
+    }
+  }
+  
+  return false;
 }
 
 
@@ -404,6 +482,13 @@ string Variable::toCStringAsParameter() const
   if (type->isTypeVariable()) {
     // type variable's name, then the parameter's name (if any)
     sb << type->asTypeVariable()->name;
+    if (name) {
+      sb << " " << name;
+    }
+  }
+  else if (type->isTemplateTypeVariable()) {
+    TemplateTypeVariable *ttv = type->asTemplateTypeVariable();
+    sb << ttv->params.paramsToCString() << " class";
     if (name) {
       sb << " " << name;
     }

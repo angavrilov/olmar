@@ -173,6 +173,7 @@ DOWNCAST_IMPL(AtomicType, EnumType)
 DOWNCAST_IMPL(AtomicType, TypeVariable)
 DOWNCAST_IMPL(AtomicType, PseudoInstantiation)
 DOWNCAST_IMPL(AtomicType, DependentQType)
+DOWNCAST_IMPL(AtomicType, TemplateTypeVariable)
 
 
 void AtomicType::gdb() const
@@ -1405,13 +1406,13 @@ bool BaseType::isDependent() const
   // 14.6.2.1: type variables (template parameters) are the base case
   // for dependent types
   return isSimple(ST_DEPENDENT) ||
-         isTypeVariable();
+         isTypeVariable() ||
+         isTemplateTypeVariable();
 }
 
 bool BaseType::isGeneralizedDependent() const
 {
-  if (isSimple(ST_DEPENDENT) ||
-      isTypeVariable() ||
+  if (isDependent() ||
       isPseudoInstantiation() ||
       isDependentQType()) {
     return true;
@@ -1552,6 +1553,12 @@ TypeVariable const *BaseType::asTypeVariableC() const
 }
 
 
+TemplateTypeVariable const *BaseType::asTemplateTypeVariableC() const
+{
+  return asCVAtomicTypeC()->atomic->asTemplateTypeVariableC();
+}
+
+
 bool BaseType::isNamedAtomicType() const {
   return isCVAtomicType() && asCVAtomicTypeC()->atomic->isNamedAtomicType();
 }
@@ -1571,6 +1578,7 @@ bool BaseType::containsErrors() const
 bool typeHasTypeVariable(Type const *t)
 {
   return t->isTypeVariable() ||
+         t->isTemplateTypeVariable() ||
          (t->isCompoundType() &&
           t->asCompoundTypeC()->isTemplate(true /*considerInherited*/)) ||
          t->isPseudoInstantiation();
@@ -1614,6 +1622,10 @@ bool ContainsVariablesPred::atomicTypeHasVariable(AtomicType const *t)
 {
   if (t->isTypeVariable()) {
     return isUnbound(t->asTypeVariableC()->name);
+  }
+
+  if (t->isTemplateTypeVariable()) {
+    xunimp("ContainsVariablesPred::atomicTypeHasVariable: template type variable");
   }
 
   if (t->isPseudoInstantiation()) {

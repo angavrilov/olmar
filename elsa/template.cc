@@ -111,13 +111,13 @@ bool TypeVariable::isAssociated() const
 
 // -------------------- PseudoInstantiation ------------------
 // Here, 'p' might be NULL only during deserialization.
-PseudoInstantiation::PseudoInstantiation(CompoundType *p)
+PseudoInstantiation::PseudoInstantiation(NamedAtomicType *p)
   : NamedAtomicType(p? p->name : NULL),
     primary(p),
     args()        // empty initially
 {
-  if (p) {
-    xassert(p->templateInfo()->isPrimary());
+  if (p && p->isCompoundType()) {
+    xassert(p->asCompoundType()->templateInfo()->isPrimary());
   }
 }
 
@@ -985,7 +985,7 @@ string STemplateArgument::toString() const
       << "/*member*/ &" << value.v->scope->curCompound->name
       << "::" << value.v->name;
     case STA_DEPEXPR:   return getDepExpr()->exprToString();
-    case STA_TEMPLATE:  return string("template (?)");
+    case STA_TEMPLATE:  return getTemplate()->typedefVar->name;
     case STA_ATOMIC:    return value.at->toString();
   }
 }
@@ -1756,22 +1756,11 @@ bool Env::insertTemplateArgBindings_oneParamList
     // TODO: fully collapse this code to reflect that
     xassert(!argIter.isDone());       // should not get here with too few args
     STemplateArgument const *sarg = argIter.data();
+    xassert(sarg);
 
-    if (sarg && sarg->isTemplate()) {
-      xfailure("Template template parameters are not implemented");
-    }
-
-
-    if (param->hasFlag(DF_TYPEDEF) &&
-        (!sarg || sarg->isType())) {
-      if (!sarg && !param->defaultParamType) {
-        error(stringc
-          << "too few template arguments to `" << baseV->name << "'");
-        return false;
-      }
-
+    if (param->hasFlag(DF_TYPEDEF) && sarg->isType()) {
       // bind the type parameter to the type argument
-      Type *t = sarg? sarg->getType() : param->defaultParamType;
+      Type *t = sarg->getType();
       Variable *binding = makeVariable(param->loc, param->name, t,
                                        DF_TYPEDEF | DF_TEMPL_PARAM | DF_BOUND_TPARAM);
       addVariableToScope(scope, binding);
@@ -1779,14 +1768,17 @@ bool Env::insertTemplateArgBindings_oneParamList
       // remember them in 'typeBindings' too (for local use)
       typeBindings.setBoundValue(param->name, *sarg);
     }
-    else if (!param->hasFlag(DF_TYPEDEF) &&
-             (!sarg || sarg->isObject())) {
-      if (!sarg && !param->value) {
-        error(stringc
-          << "too few template arguments to `" << baseV->name << "'");
-        return false;
-      }
+    else if (param->isTemplateTypeVariable() && sarg->isTemplate()) {
+      // very similar to the above case
+      Type *t = sarg->getTemplate()->typedefVar->type;
+      Variable *binding = makeVariable(param->loc, param->name, t,
+                                       DF_TYPEDEF | DF_TEMPL_PARAM | DF_BOUND_TPARAM);
+      addVariableToScope(scope, binding);
 
+      // remember them in 'typeBindings' too (for local use)
+      typeBindings.setBoundValue(param->name, *sarg);
+    }
+    else if (!param->hasFlag(DF_TYPEDEF) && sarg->isObject()) {
       // TODO: verify that the argument in fact matches the parameter type
 
       // bind the nontype parameter directly to the nontype expression;
@@ -1803,17 +1795,6 @@ bool Env::insertTemplateArgBindings_oneParamList
                                        bindType, DF_TEMPL_PARAM | DF_BOUND_TPARAM);
 
       // set 'bindings->value', in some cases creating AST
-      if (!sarg) {
-        binding->setValue(param->value);
-
-        // sm: the statement above seems reasonable, but I'm not at
-        // all convinced it's really right... has it been tcheck'd?
-        // has it been normalized?  are these things necessary?  so
-        // I'll wait for a testcase to remove this assertion... before
-        // this assertion *is* removed, someone should read over the
-        // applicable parts of cppstd
-        xunimp("default non-type argument");
-      }
       switch (sarg->kind) {
         // The following cases get progressively more difficult for
         // an analysis to "see" what the actual template argument is.
@@ -1852,7 +1833,7 @@ bool Env::insertTemplateArgBindings_oneParamList
           break;
         }
         default: {
-          xunimp("template template parameters");
+          xfailure("bad/unhandled template argument kind");
         }
       }
       xassert(binding->value);
@@ -4105,6 +4086,10 @@ Type *Env::applyArgumentMapToAtomicType
                                              sdqt->rest));
   }
 
+  else if (src->isTemplateTypeVariable()) {
+    xunimp("applyArgumentMapToAtomicType: template type variable");
+  }
+
   else {
     // all others do not refer to type variables; returning NULL
     // here means to use the original unchanged
@@ -4670,16 +4655,26 @@ Type *Env::pseudoSelfInstantiation(CompoundType *ct, CVFlags cv)
       // build a template argument that just refers to the template
       // parameter
       STemplateArgument *sta = new STemplateArgument;
-      if (param->type->isTypeVariable()) {
-        sta->setType(param->type);
-      }
-      else {
-        // perhaps there should be an STemplateArgument variant that
-        // is like STA_DEPEXPR but can only hold a single Variable?
-        PQ_name *name = new PQ_name(param->loc, param->name);
-        E_variable *evar = new E_variable(name);
-        evar->var = param;
-        sta->setDepExpr(evar);
+      switch (param->getTemplateParameterKind()) {
+        default: xfailure("bad tpk");
+
+        case TPK_TYPE:
+          sta->setType(param->type);
+          break;
+          
+        case TPK_NON_TYPE: {
+          // perhaps there should be an STemplateArgument variant that
+          // is like STA_DEPEXPR but can only hold a single Variable?
+          PQ_name *name = new PQ_name(param->loc, param->name);
+          E_variable *evar = new E_variable(name);
+          evar->var = param;
+          sta->setDepExpr(evar);
+          break;
+        }
+        
+        case TPK_TEMPLATE:
+          sta->setTemplate(param->type->asNamedAtomicType());
+          break;
       }
 
       pi->args.append(sta);
@@ -5136,7 +5131,14 @@ bool TemplateInfo::matchesPI(CompoundType *otherPrimary,
         argVar = iter.data()->getDepExpr()->asE_variable()->var;
       }
 
-      // TODO: template template parameter
+      // template template parameter?
+      else if (iter.data()->isType() &&
+               iter.data()->getType()->isTemplateTypeVariable()) {
+        xunimp("matchesPI: template template parameter");
+        
+        // might be something like this:
+        //argVar = iter.data()->getType()->asTemplateTypeVariable()->typedefVar;
+      }
 
       if (argVar &&
           argVar->isTemplateParam() &&
@@ -5235,6 +5237,58 @@ DelayedFuncInst::DelayedFuncInst(Variable *v, ArrayStack<SourceLoc> const &s,
 
 DelayedFuncInst::~DelayedFuncInst()
 {}
+
+
+// ------------------- TemplateTypeVariable ---------------------
+TemplateTypeVariable::TemplateTypeVariable(StringRef name)
+  : NamedAtomicType(name),
+    params()
+{}
+
+TemplateTypeVariable::~TemplateTypeVariable()
+{}
+
+
+string TemplateTypeVariable::toCString() const
+{
+  stringBuilder sb;
+  
+  sb << "template <" << params.paramsToCString() 
+     << "> class";
+  if (name) {
+    sb << " " << name;
+  }
+  
+  return sb;
+}
+
+
+string TemplateTypeVariable::toMLString() const
+{
+  xunimp("TemplateTypeVariable::toMLString");
+  return "";
+}
+
+
+int TemplateTypeVariable::reprSize() const
+{
+  throw XReprSize();
+}
+
+
+void TemplateTypeVariable::traverse(TypeVisitor &vis)
+{
+  if (!vis.visitAtomicType(this)) {
+    return;
+  }
+  vis.postvisitAtomicType(this);
+}
+
+
+bool TemplateTypeVariable::isAssociated() const
+{
+  return typedefVar->getParameterizedEntity() != NULL;
+}
 
 
 // EOF

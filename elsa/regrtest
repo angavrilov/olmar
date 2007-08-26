@@ -781,7 +781,7 @@ testparse t0496.cc
 testparse t0497.cc
 testparse t0498.cc
 testparse t0499.cc
-failparse t0500.cc "template template parameter"
+testparse t0500.cc
 testparse t0501.cc
 testparse t0502.cc
 testparse t0503.cc
@@ -875,7 +875,7 @@ failparse t0593.cc "addr of template func overloaded with non-template func"
 failparse t0594.cc "addr of template func with some explicit template args"
 failparse t0595.cc "addr of overloaded template funcs + two-phase lookup"
 failparse t0596.cc "deduce template args during op overload resolution from name of overloaded function"
-# placeholder: t0597.cc
+testparse t0597.cc
 testparse t0598.cc
 failparse t0599.cc "inability to update a no-size array member's size"
 testparse t0600.cc
@@ -1096,7 +1096,7 @@ failparse k0061.cc "multiple base classes instantiated from the same template cl
 testparse k0063.cc #"class friend main"
 failparse k0064.cc "functions overloaded by number of template parameters"
 testparse k0065.cc "using incomplete class as default template argument"
-failparse k0066.cc "nested template class"
+testparse k0066.cc
 failparse k0067.cc "constructor using volatile reference"
 failparse k0068.cc "explicitly named constructor"
 failparse k0008.cc "template parameterized by function pointer"
@@ -1134,7 +1134,7 @@ testparse k0096.cc "statement expression returning struct"
 testparse k0097.cc "function pointer template"
 failparse k0098.cc "ambiguous operator cast"
 failparse k0099.cc "partial specialization lookup"
-failparse k0100.cc "templatized template parameter list"
+testparse k0100.cc
 testparse k0101.cc "typename ParameterDeclaration in TemplateParameterList"
 failparse k0102.cc "template parameter template-instantiated on another template parameter"
 testparse k0103.cc #"'duplicate definition' from 'using' declaration"

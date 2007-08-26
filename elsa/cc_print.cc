@@ -688,6 +688,9 @@ string CTypePrinter::printAsParameter(Variable const *var)
       sb << ' ' << var->name;
     }
   }
+  else if (var->type->isTemplateTypeVariable()) {
+    xunimp("CTypePrinter::printAsParameter: template type variable");
+  }
   else {
     sb << print(var->type, var->name);
   }
@@ -1657,7 +1660,7 @@ void printSTemplateArgument(PrintEnv &env, STemplateArgument const *sta)
       sta->getDepExpr()->print(env);
       break;
     case STemplateArgument::STA_TEMPLATE:
-      *env.out << string("template (?)");
+      *env.out << sta->getTemplate()->typedefVar->name;
       break;
     case STemplateArgument::STA_ATOMIC:
       *env.out << sta->value.at->toString();
@@ -2173,6 +2176,33 @@ void TP_nontype::print(PrintEnv &env)
 {
   TreeWalkDebug treeDebug("TP_nontype");
   param->print(env);
+}
+
+void TP_template::print(PrintEnv &env)
+{
+  TreeWalkDebug treeDebug("TP_template");
+  
+  *env.out << "template <";         
+  
+  int ct=0;
+  FAKELIST_FOREACH_NC(TemplateParameter, parameters, iter) {
+    if (ct++ > 0) {
+      *env.out << ", ";
+    }
+    
+    iter->print(env);
+  }
+  
+  *env.out << "> class";
+  
+  if (name) {
+    *env.out << " " << name;
+  }
+  
+  if (defaultTemplate) {
+    *env.out << " = ";
+    defaultTemplate->print(env);
+  }
 }
 
 

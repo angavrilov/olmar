@@ -3,8 +3,8 @@
 
 #temporary: iptree iptparse cipart smin
 
-# main target: a C++ parser
-all: cc.ast.gen.h tlexer ccparse quicktest packedword_test
+# main target is 'ccparse', a C++ parser
+all: cc.ast.gen.h tlexer packedword_test ccparse quicktest
 
 # work in progress..
 #iptree smin cipart

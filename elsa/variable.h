@@ -293,7 +293,21 @@ public:
     { return hasFlag(DF_TEMPL_PARAM); }
 
   // true if this is a template type parameter (unbound/abstract)
+  //
+  // not to be confused with 'isTemplateTypeVariable()', which would
+  // mean that this is a "template template parameter"; this function
+  // just means "template type parameter"
+  //
+  // straightening out the terminological confusion would be nice,
+  // but is not easy
   bool isTemplateTypeParam() const;
+
+  // assuming this is a template parameter, what kind?
+  TemplateParameterKind getTemplateParameterKind() const;
+
+  // true if this is a template template parameter
+  bool isTemplateTypeVariable() const
+    { return isTemplateParam() && getTemplateParameterKind() == TPK_TEMPLATE; }
 
   // generic print (C or ML depending on Type::printAsML)
   string toString() const;

@@ -280,7 +280,7 @@ private:     // funcs
   void addBuiltinBinaryOp(OverloadableOp op, CandidateSet * /*owner*/ cset);
 
   PseudoInstantiation *createPseudoInstantiation
-    (CompoundType *ct, ObjList<STemplateArgument> const &args);
+    (NamedAtomicType *nat, ObjList<STemplateArgument> const &args);
 
   bool equivalentSignatures(FunctionType *ft1, FunctionType *ft2);
   bool equivalentTypes(Type const *t1, Type const *t2,
@@ -835,7 +835,7 @@ private:     // template funcs
     (Variable const *param, MType &map);
 
   Variable *instantiateClassTemplate_or_PI
-    (CompoundType *ct, ObjList<STemplateArgument> const &args);
+    (NamedAtomicType *nat, ObjList<STemplateArgument> const &args);
 
 public:      // template funcs
   void setSTemplArgFromExpr(STemplateArgument &sarg, Expression *expr);

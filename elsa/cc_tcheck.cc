@@ -439,7 +439,7 @@ void Function::tcheck(Env &env, Variable *instV)
   UninstTemplateErrorFilter errorFilter(env);
 
   // get return type
-  Type *retTypeSpec = retspec->tcheck(env, dflags);
+  Type *retTypeSpec = retspec->tcheck(env, dflags, LF_NONE);
 
   // supply DF_DEFINITION?
   DeclFlags dfDefn = (checkBody? DF_DEFINITION : DF_NONE);
@@ -1009,7 +1009,7 @@ void Declaration::tcheck(Env &env, DeclaratorContext context)
   }
 
   // check the specifier in the prevailing environment
-  Type *specType = spec->tcheck(env, dflags);
+  Type *specType = spec->tcheck(env, dflags, LF_NONE);
 
   // ---- the following code is adopted from (the old) tcheckFakeExprList ----
   // (I couldn't just use the same code, templatized as necessary,
@@ -1069,7 +1069,8 @@ void ASTTypeId::mid_tcheck(Env &env, Tcheck &tc)
   }
 
   // check type specifier
-  Type *specType = spec->tcheck(env, DF_NONE);
+  Type *specType = spec->tcheck(env, DF_NONE,
+    tc.context == DC_TA_TYPE? LF_TA_TYPE : LF_NONE);
 
   // pass contextual info to declarator
   Declarator::Tcheck dt(specType, tc.dflags, tc.context);
@@ -1462,11 +1463,11 @@ Variable *maybeReuseNondependent(Env &env, SourceLoc loc, LookupFlags &lflags,
 
 
 // --------------------- TypeSpecifier --------------
-Type *TypeSpecifier::tcheck(Env &env, DeclFlags dflags)
+Type *TypeSpecifier::tcheck(Env &env, DeclFlags dflags, LookupFlags lflags)
 {
   env.setLoc(loc);
 
-  Type *t = itcheck(env, dflags);
+  Type *t = itcheck(env, dflags, lflags);
   Type *ret = env.tfac.applyCVToType(loc, cv, t, this);
   if (!ret) {
     if (t->isFunctionType() && env.lang.allowCVAppliedToFunctionTypes) {
@@ -1523,12 +1524,12 @@ bool isBuggyGcc2HeaderDQT(Env &env, PQName *name)
 
 
 // 7.1.5.2
-Type *TS_name::itcheck(Env &env, DeclFlags dflags)
+Type *TS_name::itcheck(Env &env, DeclFlags dflags, LookupFlags lflags)
 {
-  tcheckPQName(name, env, NULL /*scope*/, LF_NONE);
+  tcheckPQName(name, env, NULL /*scope*/, lflags);
 
   ErrorFlags eflags = EF_NONE;
-  LookupFlags lflags = LF_EXPECTING_TYPE;
+  lflags |= LF_EXPECTING_TYPE;
 
   // should I use 'nondependentVar'?
   Variable *v = maybeReuseNondependent(env, loc, lflags, nondependentVar);
@@ -1642,7 +1643,7 @@ do_lookup:
 }
 
 
-Type *TS_simple::itcheck(Env &env, DeclFlags dflags)
+Type *TS_simple::itcheck(Env &env, DeclFlags dflags, LookupFlags lflags)
 {
   // This is the one aspect of the implicit-int solution that cannot
   // be confined to implint.h: having selected an interpretation that
@@ -2049,14 +2050,14 @@ CompoundType *checkClasskeyAndName(
 }
 
 
-Type *TS_elaborated::itcheck(Env &env, DeclFlags dflags)
+Type *TS_elaborated::itcheck(Env &env, DeclFlags dflags, LookupFlags lflags)
 {
   env.setLoc(loc);
 
-  tcheckPQName(name, env, NULL /*scope*/, LF_NONE);
+  tcheckPQName(name, env, NULL /*scope*/, lflags);
 
   if (keyword == TI_ENUM) {
-    Variable *tag = env.lookupPQ_one(name, LF_ONLY_TYPES);
+    Variable *tag = env.lookupPQ_one(name, lflags | LF_ONLY_TYPES);
     if (!tag) {
       if (!env.lang.allowIncompleteEnums ||
           name->hasQualifiers()) {
@@ -2125,7 +2126,7 @@ void tcheckDeclaratorPQName(Env &env, ScopeSeq &qualifierScopes,
 }
 
 
-Type *TS_classSpec::itcheck(Env &env, DeclFlags dflags)
+Type *TS_classSpec::itcheck(Env &env, DeclFlags dflags, LookupFlags lflags)
 {
   env.setLoc(loc);
   dflags |= DF_DEFINITION;
@@ -2145,7 +2146,7 @@ Type *TS_classSpec::itcheck(Env &env, DeclFlags dflags)
 
   // lookup and push scopes in the name, if any
   ScopeSeq qualifierScopes;
-  tcheckDeclaratorPQName(env, qualifierScopes, name, LF_NONE);
+  tcheckDeclaratorPQName(env, qualifierScopes, name, lflags);
 
   // figure out which class the (keyword, name) pair refers to
   CompoundType *ct =
@@ -2372,7 +2373,7 @@ void TS_classSpec::tcheckFunctionBodies(Env &env)
 }
 
 
-Type *TS_enumSpec::itcheck(Env &env, DeclFlags dflags)
+Type *TS_enumSpec::itcheck(Env &env, DeclFlags dflags, LookupFlags lflags)
 {
   env.setLoc(loc);
 
@@ -2381,7 +2382,7 @@ Type *TS_enumSpec::itcheck(Env &env, DeclFlags dflags)
 
   if (env.lang.allowIncompleteEnums && name) {
     // is this referring to an existing forward-declared enum?
-    et = env.lookupEnum(name, LF_INNER_ONLY);
+    et = env.lookupEnum(name, lflags | LF_INNER_ONLY);
     if (et) {
       ret = env.makeType(et);
       if (!et->valueIndex.isEmpty()) {
@@ -2434,7 +2435,7 @@ void MR_decl::tcheck(Env &env)
   if (env.secondPassTcheck) {
     // TS_classSpec is only thing of interest
     if (d->spec->isTS_classSpec()) {
-      d->spec->asTS_classSpec()->tcheck(env, d->dflags);
+      d->spec->asTS_classSpec()->tcheck(env, d->dflags, LF_NONE);
     }
     return;
   }
@@ -6919,7 +6920,7 @@ Type *E_constructor::itcheck_x(Env &env, Expression *&replacement)
 
 void E_constructor::inner1_itcheck(Env &env)
 {
-  type = spec->tcheck(env, DF_NONE);
+  type = spec->tcheck(env, DF_NONE, LF_NONE);
 }
 
 Type *E_constructor::inner2_itcheck(Env &env, Expression *&replacement)
@@ -9348,7 +9349,7 @@ void TD_decl::itcheck(Env &env)
   if (env.secondPassTcheck) {
     // TS_classSpec is only thing of interest
     if (d->spec->isTS_classSpec()) {
-      d->spec->asTS_classSpec()->tcheck(env, d->dflags);
+      d->spec->asTS_classSpec()->tcheck(env, d->dflags, LF_NONE);
     }
     return;
   }
@@ -9449,13 +9450,14 @@ void TP_type::itcheck(Env &env, int&)
     return;
   }
 
-  if (name) {
-    // introduce 'name' into the environment
-    if (!env.addVariable(var)) {
-      env.error(stringc
-        << "duplicate template parameter `" << name << "'",
-        EF_NONE);
-    }
+  // was set above if not originally existant
+  xassert(name);
+
+  // introduce 'name' into the environment
+  if (!env.addVariable(var)) {
+    env.error(stringc
+      << "duplicate template parameter `" << name << "'",
+      EF_NONE);
   }
 }
 
@@ -9469,6 +9471,58 @@ void TP_nontype::itcheck(Env &env, int&)
   // too, so we don't need to do so here
   param = param->tcheck(env, tc);
   this->var = param->decl->var;
+}
+
+
+void TP_template::itcheck(Env &env, int&)
+{
+  if (!name) {
+    name = env.getAnonName("ttparam", NULL);
+  }
+
+  if (defaultTemplate) {
+    // basic plan would be to add a "CompoundType *defaultTemplateCT"
+    // to TP_template in cc_tcheck.ast, and right here look up the
+    // name to find that default template
+    xunimp("template template parameter with default value");
+  }
+  
+  // build the type variable for the parameter
+  TemplateTypeVariable *ttvar = new TemplateTypeVariable(name);
+
+  // tcheck the template parameters and add them to 'ttvar'
+  {
+    Scope *paramScope = env.enterScope(SK_TEMPLATE_PARAMS, 
+      "template template parameter template parameters");
+    
+    // pull out the head pointer so the tcheck routine can modify it
+    TemplateParameter *listHead = parameters->first();
+
+    // check each of the parameters
+    tcheckTemplateParameterList(env, listHead, ttvar->params.params);
+    
+    // put back the disambiguated head pointer
+    parameters = FakeList<TemplateParameter>::makeList(listHead);
+
+    env.exitScope(paramScope);
+  }
+
+  // make a typedef variable for this type
+  CVAtomicType *fullType = env.makeType(ttvar);
+  this->var = env.makeVariable(loc, name, fullType,
+                               DF_TYPEDEF | DF_TEMPL_PARAM);
+  ttvar->typedefVar = var;
+
+  // TODO: once support for default template template arguments is
+  // added, I probably need to do a similar check for the error type
+  // as is done for TP_type
+
+  // introduce 'name' into the environment
+  if (!env.addVariable(var)) {
+    env.error(stringc
+      << "duplicate template parameter `" << name << "'",
+      EF_NONE);
+  }
 }
 
 
@@ -9490,13 +9544,35 @@ void TemplateArgument::mid_tcheck(Env &env, STemplateArgument &sarg)
   itcheck(env, sarg);
 }
 
+static bool isUninstClassTemplate(Type *t)
+{                            
+  // TODO: I believe that more things should fit the bill here, for
+  // example when I have a template template parameter and pass that
+  // to another template template parameter.  For the moment, this
+  // only handles the case of a concrete template being passed.
+
+  if (!t->isCompoundType()) {
+    return false;
+  }
+  
+  CompoundType *ct = t->asCompoundType();
+  return ct->isTemplate();
+}
+
 void TA_type::itcheck(Env &env, STemplateArgument &sarg)
 {
   ASTTypeId::Tcheck tc(DF_NONE, DC_TA_TYPE);
   type = type->tcheck(env, tc);
 
   Type *t = type->getType();
-  sarg.setType(t);
+  if (isUninstClassTemplate(t)) {
+    // name of template w/o arguments; assume it's an argument to a
+    // template template parameter
+    sarg.setTemplate(t->asCompoundType());
+  }
+  else {
+    sarg.setType(t);
+  }
 }
 
 void TA_nontype::itcheck(Env &env, STemplateArgument &sarg)

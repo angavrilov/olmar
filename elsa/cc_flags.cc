@@ -745,13 +745,27 @@ string toString(UberModifiers m)
 
 
 // ---------------------- SpecialExpr -----------------
+#define CASE(name) case name: return #name
+
 char const *toString(SpecialExpr se)
 {
   switch (se) {
     default: xfailure("bad se code");
-    case SE_NONE:       return "SE_NONE";
-    case SE_ZERO:       return "SE_ZERO";
-    case SE_STRINGLIT:  return "SE_STRINGLIT";
+    CASE(SE_NONE);
+    CASE(SE_ZERO);
+    CASE(SE_STRINGLIT);
+  }
+}
+
+
+// ---------------- TemplateParameterKind -------------
+char const *toString(TemplateParameterKind tpk)
+{
+  switch (tpk) {
+    default: xfailure("bad tpk code");
+    CASE(TPK_TYPE);
+    CASE(TPK_NON_TYPE);
+    CASE(TPK_TEMPLATE);
   }
 }
 
