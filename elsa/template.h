@@ -450,8 +450,14 @@ public:
     STA_POINTER,     // pointer to global object
     STA_MEMBER,      // pointer to class member
     STA_DEPEXPR,     // value-dependent expression
-    STA_TEMPLATE,    // template argument
+    STA_TEMPLATE,    // template argument                       
+    
+    // This is used when we want to bind directly to an AtomicType.
+    // The alternative would be to conjure up a cv-less Type wrapper,
+    // but that requires access to a type factory and I don't want
+    // mtype to have to do that.
     STA_ATOMIC,      // private to mtype: bind var to AtomicType
+
     NUM_STA_KINDS
   } kind;
 
@@ -460,9 +466,9 @@ public:
     int i;           // for STA_INT
     Variable *v;     // (serf) for STA_ENUMERATOR, STA_REFERENCE, STA_POINTER, STA_MEMBER
     Expression *e;   // (serf) for STA_DEPEXPR
-    
+
     // (serf) for STA_TEMPLATE; this will be a CompoundType if this is
-    // a concrete argument, and to TemplateTypeVariable if abstract
+    // a concrete argument, and a TemplateTypeVariable if abstract
     NamedAtomicType *templNat;
 
     AtomicType const *at;  // (serf) for STA_ATOMIC

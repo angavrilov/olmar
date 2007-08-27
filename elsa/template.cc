@@ -4048,6 +4048,35 @@ Type *Env::applyArgumentMapToAtomicType
     return applyArgumentMap_applyCV(srcCV, replacement.getType());
   }
 
+  // copy+paste from the above case
+  //
+  // TODO: if this works, collapse them
+  else if (src->isTemplateTypeVariable()) {
+    TemplateTypeVariable const *sttv = src->asTemplateTypeVariableC();
+
+    STemplateArgument replacement = map.getBoundValue(sttv->name, tfac);
+    if (!replacement.hasValue()) {
+      xTypeDeduction(stringc << "the template type name `"
+                             << sttv->name << "' is not bound");
+    }
+    else if (!replacement.isTemplate()) {
+      xTypeDeduction(stringc << "the template type name `"
+                             << sttv->name << "' is not bound to a template argument");
+    }
+
+    // I don't think you can have CV applied to a template prior
+    // to instantiating it, so I am ignoring 'srcCV'.
+    xassert(srcCV == CV_NONE && "applying CV to a TTP");
+
+    // This seems fishy.  I'm taking an uninstatiated template and
+    // wrapping it up in an ordinary Type object.  When do I or would
+    // I take it back apart to apply arguments?
+    //
+    // Since I do this substitution below as well, maybe this code is
+    // not reachable?  That would be nice.
+    return makeType(replacement.getTemplate());
+  }
+
   else if (src->isPseudoInstantiation()) {
     PseudoInstantiation const *spi = src->asPseudoInstantiationC();
 
@@ -4055,8 +4084,27 @@ Type *Env::applyArgumentMapToAtomicType
     ObjList<STemplateArgument> args;
     applyArgumentMapToTemplateArgs(map, args, spi->args);
 
+    // concretize the template itself, too, if it is a TTP
+    NamedAtomicType *templ = spi->primary;
+    if (templ->isTemplateTypeVariable()) {
+      TemplateTypeVariable const *ttv = templ->asTemplateTypeVariableC();
+
+      // again copy+paste from above...
+      STemplateArgument replacement = map.getBoundValue(ttv->name, tfac);
+      if (!replacement.hasValue()) {
+        xTypeDeduction(stringc << "the template type name `"
+                               << ttv->name << "' is not bound");
+      }
+      else if (!replacement.isTemplate()) {
+        xTypeDeduction(stringc << "the template type name `"
+                               << ttv->name << "' is not bound to a template argument");
+      }
+      
+      templ = replacement.getTemplate();
+    }
+
     // instantiate the class with our newly-created arguments
-    Variable *instClass = instantiateClassTemplate_or_PI(spi->primary, args);
+    Variable *instClass = instantiateClassTemplate_or_PI(templ, args);
     if (!instClass) {
       instClass = errorVar;    // error already reported; this is recovery
     }
@@ -4084,10 +4132,6 @@ Type *Env::applyArgumentMapToAtomicType
     return applyArgumentMap_applyCV(srcCV,
              applyArgumentMapToQualifiedType(map, retFirst->asCompoundType(),
                                              sdqt->rest));
-  }
-
-  else if (src->isTemplateTypeVariable()) {
-    xunimp("applyArgumentMapToAtomicType: template type variable");
   }
 
   else {
