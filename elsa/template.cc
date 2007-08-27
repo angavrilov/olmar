@@ -1443,9 +1443,27 @@ bool exprContainsVariables(Expression *expr, MType *map)
 
 bool STemplateArgument::containsVariables(MType *map) const
 {
-  if (kind == STemplateArgument::STA_TYPE) {
+  if (kind == STA_TYPE) {
     if (sta_value.t->containsVariables(map)) {
       return true;
+    }
+  }
+  else if (kind == STA_TEMPLATE) {
+    if (getTemplate()->isCompoundType()) {
+      // It's a "concrete" template template argument.
+      //
+      // Another way to do this would be to dig into
+      // 'containsVariables' and say that concrete templates do not
+      // contain variables, but that would open up a whole new can of
+      // worms over exactly what it means to contain variables.  I'd
+      // really love to have a clear specification of this language,
+      // but lacking such, I'm essentially wandering in the dark
+      // trying to find one by trial and error.
+      return false;
+    }
+    else {
+      // an abstract TTP; but it might be bound
+      return getTemplate()->containsVariables(map);
     }
   }
   else if (kind == STA_DEPEXPR) {
@@ -3267,6 +3285,10 @@ Variable *Env::instantiateFunctionTemplate
                       primary->fullyQualifiedName0() << sargsToString(sargs));
     return NULL;
   }
+  
+  // the resulting type should be concrete; all variables should
+  // have been substituted using the map
+  xassert(!instType->containsVariables());
 
   // create the representative Variable
   inst = makeInstantiationVariable(primary, instType);
@@ -4788,21 +4810,10 @@ CType *Env::applyArgumentMapToAtomicType
     return applyArgumentMap_applyCV(srcCV, replacement.getType());
   }
 
-  // copy+paste from the above case
-  //
-  // TODO: if this works, collapse them
   else if (src->isTemplateTypeVariable()) {
     TemplateTypeVariable const *sttv = src->asTemplateTypeVariableC();
-
-    STemplateArgument replacement = map.getBoundValue(sttv->name, tfac);
-    if (!replacement.hasValue()) {
-      xTypeDeduction(stringc << "the template type name `"
-                             << sttv->name << "' is not bound");
-    }
-    else if (!replacement.isTemplate()) {
-      xTypeDeduction(stringc << "the template type name `"
-                             << sttv->name << "' is not bound to a template argument");
-    }
+    NamedAtomicType *replacement = 
+      applyArgumentMapToTemplateTypeVariable(map, sttv);
 
     // I don't think you can have CV applied to a template prior
     // to instantiating it, so I am ignoring 'srcCV'.
@@ -4814,7 +4825,9 @@ CType *Env::applyArgumentMapToAtomicType
     //
     // Since I do this substitution below as well, maybe this code is
     // not reachable?  That would be nice.
-    return makeType(replacement.getTemplate());
+    //
+    // Update: I think this is unreachable right now.
+    return makeType(replacement);
   }
 
   else if (src->isPseudoInstantiation()) {
@@ -4827,20 +4840,8 @@ CType *Env::applyArgumentMapToAtomicType
     // concretize the template itself, too, if it is a TTP
     NamedAtomicType *templ = spi->primary;
     if (templ->isTemplateTypeVariable()) {
-      TemplateTypeVariable const *ttv = templ->asTemplateTypeVariableC();
-
-      // again copy+paste from above...
-      STemplateArgument replacement = map.getBoundValue(ttv->name, tfac);
-      if (!replacement.hasValue()) {
-        xTypeDeduction(stringc << "the template type name `"
-                               << ttv->name << "' is not bound");
-      }
-      else if (!replacement.isTemplate()) {
-        xTypeDeduction(stringc << "the template type name `"
-                               << ttv->name << "' is not bound to a template argument");
-      }
-      
-      templ = replacement.getTemplate();
+      templ = applyArgumentMapToTemplateTypeVariable(map,
+                templ->asTemplateTypeVariableC());
     }
 
     // instantiate the class with our newly-created arguments
@@ -4988,6 +4989,18 @@ void Env::applyArgumentMapToTemplateArgs
       rta->setType(applyArgumentMapToType(map, sta->getType()));
       dest.prepend(rta);
     }
+    else if (sta->isTemplate()) {
+      STemplateArgument *rta = new STemplateArgument;
+      if (sta->getTemplate()->isTemplateTypeVariable()) {
+        rta->setTemplate(applyArgumentMapToTemplateTypeVariable(map,
+          sta->getTemplate()->asTemplateTypeVariableC()));
+      }
+      else {
+        // assume it is already concrete
+        rta->setTemplate(sta->getTemplate());
+      }
+      dest.prepend(rta);
+    }
     else if (sta->isDepExpr()) {
       STemplateArgument replacement =
         applyArgumentMapToExpression(map, sta->getDepExpr());
@@ -5000,6 +5013,23 @@ void Env::applyArgumentMapToTemplateArgs
   }
 
   dest.reverse();
+}
+
+
+NamedAtomicType *Env::applyArgumentMapToTemplateTypeVariable(
+  MType &map, TemplateTypeVariable const *ttv)
+{
+  STemplateArgument replacement = map.getBoundValue(ttv->name, tfac);
+  if (!replacement.hasValue()) {
+    xTypeDeduction(stringc << "the template type name `"
+                           << ttv->name << "' is not bound");
+  }
+  else if (!replacement.isTemplate()) {
+    xTypeDeduction(stringc << "the template type name `"
+                           << ttv->name << "' is not bound to a template argument");
+  }
+
+  return replacement.getTemplate();
 }
 
 

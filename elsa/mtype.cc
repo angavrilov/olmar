@@ -129,8 +129,24 @@ bool IMType::imatchAtomicType(AtomicType const *conc, AtomicType const *pat, Mat
     return imatchAtomicTypeWithVariable(conc, pat->asTypeVariableC(), flags);
   }
 
+  // Bind a TTP to a real template.
+  //
+  // Sort of a mix of the cases above and below.
   if (pat->isTemplateTypeVariable()) {
-    xunimp("IMType::imatchAtomicType: pattern is template type variable");
+    TemplateTypeVariable const *ttv = pat->asTemplateTypeVariableC();
+    if (canUseAsVariable(ttv->typedefVar, flags) &&
+        conc->isCompoundType()) {
+      // Laundering constness... below, I do the same thing more
+      // sneakily by using getPrimary().  I don't think it is a
+      // problem, but I just don't recall what the overall strategy
+      // for constness was in here.
+      CompoundType *concCT = const_cast<CompoundType*>(conc->asCompoundTypeC());
+
+      TemplateInfo *concTI = concCT->typedefVar->templateInfo();
+      if (concTI && concTI->isPrimary()) {
+        return imatchAtomicTypeWithTTPVariable(concCT, ttv, flags);
+      }
+    }
   }
 
   if (conc->getTag() != pat->getTag()) {

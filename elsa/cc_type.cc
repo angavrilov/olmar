@@ -2147,6 +2147,13 @@ bool BaseType::containsVariables(MType *map) const
 }
 
 
+bool AtomicType::containsVariables(MType *map) const
+{
+  ContainsVariablesPred cvp(map);
+  return cvp.atomicTypeHasVariable(this);
+}
+
+
 string toString(CType *t)
 {
   if (!global_mayUseTypeAndVarToCString) xfailure("suspended during CTypePrinter::print");
