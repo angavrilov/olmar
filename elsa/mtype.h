@@ -116,7 +116,9 @@ protected:   // funcs
   bool imatchPQName(PQName const *conc, PQName const *pat, MatchFlags flags);
   bool imatchType(CType const *conc, CType const *pat, MatchFlags flags);
   bool imatchTypeWithVariable(CType const *conc, TypeVariable const *pat,
-                                    CVFlags tvCV, MatchFlags flags);
+                              CVFlags tvCV, MatchFlags flags);
+  bool imatchTypeWithTTPVariable(CType const *conc, TemplateTypeVariable const *pat,
+                                 CVFlags tvCV, MatchFlags flags);
   bool imatchTypeWithResolvedType(CType const *conc, CType const *pat,
                                   MatchFlags flags);
   bool imatchTypeWithDQT(CType const *conc, DependentQType const *pat,
@@ -127,8 +129,11 @@ protected:   // funcs
                                CVFlags tvcv, MatchFlags flags);
   bool imatchTypeWithPolymorphic(CType const *conc, SimpleTypeId polyId, MatchFlags flags);
   bool imatchAtomicTypeWithVariable(AtomicType const *conc,
-                                   TypeVariable const *pat,
-                                   MatchFlags flags);
+                                    TypeVariable const *pat,
+                                    MatchFlags flags);
+  bool imatchAtomicTypeWithTTPVariable(NamedAtomicType *conc,
+                                       TemplateTypeVariable const *pat,
+                                       MatchFlags flags);
   bool imatchCVAtomicType(CVAtomicType const *conc, CVAtomicType const *pat, MatchFlags flags);
   bool imatchCVFlags(CVFlags conc, CVFlags pat, MatchFlags flags);
   bool imatchPointerType(PointerType const *conc, PointerType const *pat, MatchFlags flags);

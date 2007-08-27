@@ -143,17 +143,24 @@ bool IMType::imatchAtomicType(AtomicType const *conc, AtomicType const *pat, Mat
       TemplateInfo *concTI = conc->asCompoundTypeC()->typedefVar->templateInfo();
       PseudoInstantiation const *patPI = pat->asPseudoInstantiationC();
 
-      // can't match against a PI on a TemplateTypeVariable
+      // compare the template part of the PI
       if (patPI->primary->isTemplateTypeVariable()) {
-        return false;
+        // match the TTP against the concrete type's template primary
+        NamedAtomicType *concPrimary = concTI->getPrimary()->var->type->asNamedAtomicType();
+        TemplateTypeVariable *ttv = patPI->primary->asTemplateTypeVariable();
+        if (!imatchAtomicTypeWithTTPVariable(concPrimary, ttv, flags)) {
+          return false;
+        }
       }
-      CompoundType *patPIprimaryCT = patPI->primary->asCompoundType();
+      else {
+        CompoundType *patPIprimaryCT = patPI->primary->asCompoundType();
 
-      // these must be instantiations of the same primary
-      if (concTI->getPrimary() != patPIprimaryCT->templateInfo()->getPrimary()) {
-        return false;
+        // these must be instantiations of the same primary
+        if (concTI->getPrimary() != patPIprimaryCT->templateInfo()->getPrimary()) {
+          return false;
+        }
       }
-      
+
       // compare arguments; use the args to the primary, not the args to
       // the partial spec (if any)
       return imatchSTemplateArguments(concTI->getArgumentsToPrimary(),
@@ -429,8 +436,10 @@ bool IMType::imatchType(CType const *conc, CType const *pat, MatchFlags flags)
                                   pat->getCVFlags(), flags);
   }
 
-  if (pat->isTemplateTypeVariable()) {
-    xunimp("IMType::imatchType: pattern is template type variable");
+  if (pat->isTemplateTypeVariable() &&
+      canUseAsVariable(pat->asTemplateTypeVariableC()->typedefVar, flags)) {
+    return imatchTypeWithTTPVariable(conc, pat->asTemplateTypeVariableC(),
+                                     pat->getCVFlags(), flags);
   }
 
   if ((flags & MF_MATCH) &&
@@ -492,7 +501,7 @@ bool IMType::imatchTypeWithVariable(CType const *conc, TypeVariable const *pat,
                                     CVFlags tvCV, MatchFlags flags)
 {
   if ((flags & MF_ISOMORPHIC) &&
-      !conc->isTypeOrTemplateTypeVariable()) {
+      !conc->isTypeVariable()) {
     return false;      // MF_ISOMORPHIC requires that we only bind to variables
   }
 
@@ -514,6 +523,35 @@ bool IMType::imatchTypeWithVariable(CType const *conc, TypeVariable const *pat,
     // that are a superset of those in 'tvCV', and the
     // type to which 'tvName' is bound should have the cv-flags
     // in the difference between 'conc' and 'tvCV'
+    return addTypeBindingWithoutCV(tvName, conc, tvCV, flags);
+  }
+}
+
+
+// Like 'imatchTypeWithVariable', but where the type variable is
+// a template template parameter (TTP).
+//
+// TODO: If this function can be essentially identical to the above,
+// then collapse them into one.
+bool IMType::imatchTypeWithTTPVariable(CType const *conc,
+                                       TemplateTypeVariable const *pat,
+                                       CVFlags tvCV, MatchFlags flags)
+{
+  if ((flags & MF_ISOMORPHIC) &&
+      !conc->isTemplateTypeVariable()) {
+    return false;
+  }
+
+  StringRef tvName = pat->name;
+  Binding *binding = bindings.get(tvName);
+  if (binding) {
+    return equalWithAppliedCV(conc, binding, tvCV, flags);
+  }
+  else {
+    if (flags & MF_NO_NEW_BINDINGS) {
+      return false;
+    }
+
     return addTypeBindingWithoutCV(tvName, conc, tvCV, flags);
   }
 }
@@ -741,7 +779,7 @@ bool IMType::imatchAtomicTypeWithVariable(AtomicType const *conc,
                                           MatchFlags flags)
 {
   if ((flags & MF_ISOMORPHIC) &&
-      !conc->isTypeOrTemplateTypeVariable()) {
+      !conc->isTypeVariable()) {
     return false;      // MF_ISOMORPHIC requires that we only bind to variables
   }
 
@@ -776,6 +814,49 @@ bool IMType::imatchAtomicTypeWithVariable(AtomicType const *conc,
     // bind 'tvName' to 'conc'
     binding = new Binding;
     binding->sarg.setAtomicType(conc);
+    return addBinding(tvName, binding, flags);
+  }
+}
+
+
+// Copy+paste from 'imatchAtomicTypeWithVariable'.
+//
+// TODO: If this works, collapse them.
+//
+// Hmmm... what about constness of 'conc'?  It is const in the
+// other version, but does not seem to need to be here.
+bool IMType::imatchAtomicTypeWithTTPVariable(NamedAtomicType *conc,
+                                             TemplateTypeVariable const *pat,
+                                             MatchFlags flags)
+{
+  if ((flags & MF_ISOMORPHIC) &&
+      !conc->isTemplateTypeVariable()) {
+    return false;
+  }
+
+  StringRef tvName = pat->name;
+  Binding *binding = bindings.get(tvName);
+  if (binding) {
+    if (binding->sarg.isTemplate()) {
+      // This part is slightly simpler than above b/c it is not
+      // possible to attach CV to an uninstantiated template.
+      NamedAtomicType *nat = binding->sarg.getTemplate();
+      return imatchAtomicType(conc, nat, flags & ~MF_MATCH);
+    }
+    else if (binding->sarg.isAtomicType()) {
+      return imatchAtomicType(conc, binding->sarg.getAtomicType(), flags & ~MF_MATCH);
+    }
+    else {
+      return false;
+    }
+  }
+  else {
+    if (flags & MF_NO_NEW_BINDINGS) {
+      return false;
+    }
+
+    binding = new Binding;
+    binding->sarg.setTemplate(conc);
     return addBinding(tvName, binding, flags);
   }
 }

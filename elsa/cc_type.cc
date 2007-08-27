@@ -2079,7 +2079,7 @@ bool ContainsVariablesPred::atomicTypeHasVariable(AtomicType const *t)
   }
 
   if (t->isTemplateTypeVariable()) {
-    xunimp("ContainsVariablesPred::atomicTypeHasVariable: template type variable");
+    return isUnbound(t->asTemplateTypeVariableC()->name);
   }
 
   if (t->isPseudoInstantiation()) {

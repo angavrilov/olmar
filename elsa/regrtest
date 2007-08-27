@@ -890,6 +890,7 @@ testparse t0597.cc
 testparse t0598.cc
 failparse t0599.cc "inability to update a no-size array member's size"
 testparse t0600.cc
+testparse t0601.cc
 
 # another set of tests, generally isolated by Daniel
 testparse d0001.cc
