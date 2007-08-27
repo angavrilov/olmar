@@ -281,6 +281,9 @@ class CTypePrinter : public TypePrinter {
 
   protected:
   // **** AtomicType
+  //
+  // SGM 2007-08-26: It's a bad idea to overload something using types
+  // that are related by inheritance.  This method should be renamed.
   string print(AtomicType const *atomic);
 
   string print(SimpleType const *);
@@ -289,6 +292,7 @@ class CTypePrinter : public TypePrinter {
   string print(TypeVariable const *);
   string print(PseudoInstantiation const *);
   string print(DependentQType const *);
+  string print(TemplateTypeVariable const *);
 
   // **** [Compound]Type
   string print(Type const *type);

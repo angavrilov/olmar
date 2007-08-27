@@ -220,14 +220,17 @@ string CTypePrinter::print(AtomicType const *atomic)
 {
   // roll our own virtual dispatch
   switch(atomic->getTag()) {
-  default: xfailure("bad tag");
   case AtomicType::T_SIMPLE:              return print(atomic->asSimpleTypeC());
   case AtomicType::T_COMPOUND:            return print(atomic->asCompoundTypeC());
   case AtomicType::T_ENUM:                return print(atomic->asEnumTypeC());
   case AtomicType::T_TYPEVAR:             return print(atomic->asTypeVariableC());
   case AtomicType::T_PSEUDOINSTANTIATION: return print(atomic->asPseudoInstantiationC());
   case AtomicType::T_DEPENDENTQTYPE:      return print(atomic->asDependentQTypeC());
+  case AtomicType::T_TEMPLATETYPEVAR:     return print(atomic->asTemplateTypeVariableC());
+  case AtomicType::NUM_TAGS: break;
   }
+  xfailure("bad tag");
+  return string("");     // silence warning
 }
 
 string CTypePrinter::print(SimpleType const *simpleType)
@@ -342,6 +345,15 @@ string CTypePrinter::print(DependentQType const *depType)
 
   codeOut.finish();
   return sb0;
+}
+
+string CTypePrinter::print(TemplateTypeVariable const *ttv)
+{
+  // SGM 2007-08-26: I don't recall what the overall goal of
+  // CTypePrinter is.  Should I print enough to name the type, or to
+  // declare it?  And what's up with all the CodeOutStream stuff?
+  // Let's try something simple for now...
+  return string(ttv->name? ttv->name : "/*anon*/");
 }
 
 

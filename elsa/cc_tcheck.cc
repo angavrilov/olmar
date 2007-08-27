@@ -9544,19 +9544,31 @@ void TemplateArgument::mid_tcheck(Env &env, STemplateArgument &sarg)
   itcheck(env, sarg);
 }
 
-static bool isUninstClassTemplate(Type *t)
-{                            
-  // TODO: I believe that more things should fit the bill here, for
-  // example when I have a template template parameter and pass that
-  // to another template template parameter.  For the moment, this
-  // only handles the case of a concrete template being passed.
+// If 't' names an uninstantiated class template, return the
+// NamedAtomicType that identifies the template.  Otherwise, return
+// NULL.
+static NamedAtomicType *isUninstClassTemplate(Type *t)
+{
+  if (!t->isCVAtomicType()) {
+    return NULL;
+  }
+  AtomicType *at = t->asCVAtomicType()->atomic;
 
-  if (!t->isCompoundType()) {
-    return false;
+  // t0602.cc: Using a TTP in a further template argument list.
+  if (at->isTemplateTypeVariable()) {
+    return at->asTemplateTypeVariable();
+  }
+
+  if (!at->isCompoundType()) {
+    return NULL;
+  }
+
+  CompoundType *ct = at->asCompoundType();
+  if (ct->isTemplate()) {
+    return ct;
   }
   
-  CompoundType *ct = t->asCompoundType();
-  return ct->isTemplate();
+  return NULL;
 }
 
 void TA_type::itcheck(Env &env, STemplateArgument &sarg)
@@ -9565,10 +9577,10 @@ void TA_type::itcheck(Env &env, STemplateArgument &sarg)
   type = type->tcheck(env, tc);
 
   Type *t = type->getType();
-  if (isUninstClassTemplate(t)) {
+  if (NamedAtomicType *nat = isUninstClassTemplate(t)) {
     // name of template w/o arguments; assume it's an argument to a
     // template template parameter
-    sarg.setTemplate(t->asCompoundType());
+    sarg.setTemplate(nat);
   }
   else {
     sarg.setType(t);

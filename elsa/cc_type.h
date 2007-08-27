@@ -241,6 +241,9 @@ public:     // funcs
 
   // invoke 'vis.visitAtomicType(this)', and then traverse subtrees
   virtual void traverse(TypeVisitor &vis) = 0;
+  
+  // see BaseType::containsVariables; this is the same idea
+  bool containsVariables(MType *map = NULL) const;
 
   // toString()+newline to cout
   void gdb() const;

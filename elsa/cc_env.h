@@ -960,6 +960,8 @@ public:      // template funcs
   void applyArgumentMapToTemplateArgs
     (MType &map, ObjList<STemplateArgument> &dest,
                                  ObjList<STemplateArgument> const &srcArgs);
+  NamedAtomicType *applyArgumentMapToTemplateTypeVariable(
+    MType &map, TemplateTypeVariable const *ttv);
   STemplateArgument applyArgumentMapToExpression
     (MType &map, Expression *e);
   STemplateArgument applyArgumentMapToQualifiedName
