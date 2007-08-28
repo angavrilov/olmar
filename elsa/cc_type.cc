@@ -643,9 +643,14 @@ string CompoundType::toCString() const
   //          but I'm just now uncommenting this code
   // 8/03/04: restored the original purpose of 'instName', so
   //          once again that is name+args, so this code is not needed
-  //if (tinfo && tinfo->arguments.isNotEmpty()) {
-  //  sb << sargsToString(tinfo->arguments);
-  //}
+  //
+  // 2007-08-27: Not sure how this keeps getting changed, but
+  // right now we're using the typedefVar, which does not have
+  // the instName stuff.  So, enabling this again.
+  //
+  if (tinfo && tinfo->arguments.isNotEmpty()) {
+    sb << sargsToString(tinfo->arguments);
+  }
 
   return sb;
 }

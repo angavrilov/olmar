@@ -94,20 +94,20 @@ while [ "$1" != "" ]; do
 
     debian/c)
       echo "debian/c"
-      KEEP_GOING=2 ./test-parse -tr gnu_c89 bigin/debian/c89/*.gz >debian.c.parse.out
-      KEEP_GOING=2 ./test-parse -tr c_lang bigin/debian/c/*.gz >>debian.c.parse.out
+      KEEP_GOING=2 ./test-parse -tr gnu_c89 ../bigin/debian/c89/*.gz >debian.c.parse.out
+      KEEP_GOING=2 ./test-parse -tr c_lang ../bigin/debian/c/*.gz >>debian.c.parse.out
       if [ $? = 130 ]; then exit 130; fi
       ;;
 
     debian/c++)
       echo "debian/c++"
-      KEEP_GOING=2 ./test-parse bigin/debian/c++/*.gz >>debian.c++.parse.out
+      KEEP_GOING=2 ./test-parse ../bigin/debian/c++/*.gz >>debian.c++.parse.out
       if [ $? = 130 ]; then exit 130; fi
       ;;
 
     headers)
       echo "headers (2nd-to-last is valarray)"
-      KEEP_GOING=2 ./test-parse bigin/headers/*.gz >>headers.parse.out
+      KEEP_GOING=2 ./test-parse ../bigin/headers/*.gz >>headers.parse.out
       if [ $? = 130 ]; then exit 130; fi
       ;;
 

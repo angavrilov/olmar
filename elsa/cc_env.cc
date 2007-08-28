@@ -1939,6 +1939,16 @@ Scope *Env::lookupOneQualifier_useArgs(
           return NULL;
         }
 
+        // The template arguments themselves are concrete, but if the
+        // template is itself a member template (that has not had its
+        // arguments filled in) then call it dependent (in/t0603.cc).
+        if (ct->parentScope &&
+            ct->parentScope->curCompound &&
+            ct->parentScope->curCompound->isTemplate(true /*inherited*/)) {
+          dependent = true;
+          return NULL;
+        }
+
         Variable *inst = instantiateClassTemplate(loc(), qualVar, sargs);
         if (!inst) {
           return NULL;     // error already reported
@@ -4887,7 +4897,11 @@ void Env::lookupPQ_withScope(LookupSet &set, PQName *name, LookupFlags flags,
         }
 
         else if (svar->type->isCompoundType()) {
-          xassert(containsVariables(qual->sargs));  // otherwise why dependent?
+          // in/t0603.cc: I'm adopting a solution where sometimes I
+          // make a PseudoInstantiation even if the explicitly
+          // provided template arguments are concrete, because we are
+          // in the scope of an uninstantiated template.
+          //xassert(containsVariables(qual->sargs));  // otherwise why dependent?
 
           // build DependentQType PseudoInstantiation(svar, qual->targs)::...
           CompoundType *ct = svar->type->asCompoundType();
