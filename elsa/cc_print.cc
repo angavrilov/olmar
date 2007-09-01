@@ -895,6 +895,14 @@ void TF_decl::print(PrintEnv &env)
 
 void TF_func::print(PrintEnv &env)
 {
+  // TODO: in/t0604.cc: When printing the return type of an
+  // out-of-line definition of a member of a template, the return type
+  // name needs to be qualified with the name of the template if the
+  // return type is a member of the template.  Currently, we print the
+  // type as it was seen with the declaration, at which time it was
+  // inside the body of the template and hence did not need
+  // qualification.
+
   TreeWalkDebug treeDebug("TF_func");
   *env.out << endl;
   env.loc = loc;

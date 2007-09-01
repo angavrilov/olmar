@@ -4663,10 +4663,18 @@ Type *Env::resolveDQTs_atomic(SourceLoc loc, AtomicType *t)
   // 'firstPI->primary' somewhere on the scope stack?
   CompoundType *scopeCt =
     getMatchingTemplateInScope(firstPIprimaryCT, firstPI->args);
-  if (scopeCt) {
+  if (scopeCt) {                      
+    // 'dqt->rest' is qualified by 'dqt'
+    LookupFlags lflags = LF_QUALIFIED;  
+    
+    // in/t0604.cc: this lookup needs to know that it is only
+    // expecting types; it is divorced from the syntactic context that
+    // would have specified 'typename' in the concrete syntax
+    lflags |= LF_ONLY_TYPES;
+
     // re-start lookup from 'scopeCt'
     LookupSet set;
-    lookupPQ_withScope(set, dqt->rest, LF_QUALIFIED, scopeCt);
+    lookupPQ_withScope(set, dqt->rest, lflags, scopeCt);
     Variable *v = set.isEmpty()? NULL : set.first();
 
     if (!v || !v->isType()) {

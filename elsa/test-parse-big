@@ -105,9 +105,15 @@ while [ "$1" != "" ]; do
       if [ $? = 130 ]; then exit 130; fi
       ;;
 
-    headers)
-      echo "headers (2nd-to-last is valarray)"
-      KEEP_GOING=2 ./test-parse ../bigin/headers/*.gz >>headers.parse.out
+    gcc-3.4.3-headers)
+      echo "headers"
+      ./test-parse ../bigin/headers/gcc-3.4.3/*.gz >gcc-3.4.3-headers.parse.out
+      if [ $? = 130 ]; then exit 130; fi
+      ;;
+
+    gcc-4.0.0-headers)
+      echo "headers"
+      ./test-parse ../bigin/headers/gcc-4.0.0/*.gz >gcc-4.0.0-headers.parse.out
       if [ $? = 130 ]; then exit 130; fi
       ;;
 
