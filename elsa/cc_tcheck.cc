@@ -6413,6 +6413,14 @@ Type *E_funCall::inner2_itcheck(Env &env, LookupSet &candidates)
         // use them to instantiate the template
         Variable *inst = env.instantiateFunctionTemplate(pqname->loc, v, match);
         if (!inst) {
+          // in/t0608.cc: it might be that 'v' is a template member of
+          // something that encloses this site, in which case we can't
+          // instantiate it b/c some parameters are still abstract, so
+          // we will just call it dependent
+          if (env.isMemberOfOpenTemplate(v)) {
+            return env.dependentType();
+          }
+
           mut.remove();
           lastRemovalReason = "could not deduce all template params";
           continue;

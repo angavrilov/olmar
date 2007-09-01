@@ -3052,44 +3052,99 @@ bool equalOrIsomorphic(Type const *a, Type const *b)
 }
 
 
+// return true if the two template parameter lists look equivalent;
+// rough cut for now
+static bool equivalentTemplateParameters(
+  SObjList<Variable> const &paramsA,
+  SObjList<Variable> const &paramsB)
+{
+  SObjListIter<Variable> iterA(paramsA);
+  SObjListIter<Variable> iterB(paramsB);
+
+  for (; !iterA.isDone() && !iterB.isDone(); iterA.adv(), iterB.adv()) {
+    // merely check that they are the same kind of parameter
+    if (iterA.data()->getTemplateParameterKind() !=
+        iterB.data()->getTemplateParameterKind()) {
+      return false;
+    }
+  }
+
+  // should be the same number of parameters
+  return iterA.isDone() && iterB.isDone();
+}
+
+
 // if 'prior' refers to an overloaded set, and 'type' could be the type
 // of a new (not existing) member of that set, then return that set
 // and nullify 'prior'; otherwise return NULL
 OverloadSet *Env::getOverloadForDeclaration(Variable *&prior, Type *type)
 {
-  OverloadSet *overloadSet = NULL;    // null until valid overload seen
   if (lang.allowOverloading &&
       prior &&
       !(prior->name == string_main && prior->isGlobal()) &&   // cannot overload main()
       prior->type->isFunctionType() &&
       type->isFunctionType()) {
-    // potential overloading situation
+    // potential overloading situation; keep going
+  }
+  else {
+    return NULL;      // cannot overload
+  }
 
+  // figure out if either is (or will be) a template
+  bool priorIsTemplate = prior->templateInfo() &&
+                         prior->templateInfo()->hasParameters();
+  bool thisIsTemplate = scope()->isTemplateParamScope();
+  bool sameTemplateNess = (priorIsTemplate == thisIsTemplate);
+
+  if (sameTemplateNess) {
     // get the two function types
     FunctionType *priorFt = prior->type->asFunctionType();
     FunctionType *specFt = type->asFunctionType();
-    bool sameType =
-      (prior->name == conversionOperatorName?
-        equivalentTypes(priorFt, specFt) :       // conversion: equality check
-        equivalentSignatures(priorFt, specFt));  // non-conversion: signature check
 
-    // figure out if either is (or will be) a template
-    bool priorIsTemplate = prior->templateInfo() &&
-                           prior->templateInfo()->hasParameters();
-    bool thisIsTemplate = scope()->isTemplateParamScope();
-    bool sameTemplateNess = (priorIsTemplate == thisIsTemplate);
+    // compare them:
+    //   - conversion operator requires equality check
+    //   - templates also require equality check (14.5.5.1p4)
+    bool sameType;
+    if (prior->name == conversionOperatorName || priorIsTemplate) {
+      sameType = equivalentTypes(priorFt, specFt);
+    }
+    else {
+      sameType = equivalentSignatures(priorFt, specFt);
+    }
 
-    // can only be an overloading if their signatures differ
-    if (!sameType || !sameTemplateNess) {
-      // ok, allow the overload
-      TRACE("ovl",    "overloaded `" << prior->name
-                   << "': `" << prior->type->toString()
-                   << "' and `" << type->toString() << "'");
-      overloadSet = prior->getOrCreateOverloadSet();
-      prior = NULL;    // so we don't consider this to be the same
+    if (sameType) {
+      if (priorIsTemplate) {
+        // 14.5.5.1p4, in/t0606.cc: same type; but still can be
+        // overloaded if the parameter lists differ
+        if (equivalentTemplateParameters(prior->templateInfo()->params,
+                                         scope()->templateParams)) {
+          // same type and template parameter lists; cannot be
+          // overloaded
+          //
+          // Actually, there is a subtle flaw here, because I check
+          // type isomorphism independently from template parameter
+          // list equivalence.  But I can't think of an example that
+          // would reveal the flaw.
+          //
+          return NULL;
+        }
+        else {
+          // template parameters differ; overload ok
+        }
+      }
+      else {
+        // non-template with same type; cannot be overloaded
+        return NULL;
+      }
     }
   }
 
+  // signatures differ; allow the overload
+  TRACE("ovl",    "overloaded `" << prior->name
+               << "': `" << prior->type->toString()
+               << "' and `" << type->toString() << "'");
+  OverloadSet *overloadSet = prior->getOrCreateOverloadSet();
+  prior = NULL;    // so we don't consider this to be the same
   return overloadSet;
 }
 
@@ -5443,6 +5498,29 @@ void Env::instantiateTemplatesInConversion(ImplicitConversion &ic)
   if (ic.kind == ImplicitConversion::IC_USER_DEFINED) {
     ensureFuncBodyTChecked(ic.user);
   }
+}
+
+
+bool Env::isMemberOfOpenTemplate(Variable *v)
+{
+  // short-circuit the quadratic algorithm in some cases
+  if (!inUninstTemplate()) {
+    return false;
+  }
+  if (!v->scope ||
+      !v->scope->isWithinUninstTemplate()) {
+    return false;
+  }
+
+  FOREACH_OBJLIST(Scope, scopes, iter) {
+    Scope const *s = iter.data();
+    
+    if (s->encloses(v->scope)) {
+      return s->isWithinUninstTemplate();
+    }
+  }
+  
+  return false;
 }
 
 

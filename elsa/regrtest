@@ -883,6 +883,10 @@ testparse t0601.cc
 testparse t0602.cc
 testparse t0603.cc
 testparse t0604.cc
+testparse t0605.cc
+testparse t0606.cc
+testparse t0607.cc
+testparse t0608.cc
 
 # another set of tests, generally isolated by Daniel
 testparse d0001.cc
@@ -1098,7 +1102,7 @@ failparse k0061.cc "multiple base classes instantiated from the same template cl
 # quarl 2006-05-28 k0062.cc passes on my machine, but not on Scott's ?!
 #failparse k0062.cc "template class with subclass whose member function with default argument is defined outside class"
 testparse k0063.cc #"class friend main"
-failparse k0064.cc "functions overloaded by number of template parameters"
+testparse k0064.cc #"functions overloaded by number of template parameters"
 testparse k0065.cc "using incomplete class as default template argument"
 testparse k0066.cc
 failparse k0067.cc "constructor using volatile reference"

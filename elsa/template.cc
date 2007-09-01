@@ -1329,6 +1329,24 @@ bool Env::loadBindingsWithExplTemplArgs(Variable *var, ObjList<STemplateArgument
 
     match.setBoundValue(param->name, *arg);
   }
+  
+  if (!paramIter.isDone()) {
+    // still unbound parameters; not necessarily a problem, since we
+    // may be able to deduce the remaining parameters from the call
+    // site arguments
+  }
+
+  if (!argIter.isDone()) {
+    // in/t0607.cc: extra arguments; that is no good
+    if (iflags & IA_REPORT_ERRORS) {
+      // I think this code is unreachable...
+      error(stringc << "too many template arguments for `"
+                    << var->toString() << "'; first excess argument: \""
+                    << argIter.data()->toString() << "\"");
+    }
+    return false;
+  }
+
   return true;
 }
 
