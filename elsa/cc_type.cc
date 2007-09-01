@@ -648,9 +648,13 @@ string CompoundType::toCString() const
   // right now we're using the typedefVar, which does not have
   // the instName stuff.  So, enabling this again.
   //
-  if (tinfo && tinfo->arguments.isNotEmpty()) {
-    sb << sargsToString(tinfo->arguments);
-  }
+  // 2007-09-01: Hmmm.. when we print these, we get arguments
+  // printed twice in e.g. the -tr ovl output for in/t0605.cc.
+  // So, off again!
+  //
+  //if (tinfo && tinfo->arguments.isNotEmpty()) {
+  //  sb << sargsToString(tinfo->arguments);
+  //}
 
   return sb;
 }

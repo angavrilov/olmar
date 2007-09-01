@@ -992,6 +992,10 @@ public:      // template funcs
 
   Variable *findInstantiation(TemplateInfo *tinfo,
                               ObjList<STemplateArgument> const &sargs);
+
+  // return true if 'v' is a member of a template class that is
+  // somewhere on the current scope stack
+  bool isMemberOfOpenTemplate(Variable *v);
 };
 
 
