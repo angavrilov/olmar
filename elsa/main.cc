@@ -30,6 +30,7 @@
 #include "xml_do_read.h"  // xmlDoRead()
 #include "xml_type_writer.h" // XmlTypeWriter
 #include "bpprint.h"      // bppTranslationUnit
+#include "cc2c.h"         // cc_to_c
 
 
 // true to print the tchecked C++ syntax using bpprint after
@@ -38,6 +39,10 @@ static bool wantBpprint = false;
 
 // same, but after elaboration
 static bool wantBpprintAfterElab = false;
+
+
+// nonempty if we want to run cc2c; value of "-" means stdout
+static string cc2cOutputFname;
 
 
 // little check: is it true that only global declarators
@@ -197,6 +202,15 @@ char *myProcessArgs(int argc, char **argv, char const *additionalInfo)
       wantBpprintAfterElab = true;
       SHIFT;
     }
+    else if (0==strcmp(argv[1], "-cc2c")) {
+      if (argc < 3) {
+        cout << "-cc2c requires a file name argument\n";
+        exit(2);
+      }
+      cc2cOutputFname = argv[2];
+      SHIFT;
+      SHIFT;
+    }
     else {
       break;     // didn't find any more options
     }
@@ -210,6 +224,7 @@ char *myProcessArgs(int argc, char **argv, char const *additionalInfo)
             "    -tr <flags>:       turn on given tracing flags (comma-separated)\n"
             "    -bbprint:          print parsed C++ back out using bpprint\n"
             "    -bbprintAfterElab: bpprint after elaboration\n"
+            "    -cc2c <fname>:     generate C, write to <fname>; \"-\" means stdout\n"
          << (additionalInfo? additionalInfo : "");
     exit(argc==1? 0 : 2);    // error if any args supplied
   }
@@ -794,6 +809,22 @@ void doit(int argc, char **argv)
        << " elab=" << elaborationTime << "ms"
        << "\n"
        ;
+
+  if (!cc2cOutputFname.empty()) {
+    TranslationUnit *lowered = cc_to_c(strTable, *unit);
+    if (cc2cOutputFname == string("-")) {
+      cout << "// cc2c\n";
+      bppTranslationUnit(cout, *lowered);
+    }
+    else {
+      ofstream out(cc2cOutputFname.c_str());
+      if (!out) {
+        xsyserror("open", stringb("write \"" << cc2cOutputFname << "\""));
+      }
+      out << "// cc2c\n";
+      bppTranslationUnit(out, *lowered);
+    }
+  }
 
   //traceProgress() << "cleaning up...\n";
 

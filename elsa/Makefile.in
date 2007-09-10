@@ -75,6 +75,9 @@ CC_AST_MODS += cc_elaborate.ast
 # another pretty printer
 CC_AST_MODS += bpprint.ast
 
+# lowering to C
+CC_AST_MODS += cc2c.ast
+
 
 # optional: GNU language extension
 USE_GNU := @USE_GNU@
@@ -280,7 +283,9 @@ $(CC_GR_GEN_FILES): $(CC_GR_MODS) cc_tokens.ids $(ELKHOUND)/elkhound
 # that finds serious compilation problems earliest (it's ok to
 # rearrange as different parts of the code are in flux)
 CCPARSE_OBJS := \
+  cc2c.o \
   bpprint.o \
+  ia64mangle.o \
   mtype.o \
   integrity.o \
   astvisit.o \
