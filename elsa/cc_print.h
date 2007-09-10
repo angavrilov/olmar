@@ -388,4 +388,12 @@ void printSTemplateArgument(PrintEnv &env, STemplateArgument const *sta);
     out0 << endl;                     \
   } while(0)
 
+
+// SGM: I'm not sure how the above macro is different (aside from the
+// choice of output stream) from what the following function does.  I
+// made the following function by abstracting the -tr prettyPrint
+// behavior.
+void prettyPrintTranslationUnit(ostream &os, TranslationUnit const &unit);
+
+
 #endif // CC_PRINT_H

@@ -95,6 +95,12 @@ CC_AST_MODS += cfg.ast
 # elaboration pass
 CC_AST_MODS += cc_elaborate.ast
 
+# another pretty printer
+CC_AST_MODS += bpprint.ast
+
+# lowering to C
+CC_AST_MODS += cc2c.ast
+
 
 # optional: GNU language extension
 ifeq ($(USE_GNU),1)
@@ -375,6 +381,9 @@ CCPARSE_OBJS := \
   variable.o \
   cc_type.o \
   cc.ast.gen.o \
+  cc2c.o \
+  bpprint.o \
+  ia64mangle.o \
   mtype.o \
   integrity.o \
   astvisit.o \

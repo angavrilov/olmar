@@ -370,11 +370,14 @@ MAKE_TOSTRING(UnaryOp, NUM_UNARYOPS, unaryOpNames)
 MAKE_USUAL_ENUM_TO_FROM_XML(UnaryOp, NUM_UNARYOPS);
 
 
+// SGM 2007-09-04: I removed the "/*postfix*/" stuff because it is
+// mostly clutter at this point.  If it is desired again I will
+// create a new 'toStringWithComments' or something.
 char const * const effectOpNames[NUM_EFFECTOPS] = {
-  "++/*postfix*/",
-  "--/*postfix*/",
-  "++/*prefix*/",
-  "--/*prefix*/",
+  "++",
+  "--",
+  "++",
+  "--",
 };
 
 MAKE_TOSTRING(EffectOp, NUM_EFFECTOPS, effectOpNames)

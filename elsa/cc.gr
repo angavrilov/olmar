@@ -195,6 +195,13 @@ terminals {
     right 195 "::";           // 2005-08-14: see doc/coloncolon.txt
     prec  190 "const" "volatile" "else" "[";
 
+    // neither of these two lines are used, because the grammar
+    // encodes their prec/assoc already; however, I have them here as
+    // reference, and because these precedence numbers are used by
+    // bpprint
+    //left  140 "()" "[]" "->" "." "++"(postfix) "--"(postfix);
+    //right 130 "!" "~" "++"(prefix) "--"(prefix) "-" "+" "*" "&" "(cast)" "sizeof";
+
     left  120 ".*" "->*";     // 7/07/03: changed from "right".. why was it that way?
     left  110 "*" "/" "%";
     left  100 "+" "-";
@@ -211,6 +218,12 @@ terminals {
     left   40 "|";
     left   30 "&&";
     left   20 "||";
+    
+    // also provided only for reference and for bpprint
+    //right  10 "?:";
+    //right   9 "=" ... "+";
+    // level 8 is the "," of a function argument list
+    //left    7 ",";
 
     prec    1 TOK_PREFER_SHIFT;
     // low precedence
