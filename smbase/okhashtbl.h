@@ -1,5 +1,5 @@
 // okhashtbl.h            see license.txt for copyright and terms of use
-// version of ohasharr.h with type-safe keys ("k" for keys)
+// version of ohashtbl.h with type-safe keys ("k" for keys)
 
 #ifndef OKHASHTBL_H
 #define OKHASHTBL_H
@@ -9,6 +9,9 @@
 template <class T, class K> class OwnerKHashTableIter;
 
 // T is the value type, K is the key type
+//
+// Note that this argument order is backwards from std::map,
+// which has the key first and then the data.
 template <class T, class K>
 class OwnerKHashTable {
 public:     // types

@@ -87,6 +87,10 @@ public:
   // true if is BPBreak and BT_FORCED
   virtual bool isForcedBreak() const;
 
+  // final character in the element, or 0 if no chars; may be ' ' or
+  // '\n' if box ends with a break
+  virtual char getLastChar() const = 0;
+
   // print the boxprint tree; for debugging code that produces them;
   // these methods do not emit leading or trailing whitespace
   virtual void debugPrint(ostream &os, int ind) const =0;
@@ -108,6 +112,7 @@ public:
   // BPElement funcs
   virtual int oneLineWidthEx(bool &forcedBreak);
   virtual void render(BPRender &mgr);
+  virtual char getLastChar() const;
   virtual void debugPrint(ostream &os, int ind) const;
 };
 
@@ -145,6 +150,7 @@ public:
   virtual void render(BPRender &mgr);
   virtual bool isBreak() const;
   virtual bool isForcedBreak() const;
+  virtual char getLastChar() const;
   virtual void debugPrint(ostream &os, int ind) const;
 };
 
@@ -182,6 +188,7 @@ public:
   // BPElement funcs
   virtual int oneLineWidthEx(bool &forcedBreak);
   virtual void render(BPRender &mgr);
+  virtual char getLastChar() const;
   virtual void debugPrint(ostream &os, int ind) const;
 };
 
@@ -257,6 +264,14 @@ public:      // funcs
   // op(text) is equivalent to sp << text << br
   static Op op(char const *text) { return Op(text); }
   BoxPrint &operator << (Op o);
+
+  // Get the character most recently added, i.e., the one that would
+  // be printed last if the current tree were rendered.  This is 0
+  // initially, and is either ' ' or '\n' for breaks.  The expectation
+  // is that print routines can use this to know whether what they are
+  // about to print might accidentally coalesce with something
+  // previous.
+  char getLastChar() const;
 
   // take the accumulated box tree out; all opened boxes must have
   // been closed; the builder is left in a state where it can be used
