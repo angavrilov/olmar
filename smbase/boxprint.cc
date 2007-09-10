@@ -98,6 +98,16 @@ void BPText::render(BPRender &mgr)
 }
 
 
+char BPText::getLastChar() const
+{
+  if (text.empty()) {
+    return 0;
+  }
+  else {
+    return text[text.length()-1];
+  }
+}
+
 void BPText::debugPrint(ostream &os, int /*ind*/) const
 {
   os << "text(" << quoted(text) << ")";
@@ -141,6 +151,18 @@ bool BPBreak::isBreak() const
 bool BPBreak::isForcedBreak() const
 {
   return enabled == BT_FORCED;
+}
+
+char BPBreak::getLastChar() const
+{
+  switch (enabled) {
+    case BT_DISABLED:      return ' '; 
+    case BT_ENABLED:       return ' ';
+    case BT_FORCED:        return '\n';
+    case BT_LINE_START:    return '\n';
+  }
+  xfailure("invalid break type");
+  return 0;
 }
 
 void BPBreak::debugPrint(ostream &os, int /*ind*/) const
@@ -274,6 +296,15 @@ void BPBox::render(BPRender &mgr)
     }
   }
 
+  // SGM 2007-09-04: Let's try igoring breaks at end of boxes.  This
+  // means I can put breaks in places where there might not be
+  // something afterward, and such breaks will naturally collapse when
+  // there is nothing to separate.
+  //
+  // In general, I think I should add more kinds of breaks with
+  // various collapsing behavior based on what is around them.
+  //
+  #if 0
   if (pendingBreak) {
     // ended with a break.. strange, but harmless I suppose
     pendingBreak->render(mgr);
@@ -281,6 +312,18 @@ void BPBox::render(BPRender &mgr)
     if (pendingBreak->isForcedBreak()) {
       takeBreak(mgr, startCol, pendingBreak);
     }
+  }
+  #endif // 0
+}
+
+
+char BPBox::getLastChar() const
+{
+  if (elts.isEmpty()) {
+    return 0;
+  }
+  else {
+    return elts.lastC()->getLastChar();
   }
 }
 
@@ -395,6 +438,20 @@ BoxPrint& BoxPrint::operator<< (IBreak b)
 BoxPrint& BoxPrint::operator<< (Op o)
 {
   return *this << sp << o.text << br;
+}
+
+
+char BoxPrint::getLastChar() const
+{
+  for (int n = boxStack.length()-1; n >= 0; n--) {
+    BPBox const *box = boxStack[n];
+    char ret = box->getLastChar();
+    if (ret) {
+      return ret;
+    }
+  }
+
+  return 0;
 }
 
 
