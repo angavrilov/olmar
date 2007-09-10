@@ -6,6 +6,7 @@
 #include <fstream.h>      // ofstream
 
 #include "trace.h"        // traceAddSys
+#include "syserr.h"       // xsyserror
 #include "parssppt.h"     // ParseTreeAndTokens, treeMain
 #include "srcloc.h"       // SourceLocManager
 #include "ckheap.h"       // malloc_stats
@@ -28,6 +29,16 @@
 #include "xml_reader.h"   // xmlDanglingPointersAllowed
 #include "xml_do_read.h"  // xmlDoRead()
 #include "xml_type_writer.h" // XmlTypeWriter
+#include "bpprint.h"      // bppTranslationUnit
+
+
+// true to print the tchecked C++ syntax using bpprint after
+// tcheck
+static bool wantBpprint = false;
+
+// same, but after elaboration
+static bool wantBpprintAfterElab = false;
+
 
 // little check: is it true that only global declarators
 // ever have Declarator::type != Declarator::var->type?
@@ -161,6 +172,8 @@ char *myProcessArgs(int argc, char **argv, char const *additionalInfo)
   // remember program name
   char const *progName = argv[0];
 
+  #define SHIFT argv++; argc-- /* user ; */
+
   // process args
   while (argc >= 2) {
     if (traceProcessArg(argc, argv)) {
@@ -169,27 +182,41 @@ char *myProcessArgs(int argc, char **argv, char const *additionalInfo)
     else if (0==strcmp(argv[1], "-xc")) {
       // treat this as a synonym for "-tr c_lang"
       traceAddSys("c_lang");
-      argv++;
-      argc--;
+      SHIFT;
     }
     else if (0==strcmp(argv[1], "-w")) {
       // synonym for -tr nowarnings
       traceAddSys("nowarnings");
-      argv++;
-      argc--;
+      SHIFT;
+    }
+    else if (0==strcmp(argv[1], "-bpprint")) {
+      wantBpprint = true;
+      SHIFT;
+    }
+    else if (0==strcmp(argv[1], "-bpprintAfterElab")) {
+      wantBpprintAfterElab = true;
+      SHIFT;
     }
     else {
       break;     // didn't find any more options
     }
   }
 
+  #undef SHIFT
+
   if (argc != 2) {
     cout << "usage: " << progName << " [options] input-file\n"
             "  options:\n"
             "    -tr <flags>:       turn on given tracing flags (comma-separated)\n"
+            "    -bbprint:          print parsed C++ back out using bpprint\n"
+            "    -bbprintAfterElab: bpprint after elaboration\n"
          << (additionalInfo? additionalInfo : "");
     exit(argc==1? 0 : 2);    // error if any args supplied
   }
+
+  // some -tr equivalents, which are convenient because they
+  // can be passed in the TRACE environment variable
+  wantBpprint = wantBpprint || tracingSys("bpprint");
 
   return argv[1];
 }
@@ -564,6 +591,13 @@ void doit(int argc, char **argv)
     }
   }
 
+  // do this before elaboration; I just want to see the result of type
+  // checking and disambiguation
+  if (wantBpprint) {
+    cout << "// bpprint\n";
+    bppTranslationUnit(cout, *unit);
+  }
+
   // ---------------- integrity checking ----------------
   long integrityTime = 0;
   {
@@ -618,6 +652,7 @@ void doit(int argc, char **argv)
         // AST kind of resembles pretty-printing the AST; fix this if
         // it is wrong
         || tracingSys("xmlPrintAST")
+        || wantBpprintAfterElab
         ) {
       vis.cloneDefunctChildren = true;
     }
@@ -661,16 +696,16 @@ void doit(int argc, char **argv)
   // dsw: pretty printing
   if (tracingSys("prettyPrint")) {
     traceProgress() << "dsw pretty print...\n";
-    OStreamOutStream out0(cout);
-    CodeOutStream codeOut(out0);
-    CTypePrinter typePrinter;
-    PrintEnv env(typePrinter, &codeOut);
     cout << "---- START ----" << endl;
     cout << "// -*-c++-*-" << endl;
-    unit->print(env);
-    codeOut.finish();
+    prettyPrintTranslationUnit(cout, *unit);
     cout << "---- STOP ----" << endl;
     traceProgress() << "dsw pretty print... done\n";
+  }
+
+  if (wantBpprintAfterElab) {
+    cout << "// bpprintAfterElab\n";
+    bppTranslationUnit(cout, *unit);
   }
 
   // dsw: xml printing of the raw ast

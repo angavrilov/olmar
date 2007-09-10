@@ -683,10 +683,14 @@ public:     // funcs
   // objects, once their tags have been established to be equal
   bool equals(BaseType const *obj, MatchFlags flags = MF_NONE) const;
 
-  // compute a hash value: equal types (EF_EXACT) have the same hash
+  // compute a hash value: equal types (MF_NONE) have the same hash
   // value, and unequal types are likely to have different values
   unsigned hashValue() const;
   virtual unsigned innerHashValue() const = 0;
+
+  // these support using Types as keys in an OwnerKHashTable
+  static unsigned hashType(Type const *t);
+  static bool equalTypes(Type const *t1, Type const *t2);
 
   // print the string according to 'printAsML'
   string toString() const;

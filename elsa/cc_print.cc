@@ -2271,4 +2271,20 @@ void ND_usingDir::print(PrintEnv &env)
 }
 
 
+// ------------------- global functions -------------------
+void prettyPrintTranslationUnit(ostream &os, TranslationUnit const &unit)
+{
+  OStreamOutStream out0(os);
+  CodeOutStream codeOut(out0);
+  CTypePrinter typePrinter;
+  PrintEnv env(typePrinter, &codeOut);
+  
+  // oy.. the print methods should have been const.. oh well,
+  // just hack it here
+  const_cast<TranslationUnit&>(unit).print(env);
+
+  codeOut.finish();
+}
+
+
 // EOF

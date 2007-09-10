@@ -887,6 +887,7 @@ testparse t0605.cc
 testparse t0606.cc
 testparse t0607.cc
 testparse t0608.cc
+testparse t0609.cc
 
 # another set of tests, generally isolated by Daniel
 testparse d0001.cc

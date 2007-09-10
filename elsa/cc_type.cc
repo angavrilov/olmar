@@ -1259,6 +1259,17 @@ unsigned BaseType::hashValue() const
 }
 
 
+STATICDEF unsigned BaseType::hashType(Type const *t)
+{
+  return t->hashValue();
+}
+
+STATICDEF bool BaseType::equalTypes(Type const *t1, Type const *t2)
+{
+  return t1->equals(t2);
+}
+
+
 string cvToString(CVFlags cv)
 {
   if (cv != CV_NONE) {
