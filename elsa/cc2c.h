@@ -78,6 +78,10 @@ public:      // funcs
   // Append a new statement to the current compound statement.
   void addStatement(Statement *s);
 
+  // Add a new declaration to either the current compound statement,
+  // or as a topform if we're not inside a statement.
+  void addDeclaration(Declaration *d);
+
   // Get a name for a type, creating a typedef if one has not
   // already been created.
   StringRef getTypeName(Type *t);
