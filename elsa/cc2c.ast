@@ -20,7 +20,10 @@ class Function {
 
 // MemberInit
 
-// Declaration
+class Declaration {
+  // Translate the declaration and add it via 'addDeclaration'.
+  public void cc2c(CC2CEnv &env) const;
+}
 
 // ASTTypeId
 
@@ -45,7 +48,8 @@ class Function {
 // OperatorName
 
 class Statement {
-  pure_virtual Statement *cc2c(CC2CEnv &env) const;
+  // Insert translated statements via 'addStatement', etc.
+  pure_virtual void cc2c(CC2CEnv &env) const;
 }
 
 // Condition
