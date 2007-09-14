@@ -106,6 +106,11 @@ while [ "$1" != "" ]; do
   shift
 done
 
+# Occasionally there is an Elsa bug that eats all of memory, which
+# causes the host system to become unhappy.  None of the tests in this
+# file should require more than (or anything close to, really) 500MB.
+ulimit -v 500000
+
 # allow 'gmake' or whatever to be used instead of 'make'
 MAKE=${MAKE:-make}
 
@@ -899,6 +904,7 @@ testparse t0606.cc
 testparse t0607.cc
 testparse t0608.cc
 testparse t0609.cc
+testparse t0610.cc
 
 # another set of tests, generally isolated by Daniel
 testparse d0001.cc

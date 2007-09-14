@@ -109,7 +109,7 @@ protected:   // funcs
   bool imatchSTemplateArgument(STemplateArgument const *conc,
                                      STemplateArgument const *pat, MatchFlags flags);
   bool imatchNontypeWithVariable(STemplateArgument const *conc,
-                                       E_variable *pat, MatchFlags flags);
+                                 E_variable const *pat, MatchFlags flags);
   bool addBinding(StringRef name, Binding * /*owner*/ value, MatchFlags flags);
   bool imatchDependentQType(DependentQType const *conc,
                                   DependentQType const *pat, MatchFlags flags);
