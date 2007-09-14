@@ -248,7 +248,7 @@ DependentSizedArrayType::~DependentSizedArrayType()
 
 string DependentSizedArrayType::sizeString() const
 {
-  return sizeExpr->exprToString();
+  return stringb("[" << sizeExpr->exprToString() << "]");
 }
 
 

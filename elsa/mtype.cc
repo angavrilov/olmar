@@ -303,7 +303,7 @@ bool IMType::imatchSTemplateArgument(STemplateArgument const *conc,
 
 
 bool IMType::imatchNontypeWithVariable(STemplateArgument const *conc,
-                                       E_variable *pat, MatchFlags flags)
+                                       E_variable const *pat, MatchFlags flags)
 {
   // 'conc' should be a nontype argument
   if (!conc->isObject()) {
@@ -1189,6 +1189,29 @@ bool IMType::imatchExpression(Expression const *conc, Expression const *pat, Mat
     return imatchExpression(conc, pat->asE_groupingC()->expr, flags);
   }
 
+  // in/t0610.cc: We need to allow a type variable to bind to
+  // another expression.
+  if (pat->isE_variable()) {
+    E_variable const *evar = pat->asE_variableC();
+    if (evar->var->isTemplateParam() &&
+        canUseAsVariable(evar->var, flags)) {
+      // package 'conc' as an STemplateArgument so I can
+      // re-use the existing binding code
+      STemplateArgument sarg;
+
+      // argh, more const problems in the template design...
+      // I'm pretty sure that wrapping an expression in an
+      // STemplateArgument does not jeopardize constness
+      //
+      // TODO: Fix this mess.  Why doesn't setDepExpr just
+      // accept an Expression const *?
+      sarg.setDepExpr(const_cast<Expression*>(conc));
+
+      // call into said binding code
+      return imatchNontypeWithVariable(&sarg, evar, flags);
+    }
+  }
+
   if (conc->kind() != pat->kind()) {
     return false;
   }
@@ -1283,7 +1306,8 @@ bool IMType::imatchArraySizeWithExpression
   // all that we can do is bind an E_variable
   if (patSize->isE_variable()) {
     E_variable *evar = patSize->asE_variable();
-    if (evar->var->isTemplateParam()) {
+    if (evar->var->isTemplateParam() &&
+        canUseAsVariable(evar->var, flags)) {
       // package 'concSize' as an STemplateArgument so I can
       // re-use the existing binding code
       STemplateArgument sarg;
