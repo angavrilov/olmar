@@ -2949,7 +2949,13 @@ void Env::instantiateClassBody(Variable *inst)
   // defnScope: the scope where the class definition appeared
   Scope *defnScope = NULL;
 
-  // do we have a function definition already?
+  // do we have a definition already?
+  //
+  // SGM 2007-09-15: The comments around here ("inline definition",
+  // etc.) don't make sense; they seem to be talking about issues
+  // related to function definitions, but this code is for
+  // instantiating *classes*.  Maybe this is a holdover from when the
+  // function and class instantiation code were unified?
   if (instCT->syntax) {
     // inline definition
     defnScope = instTI->defnScope;
@@ -3004,7 +3010,7 @@ void Env::instantiateClassBody(Variable *inst)
   ScopeSeq qualifierScopes;
   tcheckDeclaratorPQName(env, qualifierScopes, instCT->syntax->name, LF_DECLARATOR);
 
-  // the instantiation is will be complete; I think we must do this
+  // the instantiation will be complete; I think we must do this
   // before checking into the compound to avoid repeatedly attempting
   // to instantiate this class
   instCT->forward = false;

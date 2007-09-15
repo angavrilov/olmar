@@ -691,7 +691,20 @@ void Function::tcheckBody(Env &env)
       xassert(handleExternInline_asWeakStaticInline());
       // dsw: stomp on the old definition if it was an extern inline
       vfd = this;
-    } else {
+    }     
+    else if (vfd->body == NULL) {
+      // The definition currently associated with 'nameAndParams->var'
+      // came from cloning an inline definition inside a template
+      // primary (or partial spec); but here we are defining an
+      // explicit specialization of the member, so we just ignore the
+      // (shallow) cloned inline definition.  in/t0614.cc
+      vfd = this;
+    }
+    else {
+      // TODO: I think I can trigger this with invalid code, however
+      // my attempt (in/t0615.cc) currently fails a different
+      // assertion.  I need to fix that, then this one; Elsa should
+      // produce an error message, not fail an assertion.
       xassert(vfd == this);
     }
   } else {
@@ -2106,7 +2119,7 @@ Type *TS_elaborated::itcheck(Env &env, DeclFlags dflags, LookupFlags lflags)
 
 
 // typecheck declarator name 'name', pushing the sequence of scopes
-// that necessary to tcheck what follows, and also returning that
+// that are necessary to tcheck what follows, and also returning that
 // sequence in 'qualifierScopes' so the caller can undo it
 void tcheckDeclaratorPQName(Env &env, ScopeSeq &qualifierScopes,
                             PQName *name, LookupFlags lflags)
