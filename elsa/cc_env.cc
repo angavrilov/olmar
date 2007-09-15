@@ -1949,7 +1949,7 @@ Scope *Env::lookupOneQualifier_useArgs(
           return NULL;
         }
 
-        Variable *inst = instantiateClassTemplate(loc(), qualVar, sargs);
+        Variable *inst = instantiateClassTemplateDecl(loc(), qualVar, sargs);
         if (!inst) {
           return NULL;     // error already reported
         }
@@ -2139,8 +2139,8 @@ Variable *Env::applyPQNameTemplateArguments
       if (hadTcheckErrors(tqual->sargs)) {
         return var;           // recovery (in/t0546.cc)
       }
-      return instantiateClassTemplate_or_PI(var->type->asNamedAtomicType(),
-                                            tqual->sargs);
+      return instantiateClassTemplateDecl_or_PI(var->type->asNamedAtomicType(),
+                                                tqual->sargs);
     }
 
     else {                    // template function
@@ -2185,7 +2185,7 @@ Variable *Env::applyPQNameTemplateArguments
 }
 
 
-Variable *Env::instantiateClassTemplate_or_PI
+Variable *Env::instantiateClassTemplateDecl_or_PI
   (NamedAtomicType *nat, ObjList<STemplateArgument> const &args)
 {
   // if the template arguments are not concrete, or the 'nat'
@@ -2196,7 +2196,7 @@ Variable *Env::instantiateClassTemplate_or_PI
     return pi->typedefVar;
   }
   else {
-    return instantiateClassTemplate(loc(), nat->typedefVar, args);
+    return instantiateClassTemplateDecl(loc(), nat->typedefVar, args);
   }
 }
 
@@ -4128,7 +4128,7 @@ bool Env::ensureCompleteCompound(char const *action, CompoundType *ct)
 {
   // maybe it's a template we can instantiate?
   if (!ct->isComplete() && ct->isInstantiation()) {
-    instantiateClassBody(ct->typedefVar);
+    instantiateClassTemplateDefn(ct->typedefVar);
   }
 
   if (!ct->isComplete()) {
@@ -4383,7 +4383,7 @@ void Env::getAssociatedScopes(SObjList<Scope> &associated, CType *type)
 
             // class + bases
             SObjList<BaseClassSubobj const> bases;
-            getSubobjects(bases, ct);
+            getSubobjectsIfPossible(bases, ct);
 
             // put them into 'associated'
             SFOREACH_OBJLIST(BaseClassSubobj const, bases, iter) {
@@ -4807,7 +4807,7 @@ AtomicType *Env::resolveDQTs_pi(SourceLoc loc, PseudoInstantiation *pi)
   }
   else {
     // concrete type!
-    Variable *inst = instantiateClassTemplate(loc, pi->primary->typedefVar, resolvedArgs);
+    Variable *inst = instantiateClassTemplateDecl(loc, pi->primary->typedefVar, resolvedArgs);
     return inst->type->asCompoundType();
   }
 }
@@ -5426,10 +5426,10 @@ Scope *Env::createNamespace(SourceLoc loc, StringRef name)
 // but the language spec does not appear to actually *require*
 // that the type be complete, just that if it is, then we should
 // use its base-class info.
-void Env::getSubobjects(SObjList<BaseClassSubobj const> &dest,
-                        CompoundType *ct)
+void Env::getSubobjectsIfPossible(SObjList<BaseClassSubobj const> &dest,
+                                  CompoundType *ct)
 {
-  ensureClassBodyInstantiated(ct);
+  ensureClassBodyInstantiatedIfPossible(ct);
   ct->getSubobjects(dest);
 }
 

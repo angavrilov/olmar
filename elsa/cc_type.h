@@ -560,8 +560,8 @@ public:      // funcs
 
   // collect all of the subobjects into a list; each subobject
   // appears exactly once; NOTE: you may want to call
-  // Env::ensureClassBodyInstantiated before calling this, since
-  // an uninstantiated class won't have any subobjects yet
+  // Env::ensureClassBodyInstantiatedIfPossible before calling this, 
+  // since an uninstantiated class won't have any subobjects yet
   void getSubobjects(SObjList<BaseClassSubobj const> &dest) const;
 
   // render the subobject hierarchy to a 'dot' graph

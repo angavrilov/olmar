@@ -725,9 +725,9 @@ public:      // funcs
 
   Scope *createNamespace(SourceLoc loc, StringRef name);
 
-  // ensureClassBodyInstantiated, then CompoundType::getSubobjects
-  void getSubobjects(SObjList<BaseClassSubobj const> &dest,
-                     CompoundType *ct);
+  // ensureClassBodyInstantiatedIfPossible, then CompoundType::getSubobjects
+  void getSubobjectsIfPossible(SObjList<BaseClassSubobj const> &dest,
+                               CompoundType *ct);
 
   // Evaluate a 'sizeof' applied to type 't', store the result in
   // 'size', and return the type of the 'sizeof' expression itself.
@@ -835,7 +835,7 @@ private:     // template funcs
   STemplateArgument *makeDefaultTemplateArgument
     (Variable const *param, MType &map);
 
-  Variable *instantiateClassTemplate_or_PI
+  Variable *instantiateClassTemplateDecl_or_PI
     (NamedAtomicType *nat, ObjList<STemplateArgument> const &args);
 
 public:      // template funcs
@@ -906,23 +906,23 @@ public:      // template funcs
   void instantiateDefaultArgs(Variable *instV, int neededDefaults);
 
   // class template instantiation chain
-  Variable *instantiateClassTemplate               // inst decl 1
+  Variable *instantiateClassTemplateDecl             // inst decl 1
     (SourceLoc loc,
      Variable *primary,
      SObjList<STemplateArgument> const &sargs);
-  Variable *instantiateClassTemplate               // inst decl 2
+  Variable *instantiateClassTemplateDecl             // inst decl 2
     (SourceLoc loc,
      Variable *primary,
      ObjList<STemplateArgument> const &sargs);
-  void instantiateClassBody(Variable *inst);       // inst defn
+  void instantiateClassTemplateDefn(Variable *inst); // inst defn
 
   // instantiate the given class' body, *if* it is an instantiation
   // and instantiation is possible but hasn't already been done; note
   // that most of the time you want to call ensureCompleteType, not
   // this function
-  void ensureClassBodyInstantiated(CompoundType *ct);
+  void ensureClassBodyInstantiatedIfPossible(CompoundType *ct);
 
-  // do 'ensureClassBodyInstantiated' for all parameters
+  // do 'ensureClassBodyInstantiatedIfPossible' for all parameters
   void instantiateTemplatesInParams(FunctionType *ft);
 
   // instantiate functions used in 'ic'

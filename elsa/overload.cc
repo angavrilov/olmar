@@ -224,7 +224,7 @@ OverloadResolver::OverloadResolver
       CompoundType *argCT = argType->asCompoundType();
 
       // instantiate the argument class if necessary
-      env.ensureClassBodyInstantiated(argCT);
+      env.ensureClassBodyInstantiatedIfPossible(argCT);
 
       // iterate over the set of conversion operators
       if (argCT->isComplete()) {      // non-instantiations can be incomplete here
@@ -238,7 +238,7 @@ OverloadResolver::OverloadResolver
           if (convType->isPtrOrRef()) {
             CType *convAtType = convType->getAtType();
             if (convAtType->isCompoundType()) {
-              env.ensureClassBodyInstantiated(convAtType->asCompoundType());
+              env.ensureClassBodyInstantiatedIfPossible(convAtType->asCompoundType());
             }
           }
         }
