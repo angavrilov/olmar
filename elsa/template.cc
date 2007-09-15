@@ -2822,21 +2822,34 @@ Variable *Env::instantiateClassTemplateDecl
   // *still* should be concrete, even after supplying defaults
   xassert(!containsVariables(owningPrimaryArgs));
 
-  // find the specialization that should be used (might turn
-  // out to be the primary; that's fine)
-  Variable *spec = findMostSpecific(primary, owningPrimaryArgs);
-  TemplateInfo *specTI = spec->templateInfo();
-  if (specTI->isCompleteSpec()) {
-    return spec;      // complete spec; good to go
+  // Always check for an instantiation hanging off the primary, before
+  // looking for the most specific specialization.  See
+  // doc/delayed-specialization-committment.txt.
+  if (Variable *inst = findInstantiation(primaryTI, owningPrimaryArgs)) {
+    return inst;      // found it; that's all we need
   }
 
-  // if this is a partial specialization, we need the arguments
-  // to be relative to the partial spec before we can look for
-  // the instantiation
-  ObjList<STemplateArgument> owningPartialSpecArgs;
-  if (spec != primary) {
-    xassertdb(specTI->isPartialSpec());
-    mapPrimaryArgsToSpecArgs(spec, owningPartialSpecArgs, owningPrimaryArgs);
+  // If the defn has been instantiated, it might instead be hanging
+  // off an explicit specialization.
+  {
+    Variable *spec = findMostSpecific(primary, owningPrimaryArgs);
+    TemplateInfo *specTI = spec->templateInfo();
+    if (specTI->isCompleteSpec()) {
+      return spec;      // complete spec; good to go
+    }
+
+    // if this is a partial specialization, we need the arguments
+    // to be relative to the partial spec before we can look for
+    // the instantiation
+    if (spec != primary) {
+      xassertdb(specTI->isPartialSpec());
+      ObjList<STemplateArgument> owningPartialSpecArgs;
+      mapPrimaryArgsToSpecArgs(spec, owningPartialSpecArgs, owningPrimaryArgs);
+
+      if (Variable *inst = findInstantiation(specTI, owningPartialSpecArgs)) {
+        return inst;
+      }
+    }
   }
 
   // The code below wants to use SObjLists, and since they are happy
@@ -2846,43 +2859,27 @@ Variable *Env::instantiateClassTemplateDecl
   SObjList<STemplateArgument> const &primaryArgs =     // non-owning
     objToSObjListC(owningPrimaryArgs);
 
-  // non-owning version of this too..
-  SObjList<STemplateArgument> const &partialSpecArgs =
-    objToSObjListC(owningPartialSpecArgs);
-
-  // look for an existing instantiation that has the right arguments
-  Variable *inst = spec==primary?
-    findInstantiation(specTI, owningPrimaryArgs) :
-    findInstantiation(specTI, owningPartialSpecArgs);
-  if (inst) {
-    return inst;      // found it; that's all we need
-  }
-
   // since we didn't find an existing instantiation, we have to make
   // one from scratch
-  if (spec==primary) {
-    TRACE("template", "instantiating class decl: " <<
-                      primary->fullyQualifiedName0() << sargsToString(primaryArgs));
-  }
-  else {
-    TRACE("template", "instantiating partial spec decl: " <<
-                      primary->fullyQualifiedName0() <<
-                      sargsToString(specTI->arguments) <<
-                      sargsToString(partialSpecArgs));
-  }
+  //
+  // doc/delayed-specialization-committment.txt: we associate it with
+  // the primary even if there is a better explicit specialization
+  // b/c right now we might not be instantiating the defn yet
+  TRACE("template", "instantiating class decl: " <<
+                    primary->fullyQualifiedName0() << sargsToString(primaryArgs));
 
   // create the CompoundType
-  CompoundType const *specCT = spec->type->asCompoundType();
-  CompoundType *instCT = tfac.makeCompoundType(specCT->keyword, specCT->name);
+  CompoundType const *primaryCT = primary->type->asCompoundType();
+  CompoundType *instCT = tfac.makeCompoundType(primaryCT->keyword, primaryCT->name);
   instCT->forward = true;
-  instCT->instName = str(stringc << specCT->name << sargsToString(primaryArgs));
-  instCT->parentScope = specCT->parentScope;
+  instCT->instName = str(stringc << primaryCT->name << sargsToString(primaryArgs));
+  instCT->parentScope = primaryCT->parentScope;
 
   // wrap the compound in a regular type
   Type *instType = makeType(instCT);
 
   // create the representative Variable
-  inst = makeInstantiationVariable(spec, instType);
+  Variable *inst = makeInstantiationVariable(primary, instType);
 
   // this also functions as the implicit typedef for the class,
   // though it is not entered into any scope
@@ -2900,23 +2897,20 @@ Variable *Env::instantiateClassTemplateDecl
   // make a TemplateInfo for this instantiation
   TemplateInfo *instTI = new TemplateInfo(loc, inst);
 
-  // fill in its arguments
-  instTI->copyArguments(spec==primary? primaryArgs : partialSpecArgs);
-
-  // if it is an instance of a partial spec, keep the primaryArgs too ...
-  if (spec!=primary) {
-    copyTemplateArgs(instTI->argumentsToPrimary, primaryArgs);
-  }
+  // fill in its arguments; for now, they are arguments relative
+  // to the primary, but we might have to later change them to
+  // be relative to an explicit specialization
+  instTI->copyArguments(primaryArgs);
 
   // attach it as an instance
-  specTI->addInstantiation(inst);
+  primaryTI->addInstantiation(inst);
 
   // this is an instantiation
   xassert(instTI->isInstantiation());
 
   return inst;
 }
-
+  
 Variable *Env::instantiateClassTemplateDecl
   (SourceLoc loc,
    Variable *primary,
@@ -2937,8 +2931,56 @@ void Env::instantiateClassTemplateDefn(Variable *inst)
   CompoundType *instCT = inst->type->asCompoundType();
   xassert(instCT->forward);     // otherwise already instantiated!
 
-  Variable *spec = instTI->instantiationOf;
+  // doc/delayed-specialization-committment.txt: When the decl was
+  // instantiated, we attached it to the primary.
+  Variable *primary = instTI->instantiationOf;
+  TemplateInfo *primaryTI = primary->templateInfo();
+  xassert(primaryTI->isPrimary());
+
+  // Now, we need to check for an explicit specialization.
+  Variable *spec = findMostSpecific(primary, instTI->arguments);
   TemplateInfo *specTI = spec->templateInfo();
+  
+  // If it were a complete spec, we should have either found it the
+  // first time, or else changed the instantiation into a
+  // specialization when the complete spec was declared (e.g.,
+  // in/t0619.cc).
+  xassert(!specTI->isCompleteSpec());
+
+  if (spec != primary) {
+    // doc/delayed-specialization-committment.txt: Here is where we
+    // transmogrify the instantiation from being associated with the
+    // primary to being associated with an explicit partial
+    // specialization.
+    xassert(specTI->isPartialSpec());
+    
+    // convert the arguments to be relative to 'spec'
+    ObjList<STemplateArgument> owningPartialSpecArgs;
+    mapPrimaryArgsToSpecArgs(spec, owningPartialSpecArgs, instTI->arguments);
+
+    // due to a printing bug, I want to do this before actually
+    // changing the argument on 'instTI'
+    TRACE("template", "reassociating " << instTI->templateName() <<
+                      " from primary " << primaryTI->templateName() <<
+                      " with args " << sargsToString(instTI->arguments) <<
+                      " to partial spec " << specTI->templateName() <<
+                      " with args " << sargsToString(owningPartialSpecArgs));
+
+    // we should not already have this instantiation
+    xassert(!findInstantiation(specTI, owningPartialSpecArgs));
+
+    // Change the arguments to be relative to the partial spec.
+    instTI->argumentsToPrimary.concat(instTI->arguments);
+    instTI->arguments.concat(owningPartialSpecArgs);
+
+    // Detach from 'primaryTI'.
+    primaryTI->instantiations.removeItem(inst);
+    const_cast<Variable*&>(instTI->instantiationOf) = NULL;
+
+    // Attach to 'specTI'.
+    specTI->addInstantiation(inst);
+  }
+
   CompoundType *specCT = spec->type->asCompoundType();
 
   // used only if it turns out that 'specTI' is a partial instantiation

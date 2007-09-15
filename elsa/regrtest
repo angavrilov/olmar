@@ -895,19 +895,14 @@ testparse t0608.cc
 testparse t0609.cc
 testparse t0610.cc
 testparse t0611.cc
-failparse t0612.cc "commit to specialization too early; just a pointer"
-
-# this still fails b/c I have some assignments that demonstrate
-# the types are erroneously incompatible
-#testparse_special permissive t0612.cc
-
-failparse t0613.cc "more complex version of t0612.cc"
+testparse t0612.cc
+testparse t0613.cc
 testparse t0614.cc
 failparse t0615.cc "assertion failure on invalid code"
 testparse t0616.cc
 testparse t0617.cc
-failparse t0618.cc "commit to specialization too early; used in return type of decl"
-testparse_special permissive t0618.cc
+testparse t0618.cc
+testparse t0619.cc
 
 # another set of tests, generally isolated by Daniel
 testparse d0001.cc
