@@ -1888,46 +1888,28 @@ TemplCandidates::STemplateArgsCmp TemplCandidates::compareSTemplateArgs
     xfailure("bad/unexpected/unimplemented TemplateArgument kind");
     break;
 
-  case STemplateArgument::STA_TYPE: // type argument
-    {
+  case STemplateArgument::STA_TYPE: { // type argument
     // check if left is at least as specific as right
-    bool leftAtLeastAsSpec;
-    {
-      MType match;
-      if (match.matchType(larg->sta_value.t, rarg->sta_value.t, MF_MATCH)) {
-        leftAtLeastAsSpec = true;
-      } else {
-        leftAtLeastAsSpec = false;
-      }
-    }
+    bool leftAtLeastAsSpec =
+      callMatchType(larg->sta_value.t, rarg->sta_value.t, MF_MATCH);
+
     // check if right is at least as specific as left
-    bool rightAtLeastAsSpec;
-    {
-      MType match;
-      if (match.matchType(rarg->sta_value.t, larg->sta_value.t, MF_MATCH)) {
-        rightAtLeastAsSpec = true;
-      } else {
-        rightAtLeastAsSpec = false;
-      }
-    }
+    bool rightAtLeastAsSpec =
+      callMatchType(rarg->sta_value.t, larg->sta_value.t, MF_MATCH);
 
-    // change of basis matrix
-    if (leftAtLeastAsSpec) {
-      if (rightAtLeastAsSpec) {
-        return STAC_EQUAL;
-      } else {
-        return STAC_LEFT_MORE_SPEC;
-      }
-    } else {
-      if (rightAtLeastAsSpec) {
-        return STAC_RIGHT_MORE_SPEC;
-      } else {
-        return STAC_INCOMPARABLE;
-      }
-    }
+    return boolsToSTemplateArgsCmp(leftAtLeastAsSpec, rightAtLeastAsSpec);
+  }
 
-    }
-    break;
+  // repeat the above procedure for template template arguments
+  case STemplateArgument::STA_TEMPLATE: {
+    bool leftAtLeastAsSpec =
+      callMatchAtomicType(larg->getTemplate(), rarg->getTemplate(), MF_MATCH);
+
+    bool rightAtLeastAsSpec =
+      callMatchAtomicType(rarg->getTemplate(), larg->getTemplate(), MF_MATCH);
+
+    return boolsToSTemplateArgsCmp(leftAtLeastAsSpec, rightAtLeastAsSpec);
+  }
 
   case STemplateArgument::STA_INT: // int or enum argument
     if (larg->sta_value.i == rarg->sta_value.i) {
@@ -1945,6 +1927,26 @@ TemplCandidates::STemplateArgsCmp TemplCandidates::compareSTemplateArgs
     }
     return STAC_INCOMPARABLE;
     break;
+  }
+}
+
+
+STATICDEF TemplCandidates::STemplateArgsCmp 
+TemplCandidates::boolsToSTemplateArgsCmp
+  (bool leftAtLeastAsSpec, bool rightAtLeastAsSpec)
+{
+  if (leftAtLeastAsSpec) {
+    if (rightAtLeastAsSpec) {
+      return STAC_EQUAL;
+    } else {
+      return STAC_LEFT_MORE_SPEC;
+    }
+  } else {
+    if (rightAtLeastAsSpec) {
+      return STAC_RIGHT_MORE_SPEC;
+    } else {
+      return STAC_INCOMPARABLE;
+    }
   }
 }
 

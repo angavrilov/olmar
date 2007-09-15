@@ -576,12 +576,28 @@ bool IMType::imatchTypeWithTTPVariable(CType const *conc,
 bool IMType::imatchTypeWithResolvedType(CType const *conc, CType const *pat,
                                         MatchFlags flags)
 {
-  // It would seem that I need an Env here so I can call
-  // applyArgumentMap.  If this assertion fails, it may be sufficient
-  // to change the MType constructor call to provide an Env; but be
-  // careful about the consequences to the constness of the interface.
+  // I need an Env here so I can call applyArgumentMap.
   if (!env) {
-    xfailure("in MF_MATCH mode, need to resolve a DQT, so need an Env...");
+    // in/t0617.cc:  HACK:  I don't have an Env, and it's not going to
+    // be easy to get ahold of one in the context where I need it, but
+    // I can tell that DQT resolution will fail b/c of a special case.
+    if (pat->isDependentQType()) {
+      AtomicType *qualifier = pat->asCVAtomicTypeC()->atomic->
+                                asDependentQTypeC()->first;
+      if (qualifier->isNamedAtomicType()) {
+        StringRef name = qualifier->asNamedAtomicTypeC()->name;
+        if (bindings.get(name) == NULL) {
+          // DQT resolution could not possibly succeed, because we
+          // don't have a binding for this qualifier
+          failedDueToDQT = true;
+          return false;
+        }
+      }
+    }
+
+    // If this assertion fails, it may be sufficient to use the
+    // MType constructor that accepts an Env.
+    xfailure("in MF_MATCH mode, need to resolve a DQT, so need an Env");
   }
 
   // this cast is justified by the private constructors of IMType
@@ -1524,6 +1540,21 @@ void MType::setBoundValue(StringRef name, STemplateArgument const &value)
   }
 
   bindings.addReplace(name, b);
+}
+
+
+// ---------------------- global funcs ------------------------
+bool callMatchType(CType const *conc, CType const *pat, MatchFlags flags)
+{
+  MType match;
+  return match.matchType(conc, pat, flags);
+}
+
+bool callMatchAtomicType(AtomicType const *conc, AtomicType const *pat,
+                         MatchFlags flags)
+{
+  MType match;
+  return match.matchAtomicType(conc, pat, flags);
 }
 
 
