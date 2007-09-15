@@ -601,6 +601,11 @@ private:     // funcs
   static STemplateArgsCmp compareSTemplateArgs
     (STemplateArgument const *larg, STemplateArgument const *rarg);
 
+  // convert the outcome of two "at least as specific" tests into
+  // a single STemplateArgsCmp result
+  static STemplateArgsCmp boolsToSTemplateArgsCmp
+    (bool leftAtLeastAsSpec, bool rightAtLeastAsSpec);
+
 public:      // funcs
   TemplCandidates() {}
 

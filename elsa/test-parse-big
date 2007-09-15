@@ -106,13 +106,13 @@ while [ "$1" != "" ]; do
       ;;
 
     gcc-3.4.3-headers)
-      echo "headers"
+      echo "gcc-3.4.3-headers"
       ./test-parse ../bigin/headers/gcc-3.4.3/*.gz >gcc-3.4.3-headers.parse.out
       if [ $? = 130 ]; then exit 130; fi
       ;;
 
     gcc-4.0.0-headers)
-      echo "headers"
+      echo "gcc-4.0.0-headers"
       ./test-parse ../bigin/headers/gcc-4.0.0/*.gz >gcc-4.0.0-headers.parse.out
       if [ $? = 130 ]; then exit 130; fi
       ;;

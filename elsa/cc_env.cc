@@ -5581,6 +5581,21 @@ void Env::checkNewSpecialization_one(TemplateInfo *existingTI, TemplateInfo *spe
 
     // would 'fullArgs' match 'specTI'?
     if (specTI->parametersMatchArguments(fullArgs)) {
+      // Is this the bug shown by t0612.cc and t0618.cc?  Such cases
+      // are distinguishable b/c while I have an instantiation, it is
+      // still "forward", meaning I haven't instantiated the class
+      // body yet.
+      if (inst->getCompoundType()->forward) {
+        // for now, call it a warning in permissive mode and keep
+        // going so I can claim that valarray parses ...
+        diagnose2(!tracingSys("permissive"), loc(), stringb(
+          "Oops, I committed too early to a specialization for \"" <<
+          inst->templateName() << "\", and now there is a better "
+          "specialization.  This is a bug in Elsa, and may cause "
+          "strange errors later on.  See in/t0612.cc."));
+        continue;
+      }
+
       // yes, that is a problem; report it
       //
       // note: This might seem like a gratuitous error, in that we
@@ -6032,6 +6047,12 @@ void Env::diagnose3(Bool3 b, SourceLoc L, rostring msg, ErrorFlags eflags)
   else if (b == B3_FALSE) {
     error(L, msg, eflags);
   }
+}
+
+
+void Env::diagnose2(bool isError, SourceLoc L, rostring msg, ErrorFlags eflags)
+{
+  diagnose3(isError? B3_FALSE : B3_WARN, L, msg, eflags);
 }
 
 

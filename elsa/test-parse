@@ -39,7 +39,7 @@ while [ "$1" != "" ]; do
   esac
 
   # try to parse it
-  echo "./ccparse $extra $inputFname"
+  echo "./ccparse -tr nohashline,permissive $extra $inputFname"
   if ./ccparse -tr nohashline,permissive $extra "$inputFname"; then
     # ok
     if [ "$KEEP_GOING" = "2" ]; then

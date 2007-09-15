@@ -258,4 +258,10 @@ public:      // funcs
 };
 
 
+// create a fresh MatchType object and invoke the corresponding method
+bool callMatchType(Type const *conc, Type const *pat, MatchFlags flags);
+bool callMatchAtomicType(AtomicType const *conc, AtomicType const *pat,
+                         MatchFlags flags);
+
+
 #endif // MTYPE_H
