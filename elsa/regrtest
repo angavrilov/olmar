@@ -894,6 +894,9 @@ testparse t0607.cc
 testparse t0608.cc
 testparse t0609.cc
 testparse t0610.cc
+testparse t0611.cc
+failparse t0612.cc "commit to specialization too early; just a pointer"
+failparse t0613.cc "more complex version of t0612.cc"
 
 # another set of tests, generally isolated by Daniel
 testparse d0001.cc

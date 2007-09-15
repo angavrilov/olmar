@@ -996,6 +996,15 @@ public:      // template funcs
   // return true if 'v' is a member of a template class that is
   // somewhere on the current scope stack
   bool isMemberOfOpenTemplate(Variable *v);
+
+  // We are about to add specialization 'specTI' to 'primaryTI'.  But
+  // first, check to see if we already instantiated something using
+  // 'primaryTI' or another (but more general) specialization that
+  // would have matched 'specTI'.
+  void checkNewSpecialization(TemplateInfo *primaryTI, TemplateInfo *specTI);
+
+  // private helper
+  void checkNewSpecialization_one(TemplateInfo *existingTI, TemplateInfo *specTI);
 };
 
 

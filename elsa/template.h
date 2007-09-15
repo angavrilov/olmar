@@ -401,6 +401,11 @@ public:      // funcs
   // return it; otherwise return NULL
   Variable *getSpecialization(ObjList<STemplateArgument> const &sargs);
 
+  // return true if this template primary or specialization's
+  // parameter list matches the given arguments, i.e., if those
+  // arguments could be used to instantiate this template
+  bool parametersMatchArguments(ObjList<STemplateArgument> const &sargs) const;
+
   // true if the given Variable is among the parameters (at any level)
   //
   // TODO: what is this used for?
@@ -428,6 +433,10 @@ public:      // funcs
   // assuming this is a function template, did we already instantiate
   // the body?
   bool instantiatedFunctionBody() const;
+
+  // is 'this' more specific than 'other'?
+  bool isMoreSpecificThan(TemplateInfo const *other) const;
+
 
   // debugging
   void gdb();
