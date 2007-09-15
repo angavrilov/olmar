@@ -182,7 +182,7 @@ ImplicitConversion getImplicitConversion
   if (src->asRval()->isPointerType()) {
     Type *at = src->asRval()->asPointerType()->atType;
     if (at->isCompoundType()) {
-      env.ensureClassBodyInstantiated(at->asCompoundType());
+      env.ensureClassBodyInstantiatedIfPossible(at->asCompoundType());
     }
   }
 
@@ -220,7 +220,7 @@ ImplicitConversion getImplicitConversion
 
     // (in/t0514.cc) conversion to a template class specialization
     // requires that the specialization be instantiated
-    env.ensureClassBodyInstantiated(ct);
+    env.ensureClassBodyInstantiatedIfPossible(ct);
 
     // get the overload set of constructors
     Variable *ctor = ct->getNamedField(env.constructorSpecialName, env);

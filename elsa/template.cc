@@ -1531,7 +1531,7 @@ bool Env::inferTemplArgsFromFuncArgs
           // get all the base classes
           CompoundType *ct = argType->asCompoundType();
           SObjList<BaseClassSubobj const> bases;
-          getSubobjects(bases, ct);
+          getSubobjectsIfPossible(bases, ct);
           SFOREACH_OBJLIST(BaseClassSubobj const, bases, iter) {
             BaseClassSubobj const *sub = iter.data();
             if (sub->ct == ct) { continue; }      // already tried 'ct'
@@ -2785,10 +2785,10 @@ bool contains_STA_NONE(SObjList<STemplateArgument> const &args)
 
 // Get or create an instantiation Variable for a class template.
 // Note that this does *not* instantiate the class body; instead,
-// instantiateClassBody() has that responsibility.
+// instantiateClassTemplateDefn() has that responsibility.
 //
 // Return NULL if there is a problem with the arguments.
-Variable *Env::instantiateClassTemplate
+Variable *Env::instantiateClassTemplateDecl
   (SourceLoc loc,                             // location of instantiation request
    Variable *primary,                         // template primary to instantiate
    SObjList<STemplateArgument> const &origPrimaryArgs)  // arguments to apply to 'primary'
@@ -2917,12 +2917,12 @@ Variable *Env::instantiateClassTemplate
   return inst;
 }
 
-Variable *Env::instantiateClassTemplate
+Variable *Env::instantiateClassTemplateDecl
   (SourceLoc loc,
    Variable *primary,
    ObjList<STemplateArgument> const &sargs)
 {
-  return instantiateClassTemplate(loc, primary, objToSObjListC(sargs));
+  return instantiateClassTemplateDecl(loc, primary, objToSObjListC(sargs));
 }
 
 
@@ -2931,7 +2931,7 @@ void tcheckDeclaratorPQName(Env &env, ScopeSeq &qualifierScopes,
                             PQName *name, LookupFlags lflags);
 
 
-void Env::instantiateClassBody(Variable *inst)
+void Env::instantiateClassTemplateDefn(Variable *inst)
 {
   TemplateInfo *instTI = inst->templateInfo();
   CompoundType *instCT = inst->type->asCompoundType();
@@ -3061,7 +3061,7 @@ void Env::instantiateClassBody(Variable *inst)
 
 
 // this is for 14.7.1 para 4, among other things
-void Env::ensureClassBodyInstantiated(CompoundType *ct)
+void Env::ensureClassBodyInstantiatedIfPossible(CompoundType *ct)
 {
   if (!ct->isComplete() && ct->isInstantiation()) {
     Variable *inst = ct->typedefVar;
@@ -3079,7 +3079,7 @@ void Env::ensureClassBodyInstantiated(CompoundType *ct)
       return;
     }
 
-    instantiateClassBody(inst);
+    instantiateClassTemplateDefn(inst);
   }
 }
 
@@ -3091,7 +3091,7 @@ void Env::instantiateTemplatesInParams(FunctionType *ft)
   SFOREACH_OBJLIST(Variable, ft->params, iter) {
     Type *paramType = iter.data()->type;
     if (paramType->asRval()->isCompoundType()) {
-      ensureClassBodyInstantiated(paramType->asRval()->asCompoundType());
+      ensureClassBodyInstantiatedIfPossible(paramType->asRval()->asCompoundType());
     }
   }
 }
@@ -3100,7 +3100,7 @@ void Env::instantiateTemplatesInParams(FunctionType *ft)
 void Env::instantiateForwardClasses(Variable *baseV)
 {
   SFOREACH_OBJLIST_NC(Variable, baseV->templateInfo()->instantiations, iter) {
-    instantiateClassBody(iter.data());
+    instantiateClassTemplateDefn(iter.data());
   }
 }
 
@@ -4143,7 +4143,7 @@ Type *Env::applyArgumentMapToAtomicType
     }
 
     // instantiate the class with our newly-created arguments
-    Variable *instClass = instantiateClassTemplate_or_PI(templ, args);
+    Variable *instClass = instantiateClassTemplateDecl_or_PI(templ, args);
     if (!instClass) {
       instClass = errorVar;    // error already reported; this is recovery
     }
@@ -4433,7 +4433,7 @@ CompoundType *Env::applyArgumentMap_instClass
 
   // instantiate the template with the arguments
   Variable *inst =
-    instantiateClassTemplate(loc(), primary, mappedArgs);
+    instantiateClassTemplateDecl(loc(), primary, mappedArgs);
   xassert(inst);     // can this fail?
 
   return inst->type->asCompoundType();
@@ -4548,7 +4548,7 @@ STemplateArgument Env::applyArgumentMapToPQName
 void Env::applyArgumentMap_ensureComplete(CompoundType *ct)
 {
   // instantiate if necessary
-  ensureClassBodyInstantiated(ct);
+  ensureClassBodyInstantiatedIfPossible(ct);
 
   // if the class is still incomplete (because the definition was
   // not available), I say it's another case like those mentioned
@@ -4627,7 +4627,7 @@ Type *Env::applyArgumentMapToQualifiedType
     applyArgumentMapToTemplateArgs(map, args, *srcArgs);
 
     // instantiate the template with the arguments
-    qualVar = instantiateClassTemplate(loc(), qualVar, args);
+    qualVar = instantiateClassTemplateDecl(loc(), qualVar, args);
     if (!qualVar) {
       return env.errorType();    // error already reported
     }
