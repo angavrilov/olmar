@@ -329,6 +329,16 @@ class Enumerator {
 class Declarator {
   // entity declared by this declarator
   public(xml_TY,nullable,xmlShouldSerialize) Variable *var = NULL;// (serf) computed information: name, type, etc.
+
+  // SGM 2007-09-14: Why do we do this?  It's very dangerous; template
+  // instantiation depends on cloning, and cloning the results of
+  // tchecking mean that the tcheck of the uninst template can
+  // contaminate the results of tchecking the instantiation.  (They
+  // deliberately communicate to implement two-phase lookup, but that
+  // is not done through 'var'.)  As far as I can tell, the tchecker
+  // correctly recomputes 'var' w/o looking at the prior info, but
+  // this is a bug waiting to bite.  This was added by dsw in revision
+  // 1203, at 2004-10-28 16:09:55 -0700.
   custom clone {ret->var = var;}
 
   // This field need not be identical to 'var->type'; the 'type' here

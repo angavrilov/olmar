@@ -908,6 +908,8 @@ testparse t0610.cc
 testparse t0611.cc
 failparse t0612.cc "commit to specialization too early; just a pointer"
 failparse t0613.cc "more complex version of t0612.cc"
+testparse t0614.cc
+failparse t0615.cc "assertion failure on invalid code"
 
 # another set of tests, generally isolated by Daniel
 testparse d0001.cc
@@ -1150,7 +1152,7 @@ failparse k0085.cc "complex double * int"
 failparse k0086.cc "enable_if: template argument expressions"
 failparse k0087.cc 'implicit conversion to "bool const &" via "bool" via "operator bool"'
 testparse k0088.cc #"inferring const member function template parameter type"
-failparse k0089.cc "specialization of template function member"
+testparse k0089.cc #"specialization of template function member"
 testparse k0090.cc #"template specialization of array"
 testparse k0090a.cc #"template specialization of array"
 failparse k0091.cc "template specialization with all default parameters"
