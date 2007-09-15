@@ -5581,18 +5581,12 @@ void Env::checkNewSpecialization_one(TemplateInfo *existingTI, TemplateInfo *spe
 
     // would 'fullArgs' match 'specTI'?
     if (specTI->parametersMatchArguments(fullArgs)) {
-      // Is this the bug shown by t0612.cc and t0618.cc?  Such cases
-      // are distinguishable b/c while I have an instantiation, it is
-      // still "forward", meaning I haven't instantiated the class
-      // body yet.
-      if (inst->getCompoundType()->forward) {
-        // for now, call it a warning in permissive mode and keep
-        // going so I can claim that valarray parses ...
-        diagnose2(!tracingSys("permissive"), loc(), stringb(
-          "Oops, I committed too early to a specialization for \"" <<
-          inst->templateName() << "\", and now there is a better "
-          "specialization.  This is a bug in Elsa, and may cause "
-          "strange errors later on.  See in/t0612.cc."));
+      if (existingTI->isPrimary() && inst->getCompoundType()->forward) {
+        // 2007-09-15: doc/delayed-specialization-committment.txt:
+        // This is fine; it's the way the new design works; when
+        // 'inst' has its defn instantiated, it will be moved over to
+        // 'specTI'.  (Another possible design would be to move it
+        // over right now.)
         continue;
       }
 

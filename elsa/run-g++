@@ -6,5 +6,9 @@ if [ "$1" = "" ]; then
   exit 0
 fi
 
-echo $HOME/opt/gcc-3.4.3/bin/g++ -o /dev/null -c -w -xc++ "$@"
-exec $HOME/opt/gcc-3.4.3/bin/g++ -o /dev/null -c -w -xc++ "$@"
+if [ "$GCC" = "" ]; then
+  GCC=$HOME/opt/gcc-3.4.3/bin/g++
+fi
+
+echo $GCC -o /dev/null -c -w -xc++ "$@"
+exec $GCC -o /dev/null -c -w -xc++ "$@"
