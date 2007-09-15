@@ -2765,6 +2765,27 @@ void Env::mapPrimaryArgsToSpecArgs_oneParamList(
 }
 
 
+bool TemplateInfo::parametersMatchArguments
+  (ObjList<STemplateArgument> const &sargs) const
+{
+  // if 'this' is a partial instantiation, we want to match
+  // against the original argument list (in/t0504.cc)
+  TemplateInfo const *matchTI = this;
+  if (this->isPartialInstantiation()) {
+    matchTI = this->partialInstantiationOf->templateInfo();
+  }
+
+  // see if this candidate matches
+  MType match;
+  if (match.matchSTemplateArguments(sargs, matchTI->arguments, MF_MATCH)) {
+    return true;
+  }
+  else {
+    return false;
+  }
+}
+
+
 // find most specific specialization that matches the given arguments
 Variable *Env::findMostSpecific
   (Variable *baseV, ObjList<STemplateArgument> const &sargs)
@@ -2781,16 +2802,7 @@ Variable *Env::findMostSpecific
     TemplateInfo *specTI = spec->templateInfo();
     xassert(specTI);        // should have templateness
 
-    // if 'specTI' is a partial instantiation, we want to match
-    // against the original argument list (in/t0504.cc)
-    TemplateInfo *matchTI = specTI;
-    if (specTI->isPartialInstantiation()) {
-      matchTI = specTI->partialInstantiationOf->templateInfo();
-    }
-
-    // see if this candidate matches
-    MType match;
-    if (match.matchSTemplateArguments(sargs, matchTI->arguments, MF_MATCH)) {
+    if (specTI->parametersMatchArguments(sargs)) {
       templCandidates.add(spec);
     }
   }
@@ -6003,6 +6015,20 @@ bool TemplateInfo::matchesPI(CompoundType *otherPrimary,
 bool TemplateInfo::instantiatedFunctionBody() const
 {
   return var->funcDefn && !var->funcDefn->instButNotTchecked();
+}
+
+
+bool TemplateInfo::isMoreSpecificThan(TemplateInfo const *other) const
+{
+  // 'compareCandidates' does not want to deal with primaries
+  if (other->isPrimary()) {
+    return true;
+  }
+  if (this->isPrimary()) {
+    return false;
+  }
+
+  return TemplCandidates::compareCandidatesStatic(this, other) < 0;
 }
 
 

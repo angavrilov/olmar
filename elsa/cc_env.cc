@@ -5524,6 +5524,85 @@ bool Env::isMemberOfOpenTemplate(Variable *v)
 }
 
 
+// Enforce cppstd 14.7.3p6,7.  No diagnostic is required by the
+// language standard, but in examples like in/t0612.cc, GCC accepts
+// the code and Elsa does not.  Without this check, Elsa's error
+// message is quite difficult to decipher, as it is complaining about
+// a type mismatch between an instantiation and a specialization
+// (actually, b/c of a type printing bug, it's currently fairly easy
+// to tell them apart, but that will be fixed eventually).
+//
+// Moreover, anytime GCC accepts and Elsa rejects, the onus is on Elsa
+// to explain why, so it is important to clearly explain why the code
+// really is invalid and GCC is being too lenient.  Hence this check.
+//
+// The plan here is to iterate over the primary and all
+// specializations that are *more general* than 'specTI', iterate over
+// their instantiations, get the template arguments that produced that
+// instantiation, and see if those same arguments would match
+// 'specTI'.  If they do, then that means that if 'specTI' had been
+// declared earlier, *it* would have been used rather than whatever
+// actually was.
+void Env::checkNewSpecialization(TemplateInfo *primaryTI, TemplateInfo *specTI)
+{
+  // first check the primary
+  checkNewSpecialization_one(primaryTI, specTI);
+
+  // now check all the explicit specializations
+  SFOREACH_OBJLIST(Variable, primaryTI->specializations, iter) {
+    checkNewSpecialization_one(iter.data()->templateInfo(), specTI);
+  }
+}
+
+// Check 'existingTI' to see if it has bad instantiations.
+void Env::checkNewSpecialization_one(TemplateInfo *existingTI, TemplateInfo *specTI)
+{
+  // I already added 'specTI' to the primary's list of
+  // specializations, because otherwise I fail the (rather aggro)
+  // assertion in TemplateInfo::getKind().  So just skip 'specTI' when
+  // it comes through here.
+  if (existingTI == specTI) {
+    return;
+  }
+
+  // first, it must be that 'existingTI' is more general,
+  // otherwise there is no problem
+  if (!specTI->isMoreSpecificThan(existingTI)) {
+    return;     // no problem
+  }
+
+  // now, iterate over the things instantiated from 'existingTI'
+  SFOREACH_OBJLIST(Variable, existingTI->instantiations, iter) {
+    TemplateInfo *inst = iter.data()->templateInfo();
+
+    // get the complete list of template arguments (as if specified
+    // against the primary) that led to the creation of 'inst'
+    ObjList<STemplateArgument> const &fullArgs = inst->getArgumentsToPrimary();
+
+    // would 'fullArgs' match 'specTI'?
+    if (specTI->parametersMatchArguments(fullArgs)) {
+      // yes, that is a problem; report it
+      //
+      // note: This might seem like a gratuitous error, in that we
+      // *could* proceed despite this failure, but see the comments
+      // above, for 'checkNewSpecialization'.  Removing this error
+      // just leads to much harder-to-diagnose errors later.
+      error(stringb(
+        "The explicit specialization \"" << specTI->templateName() << 
+        "\" is defined here, but the " <<
+        (existingTI->isPrimary()? "template primary" : "explicit specialization") <<
+        " \"" << existingTI->templateName() << "\", defined at " <<
+        toString(existingTI->var->loc) << ", has already been "
+        "instantiated at " << toString(inst->instLoc) << 
+        " to produce \"" << inst->templateName() << "\".  This is a "
+        "violation of the C++ Standard, section 14.7.3p6, which "
+        "requires that a specialization be declared before anything "
+        "that uses it.  This may be the cause of further errors below."));
+    }
+  }
+}
+
+
 // ----------------------- makeQualifiedName -----------------------
 // prepend to 'name' all possible qualifiers, starting with 's'
 PQName *Env::makeFullyQualifiedName(Scope *s, PQName *name)

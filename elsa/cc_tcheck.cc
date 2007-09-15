@@ -2026,6 +2026,12 @@ CompoundType *checkClasskeyAndName(
       TemplateInfo *primaryTI = primary->templateInfo();
       primaryTI->addSpecialization(ct->getTypedefVar());
 
+      // check to see if there is already an instantiation of some
+      // other template that would have used this new specialization
+      // had it been present earlier; i.e., a violation of 14.7.3p6,7
+      // (the "self immolation" rule)
+      env.checkNewSpecialization(primaryTI, ctTI);
+
       // the template parameters parameterize the specialization primary
       //
       // 8/09/04: moved this below 'makeNewCompound' so the params
