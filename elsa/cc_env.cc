@@ -444,6 +444,9 @@ Env::Env(StringTable &s, CCLang &L, TypeFactory &tf,
     // must predefine this to be able to define bad_alloc
     Scope *std_scope = createNamespace(SL_INIT, str("std"));
 
+    // flags for adding builtin fwds
+    MakeNewCompoundFlags mncFlags = MNC_FORWARD | MNC_BUILTIN;
+
     // but I do need a class called 'bad_alloc'..
     //   class bad_alloc;
     //
@@ -455,7 +458,7 @@ Env::Env(StringTable &s, CCLang &L, TypeFactory &tf,
     CompoundType *bad_alloc_ct;
     Type *t_bad_alloc =
       makeNewCompound(bad_alloc_ct, std_scope, str("bad_alloc"), SL_INIT,
-                      TI_CLASS, true /*forward*/, true /*builtin*/);
+                      TI_CLASS, mncFlags);
     if (lang.gcc2StdEqualsGlobalHacks) {
       // using std::bad_alloc;
       Variable *using_bad_alloc_ct = makeUsingAliasFor(SL_INIT, bad_alloc_ct->typedefVar);
@@ -470,7 +473,7 @@ Env::Env(StringTable &s, CCLang &L, TypeFactory &tf,
     {
       CompoundType *dummy;
       makeNewCompound(dummy, std_scope, str("type_info"), SL_INIT,
-                      TI_CLASS, true /*forward*/, true /*builtin*/);
+                      TI_CLASS, mncFlags);
     }
 
     // void* operator new(std::size_t sz) throw(std::bad_alloc);
@@ -2422,8 +2425,12 @@ TemplateInfo * /*owner*/ Env::takeCTemplateInfo(bool allowInherited)
 
 Type *Env::makeNewCompound(CompoundType *&ct, Scope * /*nullable*/ scope,
                            StringRef name, SourceLoc loc,
-                           TypeIntr keyword, bool forward, bool builtin)
+                           TypeIntr keyword, MakeNewCompoundFlags flags)
 {
+  // compat. with previous code
+  bool const forward = (flags & MNC_FORWARD);
+  bool const builtin = (flags & MNC_BUILTIN);
+
   // make the type itself
   ct = tfac.makeCompoundType((CompoundType::Keyword)keyword, name);
   if (scope) {
@@ -2458,7 +2465,8 @@ Type *Env::makeNewCompound(CompoundType *&ct, Scope * /*nullable*/ scope,
 
   // transfer template parameters
   {
-    TemplateInfo *ti = takeCTemplateInfo();
+    TemplateInfo *ti = 
+      takeCTemplateInfo(!(flags & MNC_FRIEND) /*allowInherited*/);
     if (ti) {
       ct->setTemplateInfo(ti);
 
