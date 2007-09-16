@@ -457,11 +457,18 @@ bool IMType::imatchType(Type const *conc, Type const *pat, MatchFlags flags)
     return imatchTypeWithTTPVariable(conc, pat->asTemplateTypeVariableC(),
                                      pat->getCVFlags(), flags);
   }
-
+                  
+  // If the pattern is a DQT, resolve it.
+  //
+  // in/t0621.cc: Except, if concrete is also DQT, then don't.  In
+  // such cases, it should be the case that the concrete type is a DQT
+  // because it *cannot* be resolved, in which case the only option is
+  // to match syntactically.  (Is this right?  Do I really resolve
+  // DQTs in 'concrete'?)
   if ((flags & MF_MATCH) &&
       !(flags & MF_ISOMORPHIC) &&
-      pat->isCVAtomicType() &&
-      pat->asCVAtomicTypeC()->atomic->isDependentQType()) {
+      pat->isDependentQType() &&
+      !conc->isDependentQType()) {
     // must resolve a DQT to use it
     return imatchTypeWithResolvedType(conc, pat, flags);
   }
