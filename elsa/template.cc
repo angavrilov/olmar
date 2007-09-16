@@ -5167,10 +5167,13 @@ Variable *Env::explicitFunctionInstantiation(PQName *name, Type *type,
   SFOREACH_OBJLIST_NC(Variable, set, iter) {
     Variable *primary = iter.data();
 
+    // match flags that are appropriate for checking a declaration
+    // outside a class body with one inside the body
+    MatchFlags mflags = MF_IGNORE_IMPLICIT | MF_STAT_EQ_NONSTAT;
+
     if (!nameArgs &&                      // no arguments attached to final name
         primary->isInstantiation() &&     // member of an instantiated template
-        type->equals(primary->type, MF_IGNORE_IMPLICIT |     // right type
-                                    MF_STAT_EQ_NONSTAT)) {
+        type->equals(primary->type, mflags)) {               // right type
       // an instantiation request like (in/k0016.cc)
       //   template
       //   void S<int>::foo();
@@ -5185,7 +5188,7 @@ Variable *Env::explicitFunctionInstantiation(PQName *name, Type *type,
 
     // does the type we have match the type of this template?
     MType match(env);
-    if (!match.matchTypeNC(type, primary->type, MF_MATCH)) {
+    if (!match.matchTypeNC(type, primary->type, mflags | MF_MATCH)) {
       continue;   // no match
     }
 

@@ -903,6 +903,7 @@ testparse t0616.cc
 testparse t0617.cc
 testparse t0618.cc
 testparse t0619.cc
+testparse t0620.cc
 
 # another set of tests, generally isolated by Daniel
 testparse d0001.cc
@@ -1168,7 +1169,7 @@ testparse k0105a.cc #"function pointer dependent type"
 failparse k0106.cc "anonymous struct in anonymous union"
 failparse k0107.cc "inline explicit instantiation"
 failparse k0108.cc "explicit instantiation of constructor"
-failparse k0109.cc "instantiating template member function"
+testparse k0109.cc #"instantiating template member function"
 failparse k0110.cc "calling template dtor with template arguments"
 failparse k0111.cc "duplicate template specialization/definition of static data"
 testparse k0112.cc #"template instantiation with all default args"
@@ -1284,6 +1285,7 @@ if $use_gnu; then
   testparse gnu/g0032.cc
   failparse gnu/g0033.cc "wrong typeof(array[]) semantics"
   testparse gnu/g0034.cc
+  testparse gnu/g0035.cc
 
   testparse gnu/t0124.cc
   testparse gnu/t0125.cc
