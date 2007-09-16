@@ -76,7 +76,7 @@ public:      // data
   // or is a PseudoInstantiation (e.g., C<T>::foo).  The latter could
   // have been qualified in the original syntax, but those qualifiers
   // have already been resolved (e.g., ::C<T>::foo)
-  AtomicType *first;            // (serf) TypeVariable or PseudoInstantiation
+  NamedAtomicType *first;       // (serf) TypeVariable or PseudoInstantiation
 
   // After the first component comes whatever name components followed
   // in the original syntax.  All template arguments have been
@@ -84,7 +84,7 @@ public:      // data
   PQName *rest;
 
 public:      // data
-  DependentQType(AtomicType *f);
+  DependentQType(NamedAtomicType *f);
   ~DependentQType();
 
   // AtomicType interface

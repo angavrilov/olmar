@@ -298,7 +298,7 @@ void *XmlTypeReader::ctorNodeFromTag(int tag) {
     return new DependentSizedArrayType((XmlReader&)*this);
 
   // **** Atomic Types
-  // NOTE: this really should go through the SimpleTyp::fixed array
+  // NOTE: this really should go through the SimpleType::fixed array
   case XTOK_SimpleType: return new SimpleType((SimpleTypeId)0);
   case XTOK_CompoundType: return new CompoundType((CompoundType::Keyword)0, (StringRef)0);
   case XTOK_EnumType: return new EnumType((StringRef)0);
@@ -306,7 +306,7 @@ void *XmlTypeReader::ctorNodeFromTag(int tag) {
     return new EnumType::Value((StringRef)0, (EnumType*)0, (int)0, (Variable*)0);
   case XTOK_TypeVariable: return new TypeVariable((StringRef)0);
   case XTOK_PseudoInstantiation: return new PseudoInstantiation((CompoundType*)0);
-  case XTOK_DependentQType: return new DependentQType((AtomicType*)0);
+  case XTOK_DependentQType: return new DependentQType((NamedAtomicType*)0);
 
   // **** Other
   case XTOK_Variable: return new Variable((XmlReader&)*this);// call the special ctor

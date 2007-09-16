@@ -582,16 +582,14 @@ bool IMType::imatchTypeWithResolvedType(Type const *conc, Type const *pat,
     // be easy to get ahold of one in the context where I need it, but
     // I can tell that DQT resolution will fail b/c of a special case.
     if (pat->isDependentQType()) {
-      AtomicType *qualifier = pat->asCVAtomicTypeC()->atomic->
-                                asDependentQTypeC()->first;
-      if (qualifier->isNamedAtomicType()) {
-        StringRef name = qualifier->asNamedAtomicTypeC()->name;
-        if (bindings.get(name) == NULL) {
-          // DQT resolution could not possibly succeed, because we
-          // don't have a binding for this qualifier
-          failedDueToDQT = true;
-          return false;
-        }
+      NamedAtomicType *qualifier = 
+        pat->asCVAtomicTypeC()->atomic->asDependentQTypeC()->first;
+      StringRef name = qualifier->asNamedAtomicTypeC()->name;
+      if (bindings.get(name) == NULL) {
+        // DQT resolution could not possibly succeed, because we
+        // don't have a binding for this qualifier
+        failedDueToDQT = true;
+        return false;
       }
     }
 
