@@ -1937,7 +1937,7 @@ CompoundType *checkClasskeyAndName(
     }
     else {
       // check correspondence between extant params and params on 'ct'
-      env.verifyCompatibleTemplateParameters(scope, ct);
+      env.verifyCompatibleTemplateParameters(scope, dflags, ct);
     }
 
     // definition of something previously declared?
@@ -1973,6 +1973,15 @@ CompoundType *checkClasskeyAndName(
     // get the raw name for use in creating the CompoundType
     StringRef stringName = name? name->getName() : NULL;
 
+    // flags for making new compounds
+    MakeNewCompoundFlags mncFlags = MNC_NONE;
+    if (!definition) {
+      mncFlags |= MNC_FORWARD;
+    }
+    if (dflags & DF_FRIEND) {
+      mncFlags |= MNC_FRIEND;
+    }
+
     // making an ordinary compound, or a template primary?
     if (!templateArgs) {
       Scope *destScope = (forward || definition) ?
@@ -1988,7 +1997,7 @@ CompoundType *checkClasskeyAndName(
 
       // this sets the parameterized primary of the scope
       env.makeNewCompound(ct, destScope, stringName, loc, keyword,
-                          !definition /*forward*/, false /*builtin*/);
+                          mncFlags);
 
       if (templateParams) {
         TRACE("template", "template class " << (definition? "defn" : "decl") <<
@@ -2003,7 +2012,7 @@ CompoundType *checkClasskeyAndName(
       // make a new type, since a specialization is a distinct template
       // [cppstd 14.5.4 and 14.7]; but don't add it to any scopes
       env.makeNewCompound(ct, NULL /*scope*/, stringName, loc, keyword,
-                          !definition /*forward*/, false /*builtin*/);
+                          mncFlags);
 
       if (gcc2hack_explicitSpec) {
         // we need to fake a TemplateInfo

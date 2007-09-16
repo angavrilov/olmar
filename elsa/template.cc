@@ -4459,7 +4459,8 @@ CompoundType *Env::findEnclosingTemplateCalled(StringRef name)
 //
 // return false if there is some problem, true if it's all ok
 // (however, this value is ignored at the moment)
-bool Env::verifyCompatibleTemplateParameters(Scope *scope, CompoundType *prior)
+bool Env::verifyCompatibleTemplateParameters
+  (Scope *scope, DeclFlags dflags, CompoundType *prior)
 {
   bool hasParams = scope->isTemplateParamScope();
   if (hasParams && scope->parameterizedEntity) {
@@ -4547,6 +4548,13 @@ bool Env::verifyCompatibleTemplateParameters(Scope *scope, CompoundType *prior)
     for (; !scopeIter.isDone(); scopeIter.adv()) {
       if (scopeIter.data()->isTemplateParamScope()) {
         paramScopes.prepend(scopeIter.data());
+      }
+      else if (dflags & DF_FRIEND) {
+        // in/t0623.cc: If the decl we are looking at is a 'friend'
+        // decl, then stop gathering inherited parameters as soon as
+        // we see the first non-template-param scope, since the
+        // further-out parameters don't apply to the friend.
+        break;
       }
     }
   }

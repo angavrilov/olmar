@@ -49,6 +49,18 @@ enum InferArgFlags {
 };
 ENUM_BITWISE_OPS(InferArgFlags, IA_ALL)
 
+// flags for makeNewCompound
+enum MakeNewCompoundFlags {
+  MNC_NONE           = 0,
+
+  MNC_FORWARD        = 0x01,   // create a forward declaration
+  MNC_BUILTIN        = 0x02,   // remember this as being among the builtins
+  MNC_FRIEND         = 0x04,   // declared with 'friend'
+  
+  MNC_ALL            = 0x07
+};
+ENUM_BITWISE_OPS(MakeNewCompoundFlags, MNC_ALL)
+
 
 // the entire semantic analysis state
 class Env : protected ErrorList {
@@ -483,7 +495,7 @@ public:      // funcs
   // (if that is not NULL)
   CType *makeNewCompound(CompoundType *&ct, Scope * /*nullable*/ scope,
                         StringRef name, SourceLoc loc,
-                        TypeIntr keyword, bool forward, bool builtin);
+                        TypeIntr keyword, MakeNewCompoundFlags flags);
 
 
   // this is for ErrorList clients
@@ -986,7 +998,8 @@ public:      // template funcs
     (SourceLoc loc, DeclFlags dflags, Variable *templ, FunctionType *type,
      SObjList<STemplateArgument> const &args);
 
-  bool verifyCompatibleTemplateParameters(Scope *scope, CompoundType *prior);
+  bool verifyCompatibleTemplateParameters
+    (Scope *scope, DeclFlags dflags, CompoundType *prior);
 
   Variable *explicitFunctionInstantiation(PQName *name, CType *type,
                                           DeclFlags instFlags);
