@@ -281,7 +281,7 @@ void PseudoInstantiation::detachOcaml() {
 
 
 // -------------------- DependentQType ------------------
-DependentQType::DependentQType(AtomicType *f)
+DependentQType::DependentQType(NamedAtomicType *f)
   : NamedAtomicType(NULL /*name*/),    // gets changed later
     first(f),
     rest()
