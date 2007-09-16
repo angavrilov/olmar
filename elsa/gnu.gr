@@ -676,10 +676,22 @@ nonterm(Declarator*) MemberDeclarator {
                                NULL /*init*/); }
 }
 
-// dsw: from Taras Glek <tglek@mozilla.com>
+// dsw: from Taras Glek, tglek at mozilla dot com
 nonterm(DeclFlags) CDtorModifier {
  -> /*DROPPED*/AttributeSpecifier      { return DF_NONE; }
 }
+
+// 2007-09-15: This is in the gcc-4.2.1 headers.
+nonterm(TF_namespaceDefn*) NamespaceDefinition {
+  -> "namespace" n:IdentifierOpt /*DROPPED*/AttributeSpecifierList "{" unit:TranslationUnit "}"
+       {
+         TF_namespaceDefn *ret = new TF_namespaceDefn(loc, n, NULL /*forms*/);
+         ret->forms.concat(unit->topForms);     // steal list contents
+         delete unit;
+         return ret;
+       }
+}
+
 
 // -- attributes themselves --
 // http://gcc.gnu.org/onlinedocs/gcc-3.2.2/gcc/Attribute-Syntax.html

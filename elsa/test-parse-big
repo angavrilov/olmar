@@ -6,7 +6,8 @@
 
 if [ "$1" = "" ]; then
   exec $0 smbase ast elkhound elsa doxygen pine e2fsprogs \
-          binutils ddd qt mozilla debian/c debian/c++ headers
+          binutils ddd qt mozilla debian/c debian/c++ \
+          gcc-3.4.3-headers gcc-4.0.0-headers
 fi
 
 # the lines
