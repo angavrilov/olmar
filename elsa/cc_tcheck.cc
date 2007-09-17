@@ -8809,6 +8809,58 @@ Type *E_delete::itcheck_x(Env &env, Expression *&replacement)
   if (t->isGeneralizedDependent()) {
     // fine; in/k0020.cc
   }
+  else if (t->isCompoundType()) {
+    // in/k0059.cc: 5.3.5p1: Can apply 'delete' to an object of
+    // class type with a single conversion to pointer type.
+    CompoundType *ct = t->asCompoundType();
+
+    // Q: What about conversion operators that yield types that are
+    // standard-convertible to pointer, such as reference to pointer?
+
+    // search among all conversion operators for one that returns
+    // a pointer type
+    Variable *selected = NULL;      // must be non-const to put in PQ_variable
+    Type *selectedRetType = NULL;
+    SFOREACH_OBJLIST_NC(Variable, ct->conversionOperators, iter) {
+      Variable *conv = iter.data();
+      FunctionType const *ft = conv->type->asFunctionTypeC();
+      if (ft->retType->isPointer()) {
+        if (!selected) {
+          selected = conv;
+          selectedRetType = ft->retType;
+        }
+        else {
+          env.error(t, stringb(
+            "attempt to apply 'delete' to object of type \"" <<
+            t->toString() << "\", but it has more than one conversion "
+            "operator yielding pointer type: at least \"" <<
+            selected->toString() << "\" and \"" <<
+            conv->toString() << "\""));
+          break;     // do not report more than one pair
+        }
+      }
+    }
+
+    // did we find one?
+    if (!selected) {
+      env.error(t, stringb(
+        "applied 'delete' to object of type \"" <<
+        t->toString() << "\", but it does not have any conversion "
+        "operators that yield pointer type"));
+    }
+    else {
+      // create a call to the chosen conversion function
+      E_fieldAcc *acc = new E_fieldAcc(expr,
+        new PQ_variable(env.loc(), selected));
+      acc->field = selected;
+      acc->type = selected->type;
+      E_funCall *call = new E_funCall(acc, NULL /*args*/);
+      call->type = selectedRetType;
+
+      // insert it in place of 'expr', still underneath this E_delete
+      expr = call;
+    }
+  }
   else if (!t->isPointer()) {
     env.error(t, stringc
       << "can only delete pointers, not `" << t->toString() << "'");

@@ -19,3 +19,30 @@ int main()
   QGuardedPtr p;
   delete p;
 }
+
+
+// too many conversion operators
+struct A {
+  operator int* ();
+  //ERROR(1): operator float* ();
+};
+
+void f()
+{
+  A a;
+  delete a;
+}
+
+
+// too few conversion operators{
+struct B {
+};
+
+void g()
+{
+  B b;
+  //ERROR(2): delete b;
+}
+
+
+

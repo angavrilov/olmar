@@ -552,7 +552,17 @@ string Variable::fullyQualifiedName0() const
     }
 
     if (name) {
-      tmp << name;        // NOTE: not mangled
+      if (streq(name, "conversion-operator")) {
+        // special syntax for conversion operators; first the keyword
+        tmp << "operator ";
+
+        // then the return type and the function designator
+        Type const *ret = type->asFunctionTypeC()->retType;
+        tmp << ret->toString();
+      }
+      else {
+        tmp << name;        // NOTE: not mangled
+      }
 
       TemplateInfo *ti = templateInfo();
       if (ti) {
