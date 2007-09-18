@@ -442,7 +442,7 @@ Env::Env(StringTable &s, CCLang &L, TypeFactory &tf,
 
   if (lang.isCplusplus) {
     // must predefine this to be able to define bad_alloc
-    Scope *std_scope = createNamespace(SL_INIT, str("std"));
+    Scope *std_scope = createNamespace(SL_INIT, str("std"), false /*isAnonymous*/);
 
     // flags for adding builtin fwds
     MakeNewCompoundFlags mncFlags = MNC_FORWARD | MNC_BUILTIN;
@@ -5398,13 +5398,14 @@ void Env::checkForQualifiedMemberDeclarator(Declarator *decl)
 }
 
 
-Scope *Env::createNamespace(SourceLoc loc, StringRef name)
+Scope *Env::createNamespace(SourceLoc loc, StringRef name, bool isAnonymous)
 {
+  // in/t0625.cc: we never pass NULL to this function anymore
+  xassert(name != NULL);
+
   // make an entry in the surrounding scope to refer to the new namespace
   Variable *v = makeVariable(loc, name, NULL /*type*/, DF_NAMESPACE);
-  if (name) {
-    addVariable(v);
-  }
+  addVariable(v);
 
   // make new scope
   Scope *s = new Scope(SK_NAMESPACE, 0 /*changeCount; irrelevant*/, loc);
@@ -5417,9 +5418,9 @@ Scope *Env::createNamespace(SourceLoc loc, StringRef name)
   // using edge is added, for anonymous scopes
   setParentScope(s);
 
-  // if name is NULL, we need to add an "active using" edge from the
-  // surrounding scope to 's'
-  if (!name) {
+  // if namespace was anonymous, we need to add an "active using" edge
+  // from the surrounding scope to 's'
+  if (isAnonymous) {
     Scope *parent = scope();
     parent->addUsingEdge(s);
     parent->addUsingEdgeTransitively(env, s);
