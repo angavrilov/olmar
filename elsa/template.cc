@@ -5725,8 +5725,20 @@ Variable *Env::makeExplicitFunctionSpecialization
                           ": " << ret->name << sargsToString(serfSpecArgs));
       }
       else {
+        // in/t0624.cc: If the primary was a member, then the
+        // specialization is too.  (Specialization is the only
+        // mechanism for creating "new" class members where we are (a)
+        // outside the class body and (b) not cloning existing syntax,
+        // so this should be the only place that I need to manually
+        // inject DF_MEMBER like this.)
+        DeclFlags extraFlags = DF_NONE;
+        if (primary->hasFlag(DF_MEMBER)) {
+          extraFlags = DF_MEMBER;
+        }
+
         // build a Variable to represent the specialization
-        ret = makeSpecializationVariable(loc, dflags, primary, ft, serfSpecArgs);
+        ret = makeSpecializationVariable(loc, dflags | extraFlags, primary, 
+                                         ft, serfSpecArgs);
         TRACE("template", "complete function specialization of " <<
                           primary->type->toCString(primary->fullyQualifiedName0()) <<
                           ": " << ret->toQualifiedString());
