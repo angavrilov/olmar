@@ -735,7 +735,7 @@ public:      // funcs
   // see comments at implementation
   void checkForQualifiedMemberDeclarator(Declarator *decl);
 
-  Scope *createNamespace(SourceLoc loc, StringRef name);
+  Scope *createNamespace(SourceLoc loc, StringRef name, bool isAnonymous);
 
   // ensureClassBodyInstantiatedIfPossible, then CompoundType::getSubobjects
   void getSubobjectsIfPossible(SObjList<BaseClassSubobj const> &dest,

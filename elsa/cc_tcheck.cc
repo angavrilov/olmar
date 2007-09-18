@@ -372,20 +372,31 @@ void TF_namespaceDefn::itcheck(Env &env)
 {
   env.setLoc(loc);
 
-  // currently, what does the name refer to in this scope?
-  Variable *existing = NULL;
-  if (name) {
-    existing = env.lookupVariable(name, LF_INNER_ONLY);
+  // Since Elsa only processes one translation unit at a time, we will
+  // just name anonymous namespaces with a fixed, but untypable, name.
+  //
+  // in/t0625.cc: They all have the same name.  I originally misread
+  // the spec!
+  //
+  // But note that I don't actually change the AST; that is so that
+  // the original anonymity is still obvious, and so pretty printing
+  // doesn't have to make a special case.
+  StringRef effectiveName = name;
+  if (!effectiveName) {
+    effectiveName = env.str("<anonymous>");
   }
+
+  // currently, what does the name refer to in this scope?
+  Variable *existing =
+    env.lookupVariable(effectiveName, LF_INNER_ONLY);
 
   // violation of 7.3.1 para 2?
   if (existing && !existing->hasFlag(DF_NAMESPACE)) {
     env.error(loc, stringc
-      << "attempt to redefine `" << name << "' as a namespace");
+      << "attempt to redefine `" << effectiveName << "' as a namespace");
 
-    // recovery: pretend it didn't have a name
-    existing = NULL;
-    name = NULL;                // dsw: this causes problems when you add it to the scope
+    // recovery: skip the whole thing
+    return;
   }
 
   Scope *s;
@@ -395,7 +406,7 @@ void TF_namespaceDefn::itcheck(Env &env)
   }
   else {
     // make new namespace
-    s = env.createNamespace(loc, name);
+    s = env.createNamespace(loc, effectiveName, !name /*isAnonymous*/);
   }
 
   // check the namespace body in its scope
