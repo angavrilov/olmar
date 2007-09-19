@@ -920,6 +920,7 @@ testparse t0622.cc
 testparse t0623.cc
 testparse t0624.cc
 testparse t0625.cc
+testparse t0626.cc
 
 # another set of tests, generally isolated by Daniel
 testparse d0001.cc
