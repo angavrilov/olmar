@@ -4869,10 +4869,14 @@ Variable *Env::makeExplicitFunctionSpecialization
 
   // find last component of 'name' so we can see if template arguments
   // are explicitly supplied
-  PQ_template *pqtemplate = NULL;
+  //
+  // in/t0626.cc: Treat missing arguments exactly the same as an empty
+  // argument list; in particular, do not check in the code that
+  // follows this particular 'if' block whether the original name was
+  // a PQ_template or not.
   ObjList<STemplateArgument> *nameArgs = NULL;
   if (name->getUnqualifiedName()->isPQ_template()) {
-    pqtemplate = name->getUnqualifiedName()->asPQ_template();
+    PQ_template *pqtemplate = name->getUnqualifiedName()->asPQ_template();
     nameArgs = &(pqtemplate->sargs);
   }
 
@@ -4887,6 +4891,15 @@ Variable *Env::makeExplicitFunctionSpecialization
       continue_outer_loop:     // poor man's labeled continue ...
       continue;
     }
+
+    // 2007-09-18: TODO: I think I'm doing this backwards.  This code
+    // first tries to match, then fill in the blanks using the
+    // supplied arguments.  Instead, it should work like the ordinary
+    // E_funCall case, which begins by populating the bindings using
+    // the explicit arguments, and then uses matching to finish up.
+    // In particular, if a supplied argument must be used to resolve a
+    // DQT that is then needed to allow the match to succeed, the
+    // algorithm implemented here will incorrectly fail.
 
     // 2005-05-26 (in/t0485.cc): if we're trying to associate a
     // specialization with a member template, the specialization
@@ -4914,6 +4927,8 @@ Variable *Env::makeExplicitFunctionSpecialization
 
       // simultanously iterate over the user's provided arguments,
       // if any, checking for correspondence with inferred arguments
+      //
+      // 14.8.1p2: missing arguments is same as <>
       ObjList<STemplateArgument> empty;
       ObjListIter<STemplateArgument> nameArgsIter(nameArgs? *nameArgs : empty);
 
@@ -4937,9 +4952,12 @@ Variable *Env::makeExplicitFunctionSpecialization
         }
         else {
           // does the inferred argument match what the user has?
-          if (pqtemplate &&                               // user gave me arguments
-              (nameArgsIter.isDone() ||                           // but not enough
-               !binding.isomorphic(nameArgsIter.data()))) {       // or no match
+          //
+          // in/t0626.cc, cppstd 14.8.1p2: trailing arguments can be
+          // omitted when they can be deduced, so do not complain if
+          // the argument list stops short
+          if (!nameArgsIter.isDone() &&                      // provided argument
+              !binding.isomorphic(nameArgsIter.data())) {    // but no match
             // no match, this candidate can't match
             goto continue_outer_loop;
           }
@@ -4956,9 +4974,8 @@ Variable *Env::makeExplicitFunctionSpecialization
       // does the inferred argument list match 'nameArgs'?  we already
       // checked individual elements above, now just confirm the count
       // is correct (in fact, only need to check there aren't too many)
-      if (pqtemplate &&                  // user gave me arguments
-          !nameArgsIter.isDone()) {        // but too many
-        // no match, go on to the next primary
+      if (!nameArgsIter.isDone()) {
+        // too many; no match, go on to the next primary
         continue;
       }
 
