@@ -243,7 +243,7 @@ ImplicitConversion getImplicitConversion
         ctor = resolveOverload(env, env.loc(), NULL /*errors*/,
                                OF_NO_USER | OF_NO_EXPLICIT,
                                ctor->overload->set, NULL /*finalName*/,
-                               argTypes, wasAmbig);
+                               argTypes, wasAmbig, ct->name);
         if (ctor) {
           // printing is now done inside 'resolveOverload'
           //TRACE("overload", "  selected constructor at " << toString(ctor->loc));

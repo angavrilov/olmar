@@ -995,7 +995,7 @@ void Declaration::tcheck(Env &env, DeclaratorContext context)
           relName = decl->getDeclaratorId()->getName();
         }
 
-        cs->name = new PQ_name(SL_UNKNOWN, env.getAnonName(cs->keyword, relName));
+        cs->name = new PQ_name(env.loc(), env.getAnonName(cs->keyword, relName));
       }
     }
 
@@ -2631,7 +2631,7 @@ void makeMemberFunctionType(Env &env, Declarator::Tcheck &dt,
   FunctionType *ft = dt.type->asFunctionType();
   if (!dt.funcSyntax) {
     FunctionType *copyFt =
-      env.tfac.makeSimilarFunctionType(SL_UNKNOWN, ft->retType, ft);
+      env.tfac.makeSimilarFunctionType(env.loc(), ft->retType, ft);
 
     // copy the parameters; it should be ok to share them (shallow copy)
     copyFt->params = ft->params;
@@ -5775,7 +5775,8 @@ static Variable *outerResolveOverload_explicitSet(
   bool wasAmbig;     // ignored, since error will be reported
   return resolveOverload(env, loc, &env.errors,
                          OF_METHODS,    // TODO: always assume OF_METHODS in 'resolveOverload'
-                         candidates, finalName, argInfo, wasAmbig);
+                         candidates, finalName, argInfo, wasAmbig,
+                         varName);
 }
 
 
@@ -6222,8 +6223,8 @@ Type *E_funCall::itcheck_x(Env &env, Expression *&replacement)
         env.error("call to dtor must have no arguments");
       }
       ASTTypeId *voidId =
-        new ASTTypeId(new TS_simple(SL_UNKNOWN, ST_VOID),
-                      new Declarator(new D_name(SL_UNKNOWN, NULL /*name*/),
+        new ASTTypeId(new TS_simple(env.loc(), ST_VOID),
+                      new Declarator(new D_name(env.loc(), NULL /*name*/),
                                      NULL /*init*/));
       replacement = new E_cast(voidId, fa->obj);
       replacement->tcheck(env, replacement);
@@ -6475,7 +6476,8 @@ Type *E_funCall::inner2_itcheck(Env &env, LookupSet &candidates)
     // do we still have any candidates?
     if (candidates.isEmpty()) {
       return env.error(pqname->loc, stringc
-               << "call site name lookup failed to yield any candidates; "
+               << "call site name lookup for \"" << pqname->toString()
+               << "\" failed to yield any candidates; "
                << "last candidate was removed because: " << lastRemovalReason);
     }
 
@@ -6537,7 +6539,7 @@ Type *E_funCall::inner2_itcheck(Env &env, LookupSet &candidates)
         // rewrite AST to reflect use of 'operator()'
         Expression *object = func;
         E_fieldAcc *fa = new E_fieldAcc(object,
-          new PQ_operator(SL_UNKNOWN, new ON_operator(OP_PARENS), env.functionOperatorName));
+          new PQ_operator(env.loc(), new ON_operator(OP_PARENS), env.functionOperatorName));
         fa->field = funcVar;
         fa->type = funcVar->type;
         func = fa;
@@ -6631,7 +6633,7 @@ Type *E_funCall::inner2_itcheck(Env &env, LookupSet &candidates)
           receiverType->asRval()->getCVFlags() != CV_NONE) {
         bool wasRef = receiverType->isReference();
         receiverType = receiverType->asRval();
-        receiverType = env.tfac.setQualifiers(SL_UNKNOWN, CV_NONE, receiverType, NULL /*syntax*/);
+        receiverType = env.tfac.setQualifiers(env.loc(), CV_NONE, receiverType, NULL /*syntax*/);
         if (wasRef) {
           receiverType = env.tfac.makeReferenceType(receiverType);
         }
@@ -7272,7 +7274,7 @@ Type *E_fieldAcc::itcheck_fieldAcc_set(Env &env, LookupFlags flags,
     //   will replace this, but in the case of a type which is an
     //   array of objects, this will leave the E_fieldAcc's 'field'
     //   member NULL ...
-    return env.makeDestructorFunctionType(SL_UNKNOWN, NULL /*ct*/);
+    return env.makeDestructorFunctionType(env.loc(), NULL /*ct*/);
   }
 
   // make sure the type has been completed
@@ -7620,7 +7622,7 @@ Type *resolveOverloadedUnaryOperator(
     OverloadResolver resolver(env, env.loc(), &env.errors,
                               OF_OPERATOR,
                               NULL, // I assume operators can't have explicit template arguments
-                              args);
+                              args, opName);
 
     if (op == OP_AMPERSAND) {
       // 13.3.1.2 para 9: no viable -> use built-in
@@ -7641,7 +7643,7 @@ Type *resolveOverloadedUnaryOperator(
 
       if (!winner->hasFlag(DF_BUILTIN)) {
         OperatorName *oname = new ON_operator(op);
-        PQ_operator *pqo = new PQ_operator(SL_UNKNOWN, oname, opName);
+        PQ_operator *pqo = new PQ_operator(env.loc(), oname, opName);
 
         if (winner->hasFlag(DF_MEMBER)) {
           // replace '~a' with 'a.operator~()'
@@ -7661,6 +7663,8 @@ Type *resolveOverloadedUnaryOperator(
         }
 
         // for now, just re-check the whole thing
+        //
+        // TODO: stop doing this; see in/t0628.cc for problems this causes
         replacement->tcheck(env, replacement);
         return replacement->type;
       }
@@ -7729,7 +7733,7 @@ Type *resolveOverloadedBinaryOperator(
     OverloadResolver resolver(env, env.loc(), &env.errors,
                               OF_OPERATOR,
                               NULL, // I assume operators can't have explicit template arguments
-                              argInfo, 10 /*numCand*/);
+                              argInfo, opName, 10 /*numCand*/);
     if (op == OP_COMMA) {
       // 13.3.1.2 para 9: no viable -> use built-in
       resolver.emptyCandidatesIsOk = true;
@@ -7760,7 +7764,7 @@ Type *resolveOverloadedBinaryOperator(
                                            argInfo[1].overloadSet);
 
       if (!winner->hasFlag(DF_BUILTIN)) {
-        PQ_operator *pqo = new PQ_operator(SL_UNKNOWN, new ON_operator(op), opName);
+        PQ_operator *pqo = new PQ_operator(env.loc(), new ON_operator(op), opName);
         if (winner->hasFlag(DF_MEMBER)) {
           // replace 'a+b' with 'a.operator+(b)'
           replacement = new E_funCall(
@@ -7781,6 +7785,8 @@ Type *resolveOverloadedBinaryOperator(
         }
 
         // for now, just re-check the whole thing
+        //
+        // TODO: stop doing this; see in/t0628.cc for problems this causes
         replacement->tcheck(env, replacement);
         return replacement->type;
       }
@@ -8225,10 +8231,19 @@ Type *E_addrOf::itcheck_addrOf_set(Env &env, Expression *&replacement,
     return expr->type;
   }
 
+  // in/t0627.cc: This is causing problems, because it prevents the
+  // caller from recognizing a case where a function argument is the
+  // name of a template, for which overload resolution must be used to
+  // pick an instantiation.  And, in general, I think we're better off
+  // retaining information than throwing it away.  The code below will
+  // just build a pointer to 'expr->type', which should then flow
+  // downstream w/o problem.
+#if 0
   // 14.6.2.2 para 1
   if (expr->type->containsGeneralizedDependent()) {
     return env.dependentType();
   }
+#endif // 0
 
   if (possiblePTM) {
     // TODO: If the variable was the name of an overloaded function,
@@ -8606,7 +8621,7 @@ Type *E_cond::itcheck_x(Env &env, Expression *&replacement)
     OverloadResolver resolver(env, env.loc(), &env.errors,
                               OF_NONE,
                               NULL, // no template arguments
-                              args, 2 /*numCand*/);
+                              args, "operator?:", 2 /*numCand*/);
 
     // built-in candidates
     resolver.addBuiltinBinaryCandidates(OP_QUESTION, args[0], args[1]);
