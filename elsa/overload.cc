@@ -156,9 +156,11 @@ Variable *resolveOverload(
   SObjList<Variable> &varList,
   PQName *finalName,
   GrowArray<ArgumentInfo> &args,
-  bool &wasAmbig)
+  bool &wasAmbig,
+  char const *overloadedVarName)
 {
-  OverloadResolver r(env, loc, errors, flags, finalName, args, varList.count());
+  OverloadResolver r(env, loc, errors, flags, finalName, args,
+                     overloadedVarName, varList.count());
   r.processCandidates(varList);
   return r.resolve(wasAmbig);
 }
@@ -169,6 +171,7 @@ OverloadResolver::OverloadResolver
    OverloadFlags f,
    PQName *finalName0,
    GrowArray<ArgumentInfo> &a,
+   char const *overloadedVarName_,
    int numCand)
   : env(en),
     loc(L),
@@ -176,6 +179,7 @@ OverloadResolver::OverloadResolver
     flags(f),
     finalName(finalName0),
     args(a),
+    overloadedVarName(overloadedVarName_),
     finalDestType(NULL),
     emptyCandidatesIsOk(false),
 
@@ -741,7 +745,8 @@ Candidate const *OverloadResolver::resolveCandidate(bool &wasAmbig)
 
     if (errors) {
       stringBuilder sb;
-      sb << "ambiguous overload; " << argInfoString() << " candidates:";
+      sb << "ambiguous overload call to \"" << overloadedVarName
+         << "\"; " << argInfoString() << " candidates:";
       for (int i=0; i<candidates.length(); i++) {
         Variable *v = candidates[i]->var;
         sb << "\n  " << v->loc << ": " << v->toQualifiedString();
@@ -1567,7 +1572,8 @@ ImplicitConversion getConversionOperator(
                             // I assume conversion operators can't
                             // have explicit template arguments
                             NULL,
-                            args);
+                            args,
+                            stringb("operator " << destType->toString()).c_str());
 
   // get the conversion operators for the source class
   SObjList<Variable> &ops = srcClass->conversionOperators;

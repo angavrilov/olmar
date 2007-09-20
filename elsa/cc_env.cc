@@ -5627,7 +5627,7 @@ PQName *Env::makeFullyQualifiedName(Scope *s, PQName *name)
 {
   if (!s || s->scopeKind == SK_GLOBAL) {
     // cons the global-scope qualifier on front
-    return new PQ_qualifier(SL_UNKNOWN, NULL /*qualifier*/,
+    return new PQ_qualifier(loc(), NULL /*qualifier*/,
                             NULL /*targs*/, name);
   }
 

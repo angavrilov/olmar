@@ -148,7 +148,8 @@ public:      // data
   OverloadFlags flags;
   PQName * /*nullable*/ finalName;
   ArgumentInfoArray &args;
-  
+  char const *overloadedVarName;
+
   // when non-NULL, this indicates the type of the expression
   // that is being copy-initialized, and plays a role in selecting
   // the best function (13.3.3, final bullet)
@@ -172,10 +173,14 @@ private:     // funcs
   string argInfoString();
 
 public:      // funcs
-  OverloadResolver(Env &en, SourceLoc L, ErrorList *er,
-                   OverloadFlags f,
-                   PQName *finalName0,
-                   ArgumentInfoArray &a,
+  // the ctor parameters mean the same as in 'resolveOverload'
+  OverloadResolver(Env &env, 
+                   SourceLoc loc,
+                   ErrorList * /*nullable*/ errors,
+                   OverloadFlags flags,
+                   PQName * /*nullable*/ finalName,
+                   ArgumentInfoArray &args,
+                   char const *overloadedVarName,
                    int numCand = 10 /*estimate of # of candidates*/);
   ~OverloadResolver();
 
@@ -238,7 +243,8 @@ Variable *resolveOverload(
   SObjList<Variable> &list,        // list of overloaded possibilities
   PQName * /*nullable*/ finalName, // for any explicit template arguments; NULL for ctors
   ArgumentInfoArray &args,         // list of argument types at the call site
-  bool &wasAmbig                   // returns as true if error due to ambiguity
+  bool &wasAmbig,                  // returns as true if error due to ambiguity
+  char const *overloadedVarName    // name of overloaded function or operator
 );
 
 
