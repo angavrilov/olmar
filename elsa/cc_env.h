@@ -722,7 +722,7 @@ public:      // funcs
   // support for cppstd 13.4; see implementations for more details
   Variable *getOverloadedFunctionVar(Expression *e);
   void setOverloadedFunctionVar(Expression *e, Variable *selVar);
-  Variable *pickMatchingOverloadedFunctionVar(LookupSet &set, Type *type);
+  Variable *pickMatchingOverloadedFunctionVar(LookupSet &set, Type const *type);
   void possiblySetOverloadedFunctionVar(Expression *expr, Type *paramType,
                                         LookupSet &set);
 
