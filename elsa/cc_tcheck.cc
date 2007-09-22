@@ -9585,6 +9585,10 @@ void TP_nontype::itcheck(Env &env, int&)
   // too, so we don't need to do so here
   param = param->tcheck(env, tc);
   this->var = param->decl->var;
+  
+  // 14.1p8 (in/t0630.cc): apply the usual parameter type
+  // normalizations
+  this->var->type = normalizeParameterType(env, loc, this->var->type);
 }
 
 

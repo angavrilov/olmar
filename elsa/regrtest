@@ -913,6 +913,7 @@ testparse t0626.cc
 testparse t0627.cc
 testparse t0628.cc
 testparse t0629.cc
+testparse t0630.cc
 
 # another set of tests, generally isolated by Daniel
 testparse d0001.cc
@@ -1183,7 +1184,7 @@ failparse k0110.cc "calling template dtor with template arguments"
 failparse k0111.cc "duplicate template specialization/definition of static data"
 testparse k0112.cc #"template instantiation with all default args"
 failparse k0113.cc "calling templatized operator-overloaded function"
-failparse k0114.cc "template parameterized on function (not function pointer)"
+testparse k0114.cc #"template parameterized on function (not function pointer)"
 failparse k0115.cc "using own member function"
 failparse k0116.cc "template parameter default instantiating template class"
 failparse k0117.cc "class templatized on int, copy constructor"
