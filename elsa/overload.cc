@@ -133,6 +133,9 @@ CType *OverloadResolver::getReturnType(Candidate const *winner) const
 int compareConversions(ArgumentInfo const &src,
   ImplicitConversion const &left, CType const *leftDest,
   ImplicitConversion const &right, CType const *rightDest);
+int compareConversionsTwoSrc(
+  ArgumentInfo const &leftSrc, ImplicitConversion const &left, CType const *leftDest,
+  ArgumentInfo const &rightSrc, ImplicitConversion const &right, CType const *rightDest);
 int compareStandardConversions
   (ArgumentInfo const &leftSrc, StandardConversion left, CType const *leftDest,
    ArgumentInfo const &rightSrc, StandardConversion right, CType const *rightDest);
@@ -864,6 +867,12 @@ Candidate * /*owner*/ OverloadResolver::makeCandidate
         // just say it matches; we don't need to record *which* one was
         // chosen, because that will happen later when the arguments are
         // checked against the parameters of the chosen function
+        //
+        // 2007-09-21: Actually, in/t0629.cc demonstrates that we do
+        // need to know which one was picked b/c it will be needed if
+        // more than one candidate is viable, necessitating
+        // comparisons among candidates.  Oh well; we'll repeat the
+        // computation then.
         ImplicitConversion ics;
         ics.addStdConv(SC_IDENTITY);
         c->conversions[argIndex] = ics;
@@ -958,6 +967,24 @@ bool atLeastAsSpecializedAs(Env &env, CType *concrete, CType *pattern)
 }
 
 
+// 'argInfo' has an overload set.  Given the 'destType' to which we
+// want to convert it, figure out the right overloaded element, then
+// modify 'argInfo' in place to reflect that choice.
+static void resolveOverloadedArgument
+  (Env &env, ArgumentInfo &argInfo, CType const *destType)
+{
+  Variable *v = 
+    env.pickMatchingOverloadedFunctionVar(argInfo.overloadSet, destType);
+  if (!v) {                                               
+    // should have already successfully done this earlier
+    xfailure("failed to select a member of a 13.4 set despite earlier success");
+  }
+  
+  argInfo.overloadSet.removeAll();
+  argInfo.type = v->type;
+}
+
+
 // compare overload candidates, returning:
 //   -1 if left is better
 //    0 if they are indistinguishable
@@ -1024,8 +1051,26 @@ int OverloadResolver::compareCandidates(Candidate const *left, Candidate const *
       rightParam.adv();
     }
 
-    int choice = compareConversions(args[i], left->conversions[i], leftDest,
-                                             right->conversions[i], rightDest);
+    // in/t0629.cc: If 'args[i]' is a lookup set, then I need to pick
+    // a specific element.  Moreover, the element depends on the
+    // candidate, so I need to pick an element for 'left' and a
+    // potentially different element for 'right'.
+    //
+    // Now, by this time I will have actually already done that
+    // computation at least once, but I don't have a good place to
+    // record the result, so here I am doing it again.  I could stuff
+    // it into the overload Candidate, but then I'd probably have more
+    // fallout to deal with.  Anyway, it should only be a performance
+    // (and debug output noise; many "13.4: selected") issue.
+    ArgumentInfo leftSrc = args[i];
+    ArgumentInfo rightSrc = args[i];
+    if (args[i].overloadSet.isNotEmpty()) {
+      resolveOverloadedArgument(env, leftSrc, leftDest);
+      resolveOverloadedArgument(env, rightSrc, rightDest);
+    }
+
+    int choice = compareConversionsTwoSrc(leftSrc, left->conversions[i], leftDest,
+                                          rightSrc, right->conversions[i], rightDest);
     if (ret == 0) {
       // no decision so far, fold in this comparison
       ret = choice;
@@ -1115,6 +1160,15 @@ int compareConversions(ArgumentInfo const &src,
   ImplicitConversion const &left, CType const *leftDest,
   ImplicitConversion const &right, CType const *rightDest)
 {
+  return compareConversionsTwoSrc(src, left, leftDest,
+                                  src, right, rightDest);
+}
+
+// this variant is needed to handle in/t0629.cc
+int compareConversionsTwoSrc(
+  ArgumentInfo const &leftSrc, ImplicitConversion const &left, CType const *leftDest,
+  ArgumentInfo const &rightSrc, ImplicitConversion const &right, CType const *rightDest)
+{
   // para 2: choose based on what kind of conversion:
   //   standard < user-defined/ambiguous < ellipsis
   {
@@ -1144,8 +1198,8 @@ int compareConversions(ArgumentInfo const &src,
 
   // para 3, bullet 1
   if (left.kind == ImplicitConversion::IC_STANDARD) {
-    return compareStandardConversions(src, left.scs, leftDest,
-                                      src, right.scs, rightDest);
+    return compareStandardConversions(leftSrc, left.scs, leftDest,
+                                      rightSrc, right.scs, rightDest);
   }
 
   // para 3, bullet 2

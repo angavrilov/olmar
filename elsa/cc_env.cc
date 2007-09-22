@@ -4224,17 +4224,17 @@ void Env::setOverloadedFunctionVar(Expression *e, Variable *selVar)
 // given an overload set, and the type to which the overloaded name is
 // being converted, select the element that matches that type, if any
 // [cppstd 13.4 para 1]
-Variable *Env::pickMatchingOverloadedFunctionVar(LookupSet &set, CType *type)
+Variable *Env::pickMatchingOverloadedFunctionVar(LookupSet &set, CType const *type)
 {
   // normalize 'type' to just be a FunctionType
-  type = type->asRval();
+  type = type->asRvalC();
   if (type->isPointerType() || type->isPointerToMemberType()) {
     type = type->getAtType();
   }
   if (!type->isFunctionType()) {
     return NULL;     // no matching element if not converting to function
   }
-  FunctionType *ft = type->asFunctionType();
+  FunctionType const *ft = type->asFunctionTypeC();
 
   // as there are no standard conversions for function types or
   // pointer to function types [cppstd 13.4 para 7], simply find an
