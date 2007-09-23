@@ -5,6 +5,8 @@
 #include "cc_ast.h"         // C++ AST
 #include "cc_env.h"         // Env
 #include "stdconv.h"        // applyIntegralPromotions, etc.
+#include "mtype.h"          // MType::getEnvironment
+#include "template.h"       // STemplateArgument
 
 
 // ----------------------- CValue ------------------------
@@ -525,8 +527,9 @@ string CValue::asString() const
 
 
 // ----------------------- ConstEval ------------------------
-ConstEval::ConstEval(Variable *d)
-  : dependentVar(d)
+ConstEval::ConstEval(Variable *d, MType *m)
+  : dependentVar(d),
+    map(m)
 {}
 
 ConstEval::~ConstEval()
@@ -605,7 +608,7 @@ CValue Expression::iconstEval(ConstEval &env) const
       return ret;
 
     ASTNEXTC(E_variable, v)
-      return env.evaluateVariable(v->var);
+      return env.evaluateE_variable(v);
 
     ASTNEXTC(E_constructor, c)
       if (type->isIntegerType()) {
@@ -736,6 +739,48 @@ CValue ConstEval::evaluateVariable(Variable *var)
 
   return CValue(stringc
     << "can't const-eval non-const variable `" << var->name << "'");
+}
+
+
+CValue ConstEval::evaluateE_variable(E_variable const *evar)
+{
+  // try to evaluate the variable directly
+  CValue ret = evaluateVariable(evar->var);
+  if (!ret.isDependent() || !map) {
+    // either we succeeded, or we don't have a map with which
+    // further attempts could be made
+    return ret;
+  }
+
+  // hand this off to applyArgumentMap to deal with; this is where
+  // const-eval dives back into the template mess, thus adding itself
+  // to the giant ball of mutual dependencies despite my earlier
+  // attempts to pull it off to the side...
+  STemplateArgument sarg = map->getEnvironment()->
+    applyArgumentMapToE_variable(*map, evar);
+
+  // interpret the result
+  switch (sarg.kind) {
+    default:
+      xfailure(stringb(
+        "ConstEval::evaluateE_variable: applyArgumentMap return an "
+        "unexpected STemplateArgument kind: " << toString(sarg.kind)));
+
+    case STemplateArgument::STA_INT:
+      // TODO: Hmmm... I'm sure there can be unsigned template
+      // parameters, but applyArgumentMap just throws away the type of
+      // the value.  Maybe STemplateArgument should be carrying around
+      // a CValue rather than an 'int'?
+      ret.setSigned(ST_INT, sarg.getInt());
+      return ret;
+
+    case STemplateArgument::STA_ENUMERATOR:
+      return evaluateVariable(sarg.getEnumerator());
+
+    case STemplateArgument::STA_DEPEXPR:
+      ret.setDependent();
+      return ret;
+  }
 }
 
 

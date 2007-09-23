@@ -9,6 +9,8 @@
 #include "xassert.h"     // xassert
 
 class Variable;          // variable.h
+class MType;             // mtype.h
+class E_variable;        // cc_ast.h
 
 
 // represent a value during constant evaluation; in essence, the
@@ -119,13 +121,22 @@ public:      // data
   // needed to tell when an expression is value-dependent...
   Variable * /*nullable*/ dependentVar;
 
-public:
-  ConstEval(Variable * /*nullable*/ dependentVar);
-  ~ConstEval();
+  // Even more for dependent expressions: when this is non-NULL, we
+  // will try to evaluate dependent expressions using the bindings
+  // provided in 'map'.
+  MType * /*nullable*/ map;
   
+public:
+  ConstEval(Variable * /*nullable*/ dependentVar,
+            MType * map = NULL);
+  ~ConstEval();
+
   // evaluation of a Variable is exposed so that it can be
   // used with a Variable not wrapped in an E_variable
   CValue evaluateVariable(Variable *var);
+
+  // similar, I guess
+  CValue evaluateE_variable(E_variable const *evar);
 };
 
 #endif // CONST_EVAL_H
