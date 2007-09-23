@@ -322,15 +322,20 @@ public:
   SObjList<BaseClassSubobj> parents;
 
   // for visit-once-only traversals
-  mutable bool visited;
+  //
+  // 2007-09-22: switched from 'bool' to 'int' to support
+  // more complex search strategies
+  mutable int visited;
 
 public:
   BaseClassSubobj(CompoundType *c, AccessKeyword a, bool v)
-    : BaseClass(c, a, v)
+    : BaseClass(c, a, v),
+      parents(),
+      visited(0)
   {}
-  BaseClassSubobj(BaseClass const &base);
+  BaseClassSubobj(BaseClass const &base);    // not the copy ctor!
   ~BaseClassSubobj();
-  // dsw: note: we use the implicit operator=() on this object
+  // dsw: note: we use the implicit copy ctor and operator=() on this object
 
   // name and virtual address to uniquely identify this object
   string canonName() const;
@@ -422,7 +427,8 @@ private:     // funcs
   static void clearVisited_helper(BaseClassSubobj const *subobj);
 
   static void getSubobjects_helper
-    (SObjList<BaseClassSubobj const> &dest, BaseClassSubobj const *subobj);
+    (SObjList<BaseClassSubobj const> &dest, BaseClassSubobj const *subobj,
+     CompoundType const *requiredBase);
 
   void addLocalConversionOp(Variable *op);
 
@@ -512,14 +518,22 @@ public:      // funcs
   // appears exactly once; NOTE: you may want to call
   // Env::ensureClassBodyInstantiatedIfPossible before calling this, 
   // since an uninstantiated class won't have any subobjects yet
-  void getSubobjects(SObjList<BaseClassSubobj const> &dest) const;
+  //
+  // If 'requiredBase' is non-NULL, then collect only subobjects that
+  // are reachable along an inheritance path that goes through that
+  // class.
+  void getSubobjects(SObjList<BaseClassSubobj const> &dest,
+                     CompoundType const *requiredBase = NULL) const;
 
   // render the subobject hierarchy to a 'dot' graph
   string renderSubobjHierarchy() const;
 
   // how many times does 'ct' appear as a subobject?
   // returns 1 if ct==this
-  int countBaseClassSubobjects(CompoundType const *ct) const;
+  //
+  // 'requiredBase' behaves as it does for 'getSubobjects()'.
+  int countBaseClassSubobjects(CompoundType const *ct,
+                               CompoundType const *requiredBase = NULL) const;
 
   bool hasUnambiguousBaseClass(CompoundType const *ct) const
     { return countBaseClassSubobjects(ct)==1; }

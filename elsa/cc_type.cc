@@ -314,10 +314,11 @@ void BaseClass::traverse(TypeVisitor &vis)
 
 
 // ---------------- BaseClassSubobj ----------------
+// note: this is not the copy ctor; param type is different
 BaseClassSubobj::BaseClassSubobj(BaseClass const &base)
   : BaseClass(base),
     parents(),       // start with an empty list
-    visited(false)   // may as well init; clients expected to clear as needed
+    visited(0)       // may as well init; clients expected to clear as needed
 {}
 
 
@@ -821,7 +822,7 @@ void CompoundType::clearSubobjVisited() const
 STATICDEF void CompoundType::clearVisited_helper
   (BaseClassSubobj const *subobj)
 {
-  subobj->visited = false;
+  subobj->visited = 0;
 
   // recursively clear flags in the *nonvirtual* bases
   SFOREACH_OBJLIST(BaseClassSubobj, subobj->parents, iter) {
@@ -837,29 +838,57 @@ STATICDEF void CompoundType::clearVisited_helper
 // paths, so this allows a more natural iteration by collecting them
 // all into a list; this function provides a prototypical example of
 // how to interpret the structure recursively, when that is necessary
-void CompoundType::getSubobjects(SObjList<BaseClassSubobj const> &dest) const
+void CompoundType::getSubobjects(SObjList<BaseClassSubobj const> &dest,
+                                 CompoundType const *requiredBase) const
 {
   // reverse before also, in case there happens to be elements
   // already on the list, so those won't change order
   dest.reverse();
 
   clearSubobjVisited();
-  getSubobjects_helper(dest, &subobj);
+  getSubobjects_helper(dest, &subobj, requiredBase);
 
   // reverse the list since it was constructed in reverse order
   dest.reverse();
 }
 
 STATICDEF void CompoundType::getSubobjects_helper
-  (SObjList<BaseClassSubobj const> &dest, BaseClassSubobj const *subobj)
+  (SObjList<BaseClassSubobj const> &dest, BaseClassSubobj const *subobj,
+   CompoundType const *requiredBase)
 {
-  if (subobj->visited) return;
-  subobj->visited = true;
+  if (subobj->ct == requiredBase) {
+    // the path we followed up to this point goes through the required
+    // class, so lift the restriction for everything from here up
+    requiredBase = NULL;
+  }
+  
+  // in/t0631.cc: For this algorithm, 'visited' will be 0 when the
+  // subobj has never been seen, 1 when it has been seen but there was
+  // still an unsatisfied 'requiredBase' restriction, and 2 when seen
+  // with no restriction.  This works because the set of reachable
+  // subobjects *with* the restriction is a subset of those reachable
+  // without the restriction.
+  if (requiredBase) {
+    // restriction is pending
+    if (subobj->visited != 0) {
+      return;            // already explored either way
+    }
+    subobj->visited = 1;
+  }
+  else {
+    // no restriction in effect
+    if (subobj->visited == 2) {
+      return;            // already explored w/o restriction
+    }
+    subobj->visited = 2;
+  }
 
-  dest.prepend(subobj);
+  if (!requiredBase) {
+    dest.prepend(subobj);
+  }
 
   SFOREACH_OBJLIST(BaseClassSubobj, subobj->parents, iter) {
-    getSubobjects_helper(dest, iter.data());
+    getSubobjects_helper(dest, iter.data(), requiredBase);
   }
 }
 
@@ -910,10 +939,11 @@ string toString(CompoundType::Keyword k)
 }
 
 
-int CompoundType::countBaseClassSubobjects(CompoundType const *ct) const
+int CompoundType::countBaseClassSubobjects(CompoundType const *ct,
+                                           CompoundType const *requiredBase) const
 {
   SObjList<BaseClassSubobj const> objs;
-  getSubobjects(objs);
+  getSubobjects(objs, requiredBase);
 
   int count = 0;
   SFOREACH_OBJLIST(BaseClassSubobj const, objs, iter) {
