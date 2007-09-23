@@ -4123,9 +4123,9 @@ Type *Env::applyArgumentMapToType(MType &map, Type *origSrc)
         
       Type *eltType = applyArgumentMapToType(map, dsat->eltType);
 
-      STemplateArgument sizeExpr = 
+      STemplateArgument sizeExpr =
         applyArgumentMapToExpression(map, dsat->sizeExpr);
-                      
+
       // note: making an *ordinary* array type, since my expectation
       // is that the variables in 'dsat->sizeExpr' are all bound
       return tfac.makeArrayType(eltType, sizeExpr.getInt());
@@ -4207,20 +4207,37 @@ Type *Env::applyArgumentMapToAtomicType
 
     // resolve 'first' (this unfortunately wraps the result in an
     // extraneous CVAtomicType)
+    //
+    // note: we pass CV_NONE here and apply 'srcCV' later b/c 'srcCV'
+    // applies to the final denoted type, not whatever happens to be
+    // the first qualifier
     AtomicType *retFirst =
       applyArgumentMapToAtomicType(map, sdqt->first, CV_NONE)->
         asCVAtomicType()->atomic;
-    if (!retFirst->isCompoundType()) {
+    if (retFirst->isCompoundType()) {
+      // resolve 'first'::'rest'
+      return applyArgumentMap_applyCV(srcCV,
+               applyArgumentMapToQualifiedType(map, retFirst->asCompoundType(),
+                                               sdqt->rest));
+    }
+    else if (retFirst->isPseudoInstantiation()) {
+      // Rebuild as a new DQT.  Testcase: in/k0081.cc.
+      //
+      // This might be unnecessary (I might be able to re-use the
+      // original), but currently 'applyArgumentMapToAtomicType' never
+      // indicates when reuse of a PseudoInstantiation is possible.
+      DependentQType *retDQT =
+        new DependentQType(retFirst->asPseudoInstantiation());
+      retDQT->rest = sdqt->rest;
+
+      return tfac.makeCVAtomicType(retDQT, srcCV);
+    }
+    else {
       // 14.8.2p2b3.3
       xTypeDeduction(stringc
         << "attempt to extract member `" << sdqt->rest->toString()
         << "' from non-class `" << retFirst->toString() << "'");
     }
-
-    // resolve 'first'::'rest'
-    return applyArgumentMap_applyCV(srcCV,
-             applyArgumentMapToQualifiedType(map, retFirst->asCompoundType(),
-                                             sdqt->rest));
   }
 
   else {

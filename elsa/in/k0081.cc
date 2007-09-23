@@ -8,7 +8,8 @@
 
 // ERR-MATCH: could not evaluate default argument .*?: attempt to extract member .*? from non-class .*?
 
-template <typename T1> struct S1 {
+template <typename T1> 
+struct S1 {
   typedef int MyType;
 };
 
@@ -18,7 +19,8 @@ struct S2
   S2(T2) {}
 };
 
-template <class T2> int foo(T2 a)
+template <class T2> 
+int foo(T2 a)
 {
   S2<T2> s2(a);
 }
