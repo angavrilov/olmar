@@ -3954,15 +3954,15 @@ bool Env::supplyDefaultTemplateArguments
 // moved Env::makeDefaultTemplateArgument into notopt.cc
 
 
-void Env::setSTemplArgFromExpr(STemplateArgument &sarg, Expression *expr)
+// Given an expression, extract the value it denotes and store
+// that value in 'sarg'.
+//
+// If 'map' is not NULL, then it is used to resolve any references to
+// (bound) template arguments in 'expr'.
+void Env::setSTemplArgFromExpr(STemplateArgument &sarg, Expression *expr,
+                               MType * /*nullable*/ map)
 {
   // see cppstd 14.3.2 para 1
-
-  if (expr->type->containsGeneralizedDependent()) {
-    // then certainly the value is dependent too, right?  in/k0003.cc
-    sarg.setDepExpr(expr);
-    return;
-  }
 
   // TODO/BUG: I am basically saying that if a template argument can
   // be const-eval'd, then it is an integer argument.  But it might be
@@ -3985,9 +3985,10 @@ void Env::setSTemplArgFromExpr(STemplateArgument &sarg, Expression *expr)
   CType *rvalType = expr->type->asRval();
   if (rvalType->isIntegerType() ||
       rvalType->isBool() ||
-      rvalType->isEnumType()) {
+      rvalType->isEnumType() ||
+      rvalType->containsGeneralizedDependent()) {    // hope const-eval can work it out
     // attempt to const-eval this expression
-    ConstEval cenv(env.dependentVar);
+    ConstEval cenv(env.dependentVar, map);
     CValue val = expr->constEval(cenv);
     if (val.isDependent()) {
       sarg.setDepExpr(expr);
@@ -4863,9 +4864,9 @@ CType *Env::applyArgumentMapToType(MType &map, CType *origSrc)
         
       CType *eltType = applyArgumentMapToType(map, dsat->eltType);
 
-      STemplateArgument sizeExpr = 
+      STemplateArgument sizeExpr =
         applyArgumentMapToExpression(map, dsat->sizeExpr);
-                      
+
       // note: making an *ordinary* array type, since my expectation
       // is that the variables in 'dsat->sizeExpr' are all bound
       return tfac.makeArrayType(eltType, sizeExpr.getInt());
@@ -4947,20 +4948,37 @@ CType *Env::applyArgumentMapToAtomicType
 
     // resolve 'first' (this unfortunately wraps the result in an
     // extraneous CVAtomicType)
+    //
+    // note: we pass CV_NONE here and apply 'srcCV' later b/c 'srcCV'
+    // applies to the final denoted type, not whatever happens to be
+    // the first qualifier
     AtomicType *retFirst =
       applyArgumentMapToAtomicType(map, sdqt->first, CV_NONE)->
         asCVAtomicType()->atomic;
-    if (!retFirst->isCompoundType()) {
+    if (retFirst->isCompoundType()) {
+      // resolve 'first'::'rest'
+      return applyArgumentMap_applyCV(srcCV,
+               applyArgumentMapToQualifiedType(map, retFirst->asCompoundType(),
+                                               sdqt->rest));
+    }
+    else if (retFirst->isPseudoInstantiation()) {
+      // Rebuild as a new DQT.  Testcase: in/k0081.cc.
+      //
+      // This might be unnecessary (I might be able to re-use the
+      // original), but currently 'applyArgumentMapToAtomicType' never
+      // indicates when reuse of a PseudoInstantiation is possible.
+      DependentQType *retDQT =
+        new DependentQType(retFirst->asPseudoInstantiation());
+      retDQT->rest = sdqt->rest;
+
+      return tfac.makeCVAtomicType(retDQT, srcCV);
+    }
+    else {
       // 14.8.2p2b3.3
       xTypeDeduction(stringc
         << "attempt to extract member `" << sdqt->rest->toString()
         << "' from non-class `" << retFirst->toString() << "'");
     }
-
-    // resolve 'first'::'rest'
-    return applyArgumentMap_applyCV(srcCV,
-             applyArgumentMapToQualifiedType(map, retFirst->asCompoundType(),
-                                             sdqt->rest));
   }
 
   else {
@@ -5124,28 +5142,29 @@ NamedAtomicType *Env::applyArgumentMapToTemplateTypeVariable(
 STemplateArgument Env::applyArgumentMapToExpression
   (MType &map, Expression *e)
 {
-  // hack: just try evaluating it first; this will only work if
-  // the expression is entirely non-dependent (in/t0287.cc)
+  // The basic plan here is to call into the const-evaluator
+  // with 'map' available to resolve bound template arguments.
+  //
+  // One testcase is in/k0086.cc, but really this mechanism
+  // (evaluating expressions that refer to template arguments) has not
+  // been thoroughly tested at all...
+
+  // First, 'map' needs to have been created with an environment.
+  xassert(map.getEnvironment() == this);
+
+  // Now fire off the const-evaluator.  This will call back into
+  // 'applyArgumentMapToE_variable' (below) when it encounters a
+  // template argument.
   STemplateArgument ret;
-  setSTemplArgFromExpr(ret, e);
-  if (!ret.isDepExpr()) {
-    return ret;     // good to go
-  }
+  setSTemplArgFromExpr(ret, e, &map);
+  return ret;
+}
 
-  // TODO: I think the right way to do this is to use the
-  // constant-evaluator (which setSTemplArgFromExpr uses
-  // internally), modified to use 'map'
 
-  if (!e->isE_variable()) {
-    // example: Foo<T::x + 1>, where T maps to some class 'C' that
-    // has an integer constant 'x'
-    //
-    // TODO: my plan is to invoke the constant-expression
-    // evaluator, modified to accept 'map' so it knows how to
-    // handle template parameters
-    xunimp("applyArgumentMap: dep-expr is not E_variable");
-  }
-  E_variable *evar = e->asE_variable();
+STemplateArgument Env::applyArgumentMapToE_variable
+  (MType &map, E_variable const *evar)
+{
+  STemplateArgument ret;
 
   if (evar->var->isTemplateParam()) {
     // name refers directly to a template parameter
@@ -5162,7 +5181,10 @@ STemplateArgument Env::applyArgumentMapToExpression
     ret = applyArgumentMapToQualifiedName(map, evar->name->asPQ_qualifier());
     if (!ret.hasValue()) {
       // couldn't resolve; just package up as dependent name again (in/t0543.cc)
-      ret.setDepExpr(e);
+      //
+      // hack this w/const_cast for the moment; next revision will
+      // change STemplateArgument to carry an "Expression const *"
+      ret.setDepExpr(const_cast<E_variable*>(evar));
     }
   }
 

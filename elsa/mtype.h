@@ -215,6 +215,11 @@ public:      // funcs
 
   // Publish this member; see its comments above.
   IMType::failedDueToDQT;
+  
+  // Get the environment that was passed to the ctor, if any.  Do not
+  // use this if it can be avoided, as it further couples mtype to the
+  // environment.
+  Env *getEnvironment() const { return env; }
 
   // ---- const match ----
   // these functions can only be called if 'allowNonConst' is false

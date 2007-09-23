@@ -851,7 +851,8 @@ private:     // template funcs
     (NamedAtomicType *nat, ObjList<STemplateArgument> const &args);
 
 public:      // template funcs
-  void setSTemplArgFromExpr(STemplateArgument &sarg, Expression *expr);
+  void setSTemplArgFromExpr(STemplateArgument &sarg, Expression *expr,
+                            MType *map = NULL);
   STemplateArgument variableToSTemplateArgument(Variable *var);
 
   // load the bindings with any explicit template arguments; return true if successful
@@ -977,6 +978,8 @@ public:      // template funcs
     MType &map, TemplateTypeVariable const *ttv);
   STemplateArgument applyArgumentMapToExpression
     (MType &map, Expression *e);
+  STemplateArgument applyArgumentMapToE_variable
+    (MType &map, E_variable const *evar);
   STemplateArgument applyArgumentMapToQualifiedName
     (MType &map, PQ_qualifier *qual);
   CompoundType *applyArgumentMap_instClass
