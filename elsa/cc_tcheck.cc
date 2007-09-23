@@ -7282,6 +7282,25 @@ CType *E_fieldAcc::itcheck_fieldAcc_set(Env &env, LookupFlags flags,
     return env.errorType();
   }
 
+  // in/k0060.cc, 10.1p4: For a qualified member lookup, I need to
+  // know the scope used to qualify the variable.  This is everything
+  // up to the final name, e.g., "A::B::C" if the full name is
+  // "A::B::C::x".  This will remain NULL if the name is not
+  // qualified.
+  //
+  // The strategy for computing this is to do the main lookup, and if
+  // it succeeds, do the lookup again, this time stopping when we get
+  // to the final qualifier.  This is slightly inefficient, since I
+  // could in principle just remember the final qualifier somewhere,
+  // but I don't want to do digging up the lookup code for something
+  // that can be so easily achieved from the outside.
+  //
+  // A possible way to improve the situation would be to create a
+  // structure that gets passed in to lookup by reference, and
+  // contains all the input tweaks and output data.  That would let
+  // me get rid of the half-dozen lookupPQ variants.
+  Variable *finalQualifierScopeVar = NULL;
+
   // I'm just going to say that any field access that involves
   // a dependent type is itself of dependent type
   #define HANDLE_DEPENDENT(v)                                     \
@@ -7294,6 +7313,12 @@ CType *E_fieldAcc::itcheck_fieldAcc_set(Env &env, LookupFlags flags,
       fieldName->asPQ_qualifier()->qualifier == NULL) {
     // global scope qualifier: 3.4.5p5
     env.lookupPQ(candidates, fieldName, flags);
+
+    if (candidates.isNotEmpty()) {
+      // repeat the lookup, this time getting the scope only
+      finalQualifierScopeVar = env.lookupPQ_one(fieldName, flags | LF_GET_SCOPE_ONLY);
+      xassert(finalQualifierScopeVar);
+    }
   }
 
   else if (fieldName->isPQ_qualifier()) {
@@ -7312,9 +7337,7 @@ CType *E_fieldAcc::itcheck_fieldAcc_set(Env &env, LookupFlags flags,
         << " is found in the current scope, it must be "
         << "a class or namespace, not " << kindAndType(firstQVar1));
     }
-    Scope *firstQScope1 = (!firstQVar1)?             NULL :
-                          firstQVar1->isNamespace()? firstQVar1->scope :
-                                                     firstQVar1->type->asCompoundType();
+    Scope *firstQScope1 = firstQVar1? firstQVar1->getDenotedScope() : NULL;
 
     // lookup of firstQ in scope of LHS class
     Variable *firstQVar2 =
@@ -7327,8 +7350,7 @@ CType *E_fieldAcc::itcheck_fieldAcc_set(Env &env, LookupFlags flags,
         << " is found in the class of " << obj->asString() << ", it must be "
         << "a class, not " << kindAndType(firstQVar2));
     }
-    Scope *firstQScope2 = (!firstQVar2)? NULL :
-                                         firstQVar2->type->asCompoundType();
+    Scope *firstQScope2 = firstQVar2? firstQVar2->getDenotedScope() : NULL;
 
     // combine the two lookups
     if (firstQScope1) {
@@ -7354,6 +7376,15 @@ CType *E_fieldAcc::itcheck_fieldAcc_set(Env &env, LookupFlags flags,
     // lookup the remainder of 'fieldName', but we already know
     // that 'firstQ' maps to 'firstQScope1'
     env.lookupPQ_withScope(candidates, firstQ->rest, flags, firstQScope1);
+
+    if (candidates.isNotEmpty()) {
+      // repeat the lookup, this time getting the scope only
+      LookupSet scopeSet;
+      env.lookupPQ_withScope(scopeSet, firstQ->rest, flags | LF_GET_SCOPE_ONLY, 
+                             firstQScope1);
+      xassert(scopeSet.count() == 1);
+      finalQualifierScopeVar = scopeSet.first();
+    }
   }
 
   else {
@@ -7460,8 +7491,20 @@ CType *E_fieldAcc::itcheck_fieldAcc_set(Env &env, LookupFlags flags,
         << "field `" << *fieldName << "' is not a class member");
     }
 
+    // 10.1p4: Refine the qualifier scope to a class, if possible.
+    CompoundType *requiredBase = NULL;
+    if (finalQualifierScopeVar) {
+      Scope *s = finalQualifierScopeVar->getDenotedScope();
+      
+      // this is an E_fieldAcc, so if the member was qualified,
+      // it had better have been with a class name!
+      xassert(s->curCompound);
+
+      requiredBase = s->curCompound;
+    }
+
     CompoundType *vClass = v->scope->curCompound;
-    int subobjs = ct->countBaseClassSubobjects(vClass);
+    int subobjs = ct->countBaseClassSubobjects(vClass, requiredBase);
     if (!subobjs) {
       return env.error(fieldName->loc, stringc
         << "field `" << *fieldName << "' is a member of "
