@@ -263,13 +263,18 @@ class PQName(SourceLoc loc) {
 // with type constructors when the name was defined, but a
 // TypeSpecifier refers only to the name)
 class TypeSpecifier(SourceLoc loc) {
-  public(field,xml) CVFlags cv = CV_NONE;
+  public(field,xml) CVFlags cv = CV_UNLOCKED;
   custom clone { ret->cv = cv; }
 
   public void printExtras(ostream &os, int indent) const;
   custom debugPrint { printExtras(os, indent); }
 
   public bool canBeTypeParam() const;
+  
+  // Set 'cv' to 'newCV', but in such a way that it can only be done
+  // once; any subsequent call to 'setCVOnce' must set them to the
+  // same value.  See implementation for more discussion.
+  public void setCVOnce(CVFlags newCV);
 
   // a typedef'd name (typedef might be implicit, as for classes);
   // if 'typenamedUsed' is true, then the user said "typename", so

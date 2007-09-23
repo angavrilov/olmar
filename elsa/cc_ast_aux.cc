@@ -873,6 +873,62 @@ bool TypeSpecifier::canBeTypeParam() const
 }
 
 
+// The issue here is that some inputs such as in/k0072.cc cause the
+// cc.gr nonterminal ElaboratedOrSpecifier to be yielded more than
+// once due to nondeterminism.  This creates a problem because
+// applying the CV flags is a destructive action, and multi-yield and
+// mutation cannot be mixed.
+//
+// However, it is my belief that any such case of multi-yield will
+// still apply the same CV flags for all yielded contexts; that is, I
+// think 'const' and 'volatile' cannot be interpreted as applying to
+// different things depending on potential ambiguities.  At the
+// moment, this is more a conjecture than a proven fact; we'll see.
+//
+// The alternative is to create a TS_cvFlags so that CV can be
+// safely stacked upon any TypeSpecifier.  This idea is so appealing
+// that I actually did it, only to discover:
+//
+// * Attaching 'cv' to TypeSpecifier is nice because it means that
+// cv-ness is orthogonal to other aspects of TypeSpecifiers.  Once I
+// had TS_cvFlags, I had to skip them all over the place.  Ugly, but
+// probably manageable, esp. if I augment astgen to have a notion of a
+// "transparent" variant that isTS_ and asTS_ usually skip.
+//
+// * Although I got Oink to compile, its tests did not pass b/c the
+// placement of qualifiers is sensitive to placement of CV flags.  I
+// think I could have pushed that change through, but I was already
+// at the threshold of abandoning it due to Elsa changes.
+//
+// So, instead, I have this function which will ensure that the CV
+// flags, if set more than once, are set consistently, thus making
+// mutation and multi-yield compatible.  The technique for doing that
+// will be to use a CV_UNLOCKED bit; initially 'cv' is CV_UNLOCKED.
+// Setting it to anything clears CV_UNLOCKED.  Further calls need to
+// be the same as the previously-set value.
+//
+// The reason for using CV_UNLOCKED rather than CV_LOCKED is I wanted
+// the final value to be like it was before so that casual tests
+// like "if (cv)" will still work.
+//
+void TypeSpecifier::setCVOnce(CVFlags newCV)
+{                                   
+  // caller should not be using CV_UNLOCKED
+  xassert(!(newCV & CV_UNLOCKED));
+
+  if (cv == CV_UNLOCKED) {
+    cv = newCV;
+  }
+  else {
+    // must be the same as previously set
+    xassert(cv == newCV);
+    
+    // note that in/k0072.cc is one of very few testcases
+    // that actually reaches this line of code
+  }
+}
+
+
 void TS_classSpec::printExtras(ostream &os, int indent) const
 {
   // template with instantiations to print?
