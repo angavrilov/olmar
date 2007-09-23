@@ -1677,7 +1677,8 @@ void printSTemplateArgument(PrintEnv &env, STemplateArgument const *sta)
               << "::" << sta->sta_value.v->name;
       break;
     case STemplateArgument::STA_DEPEXPR:
-      sta->getDepExpr()->print(env);
+      // const_cast: the 'print' routines should have been 'const' ...
+      const_cast<Expression*>(sta->getDepExpr())->print(env);
       break;
     case STemplateArgument::STA_TEMPLATE:
       *env.out << sta->getTemplate()->typedefVar->name;

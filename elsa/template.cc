@@ -1431,7 +1431,7 @@ bool STemplateArgument::equals(STemplateArgument const *obj,
 }
 
 
-bool exprContainsVariables(Expression *expr, MType *map)
+bool exprContainsVariables(Expression const *expr, MType *map)
 {
   // TODO: This is wrong because the variables might be bound
   // in 'map'.  I think a reasonable solution would be to
@@ -1751,7 +1751,7 @@ value STemplateArgument::toOcaml(ToOcamlData * data){
       create_STA_DEPEXPR_constructor_closure = 
         caml_named_value("create_STA_DEPEXPR_constructor");
     xassert(create_STA_DEPEXPR_constructor_closure);
-    arg = getDepExpr()->toOcaml(data);
+    arg = const_cast<Expression*>(getDepExpr())->toOcaml(data);
     ocaml_val = 
       caml_callback2(*create_STA_DEPEXPR_constructor_closure, annot, arg);
     break;
@@ -1828,7 +1828,7 @@ void STemplateArgument::detachOcaml() {
     break;
 
   case STA_DEPEXPR:
-    getDepExpr()->detachOcaml();
+    const_cast<Expression*>(getDepExpr())->detachOcaml();
     break;
 
   case STA_TEMPLATE:
@@ -2607,7 +2607,17 @@ bool Env::insertTemplateArgBindings_oneParamList
           break;
         }
         case STemplateArgument::STA_DEPEXPR: {
-          binding->setValue(sarg->getDepExpr());
+          // This const_cast is somewhat unfortunate, but seems
+          // unavoidable.  Variable::value is non-const b/c it
+          // sometimes carries the un-type-checked default arguments
+          // for template functions, and of course tchecking them
+          // requires a non-const Expression.
+          //
+          // However, the 'binding' Variable here is used in a
+          // different role (to carry the value of a bound template
+          // parameter), so nothing should end up making any changes
+          // to its 'value'.  Thus the cast should be safe.
+          binding->setValue(const_cast<Expression*>(sarg->getDepExpr()));
           break;
         }
         default: {
@@ -3959,7 +3969,7 @@ bool Env::supplyDefaultTemplateArguments
 //
 // If 'map' is not NULL, then it is used to resolve any references to
 // (bound) template arguments in 'expr'.
-void Env::setSTemplArgFromExpr(STemplateArgument &sarg, Expression *expr,
+void Env::setSTemplArgFromExpr(STemplateArgument &sarg, Expression const *expr,
                                MType * /*nullable*/ map)
 {
   // see cppstd 14.3.2 para 1
@@ -3974,8 +3984,8 @@ void Env::setSTemplArgFromExpr(STemplateArgument &sarg, Expression *expr,
   // corresponding template *parameter* has.
 
   // (in/t0552.cc) maybe this is an enumerator?
-  if (expr->skipGroups()->isE_variable()) {
-    Variable *var = expr->skipGroups()->asE_variable()->var;
+  if (expr->skipGroupsC()->isE_variable()) {
+    Variable *var = expr->skipGroupsC()->asE_variableC()->var;
     if (var && var->hasFlag(DF_ENUMERATOR)) {
       sarg.setEnumerator(var);
       return;
@@ -4018,7 +4028,7 @@ void Env::setSTemplArgFromExpr(STemplateArgument &sarg, Expression *expr,
     if (expr->isE_variable()) {
       // TODO: 14.3.2p1 says you can only use variables with
       // external linkage
-      sarg.setReference(expr->asE_variable()->var);
+      sarg.setReference(expr->asE_variableC()->var);
     }
     else {
       env.error(stringc
@@ -4029,14 +4039,14 @@ void Env::setSTemplArgFromExpr(STemplateArgument &sarg, Expression *expr,
 
   else if (expr->type->isPointer()) {
     if (expr->isE_addrOf() &&
-        expr->asE_addrOf()->expr->isE_variable()) {
+        expr->asE_addrOfC()->expr->isE_variable()) {
       // TODO: 14.3.2p1 says you can only use variables with
       // external linkage
-      sarg.setPointer(expr->asE_addrOf()->expr->asE_variable()->var);
+      sarg.setPointer(expr->asE_addrOfC()->expr->asE_variable()->var);
     }
     else if (expr->isE_variable() &&
-             expr->asE_variable()->var->isTemplateParam()) {
-      sarg.setPointer(expr->asE_variable()->var);
+             expr->asE_variableC()->var->isTemplateParam()) {
+      sarg.setPointer(expr->asE_variableC()->var);
     }
     else {
       // TODO: This is wrong; the '&' is optional for arrays.
@@ -4051,7 +4061,7 @@ void Env::setSTemplArgFromExpr(STemplateArgument &sarg, Expression *expr,
     if (expr->isE_variable()) {
       // TODO: 14.3.2p1 says you can only use functions with
       // external linkage
-      sarg.setPointer(expr->asE_variable()->var);
+      sarg.setPointer(expr->asE_variableC()->var);
     }
     else {
       env.error(stringc
@@ -4064,8 +4074,8 @@ void Env::setSTemplArgFromExpr(STemplateArgument &sarg, Expression *expr,
     // this check is identical to the case above, but combined with
     // the inferred type it checks for a different syntax
     if (expr->isE_addrOf() &&
-        expr->asE_addrOf()->expr->isE_variable()) {
-      sarg.setMember(expr->asE_addrOf()->expr->asE_variable()->var);
+        expr->asE_addrOfC()->expr->isE_variable()) {
+      sarg.setMember(expr->asE_addrOfC()->expr->asE_variable()->var);
     }
     else {
       env.error(stringc
@@ -5140,7 +5150,7 @@ NamedAtomicType *Env::applyArgumentMapToTemplateTypeVariable(
 
 
 STemplateArgument Env::applyArgumentMapToExpression
-  (MType &map, Expression *e)
+  (MType &map, Expression const *e)
 {
   // The basic plan here is to call into the const-evaluator
   // with 'map' available to resolve bound template arguments.
@@ -5181,10 +5191,7 @@ STemplateArgument Env::applyArgumentMapToE_variable
     ret = applyArgumentMapToQualifiedName(map, evar->name->asPQ_qualifier());
     if (!ret.hasValue()) {
       // couldn't resolve; just package up as dependent name again (in/t0543.cc)
-      //
-      // hack this w/const_cast for the moment; next revision will
-      // change STemplateArgument to carry an "Expression const *"
-      ret.setDepExpr(const_cast<E_variable*>(evar));
+      ret.setDepExpr(evar);
     }
   }
 
@@ -6084,7 +6091,7 @@ bool TemplateInfo::matchesPI(CompoundType *otherPrimary,
       // non-type paramter?
       else if (iter.data()->isDepExpr() &&
                iter.data()->getDepExpr()->isE_variable()) {
-        argVar = iter.data()->getDepExpr()->asE_variable()->var;
+        argVar = iter.data()->getDepExpr()->asE_variableC()->var;
       }
 
       // template template parameter?

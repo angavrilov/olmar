@@ -501,10 +501,10 @@ public: // data ?
   } kind;
 
   union {
-    CType *t;         // (serf) for STA_TYPE
-    int i;           // for STA_INT
-    Variable *v;     // (serf) for STA_ENUMERATOR, STA_REFERENCE, STA_POINTER, STA_MEMBER
-    Expression *e;   // (serf) for STA_DEPEXPR
+    CType *t;               // (serf) for STA_TYPE
+    int i;                 // for STA_INT
+    Variable *v;           // (serf) for STA_ENUMERATOR, STA_REFERENCE, STA_POINTER, STA_MEMBER
+    Expression const *e;   // (serf) for STA_DEPEXPR
 
     // (serf) for STA_TEMPLATE; this will be a CompoundType if this is
     // a concrete argument, and a TemplateTypeVariable if abstract
@@ -535,7 +535,7 @@ public:
   Variable *getReference() const { xassert(kind==STA_REFERENCE); return sta_value.v; }
   Variable *getPointer()   const { xassert(kind==STA_POINTER);   return sta_value.v; }
   Variable *getMember()    const { xassert(kind==STA_MEMBER);    return sta_value.v; }
-  Expression *getDepExpr() const { xassert(kind==STA_DEPEXPR);   return sta_value.e; }
+  Expression const *getDepExpr() const { xassert(kind==STA_DEPEXPR);   return sta_value.e; }
   NamedAtomicType *getTemplate() const { xassert(kind==STA_TEMPLATE); return sta_value.templNat; }
 
   // set 'sta_value', ensuring correspondence between it and 'kind'
@@ -543,7 +543,7 @@ public:
   void setInt(int i)             { kind=STA_INT;       sta_value.i=i; }
   void setEnumerator(Variable *v){ kind=STA_ENUMERATOR;sta_value.v=v; }
   void setReference(Variable *v) { kind=STA_REFERENCE; sta_value.v=v; }
-  void setDepExpr(Expression *e) { kind=STA_DEPEXPR;   sta_value.e=e; }
+  void setDepExpr(Expression const *e) { kind=STA_DEPEXPR;   sta_value.e=e; }
   void setPointer(Variable *v)   { kind=STA_POINTER;   sta_value.v=v; }
   void setMember(Variable *v)    { kind=STA_MEMBER;    sta_value.v=v; }
   void setTemplate(NamedAtomicType *nat) { kind=STA_TEMPLATE; sta_value.templNat=nat; }
@@ -599,7 +599,7 @@ string sargsToString(SObjListIter<STemplateArgument> &iter);
 bool containsVariables(SObjList<STemplateArgument> const &args, MType *map = NULL);
 bool containsVariables(ObjList<STemplateArgument> const &args, MType *map = NULL);
 
-bool exprContainsVariables(Expression *expr, MType *map);
+bool exprContainsVariables(Expression const *expr, MType *map);
 
 bool hasDependentArgs(SObjList<STemplateArgument> const &args);
 

@@ -255,8 +255,8 @@ bool IMType::imatchSTemplateArgument(STemplateArgument const *conc,
 {
   if (pat->kind == STemplateArgument::STA_DEPEXPR &&
       pat->getDepExpr()->isE_variable() &&
-      canUseAsVariable(pat->getDepExpr()->asE_variable()->var, flags)) {
-    return imatchNontypeWithVariable(conc, pat->getDepExpr()->asE_variable(), flags);
+      canUseAsVariable(pat->getDepExpr()->asE_variableC()->var, flags)) {
+    return imatchNontypeWithVariable(conc, pat->getDepExpr()->asE_variableC(), flags);
   }
 
   if (conc->kind != pat->kind) {
@@ -319,7 +319,7 @@ bool IMType::imatchNontypeWithVariable(STemplateArgument const *conc,
     // possibility can be eliminated
     if (conc->isDepExpr() &&
         conc->getDepExpr()->isE_variable() &&
-        conc->getDepExpr()->asE_variable()->var->isTemplateParam()) {
+        conc->getDepExpr()->asE_variableC()->var->isTemplateParam()) {
       // ok
     }
     else if (conc->kind == STemplateArgument::STA_REFERENCE &&
