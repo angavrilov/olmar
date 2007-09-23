@@ -48,6 +48,10 @@
 //
 // Every place there's a destructive modification which isn't handled
 // by FakeLists is marked by the phrase 'destructive action'.
+//
+// There is also 'semi-destructive action', which tags places where
+// an action is destructive, but other safeguards are place to ensure
+// that later mutations all have the same effect as the original.
 
 
 // this makes it so that, by default, dup() is the identity function,
@@ -1113,18 +1117,18 @@ nonterm(Declaration*) DeclSpecifier {
   // triggered by one of "class", "struct", "union", "enum", "typename",
   // with the particular instance sorted out by ElaboratedOrSpecifier
   -> e:ElaboratedOrSpecifier m2:UberModifierSeqOpt
-       { e->cv |= uberCVFlags(m2);     // destructive action
+       { e->setCVOnce(uberCVFlags(m2));     // semi-destructive action
          return new Declaration(uberDeclFlags(m2), e, NULL); }
 
   -> m1:UberModifierSeq e:ElaboratedOrSpecifier m2:UberModifierSeqOpt
        { UberModifiers m = uberCombine(loc, m1, m2);
-         e->cv |= uberCVFlags(m);      // destructive action
+         e->setCVOnce(uberCVFlags(m));      // semi-destructive action
          return new Declaration(uberDeclFlags(m), e, NULL); }
 }
 
 // choose among TS_elaborated, TS_classSpec and TS_enumSpec
 nonterm(TypeSpecifier*) ElaboratedOrSpecifier {
-  fun dup(n) { return NULL; }              // prevent multi-yield
+  // Note: This can multi-yield in cases like in/k0072.cc.
 
   -> s:ElaboratedTypeSpecifier { return s; }
   -> s:ClassSpecifier          { return s; }
@@ -1252,14 +1256,12 @@ nonterm(TypeSpecifier*) TypeSpecifier {
 
   // TS_elaborated, TS_classSpec, TS_enumSpec
   -> e:ElaboratedOrSpecifier m2:UberCVQualifierSeqOpt
-       { xassert(e != NULL && "388cba6d-895c-4acb-ac25-c28fc1c4c2cb");
-         e->cv |= uberCVFlags(m2);     // destructive action
+       { e->setCVOnce(uberCVFlags(m2));     // semi-destructive action
          return e; }
 
   -> m1:UberCVQualifierSeq e:ElaboratedOrSpecifier m2:UberCVQualifierSeqOpt
        { UberModifiers m = uberCombine(loc, m1, m2);
-         xassert(e != NULL && "ceae1527-94a7-480d-9134-5dbd8cbfb2aa");
-         e->cv |= uberCVFlags(m);      // destructive action
+         e->setCVOnce(uberCVFlags(m));      // semi-destructive action
          return e; }
 }
 
