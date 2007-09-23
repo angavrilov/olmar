@@ -125,7 +125,7 @@ public:      // data
   // will try to evaluate dependent expressions using the bindings
   // provided in 'map'.
   MType * /*nullable*/ map;
-  
+
 public:
   ConstEval(Variable * /*nullable*/ dependentVar,
             MType * map = NULL);

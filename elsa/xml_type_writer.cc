@@ -739,7 +739,8 @@ void XmlTypeWriter::toXml(STemplateArgument *sta) {
   case STemplateArgument::STA_DEPEXPR:
     // (quarl) I don't get what's going on here; this looks weird.
     if (astVisitor) {
-      sta->value.e->traverse(*astVisitor);
+      // const_cast: traversal is sort of const-polymorphic...
+      const_cast<Expression*>(sta->value.e)->traverse(*astVisitor);
     }
     break;
 
