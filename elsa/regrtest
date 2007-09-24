@@ -1155,7 +1155,7 @@ testparse k0083.cc #"friend template class declaration"
 failparse k0084.cc "complex literals"
 failparse k0085.cc "complex double * int"
 testparse k0086.cc #"enable_if: template argument expressions"
-failparse k0087.cc 'implicit conversion to "bool const &" via "bool" via "operator bool"'
+testparse k0087.cc #'implicit conversion to "bool const &" via "bool" via "operator bool"'
 testparse k0088.cc #"inferring const member function template parameter type"
 testparse k0089.cc #"specialization of template function member"
 testparse k0090.cc #"template specialization of array"

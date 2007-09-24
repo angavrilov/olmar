@@ -1720,6 +1720,20 @@ ImplicitConversion getConversionOperator(
           resolver.processCandidate(v);
         }
       }
+      else {
+        // in/k0087.cc: If the conversion yields an rvalue, we can
+        // make a temporary and bind the reference to that.  cppstd
+        // 8.5.3p1, basically, though as usual I'm unclear on how to
+        // interpret it.
+        //
+        // Note that this is *not* a case covered by 13.3.1.6, despite
+        // the comment above; that section applies when both the
+        // parameter and the conversion function have reference type.
+        if (SC_ERROR!=getStandardConversion(NULL /*errorMsg*/,
+              SE_NONE, retType, destType)) {
+          resolver.processCandidate(v);
+        }
+      }
     }
   }
 
