@@ -1,5 +1,20 @@
 2007-09-24  Hendrik Tews  <tews@tandem.cs.ru.nl>
 
+        * started olmar version 2 development in subdir olmar
+          - lives in parallel and harmony with the current olmar
+            version
+          - old version will be discontinued at some stage in the far
+            future 
+          - main differences:
+            + astgen ast's are reflected into ocaml
+            + reflection code generation is done in ocaml
+            + reflection is controled by a config file (containing for
+              instance renamings)
+            + will work (eventually) with almost unchanged elsa sources
+            + record types instead of tuples
+            + most of the tedious code is generated as well
+              (ast_accessors, superast, uplinks, ast_graph, ...)
+
         * added cvs revision in ast/ast.ast
 
 2007-08-21  Hendrik Tews  <tews@tandem.cs.ru.nl>

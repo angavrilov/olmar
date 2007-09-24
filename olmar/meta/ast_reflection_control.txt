@@ -1,0 +1,56 @@
+###  Copyright 2006 Hendrik Tews, All rights reserved.                  ###
+###  See file license.txt for terms of use                              ###
+###########################################################################
+
+###########################################################################
+###########################################################################
+
+[Renamings]
+
+FieldOrCtorArg.type		field_type
+
+# conflicts on field name
+FieldOrCtorArg.name		field_name
+BaseClass.name			base_name
+ASTClass.name			cl_name
+
+
+###########################################################################
+###########################################################################
+
+[Basic Types]
+
+string
+
+# the following enum types will eventually treated in the astgen toolchain
+AccessCtl
+FieldFlags
+
+
+###########################################################################
+###########################################################################
+
+[type header]
+
+open Ast_ml_types
+
+
+###########################################################################
+###########################################################################
+
+[ocaml_reflect header]
+
+# start preprocessor directives in the second column, otherwise
+# they are treated as comments
+
+ #include "ocaml_reflection_base.h"
+ #include "ast.hand.h"
+ #include "ast_reflect.h"
+
+
+###########################################################################
+###########################################################################
+
+[Top Node]
+
+ASTSpecFile

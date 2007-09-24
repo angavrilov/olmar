@@ -1,0 +1,51 @@
+--- ../../../ast/astgen.cc	2007-08-28 21:38:50.000000000 +0200
++++ astgen_or.cc	2007-08-28 21:59:31.000000000 +0200
+@@ -12,20 +12,24 @@
+ #include "srcloc.h"        // SourceLocManager
+ #include "strtokp.h"       // StrtokParse
+ #include "exc.h"           // xfatal
+ #include "strdict.h"       // StringDict
+ #include "ofstreamts.h"    // ofstreamTS
+ 
+ #include <string.h>        // strncmp
+ #include <fstream.h>       // ofstream
+ #include <ctype.h>         // isalnum
+ 
++
++void reflect_into_ocaml(char ** argv, string base, ASTSpecFile const * ast);
++
++
+ // propertly a member of ListClass below, but I don't like nested
+ // things
+ enum ListKind {
+   LK_NONE,
+   LK_ASTList,
+   LK_FakeList,
+   LK_ObjList
+ };
+ 
+ // a product type of the information relevant to a list member of a
+@@ -4345,20 +4349,23 @@
+ 
+   // generate the header
+   string base = replace(srcFname, ".ast", "");
+   if (basename) {
+     base = basename;
+   }
+ 
+   // get all of the list classes
+   getListClasses();
+ 
++  // HT: reflect the ast ast into Ocaml
++  reflect_into_ocaml(argv, base, ast);
++
+   // dsw: I want a way to generate just the parser and nothing else;
+   // this separation into two blocks suggests that parsing the ast
+   // file and generating something from it should perhaps be separated
+   // into two parts
+   if (!tracingSys("no_ast.gen")) {
+     string hdrFname = base & ".h";
+     HGen hg(srcFname, modules, hdrFname, *ast);
+     cout << "writing " << hdrFname << "...\n";
+     hg.emitFile();
+ 

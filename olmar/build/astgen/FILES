@@ -1,0 +1,34 @@
+
+real ML sources:
+
+  ast_caml_callbacks	general callback init
+
+  ast_ml_types		base types in the ast ast
+
+  ast_ml_constructors	reflection functions for base types
+
+  ast_oast_header_start	first part of ast_oast_header 
+
+  
+real C++ sources:
+
+  astgen_reflection.patch	patch for astgen sources
+
+  ast_reflect		additional clue code needed for astgen_or
+
+
+
+
+ML generated:
+
+  ast_oast_header	oast header module, concatenated from two ml files
+
+  ast_reflect_type	ml type of ast
+
+
+
+C++ generated:
+
+  astgen_or.cc		patched astgen sources
+
+  ast_reflect_ocaml_reflect 	ocaml reflection functions

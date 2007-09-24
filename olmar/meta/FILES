@@ -1,0 +1,22 @@
+
+This directory contains tools that work on the astgen ast.
+All these tools read oast files generated from astgen. Some of the 
+tools are generic, some ast specific and some elsa specific.
+
+
+real sources
+
+  ast_type_descr_header		first part of ast_ast_type_descr
+
+  check_oast		oast file checker (generic)
+
+  meta_ast		utility functions for ast ast's (generic)
+
+  gen_reflection	generate reflection code from ast oast (generic)
+
+  more_string		some string utils
+
+
+generated
+
+  ast_ast_type_descr	memcheck type description for ast asts

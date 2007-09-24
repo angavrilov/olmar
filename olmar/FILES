@@ -1,0 +1,8 @@
+
+directories
+
+  build		additional sources and build directory for modified 
+		astgen, ccparse
+
+  meta		tools that work on astgen syntax trees, 
+		that is on ast oast files

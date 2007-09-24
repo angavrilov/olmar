@@ -1,0 +1,7 @@
+
+directories:
+
+  general	modules needed for both, astgen_ro and ccparse_ro
+
+
+  astgen	sources and build dir for astgen_ro
