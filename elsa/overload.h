@@ -167,6 +167,7 @@ public:      // data
 
 private:     // funcs
   Candidate * /*owner*/ makeCandidate(Variable *var, Variable *instFrom);
+  bool argsContainError() const;
 
   // debugging, error diagnosis
   void printArgInfo();
