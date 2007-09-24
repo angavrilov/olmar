@@ -690,6 +690,22 @@ Variable *selectBestCandidate_templCompoundType(TemplCandidates &resolver)
 }
 
 
+// Return true if any of the argument types is ST_ERROR.
+bool OverloadResolver::argsContainError() const
+{
+  for (int i=0; i < args.size(); i++) {
+    CType *argType = args[i].type;
+    if (!argType) continue;
+
+    if (argType->isError()) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+
 Candidate const *OverloadResolver::resolveCandidate(bool &wasAmbig)
 {
   wasAmbig = false;
@@ -721,7 +737,12 @@ Candidate const *OverloadResolver::resolveCandidate(bool &wasAmbig)
         sb << " (no original candidates)";
       }
 
-      errors->addError(new ErrorMsg(loc, sb, EF_NONE));
+      if (argsContainError()) {
+        OVERLOADTRACE("suppressing error msg b/c args have error type");
+      }
+      else {
+        errors->addError(new ErrorMsg(loc, sb, EF_NONE));
+      }
     }
     OVERLOADTRACE("no viable candidates");
     return NULL;
