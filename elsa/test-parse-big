@@ -6,8 +6,7 @@
 
 if [ "$1" = "" ]; then
   exec $0 smbase ast elkhound elsa doxygen pine e2fsprogs \
-          binutils ddd qt mozilla debian/c debian/c++ \
-          gcc-3.4.3-headers gcc-4.0.0-headers
+          binutils ddd qt mozilla headers
 fi
 
 # the lines
@@ -103,6 +102,12 @@ while [ "$1" != "" ]; do
     debian/c++)
       echo "debian/c++"
       KEEP_GOING=2 ./test-parse ../bigin/debian/c++/*.gz >>debian.c++.parse.out
+      if [ $? = 130 ]; then exit 130; fi
+      ;;
+
+    headers)
+      echo "headers"
+      ./test-parse-buildlog ../bigin/headers/make.out >headers.parse.out
       if [ $? = 130 ]; then exit 130; fi
       ;;
 

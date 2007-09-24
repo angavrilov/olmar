@@ -394,6 +394,11 @@ void Env::addGNUBuiltins()
     "vsnprintf",
     "vsscanf",
 
+    // 4.2.1 has these too
+    "clog",
+    "clogf",
+    "clogl",
+
     // ------------------------------------------------
     // group 3: "There are also built-in versions of the ISO C99 functions ..."
 

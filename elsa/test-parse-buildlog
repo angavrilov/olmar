@@ -91,12 +91,16 @@ $runCount = 0;
 @dirstack = ();
 
 # initial directory: wherever $buildlog is
-($cwd) = ($buildlog =~ m|^(.*)/[^/]*$|);
+($cwd, $buildlogFilename) = ($buildlog =~ m|^(.*)/([^/]*)$|);
 if (defined($cwd)) {
   mychdir($cwd);
 }
 $cwd = `pwd`;
 chomp($cwd);
+
+# set $buildlog to just the file name portion so it can be opened now
+# that we've changed directories
+$buildlog = $buildlogFilename;
 
 # directory for last-printed 'run' command
 #$lastRunDir = "";
