@@ -1,3 +1,7 @@
+2007-09-24  Hendrik Tews  <tews@tandem.cs.ru.nl>
+
+        * added cvs revision in ast/ast.ast
+
 2007-08-21  Hendrik Tews  <tews@tandem.cs.ru.nl>
 
         * fixed superast local state problem
