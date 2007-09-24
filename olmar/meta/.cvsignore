@@ -8,3 +8,4 @@ check_oast
 gen_accessors
 gen_reflection
 gen_superast
+gen_uplinks

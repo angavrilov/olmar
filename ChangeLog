@@ -1,5 +1,7 @@
 2007-09-24  Hendrik Tews  <tews@tandem.cs.ru.nl>
 
+        * moved more_string, dense_set into new util subdir
+
         * added .cvsignore
         * gen_reflection: change to alloc_small
         * gen_uplinks added

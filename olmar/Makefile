@@ -6,7 +6,7 @@
 
 # simply redirect all goals into the subdirectories
 
-SUBDIRS=build meta
+SUBDIRS=util build meta
 
 .PHONY: all clean depend
 

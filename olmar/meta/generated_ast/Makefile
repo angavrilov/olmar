@@ -6,6 +6,7 @@
 
 
 # other directories
+UTIL:= ../../util
 GENERAL:=  ../../build/general
 ASTGEN_OR:= ../../build/astgen
 
@@ -148,16 +149,18 @@ distclean: clean
 
 TOCLEAN += *.cmo *.cmxa *.cma *.a
 %.cmo: %.ml
-	$(OCAMLC) $(OCAML_BYTE_FLAGS) $(OCAML_FLAGS) -I $(GENERAL) \
+	$(OCAMLC) $(OCAML_BYTE_FLAGS) $(OCAML_FLAGS) -I $(UTIL) -I $(GENERAL) \
 		-I $(ASTGEN_OR) -I .. -c $<
 
 TOCLEAN += *.cmx *.o
 %.cmx: %.ml
-	$(OCAMLOPT) $(OCAML_FLAGS) -I $(GENERAL) -I $(ASTGEN_OR) -I .. -c $<
+	$(OCAMLOPT) $(OCAML_FLAGS) -I $(UTIL) -I $(GENERAL) -I $(ASTGEN_OR) \
+		-I .. -c $<
 
 TOCLEAN += *.cmi
 %.cmi: %.mli
-	$(OCAMLC) $(OCAML_FLAGS) -I $(GENERAL) -I $(ASTGEN_OR) -I .. -c $<
+	$(OCAMLC) $(OCAML_FLAGS) -I $(UTIL) -I $(GENERAL) -I $(ASTGEN_OR) \
+		-I .. -c $<
 
 
 -include mldeps.mk
@@ -165,5 +168,5 @@ TOCLEAN += *.cmi
 .PHONY: mldeps
 depend: mldeps
 mldeps:
-	ocamldep $(OCAMLDEPOPTS) -I $(GENERAL) -I $(ASTGEN_OR) \
+	ocamldep $(OCAMLDEPOPTS) -I $(UTIL) -I $(GENERAL) -I $(ASTGEN_OR) \
 		*ml *mli > mldeps.mk

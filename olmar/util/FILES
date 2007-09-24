@@ -1,0 +1,6 @@
+
+This directory contains some general tools.
+
+  more_string		some string utils
+
+  dense_set		dense set of natural numbers implemented with bitmaps

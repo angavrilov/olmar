@@ -14,6 +14,7 @@ first: gen_reflection do_generated
 #first: check_oast
 
 MEMCHECK:= $(HOME)/src/memcheck
+UTIL:= ../util
 GENERAL:=  ../build/general
 ASTGEN_OR:= ../build/astgen
 
@@ -40,8 +41,7 @@ ifeq ($(OCAMLDEBUG),1)
 endif
 
 .PHONY: all
-all: 	check_oast gen_reflection gen_superast gen_accessors gen_uplinks\
-		dense_set.$(OCAML_OBJ_EXT)
+all: 	check_oast gen_reflection gen_superast gen_accessors gen_uplinks
 	$(MAKE) -C generated_ast all
 
 
@@ -66,9 +66,9 @@ TODISTCLEAN =
 ##### gen_uplinks
 
 GEN_UPLINKS_ML=\
+	$(UTIL)/olmar_utils.$(OCAML_LIB_EXT) \
 	$(GENERAL)/ast_annotation.ml \
 	$(ASTGEN_OR)/ast_oast_header.ml \
-	more_string.ml \
 	ast_config.ml \
 	meta_ast.ml \
 	gen_uplinks.ml
@@ -84,9 +84,9 @@ gen_uplinks: $(GEN_UPLINKS_ML:.ml=.$(OCAML_OBJ_EXT))
 ##### gen_accessors
 
 GEN_ACCESSORS_ML=\
+	$(UTIL)/olmar_utils.$(OCAML_LIB_EXT) \
 	$(GENERAL)/ast_annotation.ml \
 	$(ASTGEN_OR)/ast_oast_header.ml \
-	more_string.ml \
 	ast_config.ml \
 	meta_ast.ml \
 	gen_accessors.ml
@@ -102,9 +102,9 @@ gen_accessors: $(GEN_ACCESSORS_ML:.ml=.$(OCAML_OBJ_EXT))
 ##### gen_superast
 
 GEN_SUPERAST_ML=\
+	$(UTIL)/olmar_utils.$(OCAML_LIB_EXT) \
 	$(GENERAL)/ast_annotation.ml \
 	$(ASTGEN_OR)/ast_oast_header.ml \
-	more_string.ml \
 	ast_config.ml \
 	meta_ast.ml \
 	gen_superast.ml
@@ -116,7 +116,7 @@ gen_superast: $(GEN_SUPERAST_ML:.ml=.$(OCAML_OBJ_EXT))
 
 
 .PHONY: do_generated
-do_generated: gen_superast dense_set.$(OCAML_OBJ_EXT) gen_accessors gen_uplinks
+do_generated: gen_superast gen_accessors gen_uplinks
 	$(MAKE) -C generated_ast
 
 #############################################################################
@@ -125,9 +125,9 @@ do_generated: gen_superast dense_set.$(OCAML_OBJ_EXT) gen_accessors gen_uplinks
 
 
 GEN_REFLECTION_ML=\
+	$(UTIL)/olmar_utils.$(OCAML_LIB_EXT) \
 	$(GENERAL)/astgen_general.$(OCAML_LIB_EXT) \
 	$(ASTGEN_OR)/ast_oast_header.ml \
-	more_string.ml \
 	ast_config.ml \
 	meta_ast.ml \
 	gen_reflection.ml
@@ -266,16 +266,17 @@ distclean: clean
 
 TOCLEAN += *.cmo *.cmxa *.cma *.a
 %.cmo: %.ml
-	$(OCAMLC) $(OCAML_BYTE_FLAGS) $(OCAML_FLAGS) -I $(GENERAL) \
+	$(OCAMLC) $(OCAML_BYTE_FLAGS) $(OCAML_FLAGS) -I $(UTIL) -I $(GENERAL) \
 		-I $(ASTGEN_OR) -c $<
 
 TOCLEAN += *.cmx *.o
 %.cmx: %.ml
-	$(OCAMLOPT) $(OCAML_FLAGS) -I $(GENERAL) -I $(ASTGEN_OR) -c $<
+	$(OCAMLOPT) $(OCAML_FLAGS) -I $(UTIL) -I $(GENERAL) -I $(ASTGEN_OR) \
+		-c $<
 
 TOCLEAN += *.cmi
 %.cmi: %.mli
-	$(OCAMLC) $(OCAML_FLAGS) -I $(GENERAL) -I $(ASTGEN_OR) -c $<
+	$(OCAMLC) $(OCAML_FLAGS) -I $(UTIL) -I $(GENERAL) -I $(ASTGEN_OR) -c $<
 
 
 -include mldeps.mk
@@ -283,5 +284,5 @@ TOCLEAN += *.cmi
 .PHONY: mldeps
 depend: mldeps
 mldeps:
-	ocamldep $(OCAMLDEPOPTS) -I $(GENERAL) -I $(ASTGEN_OR) \
+	ocamldep $(OCAMLDEPOPTS) -I $(UTIL) -I $(GENERAL) -I $(ASTGEN_OR) \
 		*ml *mli > mldeps.mk
