@@ -5,8 +5,8 @@
 # This script really only will work on my machine ....
 
 if [ "$1" = "" ]; then
-  exec $0 smbase ast elkhound elsa doxygen pine e2fsprogs \
-          binutils ddd qt mozilla headers
+  exec $0 smbase ast elkhound elsa \
+          mozilla headers
 fi
 
 # the lines
