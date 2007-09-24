@@ -84,9 +84,9 @@ value ocaml_reflect_FieldOrCtorArg_ast_list(ASTList<FieldOrCtorArg> const * x, O
 
   FOREACH_ASTLIST(FieldOrCtorArg, *x, iter) {
     elem = ocaml_reflect_FieldOrCtorArg(iter.data(), data);
-    tmp = caml_alloc(2, Tag_cons);
-    Store_field(tmp, 0, elem);
-    Store_field(tmp, 1, Val_emptylist);
+    tmp = caml_alloc_small(2, Tag_cons);
+    Field(tmp, 0) = elem;
+    Field(tmp, 1) = Val_emptylist;
     if(previous == 0) {
       res = tmp;
     } else {
@@ -113,9 +113,9 @@ value ocaml_reflect_ToplevelForm_ast_list(ASTList<ToplevelForm> const * x, Ocaml
 
   FOREACH_ASTLIST(ToplevelForm, *x, iter) {
     elem = ocaml_reflect_ToplevelForm(iter.data(), data);
-    tmp = caml_alloc(2, Tag_cons);
-    Store_field(tmp, 0, elem);
-    Store_field(tmp, 1, Val_emptylist);
+    tmp = caml_alloc_small(2, Tag_cons);
+    Field(tmp, 0) = elem;
+    Field(tmp, 1) = Val_emptylist;
     if(previous == 0) {
       res = tmp;
     } else {
@@ -560,9 +560,9 @@ value ocaml_reflect_Annotation_ast_list(ASTList<Annotation> const * x, Ocaml_ref
 
   FOREACH_ASTLIST(Annotation, *x, iter) {
     elem = ocaml_reflect_Annotation(iter.data(), data);
-    tmp = caml_alloc(2, Tag_cons);
-    Store_field(tmp, 0, elem);
-    Store_field(tmp, 1, Val_emptylist);
+    tmp = caml_alloc_small(2, Tag_cons);
+    Field(tmp, 0) = elem;
+    Field(tmp, 1) = Val_emptylist;
     if(previous == 0) {
       res = tmp;
     } else {
@@ -700,9 +700,9 @@ value ocaml_reflect_BaseClass_ast_list(ASTList<BaseClass> const * x, Ocaml_refle
 
   FOREACH_ASTLIST(BaseClass, *x, iter) {
     elem = ocaml_reflect_BaseClass(iter.data(), data);
-    tmp = caml_alloc(2, Tag_cons);
-    Store_field(tmp, 0, elem);
-    Store_field(tmp, 1, Val_emptylist);
+    tmp = caml_alloc_small(2, Tag_cons);
+    Field(tmp, 0) = elem;
+    Field(tmp, 1) = Val_emptylist;
     if(previous == 0) {
       res = tmp;
     } else {
@@ -729,9 +729,9 @@ value ocaml_reflect_ASTClass_ast_list(ASTList<ASTClass> const * x, Ocaml_reflect
 
   FOREACH_ASTLIST(ASTClass, *x, iter) {
     elem = ocaml_reflect_ASTClass(iter.data(), data);
-    tmp = caml_alloc(2, Tag_cons);
-    Store_field(tmp, 0, elem);
-    Store_field(tmp, 1, Val_emptylist);
+    tmp = caml_alloc_small(2, Tag_cons);
+    Field(tmp, 0) = elem;
+    Field(tmp, 1) = Val_emptylist;
     if(previous == 0) {
       res = tmp;
     } else {
@@ -758,9 +758,9 @@ value ocaml_reflect_string_ast_list(ASTList<string> const * x, Ocaml_reflection_
 
   FOREACH_ASTLIST(string, *x, iter) {
     elem = ocaml_reflect_string(iter.data(), data);
-    tmp = caml_alloc(2, Tag_cons);
-    Store_field(tmp, 0, elem);
-    Store_field(tmp, 1, Val_emptylist);
+    tmp = caml_alloc_small(2, Tag_cons);
+    Field(tmp, 0) = elem;
+    Field(tmp, 1) = Val_emptylist;
     if(previous == 0) {
       res = tmp;
     } else {

@@ -14,6 +14,9 @@
 open Ast_ml_types
 
 
+(* syntax tree type definition
+ * 
+ *)
 type 'a aSTSpecFile_type = {
   aSTSpecFile_annotation : 'a;
   forms : 'a toplevelForm_type list;

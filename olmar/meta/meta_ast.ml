@@ -323,13 +323,18 @@ let ml_ast_of_oast oast =
 
 (* name of the annotation field *)
 let annotation_field_name cl =
-  translate_olmar_name 
-    (Some cl.ac_name)
-    ((String.uncapitalize cl.ac_name) ^ "_annotation")
+  (String.uncapitalize
+     (translate_olmar_name (Some cl.ac_name) cl.ac_name))
+  ^ "_annotation"
 
 
 let annotation_access_fun cl =
-  (String.uncapitalize (translate_olmar_name None cl.ac_name)) ^ "_annotation"
+  let super = match cl.ac_super with
+    | None -> cl
+    | Some super -> super
+  in
+    (String.uncapitalize (translate_olmar_name None super.ac_name)) 
+    ^ "_annotation"
 
 (* name of the variant constructor for a subclass *)
 let variant_name sub =
@@ -344,6 +349,7 @@ let node_ml_type_name cl =
 let superast_constructor cl =
   String.capitalize (node_ml_type_name cl)
 
+let name_of_superast_no_ast = "No_ast_node"
 
 let get_all_fields cl =
   match cl.ac_subclasses with

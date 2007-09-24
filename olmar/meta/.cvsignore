@@ -1,0 +1,10 @@
+*.cma
+*.cmi
+*.cmo
+*.cmx
+*.cmxa
+ast_ast_type_descr.ml
+check_oast
+gen_accessors
+gen_reflection
+gen_superast

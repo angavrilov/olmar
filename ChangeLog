@@ -1,5 +1,9 @@
 2007-09-24  Hendrik Tews  <tews@tandem.cs.ru.nl>
 
+        * added .cvsignore
+        * gen_reflection: change to alloc_small
+        * gen_uplinks added
+
         * started olmar version 2 development in subdir olmar
           - lives in parallel and harmony with the current olmar
             version

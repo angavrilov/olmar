@@ -33,7 +33,7 @@ ifeq ($(OCAMLDEBUG),1)
 endif
 
 .PHONY: all
-all: 	superast.cmx
+all: 	superast.cmx uplinks.cmx
 
 
 # list of files to clean in 'clean' (etc.) targets
@@ -49,6 +49,31 @@ TODISTCLEAN =
 # # reconfigure if the configure script has changed
 # config.status: configure.pl $(SMBASE)/sm_config.pm
 # 	./config.status -reconfigure
+
+
+############################################################################
+#### uplinks
+#### 
+
+TOCLEAN += uplinks_generated.ml
+uplinks_generated.ml: \
+		../gen_uplinks $(ASTGEN_OR)/ast.ast.oast
+	../gen_uplinks $(ASTGEN_OR)/ast.ast.oast \
+		-tr ../ast_reflection_control.txt \
+		-o uplinks_generated
+
+TOCLEAN += uplinks.ml
+uplinks.ml: uplinks_header.ml uplinks_generated.ml \
+		uplinks_trailer.ml
+	echo "# 1 \"`pwd`/uplinks_header.ml\"" > $@
+	cat uplinks_header.ml >> $@
+	echo "# 1 \"`pwd`/uplinks_generated.ml\"" >> $@
+	cat uplinks_generated.ml >> $@
+	echo "# 1 \"`pwd`/uplinks_trailer.ml\"" >> $@
+	cat uplinks_trailer.ml >> $@
+
+uplinks.cmx: uplinks.cmi superast.cmx
+uplinks.cmo: uplinks.cmi superast.cmi
 
 
 ############################################################################

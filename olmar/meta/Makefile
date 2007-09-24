@@ -9,8 +9,8 @@
 
 # use the first goal for development, for release put it in comment and use all
 
-#first: gen_reflection do_generated
-first: do_reflection diff_reflection
+first: gen_reflection do_generated
+#first: do_reflection diff_reflection
 #first: check_oast
 
 MEMCHECK:= $(HOME)/src/memcheck
@@ -40,7 +40,7 @@ ifeq ($(OCAMLDEBUG),1)
 endif
 
 .PHONY: all
-all: 	check_oast gen_reflection gen_superast gen_accessors \
+all: 	check_oast gen_reflection gen_superast gen_accessors gen_uplinks\
 		dense_set.$(OCAML_OBJ_EXT)
 	$(MAKE) -C generated_ast all
 
@@ -59,6 +59,24 @@ TODISTCLEAN =
 # # reconfigure if the configure script has changed
 # config.status: configure.pl $(SMBASE)/sm_config.pm
 # 	./config.status -reconfigure
+
+
+#############################################################################
+#####
+##### gen_uplinks
+
+GEN_UPLINKS_ML=\
+	$(GENERAL)/ast_annotation.ml \
+	$(ASTGEN_OR)/ast_oast_header.ml \
+	more_string.ml \
+	ast_config.ml \
+	meta_ast.ml \
+	gen_uplinks.ml
+
+
+TOCLEAN += gen_uplinks
+gen_uplinks: $(GEN_UPLINKS_ML:.ml=.$(OCAML_OBJ_EXT))
+	$(OCAMLCC) $(OCAML_FLAGS) -o $@ $^
 
 
 #############################################################################
@@ -98,7 +116,7 @@ gen_superast: $(GEN_SUPERAST_ML:.ml=.$(OCAML_OBJ_EXT))
 
 
 .PHONY: do_generated
-do_generated: gen_superast dense_set.$(OCAML_OBJ_EXT) gen_accessors
+do_generated: gen_superast dense_set.$(OCAML_OBJ_EXT) gen_accessors gen_uplinks
 	$(MAKE) -C generated_ast
 
 #############################################################################

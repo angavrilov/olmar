@@ -1,0 +1,12 @@
+*.cma
+*.cmi
+*.cmo
+*.cmx
+*.cmxa
+*.d
+ast.ast.cc
+ast.ast.h
+ast.ast.oast
+ast_oast_header.ml
+astgen_or
+astgen_or.cc

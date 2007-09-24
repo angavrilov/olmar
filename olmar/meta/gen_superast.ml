@@ -26,7 +26,7 @@ let superast_type_decl ast oc =
 	   (superast_constructor cl)
 	   (node_ml_type_name cl))
       ast;
-    out "  | No_ast_node\n"
+    fpf "  | %s\n" name_of_superast_no_ast
 
 
 let interface input ast oc = 

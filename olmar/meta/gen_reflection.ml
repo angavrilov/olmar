@@ -364,9 +364,9 @@ let generate_list_refl_defn oc lk ml_type c_type =
     fprintf oc "    elem = %s(%s, data);\n"
       (name_of_reflection_function ml_type)
       iter_access;
-    out "    tmp = caml_alloc(2, Tag_cons);\n";
-    out "    Store_field(tmp, 0, elem);\n";
-    out "    Store_field(tmp, 1, Val_emptylist);\n";
+    out "    tmp = caml_alloc_small(2, Tag_cons);\n";
+    out "    Field(tmp, 0) = elem;\n";
+    out "    Field(tmp, 1) = Val_emptylist;\n";
     out "    if(previous == 0) {\n";
     out "      res = tmp;\n";
     out "    } else {\n";

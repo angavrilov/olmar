@@ -71,6 +71,8 @@ val node_ml_type_name : ast_class -> string
 
 val superast_constructor : ast_class -> string
 
+val name_of_superast_no_ast : string
+
 
 val setup_ml_ast : (Arg.key * Arg.spec * Arg.doc) list 
   -> string -> (string * ast_class list)
