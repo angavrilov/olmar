@@ -1,3 +1,24 @@
+2007-10-16  Hendrik Tews  <tews@tandem.cs.ru.nl>
+
+        Olmar
+        * new program gen_graph to generate the ast_graph program for
+          generating the object graph of an ast 
+        * changed the node order tree traversal array generated in
+          into_array to normal depth-first descending order
+        * sourceLoc accessors generated (including superast)
+        * new program ast_type_graph to generate a type graph from an ast
+          description 
+        * added color section to reflection control files
+        * node id's start with 0 now
+        * new dot_graph module in olmar/util to force regular tree layout
+          for dot generated graphs
+        * fixed some small problems
+        
+        * started extensions for elsa ast
+          - new build dir olmar/build/elsa
+          - new types AT_ref, AT_option for the ml_ast; none of the meta
+            ast programs has been adopted yet
+
 2007-09-24  Hendrik Tews  <tews@tandem.cs.ru.nl>
 
         * moved more_string, dense_set into new util subdir

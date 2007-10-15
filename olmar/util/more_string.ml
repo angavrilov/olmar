@@ -62,6 +62,29 @@ let translate from tos s =
     s
 
 
+let rec generate_names_rec base res n =
+  if n = 0 then res
+  else
+    generate_names_rec base ((Printf.sprintf "%s%d" base n) :: res) (n -1)
+
+let generate_names base n = generate_names_rec base [] n
+
+
+(******************************************************************************
+ ******************************************************************************
+ *
+ * some constant strings
+ *
+ ******************************************************************************
+ ******************************************************************************)
+
+let do_not_edit_line =
+  "** DO NOT EDIT ***** DO NOT EDIT ***** DO NOT EDIT ***** DO NOT EDIT ***"
+
+let star_line =
+  "**************************************************************************"
+
+
 (******************************************************************************
  ******************************************************************************
  *
@@ -79,6 +102,19 @@ let pr_comment oc = function
 	(fun l -> Printf.fprintf oc " * %s\n" l)
 	remaining;
       Printf.fprintf oc " *)\n"
+
+
+let pr_comment_heading oc lines = 
+  Printf.fprintf oc "(*%s\n" star_line;
+  Printf.fprintf oc " *%s\n" star_line;
+  Printf.fprintf oc " *\n";
+  List.iter
+    (fun l -> Printf.fprintf oc " * %s\n" l)
+    lines;
+  Printf.fprintf oc " *\n";
+  Printf.fprintf oc " *%s\n" star_line;
+  Printf.fprintf oc " *%s)\n\n\n" star_line
+
 
 let pr_c_comment oc = function
   | [] -> ()
@@ -100,16 +136,3 @@ let pr_linenumber_directive line file oc =
        file)
        
 
-(******************************************************************************
- ******************************************************************************
- *
- * some constant strings
- *
- ******************************************************************************
- ******************************************************************************)
-
-let do_not_edit_line =
-  "** DO NOT EDIT ***** DO NOT EDIT ***** DO NOT EDIT ***** DO NOT EDIT ***"
-
-let star_line =
-  "**************************************************************************"

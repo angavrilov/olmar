@@ -1,0 +1,74 @@
+// -*- c++ -*-                                                         *
+//  Copyright 2006 Hendrik Tews, All rights reserved.                  *
+//  See file license.txt for terms of use                              *
+//                                                                     *
+// cc.ast            C++ abstract syntax: type nodes                   *
+//**********************************************************************
+
+
+// NOTE: This file is only used for the Ocaml part. The real elsa C++ type 
+// nodes are still coming from hand-written C++ code in variable.h, 
+// template.h. This file must be kept somehow in sync with those type 
+// definitions. 
+
+class Variable (
+  SourceLoc loc,          // location of the name in the source text
+  nullable StringRef name,
+
+  // HT: circular pointer for compound types that have an 
+  // implicit typedef variable (whatever the latter is)
+  nullable circular CType *type,              // owner or serf?
+  DeclFlags flags,
+  nullable circular Expression *varValue,     // (serf)
+  nullable CType *defaultParamType,           // (serf)
+  nullable circular Function *funcDefn,       // (serf)
+  nullable OverloadSet *overload,             // (serf)
+  SObjSet<Variable*> *virtuallyOverride,
+  nullable Scope *scope,                      // (serf)
+  nullable TemplateInfo templInfo             // (private!? owner)
+  ) { }
+
+
+class TemplateInfo (
+  templateThingKind templ_kind,
+  SObjList<Variable> params,
+  // HT: NULL in t0026.cc
+  nullable Variable * const var,              // (serf)
+  ObjList<InheritedTemplateParams> inheritedParams,
+  nullable circular Variable * const instantiationOf,        // (serf)
+  SObjList<Variable> instantiations,
+  // HT: NULL in t0026.cc or 27
+  nullable circular Variable * const specializationOf,       // (serf)
+  SObjList<Variable> specializations,
+  ObjList<STemplateArgument> arguments,
+  SourceLoc instLoc,
+  nullable variable Variable * const partialInstantiationOf,      // (serf)
+  SObjList<Variable> partialInstantiations,
+  ObjList<STemplateArgument> argumentsToPrimary,
+  nullable Scope *defnScope,
+  nullable TemplateInfo definitionTemplateInfo,         // (owner)
+  bool instantiateBody,
+  bool instantiationDisallowed,
+  int uninstantiatedDefaultArgs,
+  SObjList<CType> dependentBases
+  ) { }
+
+
+class InheritedTemplateParams (
+  SObjList<Variable> params,
+  // circular in in/t0224.cc
+  // not nullable, will always contain something 
+  circular CompoundType *enclosing          // (serf)
+  ) { }
+
+
+class Scope () {}
+
+class CType () {
+  -> FunctionType();
+}
+
+class AtomicType () {
+  -> CompoundType();
+  -> EnumType();
+}

@@ -6,13 +6,15 @@
 OCAML_LIB_EXT := cmxa
 
 # main targets
-all: ocaml_reflection_base.o astgen_general.$(OCAML_LIB_EXT)
+stage_1: ocaml_reflection_base.o astgen_general.$(OCAML_LIB_EXT)
+
+stage_2:
 
 
 # directories of other software
 SMBASE := ../../../smbase
 LIBSMBASE := $(SMBASE)/libsmbase.a
-OCAMLDIR := /usr/local/stow/ocaml-3.09.3/lib/ocaml
+OCAMLDIR := /usr/local/stow/ocaml-3.09-godi/lib/ocaml/std-lib
 
 
 # external tools

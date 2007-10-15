@@ -23,36 +23,17 @@ let rec reflection_function_type_component = function
 	   | LK_ast_list -> "_ast_list"
 	   | LK_fake_list -> "_fake_list")
 
+really???
+  | AT_ref ml_type ->
+      (reflection_function_type_component ml_type) ^ "_ref"
+  | AT_option ml_type ->
+      (reflection_function_type_component ml_type) & "_option"
+
   | AT_node cl -> cl.ac_name
   | AT_base type_name -> type_name
 
 let name_of_reflection_function ml_type = 
   "ocaml_reflect_" ^ (reflection_function_type_component ml_type)
-
-
-(******************************************************************************
- ******************************************************************************
- *
- * type utilities
- *
- ******************************************************************************
- ******************************************************************************)
-
-let rec string_of_ast_type = function
-  | AT_list(_, el_type, _) -> (string_of_ast_type el_type) ^ " list"
-  | AT_node cl -> 
-      (match cl.ac_super with
-	 | None ->
-	     "'a " ^ (node_ml_type_name cl)
-	 | Some super ->
-	     sprintf "'a %s (* = %s *)"
-	       (node_ml_type_name super)
-	       (variant_name cl)
-      )
-  | AT_base type_name -> 
-      (translate_olmar_name
-	 None
-	 (String.uncapitalize type_name))
 
 
 (******************************************************************************
@@ -92,8 +73,8 @@ let generate_record_type oc cl =
 	  fprintf oc "  %s : %s;\n"
 	    (check_record_field
 	       cl.ac_name
-	       (translate_olmar_name (Some cl.ac_name) field.af_name))
-	    (string_of_ast_type field.af_mod_type)
+	       (translated_field_name cl field))
+	    (string_of_ast_type true field.af_mod_type)
        ))
     (get_all_fields cl);
   output_string oc "}\n"
@@ -109,7 +90,7 @@ let generate_variant_decl oc variant_count cl_sub =
 	 (fun field ->
 	    assert(field.af_modifiers = []);
 	    output_string oc " * ";
-	    output_string oc (string_of_ast_type field.af_mod_type)))
+	    output_string oc (string_of_ast_type true field.af_mod_type)))
       fields;
     output_string oc "\n";
     (* remember tag for this constructor *)
@@ -125,7 +106,7 @@ let generate_type_def first oc super =
   end
   else 
     output_string oc "and ";
-  fprintf oc "%s = " (string_of_ast_type (AT_node super));
+  fprintf oc "%s = " (string_of_ast_type true (AT_node super));
   (match super.ac_subclasses with
      | [] -> generate_record_type oc super
      | subclasses ->

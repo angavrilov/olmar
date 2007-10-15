@@ -18,7 +18,7 @@ let id_annotation (id : annotated) = id
 
 let addr_hash = Hashtbl.create 10093
 
-let next_id = ref 1
+let next_id = ref 0
 
 let next_annotation () =
   let id = !next_id

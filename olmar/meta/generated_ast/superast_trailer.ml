@@ -17,7 +17,7 @@ let into_array max_node ast =
     aSTSpecFile_type_into_array ast_array order_fun visited_nodes ast;
     assert(let res = ref true
 	   in
-	     for i = 1 to max_node do
+	     for i = 0 to max_node do
 	       if ast_array.(i) = No_ast_node then begin
 		 Printf.eprintf "Superast.into_array: node id %d missing\n" i;
 		 res := false
@@ -27,6 +27,6 @@ let into_array max_node ast =
     (ast_array, ast_order)
 
 let iteri f ast_array =
-  for i = 1 to (Array.length ast_array -1) do
+  for i = 0 to (Array.length ast_array -1) do
     f i ast_array.(i)
   done

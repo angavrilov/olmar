@@ -2,6 +2,14 @@
 (*  See file license.txt for terms of use                              *)
 (***********************************************************************)
 
+(* source loc *)
+
+(* SourceLoc is defined as an enum in srcloc.h, here we take the
+ * xml representation, which is file * line * char
+ *)
+type sourceLoc = string * int * int
+
+
 (* general utility functions *)
 
 let string_of_flag_list string_of_elem = function

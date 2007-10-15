@@ -1,0 +1,41 @@
+--- ../../../elsa/cc.ast	2007-08-20 00:59:29.000000000 +0200
++++ cc.ast	2007-10-12 12:02:04.000000000 +0200
+@@ -35,38 +35,23 @@
+ //   - compound initializers
+ //
+ // In these places where I use ASTList, I encapsulate it in another
+ // class if necessary to avoid yielding it as a semantic value.
+ 
+ 
+ // emitted verbatim into generated header (cc.ast.gen.h)
+ verbatim {
+   #include "cc_flags.h"         // CVFlags, DeclFlags, etc. (r)
+   
+-  #include "cc_ocaml.h"         // ocaml serialization helpers
+-  
+   class CCLang;                 // cc_lang.h
+ }
+ 
+-ocaml_type_verbatim {
+-  open Cc_ml_types
+-  open Ml_ctype;;
+-}
+-
+-// use the newest astgen feature: serialize into ocaml
+-option ocamlVisitor;
+-// another newest astgen feature: register a (nullable) pointer type
+-option pointerType StringRef;
+-// yet another newest feature: add a 'a argument to all ocaml types
+-option polymorphicOcamlAST Variable CType FunctionType CompoundType;
+-option polymorphicOcamlAST STemplateArgument NamedAtomicType EnumType;
+-option polymorphicOcamlAST Scope;
+ // use a new astgen feature: make a visitor!
+ option visitor ASTVisitor;
+ option dvisitor DelegatorASTVisitor;
+ 
+ // these turn on the xml serialization and de-serialization code
+ option xmlVisitor XmlAstWriter_AstVisitor;
+ option xmlParser xml;
+ 
+ option identityManager IdentityManager;
+ 

@@ -26,7 +26,7 @@ let rec uplinks_field oc indent field_val field_type =
 	fpf "%s  (fun x ->\n" indent;
 	uplinks_field oc (indent ^ "    ") "x" inner;
 	fpf "%s  )\n" indent;
-	fpf "%s%s;\n" indent field_val
+	fpf "%s(List.rev %s);\n" indent field_val
 
     | AT_node cl -> 
 	fpf "%sadd_link up down myindex (%s %s);\n"
@@ -39,7 +39,7 @@ let uplinks_super oc cl =
   let out = output_string oc in
   let fpf format = fprintf oc format in
     (* do fields from right to left to get down links in left to right order *)
-  let fields = List.rev (List.flatten (get_all_fields cl))
+  let fields = List.rev (get_all_fields_flat cl)
   in
     fpf "  | %s %sx ->\n" 
       (superast_constructor cl)
@@ -58,7 +58,7 @@ let uplinks_super oc cl =
 let uplinks_sub oc super cl =
   let out = output_string oc in
   let fpf format = fprintf oc format in
-  let fields = List.flatten (get_all_fields cl) in
+  let fields = get_all_fields_flat cl in
     (* do fields from right to left to get down links in left to right order *)
   let fields_rev = List.rev fields in
   let field_counter = ref 1 

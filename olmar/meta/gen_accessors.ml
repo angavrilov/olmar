@@ -10,7 +10,7 @@ open Meta_ast
 (******************************************************************************
  ******************************************************************************
  *
- * accessors implementation ml
+ * annotation accessors 
  *
  ******************************************************************************
  ******************************************************************************)
@@ -37,6 +37,71 @@ let variant_annot oc cl =
     out "    -> annot\n\n"
 	      
 
+let do_annot oc ast =
+  List.iter
+    (fun cl ->
+       if cl.ac_subclasses = [] 
+       then
+	 record_annot oc cl
+       else
+	 variant_annot oc cl)
+    ast
+
+
+(******************************************************************************
+ ******************************************************************************
+ *
+ * SourceLoc accessors 
+ *
+ ******************************************************************************
+ ******************************************************************************)
+
+let record_source_loc oc cl =
+  match get_source_loc_field cl with
+    | None -> ()
+    | Some f ->
+	fprintf oc "let %s x = x.%s\n\n" 
+	  (source_loc_access_fun cl)
+	  (translated_field_name cl f)
+
+
+
+let variant_source_loc oc cl =
+  let out = output_string oc in
+  let fpf format = fprintf oc format in
+  let fields = List.map get_source_loc_field cl.ac_subclasses
+  in
+  if List.for_all (fun field_opt -> field_opt <> None) fields
+  then begin
+    fpf "let %s = function\n" (source_loc_access_fun cl);
+    List.iter2
+      (fun sub field_opt ->
+	 match field_opt with
+	   | None -> assert false
+	   | Some source_loc_field ->
+	       fpf "  | %s(%s) -> loc\n"
+		 (variant_name sub)
+		 (String.concat ", "
+		    (List.map
+		       (fun f -> if f == source_loc_field then "loc" else "_")
+		       (get_all_fields_flat sub))))
+      cl.ac_subclasses fields;
+    out "\n\n"
+  end
+
+
+let do_source_loc oc ast =
+  List.iter
+    (fun cl ->
+       if cl.ac_subclasses = [] 
+       then
+	 record_source_loc oc cl
+       else
+	 variant_source_loc oc cl)
+    ast
+
+
+
 
 let implementation input ast oc = 
   let out = output_string oc 
@@ -49,24 +114,12 @@ let implementation input ast oc =
       ];
     out "\n\n";
 
-    pr_comment oc
-      [star_line;
-       star_line;
-       "";
-       "               annotation accessors";
-       "";
-       star_line;
-       star_line	 
-      ];
+    pr_comment_heading oc ["               annotation accessors";];
+    do_annot oc ast;
+    out "\n\n";
 
-    List.iter
-      (fun cl ->
-	 if cl.ac_subclasses = [] 
-	 then
-	   record_annot oc cl
-	 else
-	   variant_annot oc cl)
-      ast;
+    pr_comment_heading oc ["               SourceLoc accessors";];
+    do_source_loc oc ast;
 
     out "\n\n"
     

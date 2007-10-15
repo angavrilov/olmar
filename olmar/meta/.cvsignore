@@ -4,8 +4,10 @@
 *.cmx
 *.cmxa
 ast_ast_type_descr.ml
+ast_type_graph
 check_oast
 gen_accessors
+gen_graph
 gen_reflection
 gen_superast
 gen_uplinks

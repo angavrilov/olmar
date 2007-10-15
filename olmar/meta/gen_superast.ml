@@ -49,6 +49,8 @@ let interface input ast oc =
  *
  * implementation ml
  *
+ * into array
+ *
  ******************************************************************************
  ******************************************************************************)
 
@@ -103,7 +105,8 @@ let record_into_array first oc cl =
     out "    else begin\n";
     fpf "      ast_array.(id_annotation annot) <- %s x;\n"
       (superast_constructor cl);
-    out "      visit visited_nodes annot;\n\n";
+    out "      visit visited_nodes annot;\n";
+    out "      order_fun (id_annotation annot);\n\n";
 
     List.iter
       (List.iter
@@ -113,13 +116,12 @@ let record_into_array first oc cl =
 	      into_array_rec_field oc field "      " ("x." ^ field.af_name)))
       (get_all_fields cl);
 
-    out "      order_fun (id_annotation annot);\n";
     out "    end\n\n\n"
 
 let variant_case_into_array oc cl =
   let out = output_string oc in
   let fpf format = fprintf oc format in
-  let fields = List.flatten (get_all_fields cl) in
+  let fields = get_all_fields_flat cl in
   let field_counter = ref 1 
   in
     if List.for_all (fun f -> f.af_is_base_field) fields
@@ -163,14 +165,49 @@ let variant_into_array first oc cl =
     fpf "      ast_array.(id_annotation annot) <- %s x;\n"
       (superast_constructor cl);
     out "      visit visited_nodes annot;\n";
+    out "      order_fun (id_annotation annot);\n";
     out "      (match x with\n";
     
     List.iter (variant_case_into_array oc) cl.ac_subclasses;
     out "      );\n";
-    out "      order_fun (id_annotation annot);\n";
     out "    end\n";
     out "\n\n"
 
+
+(******************************************************************************
+ ******************************************************************************
+ *
+ * source loc accessor
+ *
+ ******************************************************************************
+ ******************************************************************************)
+
+let do_source_loc_accessor oc ast = 
+  let out = output_string oc in
+  let fpf format = fprintf oc format 
+  in
+    fpf "let %s = function\n" source_loc_meta_fun;
+    fpf "  | %s -> assert false\n" name_of_superast_no_ast;
+    List.iter
+      (fun cl ->
+	 fpf "  | %s " (superast_constructor cl);
+	 if
+	   if cl.ac_subclasses = []
+	   then
+	     get_source_loc_field cl <> None
+	   else
+	     List.for_all
+	       (fun sub -> get_source_loc_field sub <> None)
+	       cl.ac_subclasses
+	 then
+	   fpf "x -> Some(%s x)\n" (source_loc_access_fun cl)
+	 else
+	   out "_ -> None\n"
+      )
+      ast;
+    out "\n\n"
+
+  
 
 
 let implementation input ast oc = 
@@ -185,18 +222,12 @@ let implementation input ast oc =
       ];
     out "\n\n";
 
-    pr_comment oc
-      [star_line;
-       "superast type declaration";
-       ""];
+    pr_comment_heading oc ["             superast type declaration";];
 
     superast_type_decl ast oc;
     out "\n\n\n";
 
-    pr_comment oc
-      [star_line;
-       "superast type declaration";
-       ""];
+    pr_comment_heading oc ["             superast into array";];
 
     List.iter
       (fun cl ->
@@ -206,7 +237,10 @@ let implementation input ast oc =
 	 else
 	   variant_into_array first oc cl)
       ast;
+    out "\n\n";
 
+    pr_comment_heading oc ["             superast source loc accessor";];
+    do_source_loc_accessor oc ast;
     out "\n\n"
 
 

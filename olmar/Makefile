@@ -8,9 +8,17 @@
 
 SUBDIRS=util build meta
 
-.PHONY: all clean depend
 
-all:
+.PHONY: all stage_1 stage_2 clean depend
+
+all: stage_1 stage_2
+
+
+stage_1:
+	for d in $(SUBDIRS) ; do $(MAKE) -C $$d $@; done
+
+
+stage_2:
 	for d in $(SUBDIRS) ; do $(MAKE) -C $$d $@; done
 
 
@@ -21,3 +29,6 @@ clean:
 depend:
 	for d in $(SUBDIRS) ; do $(MAKE) -C $$d $@; done
 
+
+stage1: stage_1
+stage2: stage_2

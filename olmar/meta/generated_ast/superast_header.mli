@@ -3,5 +3,6 @@
 (***********************************************************************)
 
 open Ast_annotation
+open Astgen_util
 open Ast_reflect_type
 

@@ -9,8 +9,9 @@
 
 # use the first goal for development, for release put it in comment and use all
 
-first: gen_reflection do_generated
-#first: do_reflection diff_reflection
+first: stage_1 ast.type.dot ast.ast.dot
+#first: gen_reflection
+#first: ast_reflection diff_ast_reflection
 #first: check_oast
 
 MEMCHECK:= $(HOME)/src/memcheck
@@ -40,10 +41,12 @@ ifeq ($(OCAMLDEBUG),1)
   OCAMLDEPOPTS :=
 endif
 
-.PHONY: all
-all: 	check_oast gen_reflection gen_superast gen_accessors gen_uplinks
+.PHONY: stage_1
+stage_1: check_oast ast_type_graph gen_reflection gen_superast gen_accessors \
+		gen_uplinks gen_graph 
 	$(MAKE) -C generated_ast all
 
+stage_2:
 
 
 # list of files to clean in 'clean' (etc.) targets
@@ -61,97 +64,44 @@ TODISTCLEAN =
 # 	./config.status -reconfigure
 
 
-#############################################################################
-#####
-##### gen_uplinks
+############################################################################
+#### check_oast
+#### 
 
-GEN_UPLINKS_ML=\
-	$(UTIL)/olmar_utils.$(OCAML_LIB_EXT) \
-	$(GENERAL)/ast_annotation.ml \
-	$(ASTGEN_OR)/ast_oast_header.ml \
-	ast_config.ml \
-	meta_ast.ml \
-	gen_uplinks.ml
-
-
-TOCLEAN += gen_uplinks
-gen_uplinks: $(GEN_UPLINKS_ML:.ml=.$(OCAML_OBJ_EXT))
-	$(OCAMLCC) $(OCAML_FLAGS) -o $@ $^
-
-
-#############################################################################
-#####
-##### gen_accessors
-
-GEN_ACCESSORS_ML=\
-	$(UTIL)/olmar_utils.$(OCAML_LIB_EXT) \
-	$(GENERAL)/ast_annotation.ml \
-	$(ASTGEN_OR)/ast_oast_header.ml \
-	ast_config.ml \
-	meta_ast.ml \
-	gen_accessors.ml
-
-
-TOCLEAN += gen_accessors
-gen_accessors: $(GEN_ACCESSORS_ML:.ml=.$(OCAML_OBJ_EXT))
-	$(OCAMLCC) $(OCAML_FLAGS) -o $@ $^
-
-
-#############################################################################
-#####
-##### gen_superast
-
-GEN_SUPERAST_ML=\
-	$(UTIL)/olmar_utils.$(OCAML_LIB_EXT) \
-	$(GENERAL)/ast_annotation.ml \
-	$(ASTGEN_OR)/ast_oast_header.ml \
-	ast_config.ml \
-	meta_ast.ml \
-	gen_superast.ml
-
-
-TOCLEAN += gen_superast
-gen_superast: $(GEN_SUPERAST_ML:.ml=.$(OCAML_OBJ_EXT))
-	$(OCAMLCC) $(OCAML_FLAGS) -o $@ $^
-
-
-.PHONY: do_generated
-do_generated: gen_superast gen_accessors gen_uplinks
-	$(MAKE) -C generated_ast
-
-#############################################################################
-#####
-##### gen_reflection
-
-
-GEN_REFLECTION_ML=\
-	$(UTIL)/olmar_utils.$(OCAML_LIB_EXT) \
+CHECKTREE_ML=\
+	$(MEMCHECK)/memcheck.ml \
 	$(GENERAL)/astgen_general.$(OCAML_LIB_EXT) \
-	$(ASTGEN_OR)/ast_oast_header.ml \
-	ast_config.ml \
-	meta_ast.ml \
-	gen_reflection.ml
+	$(ASTGEN_OR)/astgen_lib.$(OCAML_LIB_EXT) \
+	ast_ast_type_descr.ml \
+	check_oast.ml
 
-TOCLEAN += gen_reflection
-gen_reflection: $(GEN_REFLECTION_ML:.ml=.$(OCAML_OBJ_EXT))
-	$(OCAMLCC) $(OCAML_FLAGS) -o $@ $^
+check_oast.cmo: check_oast.ml ast_ast_type_descr.cmo
+	$(OCAMLC) $(OCAML_BYTE_FLAGS) $(OCAML_FLAGS) \
+		-I $(MEMCHECK) -I $(GENERAL) -I $(ASTGEN_OR) -c $<
+
+check_oast.cmx: check_oast.ml ast_ast_type_descr.cmx
+	$(OCAMLOPT) $(OCAML_FLAGS) \
+		-I $(MEMCHECK) -I $(GENERAL) -I $(ASTGEN_OR) -c $<
+
+TOCLEAN += check_oast
+check_oast: $(CHECKTREE_ML:.ml=.$(OCAML_OBJ_EXT))
+	$(OCAMLCC) $(OCAML_FLAGS) -o $@ -I $(MEMCHECK) -I $(GENERAL) \
+		-I $(ASTGEN_OR) unix.$(OCAML_LIB_EXT) $^
+
+TOCLEAN += check_oast_byte
+check_oast_byte: $(CHECKTREE_ML:.ml=.cmo)
+	$(OCAMLC) $(OCAML_BYTE_FLAGS) $(OCAML_FLAGS) -o $@ \
+		-I $(MEMCHECK) -I $(GENERAL) -I $(ASTGEN_OR) unix.cma $^
 
 
-.PHONY: do_reflection
-do_reflection: gen_reflection
-	rm -rf $(ASTGEN_OR)/new
-	mkdir $(ASTGEN_OR)/new
-	./gen_reflection $(ASTGEN_OR)/ast.ast.oast \
-		-tr ast_reflection_control.txt \
-		-o $(ASTGEN_OR)/new/ast_reflect
+$(MEMCHECK)/generate_type_descr.cmo:
+	$(MAKE) -C $(MEMCHECK) all
 
-.PHONY: diff_reflection
-diff_reflection:
-	for f in $(ASTGEN_OR)/new/* ; do \
-	    echo ======== $$(basename $$f) ==================================; \
-	    diff $$f $(ASTGEN_OR)/$$(basename $$f); \
-	    true; \
-	done
+$(MEMCHECK)/memcheck.cmo:
+	$(MAKE) -C $(MEMCHECK) all
+
+$(MEMCHECK)/memcheck.cmx:
+	$(MAKE) -C $(MEMCHECK) all
 
 
 ############################################################################
@@ -209,44 +159,148 @@ ast_ast_type_descr.cmx: ast_ast_type_descr.ml $(MEMCHECK)/memcheck.cmx
 ## 	$(OCAMLOPT) $(OCAML_FLAGS) -I $(MEMCHECK) -c $<
 
 
-############################################################################
-#### check_oast
-#### 
-
-CHECKTREE_ML=\
-	$(MEMCHECK)/memcheck.ml \
-	$(GENERAL)/ast_annotation.ml \
-	$(ASTGEN_OR)/ast_oast_header.ml \
-	ast_ast_type_descr.ml \
-	check_oast.ml
-
-check_oast.cmo: check_oast.ml ast_ast_type_descr.cmo
-	$(OCAMLC) $(OCAML_BYTE_FLAGS) $(OCAML_FLAGS) \
-		-I $(MEMCHECK) -I $(GENERAL) -I $(ASTGEN_OR) -c $<
-
-check_oast.cmx: check_oast.ml ast_ast_type_descr.cmx
-	$(OCAMLOPT) $(OCAML_FLAGS) \
-		-I $(MEMCHECK) -I $(GENERAL) -I $(ASTGEN_OR) -c $<
-
-TOCLEAN += check_oast
-check_oast: $(CHECKTREE_ML:.ml=.$(OCAML_OBJ_EXT))
-	$(OCAMLCC) $(OCAML_FLAGS) -o $@ -I $(MEMCHECK) -I $(GENERAL) \
-		-I $(ASTGEN_OR) unix.$(OCAML_LIB_EXT) $^
-
-TOCLEAN += check_oast_byte
-check_oast_byte: $(CHECKTREE_ML:.ml=.cmo)
-	$(OCAMLC) $(OCAML_BYTE_FLAGS) $(OCAML_FLAGS) -o $@ \
-		-I $(MEMCHECK) -I $(GENERAL) -I $(ASTGEN_OR) unix.cma $^
+#############################################################################
+#####
+##### gen_reflection
 
 
-$(MEMCHECK)/generate_type_descr.cmo:
-	$(MAKE) -C $(MEMCHECK) all
+GEN_REFLECTION_ML=\
+	$(UTIL)/olmar_utils.$(OCAML_LIB_EXT) \
+	$(GENERAL)/astgen_general.$(OCAML_LIB_EXT) \
+	$(ASTGEN_OR)/astgen_lib.$(OCAML_LIB_EXT) \
+	ast_config.ml \
+	meta_ast.ml \
+	gen_reflection.ml
 
-$(MEMCHECK)/memcheck.cmo:
-	$(MAKE) -C $(MEMCHECK) all
+TOCLEAN += gen_reflection
+gen_reflection: $(GEN_REFLECTION_ML:.ml=.$(OCAML_OBJ_EXT))
+	$(OCAMLCC) $(OCAML_FLAGS) -o $@ $^
 
-$(MEMCHECK)/memcheck.cmx:
-	$(MAKE) -C $(MEMCHECK) all
+
+.PHONY: ast_reflection
+ast_reflection: gen_reflection
+	rm -rf $(ASTGEN_OR)/new
+	mkdir $(ASTGEN_OR)/new
+	./gen_reflection $(ASTGEN_OR)/ast.ast.oast \
+		-tr ast_reflection_control.txt \
+		-o $(ASTGEN_OR)/new/ast_reflect
+
+.PHONY: diff_ast_reflection
+diff_ast_reflection:
+	for f in $(ASTGEN_OR)/new/* ; do \
+	    echo ======== $$(basename $$f) ==================================; \
+	    diff $$f $(ASTGEN_OR)/$$(basename $$f); \
+	    true; \
+	done
+
+
+
+#############################################################################
+#####
+##### gen_superast
+
+GEN_SUPERAST_ML=\
+	$(UTIL)/olmar_utils.$(OCAML_LIB_EXT) \
+	$(GENERAL)/astgen_general.$(OCAML_LIB_EXT) \
+	$(ASTGEN_OR)/astgen_lib.$(OCAML_LIB_EXT) \
+	ast_config.ml \
+	meta_ast.ml \
+	gen_superast.ml
+
+
+TOCLEAN += gen_superast
+gen_superast: $(GEN_SUPERAST_ML:.ml=.$(OCAML_OBJ_EXT))
+	$(OCAMLCC) $(OCAML_FLAGS) -o $@ $^
+
+
+#############################################################################
+#####
+##### gen_accessors
+
+GEN_ACCESSORS_ML=\
+	$(UTIL)/olmar_utils.$(OCAML_LIB_EXT) \
+	$(GENERAL)/astgen_general.$(OCAML_LIB_EXT) \
+	$(ASTGEN_OR)/astgen_lib.$(OCAML_LIB_EXT) \
+	ast_config.ml \
+	meta_ast.ml \
+	gen_accessors.ml
+
+
+TOCLEAN += gen_accessors
+gen_accessors: $(GEN_ACCESSORS_ML:.ml=.$(OCAML_OBJ_EXT))
+	$(OCAMLCC) $(OCAML_FLAGS) -o $@ $^
+
+
+#############################################################################
+#####
+##### gen_uplinks
+
+GEN_UPLINKS_ML=\
+	$(UTIL)/olmar_utils.$(OCAML_LIB_EXT) \
+	$(GENERAL)/astgen_general.$(OCAML_LIB_EXT) \
+	$(ASTGEN_OR)/astgen_lib.$(OCAML_LIB_EXT) \
+	ast_config.ml \
+	meta_ast.ml \
+	gen_uplinks.ml
+
+
+TOCLEAN += gen_uplinks
+gen_uplinks: $(GEN_UPLINKS_ML:.ml=.$(OCAML_OBJ_EXT))
+	$(OCAMLCC) $(OCAML_FLAGS) -o $@ $^
+
+
+#############################################################################
+#####
+##### gen_graph
+
+GEN_GRAPH_ML=\
+	$(UTIL)/olmar_utils.$(OCAML_LIB_EXT) \
+	$(GENERAL)/astgen_general.$(OCAML_LIB_EXT) \
+	$(ASTGEN_OR)/astgen_lib.$(OCAML_LIB_EXT) \
+	ast_config.ml \
+	meta_ast.ml \
+	gen_graph.ml
+
+
+TOCLEAN += gen_graph
+gen_graph: $(GEN_GRAPH_ML:.ml=.$(OCAML_OBJ_EXT))
+	$(OCAMLCC) $(OCAML_FLAGS) -o $@ $^
+
+TOCLEAN += ast.ast.dot
+ast.ast.dot: $(ASTGEN_OR)/ast.ast.oast generated_ast/ast_graph \
+		ast_reflection_control.txt
+	generated_ast/ast_graph -tr ast_reflection_control.txt \
+		-o ast.ast.dot $(ASTGEN_OR)/ast.ast.oast 
+
+
+#############################################################################
+#####
+##### ast_type_graph
+
+# $(UTIL)/olmar_utils.$(OCAML_LIB_EXT) \
+# $(GENERAL)/astgen_general.$(OCAML_LIB_EXT) \
+# $(ASTGEN_OR)/astgen_lib.$(OCAML_LIB_EXT) \
+# ast_config.ml \
+# meta_ast.ml \
+
+AST_TYPE_GRAPH_ML=\
+	$(UTIL)/olmar_utils.$(OCAML_LIB_EXT) \
+	$(GENERAL)/astgen_general.$(OCAML_LIB_EXT) \
+	$(ASTGEN_OR)/astgen_lib.$(OCAML_LIB_EXT) \
+	ast_config.ml \
+	meta_ast.ml \
+	ast_type_graph.ml
+
+
+TOCLEAN += ast_type_graph
+ast_type_graph: $(AST_TYPE_GRAPH_ML:.ml=.$(OCAML_OBJ_EXT))
+	$(OCAMLCC) $(OCAML_FLAGS) -o $@ $^
+
+TOCLEAN += ast.type.dot
+ast.type.dot: $(ASTGEN_OR)/ast.ast.oast ast_type_graph \
+		ast_reflection_control.txt
+	./ast_type_graph -tr ast_reflection_control.txt \
+		-o ast.type.dot $(ASTGEN_OR)/ast.ast.oast 
 
 
 ############################################################################

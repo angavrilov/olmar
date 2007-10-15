@@ -5,3 +5,6 @@ directories:
 
 
   astgen	sources and build dir for astgen_ro
+
+
+  elsa		sources and build dir for elsa_ro

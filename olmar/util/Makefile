@@ -31,8 +31,10 @@ ifeq ($(OCAMLDEBUG),1)
   OCAMLDEPOPTS :=
 endif
 
-.PHONY: all
-all: olmar_utils.$(OCAML_LIB_EXT)
+.PHONY: stage_1
+stage_1: olmar_utils.$(OCAML_LIB_EXT)
+
+stage_2:
 
 
 
@@ -57,7 +59,8 @@ TODISTCLEAN =
 
 OLMAR_UTILS_ML=\
 	more_string.ml \
-	dense_set.ml
+	dense_set.ml \
+	dot_graph.ml
 
 TOCLEAN += olmar_utils.cmxa
 olmar_utils.cmxa: $(OLMAR_UTILS_ML:.ml=.cmx)

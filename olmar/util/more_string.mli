@@ -13,9 +13,17 @@ val translate : string -> string -> string -> string
 (* erases leading and trailing white space *)
 val trim_white_space : string -> string
 
+(* generate_names base n 
+ * generated n identifiers by appending 1..n to base
+ *)
+val generate_names : string -> int -> string list
+
 
 (* print an ocaml comment to channel *)
 val pr_comment : out_channel -> string list -> unit
+
+(* print an ocaml comment to channel *)
+val pr_comment_heading : out_channel -> string list -> unit
 
 (* print a c comment to channel *)
 val pr_c_comment : out_channel -> string list -> unit

@@ -62,30 +62,33 @@ let usage_msg application_name =
     application_name
 
 
-let usage application_name =
-  Arg.usage general_args (usage_msg application_name);
+let usage args application_name =
+  Arg.usage args (usage_msg application_name);
   exit(1)
   
-let anonfun application_name arg = 
+let anonfun args application_name arg = 
   match !file with
     | None -> file := Some arg
     | Some _ ->
 	Printf.eprintf "don't know what to do with %s\n" arg;
-	usage application_name
+	usage args application_name
 
 
 
 let setup_oast args application_name =
-  Arg.parse (general_args @ args) (anonfun application_name)
-    (usage_msg application_name);
-  match !file with
-    | None ->
-	usage application_name;
-	exit 1
-    | Some f -> 
-	let (size, ast) = unmarshal_oast f  
-	in
-	  (f, size, ast)
+  let args = general_args @ args
+  in
+    Arg.parse args (anonfun args application_name)
+      (usage_msg application_name);
+    match !file with
+      | None ->
+	  prerr_endline "oast file missing!";
+	  usage args application_name;
+	  exit 1
+      | Some f -> 
+	  let (size, ast) = unmarshal_oast f  
+	  in
+	    (f, size, ast)
 
 
 let register_oast_header_callbacks () =

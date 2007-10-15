@@ -1,11 +1,15 @@
 ast_config.cmo: ../util/more_string.cmi ast_config.cmi 
 ast_config.cmx: ../util/more_string.cmx ast_config.cmi 
-check_oast.cmo: ../build/astgen/ast_oast_header.cmx \
+ast_type_graph.cmo: meta_ast.cmi ../util/dot_graph.cmi 
+ast_type_graph.cmx: meta_ast.cmx ../util/dot_graph.cmx 
+check_oast.cmo: ../build/astgen/ast_oast_header.cmx ast_ast_type_descr.cmx \
     ../build/general/ast_annotation.cmi 
-check_oast.cmx: ../build/astgen/ast_oast_header.cmx \
+check_oast.cmx: ../build/astgen/ast_oast_header.cmx ast_ast_type_descr.cmx \
     ../build/general/ast_annotation.cmx 
 gen_accessors.cmo: ../util/more_string.cmi meta_ast.cmi ast_config.cmi 
 gen_accessors.cmx: ../util/more_string.cmx meta_ast.cmx ast_config.cmx 
+gen_graph.cmo: ../util/more_string.cmi meta_ast.cmi ast_config.cmi 
+gen_graph.cmx: ../util/more_string.cmx meta_ast.cmx ast_config.cmx 
 gen_reflection.cmo: ../util/more_string.cmi meta_ast.cmi ast_config.cmi 
 gen_reflection.cmx: ../util/more_string.cmx meta_ast.cmx ast_config.cmx 
 gen_superast.cmo: ../util/more_string.cmi meta_ast.cmi ast_config.cmi 

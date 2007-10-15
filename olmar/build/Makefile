@@ -6,13 +6,15 @@
 
 # simply redirect all goals into the subdirectories
 
-SUBDIRS=general astgen
+SUBDIRS=general astgen elsa
 
-.PHONY: all clean depend
+.PHONY: stage_1 stage_2 clean depend
 
-all:
+stage_1:
 	for d in $(SUBDIRS) ; do $(MAKE) -C $$d $@; done
 
+stage_2:
+	for d in $(SUBDIRS) ; do $(MAKE) -C $$d $@; done
 
 clean:
 	for d in $(SUBDIRS) ; do $(MAKE) -C $$d $@; done

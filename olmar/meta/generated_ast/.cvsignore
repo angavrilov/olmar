@@ -6,6 +6,9 @@
 *.d
 ast_accessors.ml
 ast_accessors_generated.ml
+ast_graph
+ast_graph.ml
+ast_graph_generated.ml
 superast.ml
 superast.mli
 superast_generated.ml

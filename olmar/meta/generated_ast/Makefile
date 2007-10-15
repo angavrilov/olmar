@@ -34,7 +34,7 @@ ifeq ($(OCAMLDEBUG),1)
 endif
 
 .PHONY: all
-all: 	superast.cmx uplinks.cmx
+all: 	superast.cmx uplinks.cmx ast_graph
 
 
 # list of files to clean in 'clean' (etc.) targets
@@ -50,6 +50,47 @@ TODISTCLEAN =
 # # reconfigure if the configure script has changed
 # config.status: configure.pl $(SMBASE)/sm_config.pm
 # 	./config.status -reconfigure
+
+
+############################################################################
+#### ast_graph
+#### 
+
+TOCLEAN += ast_graph_generated.ml
+ast_graph_generated.ml: ../gen_graph ../ast_reflection_control.txt \
+		$(ASTGEN_OR)/ast.ast.oast
+	../gen_graph $(ASTGEN_OR)/ast.ast.oast \
+		-tr ../ast_reflection_control.txt \
+		-o ast_graph_generated
+
+TOCLEAN += ast_graph.ml
+ast_graph.ml: ast_graph_header.ml ast_graph_generated.ml \
+		ast_graph_trailer.ml
+	echo "# 1 \"`pwd`/ast_graph_header.ml\"" > $@
+	cat ast_graph_header.ml >> $@
+	echo "# 1 \"`pwd`/ast_graph_generated.ml\"" >> $@
+	cat ast_graph_generated.ml >> $@
+	echo "# 1 \"`pwd`/ast_graph_trailer.ml\"" >> $@
+	cat ast_graph_trailer.ml >> $@
+
+ast_graph.cmx: uplinks.cmx
+ast_graph.cmo: uplinks.cmo
+
+AST_GRAPH_ML=\
+	$(UTIL)/olmar_utils.$(OCAML_LIB_EXT) \
+	$(GENERAL)/astgen_general.$(OCAML_LIB_EXT) \
+	$(ASTGEN_OR)/astgen_lib.$(OCAML_LIB_EXT) \
+	../ast_config.$(OCAML_OBJ_EXT) \
+	../meta_ast.$(OCAML_OBJ_EXT) \
+	ast_accessors.ml \
+	superast.ml \
+	uplinks.ml \
+	ast_graph.ml
+
+
+TOCLEAN += ast_graph
+ast_graph: $(AST_GRAPH_ML:.ml=.$(OCAML_OBJ_EXT))
+	$(OCAMLCC) $(OCAML_FLAGS) -o $@ $^
 
 
 ############################################################################

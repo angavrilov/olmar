@@ -7,32 +7,37 @@
 
 [Renamings]
 
-FieldOrCtorArg.type		field_type
-
-# conflicts on field name
-FieldOrCtorArg.name		field_name
-BaseClass.name			base_name
-ASTClass.name			cl_name
-
 
 ###########################################################################
 ###########################################################################
 
 [Basic Types]
 
-string
+bool
+int
+int32
+unsigned_int
+unsigned_long
+double
+StringRef
+SourceLoc
 
-# the following enum types will eventually treated in the astgen toolchain
-AccessCtl
-FieldFlags
+
+DeclFlags
+CVFlags
+SimpleTypeId
+TypeIntr
+UnaryOp
+EffectOp
+BinaryOp
+AccessKeyword
+OverloadableOp
 
 
 ###########################################################################
 ###########################################################################
 
 [type header]
-
-open Ast_ml_types
 
 
 ###########################################################################
@@ -43,29 +48,15 @@ open Ast_ml_types
 # start preprocessor directives in the second column, otherwise
 # they are treated as comments
 
- #include "ocaml_reflection_base.h"
- #include "ast.hand.h"
- #include "ast_reflect.h"
-
 
 ###########################################################################
 ###########################################################################
 
 [Top Node]
 
-ASTSpecFile
-
 
 ###########################################################################
 ###########################################################################
 
 [Node colors]
-
-ASTSpecFile:	red
-ToplevelForm:	SkyBlue
-ASTClass:	orange
-AccessMod:	green
-Annotation:	gold
-FieldOrCtorArg:	khaki1
-BaseClass:	brown3
 

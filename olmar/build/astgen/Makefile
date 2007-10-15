@@ -10,7 +10,9 @@ OCAML_LIB_EXT := cmxa
 
 
 # main targets
-all: astgen_or ast.ast.oast
+stage_1: astgen_lib.$(OCAML_LIB_EXT) astgen_or ast.ast.oast
+
+stage_2:
 
 
 # directories of other software
@@ -18,7 +20,7 @@ SMBASE := ../../../smbase
 AST := ../../../ast
 GENERAL := ../general
 LIBSMBASE := $(SMBASE)/libsmbase.a
-OCAMLDIR := /usr/local/stow/ocaml-3.09.3/lib/ocaml
+OCAMLDIR := /usr/local/stow/ocaml-3.09-godi/lib/ocaml/std-lib
 
 ifeq ($(NATIVE_OCAML),1)
 #native
@@ -86,31 +88,42 @@ ast_oast_header.ml: ast_oast_header_start.ml \
 	cat ast_oast_header_start.ml >> $@
 	head -1 $(AST)/ast.ast | tr "." " " | \
 		(read -a aa; echo -n $${aa[5]}) >> $@
-	echo -e '\n#1' "\"$$(pwd)/oast_header_trailer.ml\"" >> $@
+	echo -e '\n#1' "\"$(realpath $(GENERAL)/oast_header_trailer.ml)\"" >> $@
 	cat $(GENERAL)/oast_header_trailer.ml >> $@
 
 
 # List of ml modules needed by astgen. They are all combined 
 # into one ml_object.o file.
 
-ASTGEN_ML_OBJS := \
-	$(GENERAL)/astgen_general.$(OCAML_LIB_EXT) \
+ASTGEN_ML := \
 	ast_ml_types.ml \
 	ast_ml_constructors.ml \
 	ast_reflect_type.ml \
-	ast_oast_header.ml \
-	ast_caml_callbacks.ml
+	ast_oast_header.ml
 
 -include mldeps.mk
 
 .PHONY: mldeps
 depend: mldeps
 mldeps:
-	ocamldep $(OCAMLDEPOPTS) -I $(GENERAL) $(ASTGEN_ML_OBJS) > mldeps.mk
+	ocamldep $(OCAMLDEPOPTS) -I $(GENERAL) $(ASTGEN_ML) > mldeps.mk
 
-astgen_ml_object.o: $(ASTGEN_ML_OBJS:.ml=.$(OCAML_OBJ_EXT)) 
+
+astgen_lib.cmxa : $(ASTGEN_ML:.ml=.cmx)
+	$(OCAMLOPT) -o $@ -a $^
+
+astgen_lib.cma : $(ASTGEN_ML:.ml=.cmo)
+	$(OCAMLC) -o $@ -a $^
+
+
+ASTGEN_ML_OBJECT := \
+	$(GENERAL)/astgen_general.$(OCAML_LIB_EXT) \
+	astgen_lib.$(OCAML_LIB_EXT) \
+	ast_caml_callbacks.ml
+
+
+astgen_ml_object.o: $(ASTGEN_ML_OBJECT:.ml=.$(OCAML_OBJ_EXT)) 
 	$(OCAMLCC) -output-obj -o $@ $^	
-
 
 
 .PHONY: astgen_patch
@@ -145,9 +158,10 @@ astgen_or: $(ASTGEN_OR_OBJS) $(LIBSMBASE)
 
 # ------------------------- astgen_or test ---------------------
 
-TOCLEAN += ast.ast.oast ast.ast.h ast.ast.cc
-ast.ast.oast ast.ast.h ast.ast.cc:
+TOCLEAN += ast.ast.oast
+ast.ast.oast:
 	./astgen_or -oast.ast $(AST)/ast.ast
+	rm ast.ast.h ast.ast.cc
 
 # ------------------------ misc --------------------------------
 
