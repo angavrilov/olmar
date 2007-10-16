@@ -1,9 +1,9 @@
 digraph "CFG" {
-  node [ color = "lightblue"; style = filled ];
-  edge [ arrowtail=odot ];
-    "2" [label="A::constructor-special\nfile: test/t004.cc\nline 2"]
-    "1" [label="A::~A\nfile: test/t004.cc\nline 2"]
-    "0" [label="CU test/t004.cc\nfile: test/t004.cc\nline 1"]
+    node [ color = "lightblue", style = filled ];
+    edge [ arrowtail=odot ];
+    "1" [pos="91,-150", label="A::~A\nfile: test/t004.cc\nline 2"];
+    "2" [pos="291,-150", label="A::constructor-special\nfile: test/t004.cc\nline 2"];
+    "0" [pos="200,0", label="CU test/t004.cc\nfile: test/t004.cc\nline 1"];
     "0" -> "1";
     "0" -> "2";
 }

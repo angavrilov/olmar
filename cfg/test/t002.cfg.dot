@@ -1,26 +1,26 @@
 digraph "CFG" {
-  node [ color = "lightblue"; style = filled ];
-  edge [ arrowtail=odot ];
-    "4" [label="N::M::f\nfile: test/t002.cc\nline 10"]
-    "4" -> "1";
-    "7" [label="N::M::A::operator=\nArg 1: reference(const(A))\nfile: test/t002.cc\nline 15"]
-    "5" [label="N::M::B::constructor-special\nfile: test/t002.cc\nline 20"]
-    "5" -> "10";
-    "10" [label="N::M::A::constructor-special\nfile: test/t002.cc\nline 15"]
-    "0" [label="N::M::B::c\nfile: test/t002.cc\nline 27"]
-    "0" -> "1";
-    "6" [label="N::M::B::operator=\nArg 1: reference(const(B))\nfile: test/t002.cc\nline 20"]
+    node [ color = "lightblue", style = filled ];
+    edge [ arrowtail=odot ];
+    "7" [pos="127,-150", label="N::M::A::operator=\nArg 1: reference(const(A))\nfile: test/t002.cc\nline 15"];
+    "6" [pos="127,0", label="N::M::B::operator=\nArg 1: reference(const(B))\nfile: test/t002.cc\nline 20"];
     "6" -> "7";
-    "2" [label="N::M::B::b\nfile: test/t002.cc\nline 22"]
-    "2" -> "1";
-    "3" [label="N::M::A::a\nfile: test/t002.cc\nline 17"]
+    "3" [pos="345,-300", label="N::M::A::a\nfile: test/t002.cc\nline 17"];
     "3" -> "1";
-    "1" [label="g\nfile: test/t002.cc\nline 31"]
+    "4" [pos="527,-300", label="N::M::f\nfile: test/t002.cc\nline 10"];
+    "4" -> "1";
+    "2" [pos="709,-300", label="N::M::B::b\nfile: test/t002.cc\nline 22"];
+    "2" -> "1";
+    "10" [pos="936,-450", label="N::M::A::constructor-special\nfile: test/t002.cc\nline 15"];
+    "5" [pos="936,-300", label="N::M::B::constructor-special\nfile: test/t002.cc\nline 20"];
+    "5" -> "10";
+    "1" [pos="663,-150", label="g\nfile: test/t002.cc\nline 31"];
     "1" -> "3";
     "1" -> "4";
     "1" -> "2";
     "1" -> "5";
-    "9" [label="N::M::A::constructor-special\nArg 1: reference(const(A))\nfile: test/t002.cc\nline 15"]
-    "8" [label="N::M::B::constructor-special\nArg 1: reference(const(B))\nfile: test/t002.cc\nline 20"]
+    "0" [pos="663,0", label="N::M::B::c\nfile: test/t002.cc\nline 27"];
+    "0" -> "1";
+    "9" [pos="1208,-150", label="N::M::A::constructor-special\nArg 1: reference(const(A))\nfile: test/t002.cc\nline 15"];
+    "8" [pos="1208,0", label="N::M::B::constructor-special\nArg 1: reference(const(B))\nfile: test/t002.cc\nline 20"];
     "8" -> "9";
 }

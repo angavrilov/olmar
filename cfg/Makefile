@@ -12,6 +12,7 @@ all: test
 # directories of other software; 
 ELSA      := ../elsa
 ASTTOOLS  := ../asttools
+OLMARUTIL := ../olmar/util
 
 # external tools
 OCAMLC   := ocamlc.opt
@@ -66,6 +67,7 @@ CFG_ML=\
 	cfg_type.ml \
 	cfg_util.ml \
 	build.ml \
+	$(OLMARUTIL)/dot_graph.ml \
 	dot.ml \
 	main.ml
 
@@ -81,17 +83,19 @@ clean:
 	rm -f test/*.o
 	rm -f test/*.pml
 
+OCAMLINCLUDES := -I $(ELSA) -I $(ASTTOOLS) -I $(OLMARUTIL)
+
 TOCLEAN += *.cmo
 %.cmo: %.ml
-	$(OCAMLC) $(OCAML_BYTE_FLAGS) $(OCAML_FLAGS) -I $(ELSA) -I $(ASTTOOLS) -c $<
+	$(OCAMLC) $(OCAML_BYTE_FLAGS) $(OCAML_FLAGS) $(OCAMLINCLUDES) -c $<
 
 TOCLEAN += *.cmx *.o
 %.cmx: %.ml
-	$(OCAMLOPT) $(OCAML_FLAGS) -I $(ELSA) -I $(ASTTOOLS) -c $<
+	$(OCAMLOPT) $(OCAML_FLAGS) $(OCAMLINCLUDES) -c $<
 
 TOCLEAN += *.cmi
 %.cmi: %.mli
-	$(OCAMLC) $(OCAML_FLAGS) -I $(ELSA) -I $(ASTTOOLS) -c $<
+	$(OCAMLC) $(OCAML_FLAGS) $(OCAMLINCLUDES) -c $<
 
 TOCLEAN += test/*.oast
 %.oast: %.cc
@@ -107,4 +111,4 @@ TOCLEAN += test/*.dot
 .PHONY: mldeps
 depend: mldeps
 mldeps:
-	ocamldep -I $(ELSA) -I $(ASTTOOLS) *ml *mli > mldeps.mk
+	ocamldep $(OCAMLINCLUDES) *ml *mli > mldeps.mk

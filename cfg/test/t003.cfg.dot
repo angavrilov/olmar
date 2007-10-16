@@ -1,32 +1,32 @@
 digraph "CFG" {
-  node [ color = "lightblue"; style = filled ];
-  edge [ arrowtail=odot ];
-    "13" [label="B::constructor-special\nArg 1: reference(const(B))\nfile: test/t003.cc\nline 18"]
-    "13" -> "5";
-    "9" [label="Z::constructor-special\nArg 1: int\nfile: test/t003.cc\nline 4"]
-    "6" [label="Z::constructor-special\nArg 1: reference(const(Z))\nfile: test/t003.cc\nline 2"]
-    "3" [label="B::operator=\nArg 1: reference(const(B))\nfile: test/t003.cc\nline 18"]
-    "3" -> "4";
-    "12" [label="CU test/t003.cc\nfile: test/t003.cc\nline 1"]
-    "12" -> "1";
-    "12" -> "2";
-    "10" [label="d"]
-    "5" [label="A::constructor-special\nArg 1: reference(const(A))\nfile: test/t003.cc\nline 11"]
-    "5" -> "6";
-    "4" [label="A::operator=\nArg 1: reference(const(A))\nfile: test/t003.cc\nline 11"]
+    node [ color = "lightblue", style = filled ];
+    edge [ arrowtail=odot ];
+    "14" [pos="127,-300", label="Z::operator=\nArg 1: reference(const(Z))\nfile: test/t003.cc\nline 2"];
+    "4" [pos="127,-150", label="A::operator=\nArg 1: reference(const(A))\nfile: test/t003.cc\nline 11"];
     "4" -> "14";
-    "8" [label="f"]
-    "2" [label="B::~B\nfile: test/t003.cc\nline 18"]
-    "11" [label="g"]
-    "0" [label="h\nfile: test/t003.cc\nline 25"]
-    "0" -> "1";
-    "0" -> "2";
-    "14" [label="Z::operator=\nArg 1: reference(const(Z))\nfile: test/t003.cc\nline 2"]
-    "7" [label="A::constructor-special\nfile: test/t003.cc\nline 15"]
+    "3" [pos="127,0", label="B::operator=\nArg 1: reference(const(B))\nfile: test/t003.cc\nline 18"];
+    "3" -> "4";
+    "6" [pos="381,-300", label="Z::constructor-special\nArg 1: reference(const(Z))\nfile: test/t003.cc\nline 2"];
+    "5" [pos="381,-150", label="A::constructor-special\nArg 1: reference(const(A))\nfile: test/t003.cc\nline 11"];
+    "5" -> "6";
+    "13" [pos="381,0", label="B::constructor-special\nArg 1: reference(const(B))\nfile: test/t003.cc\nline 18"];
+    "13" -> "5";
+    "11" [pos="533,-300", label="g"];
+    "8" [pos="583,-450", label="f"];
+    "9" [pos="717,-450", label="Z::constructor-special\nArg 1: int\nfile: test/t003.cc\nline 4"];
+    "10" [pos="851,-450", label="d"];
+    "7" [pos="717,-300", label="A::constructor-special\nfile: test/t003.cc\nline 15"];
     "7" -> "8";
     "7" -> "9";
     "7" -> "10";
-    "1" [label="B::constructor-special\nfile: test/t003.cc\nline 22"]
+    "1" [pos="692,-150", label="B::constructor-special\nfile: test/t003.cc\nline 22"];
     "1" -> "11";
     "1" -> "7";
+    "2" [pos="967,-150", label="B::~B\nfile: test/t003.cc\nline 18"];
+    "12" [pos="783,0", label="CU test/t003.cc\nfile: test/t003.cc\nline 1"];
+    "12" -> "1";
+    "12" -> "2";
+    "0" [pos="1149,0", label="h\nfile: test/t003.cc\nline 25"];
+    "0" -> "1";
+    "0" -> "2";
 }

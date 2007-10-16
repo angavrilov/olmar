@@ -1,5 +1,8 @@
 2007-10-16  Hendrik Tews  <tews@tandem.cs.ru.nl>
 
+        CFG
+        * use regular tree layout with dot_graph
+
         Olmar
         * new program gen_graph to generate the ast_graph program for
           generating the object graph of an ast 

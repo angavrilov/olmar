@@ -10,11 +10,13 @@ cfg_util.cmo: ../asttools/superast.cmi cfg_type.cmo \
     ../elsa/cc_ast_gen_type.cmo ../elsa/ast_annotation.cmi cfg_util.cmi 
 cfg_util.cmx: ../asttools/superast.cmx cfg_type.cmx \
     ../elsa/cc_ast_gen_type.cmx ../elsa/ast_annotation.cmx cfg_util.cmi 
-dot.cmo: cfg_type.cmo dot.cmi 
-dot.cmx: cfg_type.cmx dot.cmi 
+dot.cmo: ../olmar/util/dot_graph.cmi cfg_type.cmo dot.cmi 
+dot.cmx: ../olmar/util/dot_graph.cmx cfg_type.cmx dot.cmi 
 main.cmo: dot.cmi build.cmi 
 main.cmx: dot.cmx build.cmx 
+old-dot.cmo: cfg_type.cmo 
+old-dot.cmx: cfg_type.cmx 
 build.cmi: cfg_type.cmo 
-cfg_util.cmi: cfg_type.cmo ../elsa/cc_ast_gen_type.cmo \
-    ../elsa/ast_annotation.cmi 
+cfg_util.cmi: ../asttools/superast.cmi cfg_type.cmo ../elsa/cc_ml_types.cmo \
+    ../elsa/cc_ast_gen_type.cmo ../elsa/ast_annotation.cmi 
 dot.cmi: cfg_type.cmo 
