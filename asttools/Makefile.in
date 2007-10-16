@@ -27,6 +27,7 @@ SMBASE   := @SMBASE@
 AST      := @AST@
 ELSA     := @ELSA@
 MEMCHECK :=@MEMCHECK@
+OCAMLDIR := @OCAMLDIR@
 
 
 # external tools
@@ -146,7 +147,7 @@ hashloc: $(HASHLOC_ML:.ml=.$(OCAML_OBJ_EXT))
 
 
 ELSA_AST_TYPE_DEF=\
-	/usr/local/lib/ocaml/hashtbl.ml \
+	$(OCAMLDIR)/hashtbl.ml \
 	$(ELSA)/cc_ml_types.ml \
 	$(ELSA)/ml_ctype.ml \
 	$(ELSA)/ast_annotation.ml \

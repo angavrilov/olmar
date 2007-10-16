@@ -1,5 +1,8 @@
 2007-10-16  Hendrik Tews  <tews@tandem.cs.ru.nl>
 
+        Asttools
+        * mini makefile fix
+
         CFG
         * use regular tree layout with dot_graph
 
