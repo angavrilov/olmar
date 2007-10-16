@@ -23,11 +23,8 @@ let rec reflection_function_type_component = function
 	   | LK_ast_list -> "_ast_list"
 	   | LK_fake_list -> "_fake_list")
 
-really???
-  | AT_ref ml_type ->
-      (reflection_function_type_component ml_type) ^ "_ref"
   | AT_option ml_type ->
-      (reflection_function_type_component ml_type) & "_option"
+      (reflection_function_type_component ml_type) ^ "_option"
 
   | AT_node cl -> cl.ac_name
   | AT_base type_name -> type_name

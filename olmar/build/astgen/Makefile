@@ -21,6 +21,7 @@ AST := ../../../ast
 GENERAL := ../general
 LIBSMBASE := $(SMBASE)/libsmbase.a
 OCAMLDIR := /usr/local/stow/ocaml-3.09-godi/lib/ocaml/std-lib
+META := ../../meta
 
 ifeq ($(NATIVE_OCAML),1)
 #native
@@ -158,10 +159,76 @@ astgen_or: $(ASTGEN_OR_OBJS) $(LIBSMBASE)
 
 # ------------------------- astgen_or test ---------------------
 
-TOCLEAN += ast.ast.oast
-ast.ast.oast:
+TOCLEAN += ast.ast.oast ast.ast.h ast.ast.cc
+ast.ast.h ast.ast.cc ast.ast.oast: astgen_or $(AST)/ast.ast
 	./astgen_or -oast.ast $(AST)/ast.ast
-	rm ast.ast.h ast.ast.cc
+
+.PHONY: diff-ast-ast
+diff-ast-ast: ast.ast.h ast.ast.cc
+	echo ===================== ast.ast.h =================================
+	diff $(AST)/ast.ast.h ast.ast.h; true
+	echo ===================== ast.ast.cc ================================
+	diff $(AST)/ast.ast.cc ast.ast.cc; true
+
+# ------------------ bootstrap new astgen version --------------
+
+# Don't change the original ast.ast for bootstrapping! Via 
+# ast_oast_header almost everything depends on ast.ast and will get 
+# recompiled. Change the local copy new-ast.ast instead!
+#
+#  1. make bootstrap-prepare
+#  2. edit new-ast.ast
+#  3. make diff-new-ast
+#  4. make bootstrap-ast-ast
+#  5. make diff-ast-ast
+#  6. make update-reflection
+#  7. make diff-reflection
+#  8. make astgen-orig
+#  9. make generation
+# 10. make astgen_or
+# 11. repeat 4, 5
+# 12. make new-reflection
+# 13. repeat 6, 7
+
+.PHONY: bootstrap-prepare
+bootstrap-prepare: astgen_or $(META)/gen_reflection
+	d=bootstrap-$$(date +%Y-%m-%d-%H-%M-%S); \
+	mkdir $$d; \
+	cp $(AST)/ast.ast $(AST)/ast.ast.h $(AST)/ast.ast.cc \
+		./astgen_or $(META)/gen_reflection $$d
+	cp $(AST)/ast.ast new-ast.ast
+
+.PHONY: diff-new-ast
+diff-new-ast:
+	diff $(AST)/ast.ast new-ast.ast
+
+.PHONY: bootstrap-ast-ast
+bootstrap-ast-ast:
+	./astgen_or -oast.ast new-ast.ast
+
+.PHONY: update-reflection
+update-reflection: $(META)/gen_reflection
+	$(MAKE) -C $(META) ast_reflection
+
+.PHONY: diff-reflection
+diff-reflection:
+	for f in new/* ; do \
+	    echo ======== $$(basename $$f) ==================================; \
+	    diff $$f $$(basename $$f); \
+	    true; \
+	done
+
+.PHONY: astgen-orig
+astgen-orig:
+	cp new-ast.ast $(AST)/ast.ast
+	cd $(AST); ./astgen -oast.ast ast.ast
+	$(MAKE) -C $(AST)
+
+.PHONY: new-reflection
+new-reflection:
+	$(MAKE) -C $(META) gen_reflection
+
+
 
 # ------------------------ misc --------------------------------
 

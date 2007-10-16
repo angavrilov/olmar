@@ -46,6 +46,7 @@ FieldOrCtorArg *parseCtorArg(rostring origStr)
   // check for owner & nullable flags
   bool maybe_owner = true;
   bool maybe_nullable = true;
+  bool maybe_circular = true;
   do {
     if(maybe_owner && prefixEquals(str, "owner")) {
       // if somebody could tell me why I need the static cast in the 
@@ -59,6 +60,11 @@ FieldOrCtorArg *parseCtorArg(rostring origStr)
       ret->flags = static_cast<FieldFlags>(ret->flags | FF_NULLABLE);
       maybe_nullable = false;
       str = trimWhitespace(str.substring(8, str.length() - 8)); // skip nullable
+    }
+    else if(maybe_circular && prefixEquals(str, "circular")) {
+      ret->flags = static_cast<FieldFlags>(ret->flags | FF_CIRCULAR);
+      maybe_circular = false;
+      str = trimWhitespace(str.substring(8, str.length() - 8)); // skip circular
     }
     // don't treat "xml" prefixed here, because
     //  - it is more diffcult (need to treat all xml.*)

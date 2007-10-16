@@ -32,6 +32,11 @@ EffectOp
 BinaryOp
 AccessKeyword
 OverloadableOp
+CastKeyword
+StandardConversion
+ImplicitConversion_Kind
+DeclaratorContext
+templateThingKind
 
 
 ###########################################################################

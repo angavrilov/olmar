@@ -43,7 +43,8 @@ class BaseClass;
     FF_NULLABLE = 0x02,		// nullable modifier present
     FF_FIELD    = 0x04,		// field modifier present
     FF_XML      = 0x08,		// some xml.* modifier present
-    FF_PRIVAT   = 0x10		// private, use accessor function
+    FF_PRIVAT   = 0x10,		// private, use accessor function
+    FF_CIRCULAR = 0x20		// possibly circurlar pointer
   };
 
 // *** DO NOT EDIT ***

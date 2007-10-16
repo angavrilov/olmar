@@ -28,25 +28,28 @@ class Variable (
   nullable TemplateInfo templInfo             // (private!? owner)
   ) { }
 
+class OverloadSet (
+  SObjList<Variable> set
+  ) { }
 
 class TemplateInfo (
   templateThingKind templ_kind,
   SObjList<Variable> params,
   // HT: NULL in t0026.cc
-  nullable Variable * const var,              // (serf)
+  nullable Variable * var,				     // const (serf)
   ObjList<InheritedTemplateParams> inheritedParams,
-  nullable circular Variable * const instantiationOf,        // (serf)
+  nullable circular Variable * instantiationOf,		     // const (serf)
   SObjList<Variable> instantiations,
   // HT: NULL in t0026.cc or 27
-  nullable circular Variable * const specializationOf,       // (serf)
+  nullable circular Variable * specializationOf,	     // const (serf)
   SObjList<Variable> specializations,
   ObjList<STemplateArgument> arguments,
   SourceLoc instLoc,
-  nullable variable Variable * const partialInstantiationOf,      // (serf)
+  nullable circular Variable * partialInstantiationOf,	     // const (serf)
   SObjList<Variable> partialInstantiations,
   ObjList<STemplateArgument> argumentsToPrimary,
   nullable Scope *defnScope,
-  nullable TemplateInfo definitionTemplateInfo,         // (owner)
+  nullable TemplateInfo definitionTemplateInfo,		    // (owner)
   bool instantiateBody,
   bool instantiationDisallowed,
   int uninstantiatedDefaultArgs,
@@ -72,3 +75,5 @@ class AtomicType () {
   -> CompoundType();
   -> EnumType();
 }
+
+class STemplateArgument () {}

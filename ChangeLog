@@ -1,5 +1,12 @@
 2007-10-16  Hendrik Tews  <tews@tandem.cs.ru.nl>
 
+        AST
+        * added circular modifier
+
+        OLMAR
+        * bootstrap astgen_or
+        * added ObjList, SObjList, SObjSet to ml_ast
+
         Asttools
         * mini makefile fix
 

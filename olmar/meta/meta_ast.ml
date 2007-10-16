@@ -21,6 +21,10 @@ open Ast_config
 type list_kind =
   | LK_ast_list
   | LK_fake_list
+  | LK_obj_list
+  | LK_sobj_list
+    (* not really a list ... but well *)
+  | LK_sobj_set
 
 (* type of fields and constructor arguments *)
 type ast_type =
@@ -190,11 +194,11 @@ let extract_pointer_type type_string =
     (false, type_string)
      
 
-let fake_list_el_transform type_string =
+let require_pointer typconstr type_string =
   let (is_pointer_type, type_string_ptr) = extract_pointer_type type_string
   in
     if not is_pointer_type then begin
-      prerr_endline "Non-pointer FakeList";
+      Printf.eprintf "Non-pointer %s\n" typconstr;
       assert false
     end;
     type_string_ptr
@@ -215,9 +219,15 @@ let fake_list_el_transform type_string =
 let ast_lists = 
   [| 
     ("ASTList", (fun s -> fun t -> AT_list(LK_ast_list, t, s)),
-       f_id);
+     f_id);
     ("FakeList", (fun s -> fun t -> AT_list(LK_fake_list, t, s)),
-       fake_list_el_transform);
+     require_pointer "FakeList");
+    ("ObjList", (fun s -> fun t -> AT_list(LK_obj_list, t, s)),
+     f_id);
+    ("SObjList", (fun s -> fun t -> AT_list(LK_sobj_list, t, s)),
+     f_id);
+    ("SObjSet", (fun s -> fun t -> AT_list(LK_sobj_set, t, s)),
+     require_pointer "SObjSet");
   |]
 
 let ast_list_name (n,_,_) = n
@@ -239,6 +249,10 @@ let rec extract_list_type type_string =
 				 (String.length type_string - list_type_len)))
 	in
 	let _ = 
+	  (* 
+           * Printf.eprintf "angles type %s of list %s\n" 
+	   *   el_with_angles (ast_list_name ast_lists.(!index));
+           *)
 	  assert(el_with_angles.[0] = '<' 
 	      && el_with_angles.[String.length el_with_angles -1] = '>') 
 	in
@@ -301,9 +315,9 @@ let make_mod_type ast_type modifiers =
   match (is_list_type ast_type,
 	 List.mem FF_NULLABLE modifiers, 
 	 List.mem FF_CIRCULAR modifiers)
-  with
-        (* list, nullable, circular *)
-        (* list, _ *)
+  with  (* list, nullable, circular *)
+
+        (* nonnull, noncircular *)
       | (_, false, false) -> ast_type
         (* nullable object *)
       | (false, true, false) -> AT_option ast_type

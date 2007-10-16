@@ -18,6 +18,11 @@ open Ast_reflect_type
 type list_kind =
   | LK_ast_list
   | LK_fake_list
+  | LK_obj_list
+  | LK_sobj_list
+    (* not really a list ... but well *)
+  | LK_sobj_set
+
 
 (* type of fields and constructor arguments *)
 type ast_type =

@@ -71,64 +71,6 @@ value ocaml_reflect_Annotation(Annotation const * x, Ocaml_reflection_data * dat
 }
 
 
-value ocaml_reflect_FieldOrCtorArg_ast_list(ASTList<FieldOrCtorArg> const * x, Ocaml_reflection_data * data) {
-  CAMLparam0();
-  CAMLlocal4(res, tmp, elem, previous);
-  res = find_ocaml_shared_list_value(x);
-  if( res != Val_None ) {
-    xassert(Is_block(res) && Tag_val(res) == 0);
-    CAMLreturn(Field(res, 0));
-  }
-
-  previous = 0;
-
-  FOREACH_ASTLIST(FieldOrCtorArg, *x, iter) {
-    elem = ocaml_reflect_FieldOrCtorArg(iter.data(), data);
-    tmp = caml_alloc_small(2, Tag_cons);
-    Field(tmp, 0) = elem;
-    Field(tmp, 1) = Val_emptylist;
-    if(previous == 0) {
-      res = tmp;
-    } else {
-      Store_field(previous, 1, tmp);
-    }
-    previous = tmp;
-  }
-
-  register_ocaml_shared_list_value(x, res);
-  CAMLreturn(res);
-}
-
-
-value ocaml_reflect_ToplevelForm_ast_list(ASTList<ToplevelForm> const * x, Ocaml_reflection_data * data) {
-  CAMLparam0();
-  CAMLlocal4(res, tmp, elem, previous);
-  res = find_ocaml_shared_list_value(x);
-  if( res != Val_None ) {
-    xassert(Is_block(res) && Tag_val(res) == 0);
-    CAMLreturn(Field(res, 0));
-  }
-
-  previous = 0;
-
-  FOREACH_ASTLIST(ToplevelForm, *x, iter) {
-    elem = ocaml_reflect_ToplevelForm(iter.data(), data);
-    tmp = caml_alloc_small(2, Tag_cons);
-    Field(tmp, 0) = elem;
-    Field(tmp, 1) = Val_emptylist;
-    if(previous == 0) {
-      res = tmp;
-    } else {
-      Store_field(previous, 1, tmp);
-    }
-    previous = tmp;
-  }
-
-  register_ocaml_shared_list_value(x, res);
-  CAMLreturn(res);
-}
-
-
 value ocaml_reflect_FieldOrCtorArg(FieldOrCtorArg const * x, Ocaml_reflection_data * data) {
   /* reflect FieldOrCtorArg into a record */ 
   CAMLparam0();
@@ -164,6 +106,35 @@ value ocaml_reflect_FieldOrCtorArg(FieldOrCtorArg const * x, Ocaml_reflection_da
 
   register_ocaml_shared_node_value(x, res);
   data->stack.remove(x);
+  CAMLreturn(res);
+}
+
+
+value ocaml_reflect_ASTClass_ast_list(ASTList<ASTClass> const * x, Ocaml_reflection_data * data) {
+  CAMLparam0();
+  CAMLlocal4(res, tmp, elem, previous);
+  res = find_ocaml_shared_list_value(x);
+  if( res != Val_None ) {
+    xassert(Is_block(res) && Tag_val(res) == 0);
+    CAMLreturn(Field(res, 0));
+  }
+
+  previous = 0;
+
+  FOREACH_ASTLIST(ASTClass, *x, iter) {
+    elem = ocaml_reflect_ASTClass(iter.data(), data);
+    tmp = caml_alloc_small(2, Tag_cons);
+    Field(tmp, 0) = elem;
+    Field(tmp, 1) = Val_emptylist;
+    if(previous == 0) {
+      res = tmp;
+    } else {
+      Store_field(previous, 1, tmp);
+    }
+    previous = tmp;
+  }
+
+  register_ocaml_shared_list_value(x, res);
   CAMLreturn(res);
 }
 
@@ -451,6 +422,35 @@ value ocaml_reflect_ToplevelForm(ToplevelForm const * x, Ocaml_reflection_data *
 }
 
 
+value ocaml_reflect_FieldOrCtorArg_ast_list(ASTList<FieldOrCtorArg> const * x, Ocaml_reflection_data * data) {
+  CAMLparam0();
+  CAMLlocal4(res, tmp, elem, previous);
+  res = find_ocaml_shared_list_value(x);
+  if( res != Val_None ) {
+    xassert(Is_block(res) && Tag_val(res) == 0);
+    CAMLreturn(Field(res, 0));
+  }
+
+  previous = 0;
+
+  FOREACH_ASTLIST(FieldOrCtorArg, *x, iter) {
+    elem = ocaml_reflect_FieldOrCtorArg(iter.data(), data);
+    tmp = caml_alloc_small(2, Tag_cons);
+    Field(tmp, 0) = elem;
+    Field(tmp, 1) = Val_emptylist;
+    if(previous == 0) {
+      res = tmp;
+    } else {
+      Store_field(previous, 1, tmp);
+    }
+    previous = tmp;
+  }
+
+  register_ocaml_shared_list_value(x, res);
+  CAMLreturn(res);
+}
+
+
 value ocaml_reflect_AccessMod(AccessMod const * x, Ocaml_reflection_data * data) {
   /* reflect AccessMod into a record */ 
   CAMLparam0();
@@ -547,35 +547,6 @@ value ocaml_reflect_ASTSpecFile(ASTSpecFile const * x, Ocaml_reflection_data * d
 }
 
 
-value ocaml_reflect_Annotation_ast_list(ASTList<Annotation> const * x, Ocaml_reflection_data * data) {
-  CAMLparam0();
-  CAMLlocal4(res, tmp, elem, previous);
-  res = find_ocaml_shared_list_value(x);
-  if( res != Val_None ) {
-    xassert(Is_block(res) && Tag_val(res) == 0);
-    CAMLreturn(Field(res, 0));
-  }
-
-  previous = 0;
-
-  FOREACH_ASTLIST(Annotation, *x, iter) {
-    elem = ocaml_reflect_Annotation(iter.data(), data);
-    tmp = caml_alloc_small(2, Tag_cons);
-    Field(tmp, 0) = elem;
-    Field(tmp, 1) = Val_emptylist;
-    if(previous == 0) {
-      res = tmp;
-    } else {
-      Store_field(previous, 1, tmp);
-    }
-    previous = tmp;
-  }
-
-  register_ocaml_shared_list_value(x, res);
-  CAMLreturn(res);
-}
-
-
 value ocaml_reflect_ASTClass(ASTClass const * x, Ocaml_reflection_data * data) {
   /* reflect ASTClass into a record */ 
   CAMLparam0();
@@ -614,6 +585,35 @@ value ocaml_reflect_ASTClass(ASTClass const * x, Ocaml_reflection_data * data) {
 
   register_ocaml_shared_node_value(x, res);
   data->stack.remove(x);
+  CAMLreturn(res);
+}
+
+
+value ocaml_reflect_ToplevelForm_ast_list(ASTList<ToplevelForm> const * x, Ocaml_reflection_data * data) {
+  CAMLparam0();
+  CAMLlocal4(res, tmp, elem, previous);
+  res = find_ocaml_shared_list_value(x);
+  if( res != Val_None ) {
+    xassert(Is_block(res) && Tag_val(res) == 0);
+    CAMLreturn(Field(res, 0));
+  }
+
+  previous = 0;
+
+  FOREACH_ASTLIST(ToplevelForm, *x, iter) {
+    elem = ocaml_reflect_ToplevelForm(iter.data(), data);
+    tmp = caml_alloc_small(2, Tag_cons);
+    Field(tmp, 0) = elem;
+    Field(tmp, 1) = Val_emptylist;
+    if(previous == 0) {
+      res = tmp;
+    } else {
+      Store_field(previous, 1, tmp);
+    }
+    previous = tmp;
+  }
+
+  register_ocaml_shared_list_value(x, res);
   CAMLreturn(res);
 }
 
@@ -687,6 +687,35 @@ value ocaml_reflect_CustomCode(CustomCode const * x, Ocaml_reflection_data * dat
 }
 
 
+value ocaml_reflect_string_ast_list(ASTList<string> const * x, Ocaml_reflection_data * data) {
+  CAMLparam0();
+  CAMLlocal4(res, tmp, elem, previous);
+  res = find_ocaml_shared_list_value(x);
+  if( res != Val_None ) {
+    xassert(Is_block(res) && Tag_val(res) == 0);
+    CAMLreturn(Field(res, 0));
+  }
+
+  previous = 0;
+
+  FOREACH_ASTLIST(string, *x, iter) {
+    elem = ocaml_reflect_string(iter.data(), data);
+    tmp = caml_alloc_small(2, Tag_cons);
+    Field(tmp, 0) = elem;
+    Field(tmp, 1) = Val_emptylist;
+    if(previous == 0) {
+      res = tmp;
+    } else {
+      Store_field(previous, 1, tmp);
+    }
+    previous = tmp;
+  }
+
+  register_ocaml_shared_list_value(x, res);
+  CAMLreturn(res);
+}
+
+
 value ocaml_reflect_BaseClass_ast_list(ASTList<BaseClass> const * x, Ocaml_reflection_data * data) {
   CAMLparam0();
   CAMLlocal4(res, tmp, elem, previous);
@@ -716,7 +745,7 @@ value ocaml_reflect_BaseClass_ast_list(ASTList<BaseClass> const * x, Ocaml_refle
 }
 
 
-value ocaml_reflect_ASTClass_ast_list(ASTList<ASTClass> const * x, Ocaml_reflection_data * data) {
+value ocaml_reflect_Annotation_ast_list(ASTList<Annotation> const * x, Ocaml_reflection_data * data) {
   CAMLparam0();
   CAMLlocal4(res, tmp, elem, previous);
   res = find_ocaml_shared_list_value(x);
@@ -727,37 +756,8 @@ value ocaml_reflect_ASTClass_ast_list(ASTList<ASTClass> const * x, Ocaml_reflect
 
   previous = 0;
 
-  FOREACH_ASTLIST(ASTClass, *x, iter) {
-    elem = ocaml_reflect_ASTClass(iter.data(), data);
-    tmp = caml_alloc_small(2, Tag_cons);
-    Field(tmp, 0) = elem;
-    Field(tmp, 1) = Val_emptylist;
-    if(previous == 0) {
-      res = tmp;
-    } else {
-      Store_field(previous, 1, tmp);
-    }
-    previous = tmp;
-  }
-
-  register_ocaml_shared_list_value(x, res);
-  CAMLreturn(res);
-}
-
-
-value ocaml_reflect_string_ast_list(ASTList<string> const * x, Ocaml_reflection_data * data) {
-  CAMLparam0();
-  CAMLlocal4(res, tmp, elem, previous);
-  res = find_ocaml_shared_list_value(x);
-  if( res != Val_None ) {
-    xassert(Is_block(res) && Tag_val(res) == 0);
-    CAMLreturn(Field(res, 0));
-  }
-
-  previous = 0;
-
-  FOREACH_ASTLIST(string, *x, iter) {
-    elem = ocaml_reflect_string(iter.data(), data);
+  FOREACH_ASTLIST(Annotation, *x, iter) {
+    elem = ocaml_reflect_Annotation(iter.data(), data);
     tmp = caml_alloc_small(2, Tag_cons);
     Field(tmp, 0) = elem;
     Field(tmp, 1) = Val_emptylist;

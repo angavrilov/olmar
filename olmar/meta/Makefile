@@ -187,12 +187,7 @@ ast_reflection: gen_reflection
 
 .PHONY: diff_ast_reflection
 diff_ast_reflection:
-	for f in $(ASTGEN_OR)/new/* ; do \
-	    echo ======== $$(basename $$f) ==================================; \
-	    diff $$f $(ASTGEN_OR)/$$(basename $$f); \
-	    true; \
-	done
-
+	$(MAKE) -C $(ASTGEN) diff_reflection
 
 
 #############################################################################

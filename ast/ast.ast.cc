@@ -488,6 +488,7 @@ void ASTClass::init_fields()
 	static_cast<FieldFlags>(xml_or_field
 		     | (ud->amod->hasMod("owner") ? FF_IS_OWNER : FF_NONE)
 		     | (ud->amod->hasMod("nullable") ? FF_NULLABLE : FF_NONE)
+		     | (ud->amod->hasMod("circular") ? FF_CIRCULAR : FF_NONE)
 		     | (ud->amod->acc == AC_PRIVATE ? FF_PRIVAT : FF_NONE)),
 	extractFieldType(ud->code),
 	extractFieldName(ud->code),
