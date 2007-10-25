@@ -402,8 +402,11 @@ let binaryOp_fun (op : binaryOp) =
 let assignOp_fun (op : binaryOp) =
   Format.print_string (string_of_assignOp op)
 
-let castKeyword_fun (_ : castKeyword) =
-  trace "castKeyword_fun()"  (*TODO*)
+let castKeyword_fun = function
+  | CK_DYNAMIC     -> assert false
+  | CK_STATIC      -> assert false
+  | CK_REINTERPRET -> Format.print_string "reinterpret_cast"
+  | CK_CONST       -> assert false
 
 let function_flags_fun (_ : function_flags) =
   trace "function_flags_fun()"  (*TODO*)
@@ -2063,12 +2066,12 @@ and statement_fun x =
 
     | S_asm(annot, sourceLoc, e_stringLit) ->
 	trace "S_asm(";
-	(* TODO: I don't think we can/want to model assembler statements, or do
-	   we? *)
+	(* We do not really model assembler statements at the moment; the *)
+	(* string argument is simply passed on to PVS.                    *)
 	assert(match e_stringLit with | E_stringLit _ -> true | _ -> false);
-        Format.print_string ">>>>>asm(";
+        Format.print_string "asm(";
 	expression_fun e_stringLit;
-        Format.print_string ")<<<<<";
+        Format.print_string ")";
 	trace ")";
 
     | S_namespaceDecl(annot, sourceLoc, namespaceDecl) ->
@@ -2221,10 +2224,10 @@ and expression_fun x =
     | E_intLit(annot, type_opt, stringRef, ulong) ->
         trace "E_intLit(";
 	(*Option.app cType_fun type_opt;*)
+	(*string_fun stringRef;*)
 	Format.print_string "literal(";
-	string_fun stringRef;
+	int32_fun ulong;
 	Format.print_string ")";
-	(*int32_fun ulong*) (*?*)
         trace ")";
 
     | E_floatLit(annot, type_opt, stringRef, double) ->
@@ -2250,11 +2253,14 @@ and expression_fun x =
 
     | E_charLit(annot, type_opt, stringRef, int32) ->
 	trace "E_charLit(";
-	Format.printf ">>>>>";
-	Option.app cType_fun type_opt;
-	string_fun stringRef;
-	(*int32_fun int32*) (*?*)
-	Format.printf "<<<<<";
+	assert (match type_opt with
+	  | Some (CVAtomicType(_, [], SimpleType(_, ST_CHAR))) -> true
+	  | _                                                  -> false);
+	(*Option.app cType_fun type_opt;*)  (* type is (always?) char *)
+	(*string_fun stringRef;*)  (* string representation of the literal *)
+	Format.print_string "literal(";
+	int32_fun int32;  (* actual value of the literal *)
+	Format.print_string ")";
 	trace ")";
 
     | E_this(annot, type_opt, variable) ->
@@ -2436,6 +2442,7 @@ and expression_fun x =
 
     | E_cast(annot, type_opt, aSTTypeId, expression, bool) ->
         trace "E_cast(";
+	assert false;
 	Option.app cType_fun type_opt;
 	aSTTypeId_fun aSTTypeId;
 	expression_fun expression;
@@ -2481,7 +2488,7 @@ and expression_fun x =
 	   argExpressionListOpt_opt, array_size_opt, ctor_opt, 
 	   statement_opt, heep_var_opt) ->
         trace "E_new(";
-	(*TODO*)
+	assert false;
 	Option.app cType_fun type_opt;
 	bool_fun bool;
 	List.iter argExpression_fun argExpression_list;
@@ -2513,11 +2520,20 @@ and expression_fun x =
 
     | E_keywordCast(annot, type_opt, castKeyword, aSTTypeId, expression) ->
 	trace "E_keywordCast(";
-	(*TODO*)
-	Option.app cType_fun type_opt;
-	castKeyword_fun castKeyword;
+	castKeyword_fun castKeyword;  (* cast keyword *)
+	Format.printf "(@[<2>dt_";
+	assert (Option.isSome type_opt);
+	Option.app cType_fun type_opt;  (* destination type *)
+	(* TODO: what is this? *)
+	(*
 	aSTTypeId_fun aSTTypeId;
-	expression_fun expression;
+	*)
+	Format.printf ",@ dt_";
+	assert (Option.isSome (expression_type expression));
+	Option.app cType_fun (expression_type expression);  (* source type *)
+	Format.printf ")(@[<2>";
+	expression_fun expression;  (* expression *)
+	Format.printf ")@]@]";
 	trace ")";
 
     | E_typeidExpr(annot, type_opt, expression) ->
@@ -3061,9 +3077,7 @@ let main () =
       Format.printf "@[@[<2>%s[State@ :@ Type]@ :@ THEORY@]@\n\
         BEGIN@\n\
         @[<2>@\n\
-          @[<2>IMPORTING@ Abstract_Read_Write_Plain,@ Cpp_Types,@ Expressions,@ Statements,@ Conversions,@ Hoare@]@\n\
-          @\n\
-          @[pm@ :@ Plain_Memory[State]@]@\n\
+          @[<2>IMPORTING@ Cpp_Verification@]@\n\
           @\n" theory_name;
       ast_node_fun ast_array.(1);
       (* TODO: this only works for int main(), not for int main(argc, argv)
