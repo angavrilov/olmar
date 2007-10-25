@@ -70,6 +70,8 @@
 (*       - It would be nice if the pre-/postcondition was taken from an      *)
 (*         annotation in the C++ program.                                    *)
 (*       - arrays                                                            *)
+(*       - multiple variable declarations in one line, e.g.                  *)
+(*         "int a = 0, b = 0;"                                               *)
 
 (* flag for debug output *)
 
@@ -1198,6 +1200,11 @@ and declaration_fun (annot, declFlags, typeSpecifier, declarator_list) =
   begin
     trace "declaration_fun(";
     declFlags_fun declFlags;
+
+    (* TODO: only one declaration at a time supported at the moment *)
+    if List.length declarator_list > 1 then
+      assert false;
+
     if List.mem DF_TYPEDEF declFlags then
       (* typedef declaration *)
       begin
