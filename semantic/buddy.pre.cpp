@@ -15,10 +15,11 @@
  *
  * - virtual functions are not allowed
  * - access modifiers (private/public/protected) are unsupported
- * - class inheritance / base classes are not allowed
+ * - class inheritance/base classes are not allowed
  * - templates are not allowed
- * - assembler statements are not allowed
+ * - assembler statements will lead to unverifiable PVS code
  * - global variables are not allowed
+ * - nested class/enum declarations (inside another class) are not allowed
  */
 
 
@@ -50,9 +51,14 @@
 
 # 1 "/usr/lib/gcc/i386-redhat-linux/4.0.1/include/stdarg.h" 1 3 4
 # 43 "/usr/lib/gcc/i386-redhat-linux/4.0.1/include/stdarg.h" 3 4
+// obscure built-in types are not supported by the semantics compiler
+/*
 typedef __builtin_va_list __gnuc_va_list;
+*/
 # 105 "/usr/lib/gcc/i386-redhat-linux/4.0.1/include/stdarg.h" 3 4
+/*
 typedef __gnuc_va_list va_list;
+*/
 # 14 "include/console.h" 2
 
 # 1 "include/types.h" 1
@@ -158,7 +164,12 @@ strcmp (char const *s1, char const *s2)
 }
 
 __attribute__((always_inline))
+// return type int requires integral conversions that are not recorded properly
+// by Elsa; hence the semantics compiler is not (yet) able to insert them
+/*
 inline int
+*/
+inline unsigned
 bit_scan_reverse (unsigned val)
 {
     if (__builtin_expect((!val), false))
@@ -774,10 +785,15 @@ class Buddy
         Block * index;
         Block * head;
 
-  // TODO: static variables are not supported by the semantics compiler
-  static unsigned const page_ord;// = 12;
-  static unsigned const page_size;// = 1u << page_ord;
-  static unsigned const page_mask;// = ~(page_size - 1);
+  // static variables are not supported by the semantics compiler
+  /*
+  static unsigned const page_ord = 12;
+  static unsigned const page_size = 1u << page_ord;
+  static unsigned const page_mask = ~(page_size - 1);
+  */
+  unsigned page_ord;
+  unsigned page_size;
+  unsigned page_mask;
 
         __attribute__((always_inline))
         inline signed long
@@ -822,7 +838,10 @@ class Buddy
         }
 
     public:
+  // static variables are not supported by the semantics compiler
+  /*
         static Buddy allocator;
+  */
 
         __attribute__((section (".init")))
         Buddy (mword p_addr, mword l_addr, mword f_addr, size_t size);
@@ -834,24 +853,30 @@ class Buddy
         free (mword addr);
 
         __attribute__((always_inline))
-        inline static mword
+	// static variables are not supported by the semantics compiler
+	  inline /*static*/ mword
         phys()
         {
-            return allocator.phys_addr;
+	  // static variables are not supported by the semantics compiler
+	  return /*allocator.*/phys_addr;
         }
 
         __attribute__((always_inline))
-        inline static void *
+	// static variables are not supported by the semantics compiler
+	  inline /*static*/ void *
         phys_to_ptr (mword p_addr)
         {
-            return reinterpret_cast<void *>(allocator.frame_to_page (p_addr));
+	  // static variables are not supported by the semantics compiler
+	  return reinterpret_cast<void *>(/*allocator.*/frame_to_page (p_addr));
         }
 
         __attribute__((always_inline))
-        inline static mword
+	// static variables are not supported by the semantics compiler
+	  inline /*static*/ mword
         ptr_to_phys (void *l_addr)
         {
-            return allocator.page_to_frame (reinterpret_cast<mword>(l_addr));
+	  // static variables are not supported by the semantics compiler
+	  return /*allocator.*/page_to_frame (reinterpret_cast<mword>(l_addr));
         }
 };
 # 13 "buddy.cpp" 2
@@ -889,14 +914,14 @@ class Lock_guard
 # 15 "buddy.cpp" 2
 
 
-// TODO: extern variables are not supported by the semantics compiler
+// extern variables are not supported by the semantics compiler
 /*
 extern char _mempool_p, _mempool_l, _mempool_f;
 */
 
 
 
-// TODO: initialization of static/global vars is not supported yet
+// initialization of static/global vars is not supported yet
 /*
 __attribute__((init_priority((((100 + 1) + 1)))))
 Buddy Buddy::allocator (reinterpret_cast<mword>(&_mempool_p),
@@ -906,8 +931,31 @@ Buddy Buddy::allocator (reinterpret_cast<mword>(&_mempool_p),
 */
 
 
+// added for the semantics compiler
+int main() {
+  char _mempool_p = '\0';
+  char _mempool_l = '\0';
+  char  _mempool_f = '\0';
+
+  Buddy allocator(reinterpret_cast<mword>(&_mempool_p),
+		  reinterpret_cast<mword>(&_mempool_l),
+		  reinterpret_cast<mword>(&_mempool_f),
+		  0x00800000U);
+
+  return 0;
+}
+
+
+
 Buddy::Buddy (mword p_addr, mword l_addr, mword f_addr, size_t size)
 {
+
+  // moved here because static variables are not supported by the semantics
+  // compiler
+  page_ord  = 12;
+  page_size = 1u << page_ord;
+  page_mask = ~(page_size - 1);
+
 
     phys_addr = p_addr;
 
@@ -923,8 +971,8 @@ Buddy::Buddy (mword p_addr, mword l_addr, mword f_addr, size_t size)
     order = bit - page_ord + 1;
 
     // copied here because global variables are not supported by the semantics
-    // compiler
-    unsigned const trace_mask = (TRACE_CPU |
+    // compiler; made int instead of unsigned to avoid integral conversion
+    int const trace_mask = (TRACE_CPU |
 				 TRACE_VMX |
 				 TRACE_SMX |
 				 TRACE_APIC |
@@ -955,11 +1003,17 @@ Buddy::Buddy (mword p_addr, mword l_addr, mword f_addr, size_t size)
     max_idx = (l_addr + size) / page_size - l_base / page_size;
     index = reinterpret_cast<Block *>(l_addr + size) - min_idx;
 
-    for (unsigned i = 0; i < order; i++)
+    unsigned i = 0U;
+    for (/*unsigned i = 0*/; i < order; i++)
         head[i].next = head[i].prev = head + i;
 
+    mword mw = f_addr;
+    /*
     for (mword i = f_addr; i < l_addr + size; i += page_size)
         free (i);
+    */
+    for (; mw < l_addr + size; mw += page_size)
+        free (mw);
 }
 
 
@@ -1006,7 +1060,8 @@ Buddy::alloc (unsigned ord, bool zero)
 	*/
 
         if (zero)
-            memset (reinterpret_cast<void *>(l_addr), 0, 1ul << (block->ord + page_ord));
+	  // integral conversion not supported by the semantics compiler yet
+	  memset (reinterpret_cast<void *>(l_addr), 0, 1/*ul*/ << (block->ord + page_ord));
 
         return reinterpret_cast<void *>(l_addr);
     }
