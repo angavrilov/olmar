@@ -7,28 +7,19 @@
 #include "ocaml_reflection_base.h"
 
 
-// --------------------- Ocaml_reflection_data ------------------------------
+//***************************************************************************
+//***************************************************************************
+//*********              shared values                        ***************
+//***************************************************************************
+//***************************************************************************
 
-Ocaml_reflection_data::~Ocaml_reflection_data() {
-  // can't use xassert in a destructor (because C++ cannot raise an
-  // exception when unwinding the stack
-  // only print informative messages and switch them off 
-  // together with xassert
-#if !defined(NDEBUG_NO_ASSERTIONS)
-  if(stack.size() != 0)
-    cerr << "Destructor ~ElsaOcamlData called in a bad state\n";
-#endif
-
-}
-
-// --------------------- shared values --------------------------------------
 
 // amount to shift void pointers to fit in an ocaml int
 static unsigned const addr_shift = 2;
 
-value find_ocaml_shared_node_value(void const * node) {
+value find_ocaml_shared_value(void const * node, unsigned typ) {
   CAMLparam0();
-  CAMLlocal2(caml_addr, result);
+  CAMLlocal3(caml_addr, caml_type, result);
   int addr = (int) node >> addr_shift;
 
   static value * get_shared_node_closure = NULL;
@@ -36,33 +27,18 @@ value find_ocaml_shared_node_value(void const * node) {
     get_shared_node_closure = caml_named_value("get_shared_node");
   xassert(get_shared_node_closure);
 
-  xassert(addr <= Max_long && Min_long <= addr);
+  xassert(addr <= Max_long && Min_long <= addr && typ <= Max_long);
   caml_addr = Val_int(addr);
-  result = caml_callback(*get_shared_node_closure, caml_addr);
+  caml_type = Val_int(typ);
+  result = caml_callback2(*get_shared_node_closure, caml_addr, caml_type);
   CAMLreturn(result);
 }
 
 
-value find_ocaml_shared_list_value(void const * list) {
-  CAMLparam0();
-  CAMLlocal2(caml_addr, result);
-  int addr = (int) list >> addr_shift;
-
-  static value * get_shared_list_closure = NULL;
-  if(get_shared_list_closure == NULL)
-    get_shared_list_closure = caml_named_value("get_shared_list");
-  xassert(get_shared_list_closure);
-
-  xassert(addr <= Max_long && Min_long <= addr);
-  caml_addr = Val_int(addr);
-  result = caml_callback(*get_shared_list_closure, caml_addr);
-  CAMLreturn(result);
-}
-
-
-void register_ocaml_shared_node_value(void const * node_addr, value node_val) {
+void register_ocaml_shared_value(void const * node_addr, 
+				      value node_val, unsigned typ) {
   CAMLparam1(node_val);
-  CAMLlocal1(addr_val);
+  CAMLlocal2(addr_val, caml_type);
   int addr = (int) node_addr >> addr_shift;
   
   static value * register_shared_node_closure = NULL;
@@ -70,32 +46,23 @@ void register_ocaml_shared_node_value(void const * node_addr, value node_val) {
     register_shared_node_closure = caml_named_value("register_shared_node");
   xassert(register_shared_node_closure);
 
-  xassert(addr <= Max_long && Min_long <= addr);
+  xassert(addr <= Max_long && Min_long <= addr && typ <= Max_long);
   addr_val = Val_int(addr);
-  caml_callback2(*register_shared_node_closure, addr_val, node_val);
+  caml_type = Val_int(typ);
+  caml_callback3(*register_shared_node_closure, addr_val, caml_type, node_val);
   CAMLreturn0;
 }
 
 
-void register_ocaml_shared_list_value(void const * list_addr, value list_val) {
-  CAMLparam1(list_val);
-  CAMLlocal1(addr_val);
-  int addr = (int) list_addr >> addr_shift;
-  
-  static value * register_shared_list_closure = NULL;
-  if(register_shared_list_closure == NULL)
-    register_shared_list_closure = caml_named_value("register_shared_list");
-  xassert(register_shared_list_closure);
-
-  xassert(addr <= Max_long && Min_long <= addr);
-  addr_val = Val_int(addr);
-  caml_callback2(*register_shared_list_closure, addr_val, list_val);
-  CAMLreturn0;
-}
+//***************************************************************************
+//***************************************************************************
+//*********  hand written serialization/reflection functions  ***************
+//***************************************************************************
+//***************************************************************************
 
 
 // hand written ocaml serialization function
-value ocaml_ast_annotation(const void *thisp, Ocaml_reflection_data *d)
+value ocaml_ast_annotation(const void *thisp)
 {
   CAMLparam0();
   CAMLlocal1(result);
@@ -105,9 +72,22 @@ value ocaml_ast_annotation(const void *thisp, Ocaml_reflection_data *d)
     create_ast_annotation_closure = caml_named_value("create_ast_annotation");
   xassert(create_ast_annotation_closure);
 
-  result = ocaml_from_int(((unsigned) thisp) >> addr_shift, d);
+  int shifted_addr = ((unsigned) thisp) >> addr_shift;
+  result = ocaml_reflect_int(&shifted_addr);
   result = caml_callback(*create_ast_annotation_closure, result);
   xassert(IS_OCAML_AST_VALUE(result));
 
   CAMLreturn(result);
 }
+
+
+// hand written ocaml serialization function
+value make_reference(value elem) {
+  CAMLparam1(elem);
+  CAMLlocal1(result);
+  result = caml_alloc_small(1, 0); // the reference cell
+  Field(result, 0) = elem;
+  CAMLreturn(result);
+}
+
+

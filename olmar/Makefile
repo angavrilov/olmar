@@ -32,3 +32,15 @@ depend:
 
 stage1: stage_1
 stage2: stage_2
+
+MLDISCARD := \
+	oast_header_start.ml
+
+.PHONY: TAGS
+TAGS:
+	otags `find . -name \*.ml -o -name \*.mli |\
+		egrep -v $(MLDISCARD)`
+	etags --append --members -l c++ \
+		`find . -name \*.h` \
+		`find . -name \*.cc` \
+		`find . -name \*.cpp`

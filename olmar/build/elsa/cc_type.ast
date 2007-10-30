@@ -24,16 +24,19 @@ class Variable (
   nullable circular Function *funcDefn,       // (serf)
   nullable OverloadSet *overload,             // (serf)
   SObjSet<Variable*> *virtuallyOverride,
-  nullable Scope *scope,                      // (serf)
-  nullable TemplateInfo templInfo             // (private!? owner)
-  ) { }
+  nullable Scope *scope			      // (serf)
+  ) 
+{ 
+  private(nullable, field) TemplateInfo templInfo; // (owner)
+}
+
 
 class OverloadSet (
   SObjList<Variable> set
   ) { }
 
+
 class TemplateInfo (
-  templateThingKind templ_kind,
   SObjList<Variable> params,
   // HT: NULL in t0026.cc
   nullable Variable * var,				     // const (serf)
@@ -54,7 +57,10 @@ class TemplateInfo (
   bool instantiationDisallowed,
   int uninstantiatedDefaultArgs,
   SObjList<CType> dependentBases
-  ) { }
+  ) 
+  { 
+  private(field) TemplateThingKind kind;
+  }
 
 
 class InheritedTemplateParams (
@@ -65,15 +71,132 @@ class InheritedTemplateParams (
   ) { }
 
 
-class Scope () {}
+class BaseClass (
+  CompoundType * ct,
+  AccessKeyword access,
+  bool isVirtual
+  ) {}
 
-class CType () {
-  -> FunctionType();
-}
+// BaseClassSubobj inherits from BaseClass
+class BaseClassSubobj (
+  CompoundType * ct,
+  AccessKeyword access,
+  bool isVirtual,
+  SObjList<BaseClassSubobj> parents
+  ) {}
+
+class EnumValue(
+  StringRef name, 
+  nativeint val_value
+  ) {}
+
 
 class AtomicType () {
-  -> CompoundType();
-  -> EnumType();
+  -> SimpleType(SimpleTypeId type);
+
+  -> CompoundType(
+       nullable StringRef name, 
+       Variable typedefVar, 
+       AccessKeyword access,
+       BoolValue forward,
+       BoolValue isTransparentUnion,
+       CompoundKeyword keyword,
+       SObjList<Variable> dataMembers,
+       ObjList<BaseClassSubobj> virtualBases,
+       SObjList<Variable> conversionOperators,
+       SObjList<Variable> friends,
+       nullable StringRef instName,
+       nullable TS_classSpec * syntax,
+       nullable CType * selfType
+       ) {
+       private(field) Scope compound_scope;	// Scope ancestor
+       private(field) ObjList<BaseClass> bases;       
+       }
+
+
+  -> EnumType(
+       nullable StringRef name, 
+       nullable Variable typedefVar, 
+       AccessKeyword access,
+       StringObjDict<EnumValue> valueIndex,
+       bool hasNegativeValues
+       );
+
+  -> PseudoInstantiation(
+       StringRef name, 
+       nullable Variable typedefVar, 
+       AccessKeyword access,
+       CompoundType * primary,	// serf??
+       ObjList<STemplateArgument> args
+       );
+
+  -> TypeVariable(
+       StringRef name, 
+       Variable typedefVar, 
+       AccessKeyword access
+       );
+
+  -> DependentQType(
+       StringRef name, 
+       Variable typedefVar, 
+       AccessKeyword access,
+       AtomicType * first,
+       PQName * rest		// serf??
+       );
 }
 
-class STemplateArgument () {}
+
+// ExnSpec is a inner class of FunctionType
+class FunctionExnSpec (
+  SObjList<CType> types
+  ) {}
+
+
+class CType () {
+  -> CVAtomicType(AtomicType * atomic, CVFlags cv);
+  -> PointerType(CVFlags cv, CType * atType);
+  -> ReferenceType(CType * atType);
+  -> FunctionType(
+        FunctionFlags flags, 
+	CType * retType, 
+	SObjList<Variable> params,
+	FunctionExnSpec * exnSpec);
+  // PDSArrayType(CType * eltType) is ancestor of 
+  // ArrayType and DependentSizedArrayType
+  -> ArrayType(CType * eltType, Array_size size);
+  -> DependentSizedArrayType(CType * eltType, Expression * sizeExpr);
+  -> PointerToMemberType(
+        AtomicType * inClassNAT, 	      // really NamedAtomicType
+	CVFlags cv, 
+	CType * atType);
+}
+
+
+class STemplateArgument () {
+  -> STA_NONE();
+  -> STA_TYPE() {private(field) CType * t;}
+  -> STA_INT() {private(field) int i;}
+  -> STA_ENUMERATOR() {private(field) Variable * v;}
+  -> STA_REFERENCE() {private(field) Variable * v;}
+  -> STA_POINTER() {private(field) Variable * v;}
+  -> STA_MEMBER() {private(field) Variable * v;}
+  -> STA_DEPEXPR() {private(field) Expression * e;}
+  -> STA_TEMPLATE();
+  -> STA_ATOMIC() {private(field) AtomicType * at;}
+}
+
+
+class Scope (
+  StringRefMap<Variable> variables,
+  StringRefMap<Variable> typeTags,
+  nullable Scope * parentScope,	// serf??
+  ScopeKind scopeKind,
+  nullable Variable * namespaceVar,	// serf??
+  SObjList<Variable> templateParams,
+  nullable Variable * parameterizedEntity
+  ) {
+  // the compound this scope can be downcasted to
+  private(field, nullable) CompoundType * scope_compound; 
+}
+
+

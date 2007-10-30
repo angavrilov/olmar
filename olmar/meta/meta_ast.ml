@@ -2,6 +2,7 @@
 (*  See file license.txt for terms of use                              *)
 (***********************************************************************)
 
+open Stdlib_missing
 open More_string
 open Ast_annotation
 open Ast_ml_types
@@ -23,17 +24,25 @@ type list_kind =
   | LK_fake_list
   | LK_obj_list
   | LK_sobj_list
-    (* not really a list ... but well *)
+    (* not really a list ... but a list in the ocaml ast *)
   | LK_sobj_set
+      (* StringObjDict is a map, but the mapped objects contain all the 
+       * information. We treat it like a set therefore.
+       *)
+  | LK_string_obj_dict
+    (* StringRefMap is a hash *)
+  | LK_string_ref_map
 
 (* type of fields and constructor arguments *)
 type ast_type =
   | AT_base of string
   | AT_node of ast_class
+      (* AT_option( inner type, c-type string) *)
+  | AT_option of ast_type * string
   | AT_ref of ast_type
-  | AT_option of ast_type
       (* AT_list( ast or fake list, inner kind, inner c-type string ) *)
   | AT_list of list_kind * ast_type * string
+
 
 (* a field or constructor argument *)
 and ast_field = {
@@ -43,6 +52,8 @@ and ast_field = {
   af_mod_type : ast_type;
   af_is_pointer : bool;
   af_is_base_field : bool;
+  af_is_private : bool;
+  af_is_circular : bool;
 }
 
 (* a superclass or a subclass *)
@@ -54,6 +65,7 @@ and ast_class = {
   mutable ac_fields : ast_field list;
   ac_super : ast_class option;
   mutable ac_subclasses : ast_class list;
+  ac_record : bool;
 }
 
 
@@ -67,7 +79,9 @@ and ast_class = {
 
 (* parse strings in fieldFlag list
  *
- * recognized access modifiers (see also ASTClass::init_fields in ast.ast):
+ * recognized access modifiers 
+ *   (see also ASTClass::init_fields in ast.ast 
+ *    and parseCtorArg in ast/agrampar.cc):
  * field -> FF_FIELD
  * xml.* -> FF_XML
  * owner -> FF_IS_OWNER
@@ -132,13 +146,15 @@ let is_pointer_type type_string =
 (* only use this on a non-mod type without ref or option *)
 let field_is_pointer ml_type type_string =
   match ml_type with
-    | AT_list _
-    | AT_base _ ->
-	if is_pointer_type type_string then true else false
+    | AT_list _ -> if is_pointer_type type_string then true else false
+    | AT_base _ -> 
+	if is_pointer_type type_string or is_implicit_pointer_type type_string
+	then true 
+	else false
     | AT_node _ -> true
 
-    | AT_ref _
-    | AT_option _ -> assert false
+    | AT_option _ 
+    | AT_ref _ -> assert false
 
 (******************************************************************************
  ******************************************************************************
@@ -194,6 +210,7 @@ let extract_pointer_type type_string =
     (false, type_string)
      
 
+(* XXX TODO: generate a proper error message with the offending class.field *)
 let require_pointer typconstr type_string =
   let (is_pointer_type, type_string_ptr) = extract_pointer_type type_string
   in
@@ -228,6 +245,10 @@ let ast_lists =
      f_id);
     ("SObjSet", (fun s -> fun t -> AT_list(LK_sobj_set, t, s)),
      require_pointer "SObjSet");
+    ("StringObjDict", (fun s -> fun t -> AT_list(LK_string_obj_dict, t, s)),
+     f_id);
+    ("StringRefMap", (fun s -> fun t -> AT_list(LK_string_ref_map, t, s)),
+     f_id);
   |]
 
 let ast_list_name (n,_,_) = n
@@ -307,11 +328,23 @@ let is_list_type = function
   | AT_node _ -> false
   | AT_list _ -> true
 
-  | AT_ref _
-  | AT_option _ -> assert false
+  | AT_option _ 
+  | AT_ref _ -> assert false
 
 
-let make_mod_type ast_type modifiers =
+let make_nullable_option cl_name field_name ast_type c_type =
+  if field_is_pointer ast_type c_type
+  then
+    AT_option(ast_type, snd (extract_pointer_type c_type))
+  else begin
+    Printf.eprintf 
+      "Nullable annotation on non-pointer type in field %s.%s\n"
+      cl_name field_name;
+    exit 1;
+  end
+
+
+let make_mod_type cl_name field_name ast_type modifiers c_type =
   match (is_list_type ast_type,
 	 List.mem FF_NULLABLE modifiers, 
 	 List.mem FF_CIRCULAR modifiers)
@@ -320,10 +353,17 @@ let make_mod_type ast_type modifiers =
         (* nonnull, noncircular *)
       | (_, false, false) -> ast_type
         (* nullable object *)
-      | (false, true, false) -> AT_option ast_type
+      | (false, true, false) -> 
+	  make_nullable_option cl_name field_name ast_type c_type
         (* circular object *)
+      | (false, false, true) -> 
+	  (* Don't check for a pointer type here, because the nullable
+	   * is somehow implicit 
+	   *)
+	  AT_ref(AT_option(ast_type, snd(extract_pointer_type c_type)))
         (* circular nullable object *)
-      | (false, _, true) -> AT_ref(AT_option ast_type)
+      | (false, true, true) -> 
+	  AT_ref(make_nullable_option cl_name field_name ast_type c_type)
         (* nullable list *)
       | (true, true, false) -> assert false
 	(* circular list *)
@@ -338,8 +378,8 @@ let rec is_base_field = function
   | AT_node _ -> false
   | AT_list(_, inner, _) -> is_base_field inner
 
-  | AT_ref _
-  | AT_option _ -> assert false
+  | AT_option _ 
+  | AT_ref _ -> assert false
 
 
 let type_modifier_p = function
@@ -359,20 +399,18 @@ let extract_fields cl =
 	in
 	  if List.mem FF_FIELD modifiers or List.mem FF_XML modifiers
 	  then
-	    let modifiers =
-	      if access_mod.acc = AC_PRIVATE 
-	      then FF_PRIVAT :: modifiers
-	      else modifiers
-	    in
 	    let (field_type, field_name) = split_field_type_name code in
 	    let typ = make_ast_type field_type in
 	    let field =
 	      { af_name = field_name;
 		af_modifiers = modifiers;
 		af_type = typ;
-		af_mod_type = make_mod_type typ modifiers;
+		af_mod_type = 
+		  make_mod_type cl.cl_name field_name typ modifiers field_type;
 		af_is_pointer = field_is_pointer typ field_type;
 		af_is_base_field = is_base_field typ;
+		af_is_private = access_mod.acc = AC_PRIVATE;
+		af_is_circular = List.mem FF_CIRCULAR modifiers;
 	      }
 	    in
 	      res := field :: !res
@@ -382,23 +420,27 @@ let extract_fields cl =
     List.rev !res
 
 
-let make_ast_arg arg =
+let make_ast_arg cl arg =
   let t = make_ast_type arg.field_type
   in
     { af_name = arg.field_name;
       af_modifiers = arg.flags;
       af_type = t;
-      af_mod_type = make_mod_type t arg.flags;
+      af_mod_type = 
+	make_mod_type cl.cl_name arg.field_name t arg.flags arg.field_type;
       af_is_pointer = field_is_pointer t arg.field_type;
       af_is_base_field = is_base_field t;
+      (* currently constructors can not be private *)
+      af_is_private = false;
+      af_is_circular = List.mem FF_CIRCULAR arg.flags;
     }
 
 
 let update_fields cl =
   let ast_cl = get_node cl.cl_name 
   in
-    ast_cl.ac_args <- List.map make_ast_arg cl.args;
-    ast_cl.ac_last_args <- List.map make_ast_arg cl.lastArgs;
+    ast_cl.ac_args <- List.map (make_ast_arg cl) cl.args;
+    ast_cl.ac_last_args <- List.map (make_ast_arg cl) cl.lastArgs;
     ast_cl.ac_fields <- extract_fields cl
 
 
@@ -410,6 +452,7 @@ let make_ast_class super cl =
     ac_fields = [];
     ac_super = super;
     ac_subclasses = [];
+    ac_record = variant_is_record cl.cl_name;
   }
 
 let ml_ast_of_oast oast =
@@ -451,7 +494,7 @@ let annotation_field_name cl =
 let annotation_access_fun cl =
   let super = match cl.ac_super with
     | None -> cl
-    | Some super -> super
+    | Some super -> if cl.ac_record then cl else super
   in
     (String.uncapitalize (translate_olmar_name None super.ac_name)) 
     ^ "_annotation"
@@ -460,7 +503,7 @@ let annotation_access_fun cl =
 let source_loc_access_fun cl =
   let super = match cl.ac_super with
     | None -> cl
-    | Some super -> super
+    | Some super -> if cl.ac_record then cl else super
   in
     (String.uncapitalize (translate_olmar_name None super.ac_name)) 
     ^ "_loc"
@@ -477,6 +520,8 @@ let variant_name sub =
     | None -> assert false
     | Some _ -> String.capitalize(translated_class_name sub)
 
+let variant_record_name sub =
+  (String.uncapitalize(translated_class_name sub)) ^ "_record"
 
 let node_ml_type_name cl =
   (String.uncapitalize (translate_olmar_name None cl.ac_name)) ^ "_type"
@@ -527,27 +572,127 @@ let get_source_loc_field cl =
  * makes node types polymorphic with 'a if with_tick_a
  *)
 let rec string_of_ast_type with_tick_a = function
-  | AT_list(_, el_type, _) -> (string_of_ast_type with_tick_a el_type) ^ " list"
-  | AT_ref el_type -> (string_of_ast_type with_tick_a el_type) ^ " ref"
-  | AT_option el_type -> (string_of_ast_type with_tick_a el_type) ^ " option"
+  | AT_list(LK_string_ref_map, el_type, _) ->
+      Printf.sprintf "(string, %s) Hashtbl.t"
+	(string_of_ast_type with_tick_a el_type)
+  | AT_list(_, el_type, _) -> 
+      (string_of_ast_type with_tick_a el_type) ^ " list"
+  | AT_option(el_type, _) -> 
+      (string_of_ast_type with_tick_a el_type) ^ " option"
+  | AT_ref ref_type -> 
+      (string_of_ast_type with_tick_a ref_type) ^ " ref"
   | AT_node cl -> 
-      (match cl.ac_super with
-	 | None ->
-	     if with_tick_a then
-	       "'a " ^ (node_ml_type_name cl)
-	     else
-	       node_ml_type_name cl
-	 | Some super ->
-	     Printf.sprintf "%s%s (* = %s *)"
-	       (if with_tick_a then "'a " else "")
-	       (node_ml_type_name super)
-	       (variant_name cl)
-      )
+      if cl.ac_super = None or cl.ac_record
+      then
+	if with_tick_a then
+	  "'a " ^ (node_ml_type_name cl)
+	else
+	  node_ml_type_name cl
+      else
+	Printf.sprintf "%s%s (* = %s *)"
+	  (if with_tick_a then "'a " else "")
+	  (node_ml_type_name (match cl.ac_super with
+				| Some super -> super
+				| None -> assert false))
+	  (variant_name cl)
+
   | AT_base type_name -> 
       (translate_olmar_name
 	 None
 	 (String.uncapitalize type_name))
 
+
+let unref_type ml_type = 
+  match ml_type with
+    | AT_ref el_type -> el_type
+    | AT_list _
+    | AT_option _
+    | AT_node _
+    | AT_base _ -> ml_type
+
+
+let is_ref_type = function
+  | AT_ref _ -> true
+  | AT_list _
+  | AT_option _
+  | AT_node _
+  | AT_base _ -> false
+
+
+
+(*****************************************************************************
+ *****************************************************************************
+ *
+ * field assertions
+ *
+ *****************************************************************************
+ *****************************************************************************)
+
+let rec field_type_has_assertion = function
+  | AT_list(_, el_type, _) 
+  | AT_option(el_type, _) -> field_type_has_assertion el_type
+  | AT_node cl -> cl.ac_super <> None && not cl.ac_record
+  | AT_base _ -> false
+  | AT_ref _ -> assert false
+
+
+let field_has_assertion cl f = 
+  field_type_has_assertion (unref_type f.af_mod_type) 
+  or
+    try
+      ignore(get_field_assertion cl.ac_name f.af_name);
+      true
+    with
+      | Not_found -> false
+
+
+let rec get_field_type_assertion indent field_access = function
+  | AT_list(_, el_type, _) ->
+      Printf.sprintf "%sList.for_all\n%s  (fun x ->\n%s)\n%s  %s"
+	indent indent
+	(get_field_type_assertion (indent ^ "     ") "x" el_type)
+	indent
+	field_access
+  | AT_option(el_type, _) ->
+      Printf.sprintf "%soption_for_all\n%s  (fun x ->\n%s)\n%s  %s"
+	indent indent
+	(get_field_type_assertion (indent ^ "     ") "x" el_type)
+	indent
+	field_access
+
+  | AT_node cl -> 
+      if cl.ac_super <> None && not cl.ac_record 
+      then 
+	Printf.sprintf 
+	  "%smatch %s with\n%s  | %s _ -> true\n%s  | _ -> false"
+	  indent
+	  field_access
+	  indent
+	  (variant_name cl)
+	  indent
+      else
+	"true"
+  | AT_base _ -> "true"
+  | AT_ref _ -> assert false
+
+
+let generate_field_assertion indent field_access cl f =
+  (if field_type_has_assertion (unref_type f.af_mod_type)
+   then
+     [Printf.sprintf "%sassert(\n%s)"
+	indent
+	(get_field_type_assertion (indent ^ "  ") field_access 
+	   (unref_type f.af_mod_type))]
+   else
+     []
+  ) @
+    (try
+       [Printf.sprintf "%sassert(%s %s)" 
+	  indent
+	  (get_field_assertion cl.ac_name f.af_name)
+	  field_access]
+     with
+       | Not_found -> [])
 
 
 (*****************************************************************************

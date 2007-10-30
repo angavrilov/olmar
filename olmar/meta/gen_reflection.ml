@@ -21,16 +21,31 @@ let rec reflection_function_type_component = function
       (reflection_function_type_component ml_type) ^
 	(match lk with
 	   | LK_ast_list -> "_ast_list"
-	   | LK_fake_list -> "_fake_list")
+	   | LK_fake_list -> "_fake_list"
+	   | LK_obj_list -> "_obj_list"
+	   | LK_sobj_list -> "_sobj_list"
+	   | LK_sobj_set -> "_sobj_set"
+	   | LK_string_obj_dict -> "_obj_dict"
+	   | LK_string_ref_map -> "_string_ref_map"
+	)
 
-  | AT_option ml_type ->
+  | AT_option(ml_type, _) ->
       (reflection_function_type_component ml_type) ^ "_option"
 
   | AT_node cl -> cl.ac_name
   | AT_base type_name -> type_name
 
+  | AT_ref _ -> assert false
+
+
 let name_of_reflection_function ml_type = 
-  "ocaml_reflect_" ^ (reflection_function_type_component ml_type)
+  "ocaml_reflect_" ^ (reflection_function_type_component (unref_type ml_type))
+
+(* this is the variant of name_of_reflection_function used for producing
+ * the variant of record variants 
+ *)
+let name_of_reflection_record_variant cl =
+  sprintf "ocaml_reflect_%s_variant" cl.ac_name
 
 
 (******************************************************************************
@@ -77,7 +92,7 @@ let generate_record_type oc cl =
   output_string oc "}\n"
 
 
-let generate_variant_decl oc variant_count cl_sub =
+let generate_variant_decl_tuple oc cl_sub =
   let fields = get_all_fields cl_sub
   in
     fprintf oc "  | %s of 'a" 
@@ -85,17 +100,27 @@ let generate_variant_decl oc variant_count cl_sub =
     List.iter
       (List.iter
 	 (fun field ->
-	    assert(field.af_modifiers = []);
 	    output_string oc " * ";
 	    output_string oc (string_of_ast_type true field.af_mod_type)))
       fields;
-    output_string oc "\n";
-    (* remember tag for this constructor *)
-    Hashtbl.add constructor_tags cl_sub.ac_name !variant_count;
-    incr variant_count
+    output_string oc "\n"
   
 
-let generate_type_def first oc super = 
+let generate_variant_decl_record oc cl_sub =
+  fprintf oc "  | %s of %s\n"
+    (variant_name cl_sub) (string_of_ast_type true (AT_node cl_sub))
+
+
+let generate_variant_decl oc variant_count cl_sub =
+  if cl_sub.ac_record 
+  then generate_variant_decl_record oc cl_sub
+  else generate_variant_decl_tuple oc cl_sub;
+  (* remember tag for this constructor *)
+  Hashtbl.add constructor_tags cl_sub.ac_name !variant_count;
+  incr variant_count
+  
+
+let type_def_header first oc cl =
   if !first then begin
     first := false;
     pr_comment oc ["syntax tree type definition"; ""];
@@ -103,7 +128,11 @@ let generate_type_def first oc super =
   end
   else 
     output_string oc "and ";
-  fprintf oc "%s = " (string_of_ast_type true (AT_node super));
+  fprintf oc "%s = " (string_of_ast_type true (AT_node cl))
+
+
+let generate_type_def first oc super = 
+  type_def_header first oc super;
   (match super.ac_subclasses with
      | [] -> generate_record_type oc super
      | subclasses ->
@@ -114,7 +143,18 @@ let generate_type_def first oc super =
 	     (generate_variant_decl oc variant_count) 
 	     subclasses
   );
-  output_string oc "\n\n"
+  output_string oc "\n\n";
+  (match super.ac_subclasses with
+     | [] -> ()
+     | subclasses ->
+	 List.iter 
+	   (fun cl ->
+	      type_def_header first oc cl;
+	      generate_record_type oc cl;
+	      output_string oc "\n\n";
+	   )
+	   (List.filter (fun ac -> ac.ac_record) subclasses)
+  )
 
 
 let generate_type_def_file source ast oc =
@@ -140,7 +180,9 @@ let generate_type_def_file source ast oc =
     (get_ocaml_type_header());
   output_string oc "\n\n";
 
-  List.iter (generate_type_def (ref true) oc) ast
+  let first = ref true
+  in
+    List.iter (generate_type_def first oc) ast
     
 
 
@@ -155,19 +197,41 @@ let generate_type_def_file source ast oc =
 let reflection_type_hash = Hashtbl.create 571
 
 let string_refl_func_header ml_type =
-  sprintf "value %s(%s const * x, Ocaml_reflection_data * data)"
-    (name_of_reflection_function ml_type)
+  (* 
+   * The annot field of MemberInit, Handler, FullExpression and Initializer 
+   * is private and the respective getAnnot methods are not const. 
+   * Therefore the whole reflection is not const.
+   * sprintf "value %s(%s const * x, Ocaml_reflection_data * data)"
+   *)
+  let (x_type, implicit_pointer) =
     (match ml_type with
        | AT_list(lk, _, c_type) -> 
-	   sprintf "%s<%s>" 
-	     (match lk with
-		| LK_ast_list -> "ASTList"
-		| LK_fake_list -> "FakeList")
-	     c_type
+	   (sprintf "%s<%s>" 
+	      (match lk with
+		 | LK_ast_list -> "ASTList"
+		 | LK_fake_list -> "FakeList"
+		 | LK_obj_list -> "ObjList"
+		 | LK_sobj_list -> "SObjList"
+		 | LK_sobj_set -> "SObjSet"
+		 | LK_string_obj_dict -> "StringObjDict"
+		 | LK_string_ref_map -> "StringRefMap"
+	      )
+	      c_type,
+	    false)
 
-       | AT_node cl -> cl.ac_name
-       | AT_base type_name -> type_name
+       | AT_option(_, c_type) -> (c_type, is_implicit_pointer_type c_type)
+       | AT_node cl -> (cl.ac_name, false)
+       | AT_base type_name -> (type_name, is_implicit_pointer_type type_name)
+
+       | AT_ref _ -> assert false
     )
+  in
+    sprintf "value %s(%s %sx)"
+      (name_of_reflection_function ml_type)
+      x_type
+      (if implicit_pointer then "" else "* ")
+
+
 
 let rec generate_refl_decl oc ml_type =
   if not (Hashtbl.mem reflection_type_hash ml_type)
@@ -176,6 +240,7 @@ let rec generate_refl_decl oc ml_type =
     (* register function and output header *)
     (match ml_type with
        | AT_list _
+       | AT_option _ 
        | AT_node _ ->
 	   output_string oc (string_refl_func_header ml_type);
 	   output_string oc ";\n";
@@ -183,11 +248,12 @@ let rec generate_refl_decl oc ml_type =
 	   pr_c_comment oc
 	     ["relying on extern";
 	      string_refl_func_header ml_type]
+       | AT_ref _ -> assert false
     );
     (* check for needed utility functions *)
     match ml_type with
-      | AT_list(_, inner, _) ->
-	  generate_refl_decl oc inner
+      | AT_list(_, inner, _) 
+      | AT_option(inner, _) -> generate_refl_decl oc inner
       | AT_node cl ->
 	  (match cl.ac_super with
 	     | Some super -> generate_refl_decl oc (AT_node super)
@@ -197,6 +263,7 @@ let rec generate_refl_decl oc ml_type =
 		   cl.ac_subclasses
 	  )
       | AT_base _ -> ()
+      | AT_ref _ -> assert false
   end
 
 
@@ -223,7 +290,7 @@ let generate_reflection_decls oc node =
       (List.iter
 	 (List.iter
 	    (fun field ->
-	       generate_refl_decl oc field.af_mod_type)))
+	       generate_refl_decl oc (unref_type field.af_mod_type))))
       fields_ll
       
 
@@ -235,64 +302,112 @@ let generate_reflection_decls oc node =
  ******************************************************************************
  ******************************************************************************)
 
+let private_accessor obj cl field =
+  try
+    get_private_accessor cl.ac_name field.af_name
+  with
+    | Not_found -> sprintf "%s->get%s()" obj (String.capitalize field.af_name)
 
-(* generate a reflection for a variant or for a record, depending
- * on super_opt: if there is a super class do a variant, otherwise
- *  a record
+
+let string_of_reflection_call ml_type var =
+  let unref_call = 
+    sprintf "%s(%s)" 
+      (name_of_reflection_function ml_type) 
+      var
+  in
+    match ml_type with
+      | AT_ref _ -> sprintf "make_reference(%s)" unref_call
+      | AT_base _
+      | AT_node _
+      | AT_option _
+      | AT_list _ -> unref_call
+
+
+(* Generate a reflection for a variant or for a record, depending
+ * on cl.ac_super: if there is a super class do a variant, otherwise
+ * a record.
  *)
-let generate_block_reflection oc cl =
+let generate_block_reflection oc shared_val_type cl =
   let out = output_string oc in
   let fpf format = fprintf oc format in
+  let is_record = cl.ac_super = None or cl.ac_record in
   let fields = get_all_fields cl in
-  let field_counter = ref 0
+  let field_counter = ref 0 in
+  let my_val_type = incr shared_val_type; !shared_val_type
   in 
     out "  ";
     pr_c_comment oc
       [sprintf "reflect %s into a %s" 
 	 cl.ac_name
-	 (match cl.ac_super with
-	    | None -> "record"
-	    | Some _ -> "variant")];
+	 (if is_record then "record" else "variant")];
     out "\n";
     out "  CAMLparam0();\n";
-    out "  CAMLlocal2(res, child);\n";
-    out "  res = find_ocaml_shared_node_value(x);\n";
-    out "  if( res != Val_None ) {\n";
-    out "    xassert(Is_block(res) && Tag_val(res) == 0);\n";
+    out "  CAMLlocal2(res, child);\n\n";
+
+    fpf "  res = find_ocaml_shared_value(x, %d);\n" my_val_type;
+    out "  if(res != Val_None) {\n";
+    out "    xassert(Is_block(res) && Tag_val(res) == 0 &&";
+    out " Wosize_val(res) == 1);\n";
     out "    CAMLreturn(Field(res, 0));\n";
     out "  }\n\n";
 
-    out "  if(data->stack.contains(x)) {\n";
-    out "    cerr << \"cyclic ast detected during ocaml reflection\\n\";\n";
-    out "    xassert(false);\n";
-    out "  } else {\n";
-    out "    data->stack.add(x);\n";
-    out "  }\n";
-
-    fpf "  res = caml_alloc(%d, %d);\n\n"
+    fpf "  res = caml_alloc(%d, %d);\n"
       (count_fields fields +1) 
-      (match cl.ac_super with
-	 | Some _ -> (Hashtbl.find constructor_tags cl.ac_name)
-	 | None -> 0);
+      (if is_record then 0 else Hashtbl.find constructor_tags cl.ac_name);
+    fpf "  register_ocaml_shared_value(x, res, %d);\n\n" my_val_type;
     
-    out "  child = ocaml_ast_annotation(x, data);\n";
+    out "  child = ocaml_ast_annotation(x);\n";
     fpf "  Store_field(res, %d, child);\n\n" !field_counter;
     incr field_counter;
 
     List.iter
       (List.iter
 	 (fun field ->
-	    fpf "  child = %s(%sx->%s, data);\n"
-	      (name_of_reflection_function field.af_mod_type)
-	      (if field.af_is_pointer then "" else "&")
-	      field.af_name;
+	    fpf "  child = %s;\n"
+	      (string_of_reflection_call 
+		 field.af_mod_type
+		 (if field.af_is_private 
+		  then
+		    private_accessor "x" cl field
+		  else
+		    sprintf "%sx->%s"
+		      (if field.af_is_pointer then "" else "&")
+		      field.af_name));
 	    fpf "  Store_field(res, %d, child);\n\n" !field_counter;
 	    incr field_counter
 	 ))
       fields;
 
-    out "  register_ocaml_shared_node_value(x, res);\n";
-    out "  data->stack.remove(x);\n";
+    out "  CAMLreturn(res);\n";
+    out "}\n\n\n"
+
+
+let generate_record_variant_reflection oc shared_val_type recsub =
+  let out = output_string oc in
+  let fpf format = fprintf oc format in
+  let my_val_type = incr shared_val_type; !shared_val_type
+  in
+    fpf "value %s(%s *x) {\n"
+      (name_of_reflection_record_variant recsub)
+      recsub.ac_name;
+    out "  CAMLparam0();\n";
+    out "  CAMLlocal2(res, child);\n\n";
+
+    fpf "  res = find_ocaml_shared_value(x, %d);\n" my_val_type;
+    out "  if(res != Val_None) {\n";
+    out "    xassert(Is_block(res) && Tag_val(res) == 0 &&";
+    out " Wosize_val(res) == 1);\n";
+    out "    CAMLreturn(Field(res, 0));\n";
+    out "  }\n\n";
+
+    fpf "  res = caml_alloc(%d, %d);\n"
+      1
+      (Hashtbl.find constructor_tags recsub.ac_name);
+    fpf "  register_ocaml_shared_value(x, res, %d);\n\n" my_val_type;
+    
+    fpf "  child = %s;\n" (string_of_reflection_call (AT_node recsub) "x");
+    out "  Store_field(res, 0, child);\n\n";
+
     out "  CAMLreturn(res);\n";
     out "}\n\n\n"
 
@@ -301,18 +416,43 @@ let generate_downcast_reflection oc super =
   let out = output_string oc in
   let fpf format = fprintf oc format 
   in
-    out "  switch(x->kind()) {\n";
+    fpf "  switch(x->%s) {\n"
+      (try
+	 superclass_get_kind super.ac_name
+       with
+	 | Not_found -> "kind()"
+      );    
     List.iter 
       (fun sub ->
-	 fpf "  case %s::%s:\n" 
-	   super.ac_name
-	   (String.uppercase sub.ac_name);
-	 fpf "    return %s(x->as%sC(), data);\n\n"
-	   (name_of_reflection_function (AT_node sub))
-	   sub.ac_name
+	 let downcast_expression =
+	   try
+	     get_downcast sub.ac_name
+	   with
+	     | Not_found -> sprintf "x->as%s()" sub.ac_name
+	 in
+	   fpf "  case %s::%s:\n" 
+	     super.ac_name
+	     (try
+		get_subclass_tag sub.ac_name
+	      with
+		| Not_found -> String.uppercase sub.ac_name
+	     );
+	   fpf "    return %s;\n\n"
+	     (if sub.ac_record 
+	      then
+		sprintf "%s(%s)" 
+		  (name_of_reflection_record_variant sub)
+		  downcast_expression
+	      else
+		string_of_reflection_call 
+		  (AT_node sub)
+		  (* use non-const version, 
+		   * see comment in string_refl_func_header *)
+		  downcast_expression
+	     )
       )
       super.ac_subclasses;
-    fpf "  case %s::NUM_KINDS:\n" super.ac_name;
+    out "  default:\n";
     out "    xassert(false);\n";
     out "    break;\n";
     out "  }\n";
@@ -321,60 +461,160 @@ let generate_downcast_reflection oc super =
     out "}\n\n\n"
 
 
-let generate_list_refl_defn oc lk ml_type c_type =
+let generate_list_refl_defn oc shared_val_type lk ml_type c_type =
   let out = output_string oc in
-  let (list_combi, iter_name, iter_access) =
+  let fpf format = fprintf oc format in
+  let my_val_type = incr shared_val_type; !shared_val_type in
+  let (list_combi, must_dereference, iter_name, iter_access) =
     match lk with
-      | LK_ast_list -> ("FOREACH_ASTLIST", "iter", "iter.data()")
-      | LK_fake_list -> ("FAKELIST_FOREACH", "prt", "ptr")
+	(* use non-const versions, see comment in string_refl_func_header *)
+      | LK_ast_list -> ("FOREACH_ASTLIST_NC", true, "iter", "iter.data()")
+      | LK_fake_list -> ("FAKELIST_FOREACH_NC", false, "ptr", "ptr")
+      | LK_obj_list -> ("FOREACH_OBJLIST_NC", true, "iter", "iter.data()")
+      | LK_sobj_list -> ("SFOREACH_OBJLIST_NC", true, "iter", "iter.data()")
+      | LK_sobj_set -> ("FOREACH_SOBJSET_NC", true, "iter", "iter.data()")
+      | LK_string_obj_dict -> 
+	  ("FOREACH_STRINGOBJDICT_NC", true, "iter", 
+	   sprintf "const_cast<%s *>(iter.value())" c_type)
+      | LK_string_ref_map -> assert false
+
   in
     out "  CAMLparam0();\n";
-    out "  CAMLlocal4(res, tmp, elem, previous);\n";
-    out "  res = find_ocaml_shared_list_value(x);\n";
-    out "  if( res != Val_None ) {\n";
-    out "    xassert(Is_block(res) && Tag_val(res) == 0);\n";
+    out "  CAMLlocal4(res, tmp, elem, previous);\n\n";
+
+    (* not necessary for ASTList and FakeList, but doesn't harm, so ... *)
+    out "  if( x == NULL) CAMLreturn(Val_emptylist);\n\n";
+
+    fpf "  res = find_ocaml_shared_value(x, %d);\n" my_val_type;
+    out "  if(res != Val_None) {\n";
+    out "    xassert(Is_block(res) && Tag_val(res) == 0 &&";
+    out " Wosize_val(res) == 1);\n";
     out "    CAMLreturn(Field(res, 0));\n";
     out "  }\n\n";
 
     out "  previous = 0;\n\n";
 
-    fprintf oc "  %s(%s, *x, %s) {\n" list_combi c_type iter_name;
-    fprintf oc "    elem = %s(%s, data);\n"
-      (name_of_reflection_function ml_type)
-      iter_access;
-    out "    tmp = caml_alloc_small(2, Tag_cons);\n";
-    out "    Field(tmp, 0) = elem;\n";
-    out "    Field(tmp, 1) = Val_emptylist;\n";
+    fpf "  %s(%s, %sx, %s) {\n" 
+      list_combi c_type 
+      (if must_dereference then "*" else "")
+      iter_name;
+    out "    tmp = caml_alloc(2, Tag_cons);\n";
     out "    if(previous == 0) {\n";
     out "      res = tmp;\n";
+    fpf "      register_ocaml_shared_value(x, res, %d);\n" my_val_type;
     out "    } else {\n";
     out "      Store_field(previous, 1, tmp);\n";
     out "    }\n";
+    fpf "    elem = %s;\n"
+      (string_of_reflection_call ml_type iter_access);
+    out "    Store_field(tmp, 0, elem);\n";
+    out "    Store_field(tmp, 1, Val_emptylist);\n";
     out "    previous = tmp;\n";
     out "  }\n\n";
 
-    out "  register_ocaml_shared_list_value(x, res);\n";
+    out "  if(previous == 0){\n";
+    out "    res = Val_emptylist;\n";
+    fpf "    register_ocaml_shared_value(x, res, %d);\n" my_val_type;
+    out "  }\n\n";
+
     out "  CAMLreturn(res);\n";
     out "}\n\n\n"
 
+
+let generate_hash_refl_defn oc shared_val_type ml_type c_type =
+  let out = output_string oc in
+  let fpf format = fprintf oc format in
+  let my_val_type = incr shared_val_type; !shared_val_type
+  in
+    out "  CAMLparam0();\n";
+    out "  CAMLlocal5(res, hash_size, key, var, val);\n\n";
+
+    fpf "  res = find_ocaml_shared_value(x, %d);\n" my_val_type;
+    out "  if(res != Val_None) {\n";
+    out "    xassert(Is_block(res) && Tag_val(res) == 0 &&";
+    out " Wosize_val(res) == 1);\n";
+    out "    CAMLreturn(Field(res, 0));\n";
+    out "  }\n\n";
+
+    out "  static value * hashtbl_create_closure = NULL;\n";
+    out "  static value * hashtbl_add_closure = NULL;\n";
+    out "  if(hashtbl_create_closure == NULL)\n";
+    out "    hashtbl_create_closure = caml_named_value(\"hashtbl_create\");\n";
+    out "  xassert(hashtbl_create_closure);\n";
+    out "  if(hashtbl_add_closure == NULL)\n";
+    out "    hashtbl_add_closure = caml_named_value(\"hashtbl_add\");\n";
+    out "  xassert(hashtbl_add_closure);\n\n";
+
+    out "  xassert(x->getNumEntries() <= Max_long &&";
+    out " Min_long <= x->getNumEntries());\n";
+    out "  hash_size = Val_int(x->getNumEntries());\n";
+    out "  xassert(IS_OCAML_AST_VALUE(hash_size));\n";
+    out "  res = caml_callback(*hashtbl_create_closure, hash_size);\n";
+    out "  xassert(IS_OCAML_AST_VALUE(res));\n";
+    fpf "  register_ocaml_shared_value(x, res, %d);\n\n" my_val_type;
+
+    fpf "  FOREACH_STRINGREFMAP_NC(%s, *x, iter) {\n" c_type;
+    out "    key = ocaml_reflect_cstring(iter.key());\n";
+    fpf "    var = %s;\n"
+      (string_of_reflection_call ml_type "iter.value()");
+    out "    val = caml_callback3(*hashtbl_add_closure, res, key, var);\n";
+    out "    xassert(val == Val_unit);\n";
+    out "  }\n\n";
+    
+    out "  CAMLreturn(res);\n";
+    out "}\n\n\n"
+
+
+let generate_option_refl_defn oc shared_val_type ml_type =
+  let out = output_string oc in
+  let fpf format = fprintf oc format in
+  let my_val_type = incr shared_val_type; !shared_val_type
+  in
+    out "  CAMLparam0();\n";
+    out "  CAMLlocal2(res, elem);\n\n";
+
+    out "  if(x == NULL) CAMLreturn(Val_None);\n\n";
+    
+    fpf "  res = find_ocaml_shared_value(x, %d);\n" my_val_type;
+    out "  if(res != Val_None) {\n";
+    out "    xassert(Is_block(res) && Tag_val(res) == 0 &&";
+    out " Wosize_val(res) == 1);\n";
+    out "    CAMLreturn(Field(res, 0));\n";
+    out "  }\n\n";
+
+    out "  res = caml_alloc(1, Tag_some);\n";
+    fpf "  register_ocaml_shared_value(x, res, %d);\n" my_val_type;
+
+    fpf "  elem = %s;\n" (string_of_reflection_call ml_type "x");
+    out "  Store_field(res, 0, elem);\n";
+    out "  CAMLreturn(res);\n";
+    out "}\n\n\n"
+
+
   
-let generate_refl_defn oc ml_type =
+let generate_refl_defn oc shared_val_type ml_type =
   output_string oc (string_refl_func_header ml_type);
   output_string oc " {\n";
   match ml_type with
+    | AT_list(LK_string_ref_map, inner, c_type) ->
+	generate_hash_refl_defn oc shared_val_type inner c_type
     | AT_list(lk, inner, c_type) ->
-	generate_list_refl_defn oc lk inner c_type
+	generate_list_refl_defn oc shared_val_type lk inner c_type
+    | AT_option(inner, _) ->
+	generate_option_refl_defn oc shared_val_type inner
     | AT_node cl ->
 	if cl.ac_subclasses = []
 	then
-	  generate_block_reflection oc cl
+	  generate_block_reflection oc shared_val_type cl
 	else
 	  generate_downcast_reflection oc cl
-    | AT_base _ -> assert false
+    | AT_base _ 
+    | AT_ref _ -> assert false
 
 
 let generate_ocaml_reflect_cc source header ast oc =
-  let out = output_string oc 
+  let out = output_string oc in
+  let shared_val_type = ref 0
   in
     pr_c_comment oc
       [do_not_edit_line;
@@ -403,13 +643,30 @@ let generate_ocaml_reflect_cc source header ast oc =
        "Reflection functions definitions";
       ];
     output_string oc "\n\n";
-    Hashtbl.iter 
-      (fun ml_type () -> match ml_type with
-    	 | AT_list _
-    	 | AT_node _ -> generate_refl_defn oc ml_type
-    	 | AT_base _ -> ()
+    (* make the variants of record variants *)
+    List.iter
+      (fun super ->
+	 List.iter
+	   (generate_record_variant_reflection oc shared_val_type)
+	   (List.filter (fun sub -> sub.ac_record) super.ac_subclasses)
       )
-      reflection_type_hash;
+      ast;
+    (* sort the reflection_type_hash *)
+    List.iter 
+      (fun (ml_type, _) -> match ml_type with
+    	 | AT_list _
+	 | AT_option _
+    	 | AT_node _ -> generate_refl_defn oc shared_val_type ml_type
+    	 | AT_base _ -> ()
+	 | AT_ref _ -> assert false
+      )
+      (List.fast_sort
+	 (fun (_,h1) (_,h2) -> compare h1 h2)
+	 (Hashtbl.fold
+	    (fun ml_type () res -> 
+	       (ml_type, string_refl_func_header ml_type) :: res)
+	    reflection_type_hash
+	    []));
     out "\n"
 
 

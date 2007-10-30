@@ -12,7 +12,7 @@ OCAML_LIB_EXT := cmxa
 # main targets
 stage_1: astgen_lib.$(OCAML_LIB_EXT) astgen_or ast.ast.oast
 
-stage_2:
+stage_2: check_ast_oast
 
 
 # directories of other software
@@ -80,7 +80,12 @@ TOCLEAN += *.cmo *.cmi *.cmx *.cmxa *.cma *.o *.a
 #	./config.status -reconfigure
 
 
-# ------------------------- astgen_or ---------------------
+#############################################################################
+#####
+#####  astgen_or
+#####
+#############################################################################
+
 
 TOCLEAN += ast_oast_header.ml
 ast_oast_header.ml: ast_oast_header_start.ml \
@@ -157,7 +162,12 @@ astgen_or: $(ASTGEN_OR_OBJS) $(LIBSMBASE)
 		$(OCAMLLIBS)
 
 
-# ------------------------- astgen_or test ---------------------
+#############################################################################
+#####
+#####  astgen_or test
+#####
+#############################################################################
+
 
 TOCLEAN += ast.ast.oast ast.ast.h ast.ast.cc
 ast.ast.h ast.ast.cc ast.ast.oast: astgen_or $(AST)/ast.ast
@@ -170,7 +180,25 @@ diff-ast-ast: ast.ast.h ast.ast.cc
 	echo ===================== ast.ast.cc ================================
 	diff $(AST)/ast.ast.cc ast.ast.cc; true
 
-# ------------------ bootstrap new astgen version --------------
+
+#############################################################################
+#####
+#####  check ast oast
+#####
+#############################################################################
+
+
+.PHONY: check_ast_oast
+check_ast_oast: ast.ast.oast $(META)/check_oast
+	$(META)/check_oast -ast ast.ast.oast
+
+
+#############################################################################
+#####
+#####  bootstrap new astgen version
+#####
+#############################################################################
+
 
 # Don't change the original ast.ast for bootstrapping! Via 
 # ast_oast_header almost everything depends on ast.ast and will get 
@@ -230,16 +258,21 @@ new-reflection:
 
 
 
-# ------------------------ misc --------------------------------
+#############################################################################
+#####
+#####  Misc
+#####
+#############################################################################
+
 
 # compile with stuff in new
 generation:
-	make clean
 	rm -rf old
 	mkdir old
 	mv ast_reflect_ocaml_reflect.cc ast_reflect_ocaml_reflect.h \
-		ast_reflect_type.ml old
+		ast_reflect_type.ml ast.ast.oast old
 	mv new/* .
+	make clean
 
 # delete outputs of compiler, linker
 clean:

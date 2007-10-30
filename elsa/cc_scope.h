@@ -57,6 +57,9 @@ private:     // types
   friend class XmlTypeReader;
 
 private:     // data
+  // HT: Permit the ocaml reflection function to access the private fields
+  // variables and typeTags, because there is no access function.
+  friend value ocaml_reflect_Scope(Scope *);
   // variables: name -> Variable
   // note: this includes typedefs (DF_TYPEDEF is set), and it also
   // includes enumerators (DF_ENUMERATOR is set)

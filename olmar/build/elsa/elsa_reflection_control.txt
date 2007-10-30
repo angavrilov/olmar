@@ -7,6 +7,74 @@
 
 [Renamings]
 
+BaseClassSpec.name		base_class_spec_name
+Enumerator.name			enumerator_name
+MemberInit.name			member_init_name
+Variable.name			variable_name
+EnumValue.name			enum_value_name
+CompilationUnit.name		unit_name
+CompoundType.name		compound_name
+
+BaseClassSpec.type		base_class_spec_type
+Declarator.type			declarator_type
+Variable.type			variable_type
+
+FullExpression.annot		full_expr_annot
+MemberInit.annot		member_init_annot
+Handler.annot			handler_annot
+
+Enumerator.expr			enumerator_expr
+ArgExpression.expr		arg_expr_expr
+FullExpression.expr		full_expr_expr
+
+Declaration.spec		declaration_spec
+ASTTypeId.spec			ast_type_id_spec
+AttributeSpecifierList.spec	attribute_specifier_list_spec
+
+Enumerator.var			enumerator_var
+Declarator.var			declarator_var
+TemplateInfo.var		template_info_var
+
+BaseClass.access		base_access
+BaseClassSpec.access		spec_access
+BaseClassSubobj.access		base_sub_access
+
+BaseClass.isVirtual		base_is_virtual
+BaseClassSpec.isVirtual		spec_is_virtual
+BaseClassSubobj.isVirtual	base_sub_is_virtual
+
+Function.body			function_body
+Handler.body			handler_body
+
+MemberInit.ctorStatement	member_init_ctor_statement
+Declarator.ctorStatement	declarator_ctor_statement
+
+ASTTypeId.decl			ast_type_id_decl
+Declarator.decl			declarator_decl
+
+Function.dflags			function_dflags
+Declaration.dflags		declaration_dflags
+
+Function.dtorStatement		function_dtor_statement
+Declarator.dtorStatement	declarator_dtor_statement
+
+MemberList.list			member_list
+ArgExpressionListOpt.list	arg_expression_list
+
+Enumerator.loc			enumerator_loc
+Variable.loc			variable_loc
+
+AttributeSpecifierList.next	next_list
+AttributeSpecifier.next		next_attribute_specifier
+
+TemplateInfo.params		template_info_params
+InheritedTemplateParams.params	inherited_template_params
+
+ExceptionSpec.types		exception_spec_types
+ExnSpec.types			exn_spec_types
+
+BaseClass.ct			base_ct
+BaseClassSubobj.ct		base_sub_ct
 
 ###########################################################################
 ###########################################################################
@@ -14,13 +82,16 @@
 [Basic Types]
 
 bool
+BoolValue
 int
 int32
+nativeint
 unsigned_int
 unsigned_long
 double
 StringRef
 SourceLoc
+Array_size
 
 
 DeclFlags
@@ -36,13 +107,29 @@ CastKeyword
 StandardConversion
 ImplicitConversion_Kind
 DeclaratorContext
-templateThingKind
+TemplateThingKind
+FunctionFlags
+CompoundKeyword
+ScopeKind
+
+
+
+###########################################################################
+###########################################################################
+
+[Implicit pointer types]
+
+StringRef
+BoolValue
 
 
 ###########################################################################
 ###########################################################################
 
 [type header]
+
+open Elsa_ml_base_types
+open Elsa_ml_flag_types
 
 
 ###########################################################################
@@ -53,15 +140,145 @@ templateThingKind
 # start preprocessor directives in the second column, otherwise
 # they are treated as comments
 
+ #include "elsa_base_types.h"
+ #include "elsa_flag_types.h"
+ #include "cc.ast.gen.h"
+
 
 ###########################################################################
 ###########################################################################
 
 [Top Node]
 
+CompilationUnit
 
 ###########################################################################
 ###########################################################################
 
 [Node colors]
 
+CompilationUnit :		LightCoral
+TranslationUnit :		red
+TopForm :			firebrick2
+Declaration :			cyan
+Declarator :			SkyBlue
+Function :			magenta
+MemberInit :			HotPink
+IDeclarator :			SteelBlue
+Member :			SlateBlue1
+MemberList :			SlateBlue4
+PQName :			SkyBlue
+Variable :			purple
+TypeSpecifier :			OliveDrab
+ASTTypeof :			SeaGreen
+Statement :			yellow
+Handler :			khaki1
+FullExpression :		coral
+Expression :			orange
+ArgExpression :			DarkOrange
+ArgExpressionListOpt :		tomato
+FullExpressionAnnot :		tan1
+Condition :			OrangeRed
+OperatorName :			chocolate1
+Initializer :			gold
+ASTTypeId :			MediumAquamarine
+Enumerator :			PaleTurquoise
+CType :				green
+AtomicType :			LimeGreen
+Compound_info :			LawnGreen
+Enum_Value :			OliveDrab1
+BaseClassSpec :			PaleGreen
+BaseClass :			SpringGreen
+ExceptionSpec :			salmon
+TemplateDeclaration :		brown3
+TemplateParameter :		tan3
+TemplateArgument :		peru
+STemplateArgument :		maroon
+TemplateInfo :			burlywood3
+InheritedTemplateParams :	PaleVioletRed4
+NamespaceDecl :			grey50
+Designator :			LemonChiffon
+Attribute :			orchid1
+Scope :			  	grey
+
+
+###########################################################################
+###########################################################################
+
+[Superclass get Kind]
+
+AtomicType : getTag()
+CType:	     getTag()
+STemplateArgument: kind
+
+[Subclass Tags]
+
+# AtomicType subclasses
+SimpleType	: T_SIMPLE
+CompoundType	: T_COMPOUND
+EnumType	: T_ENUM
+TypeVariable	: T_TYPEVAR
+PseudoInstantiation : T_PSEUDOINSTANTIATION
+DependentQType	: T_DEPENDENTQTYPE 
+
+# CType subclasses
+CVAtomicType	: T_ATOMIC
+PointerType	: T_POINTER
+ReferenceType	: T_REFERENCE
+FunctionType	: T_FUNCTION
+ArrayType	: T_ARRAY
+PointerToMemberType	: T_POINTERTOMEMBER
+DependentSizedArrayType	: T_DEPENDENTSIZEDARRAY
+
+
+[Subclass Downcasts]
+
+STA_NONE:	x
+STA_TYPE:	x
+STA_INT:	x
+STA_ENUMERATOR:	x
+STA_REFERENCE:	x
+STA_POINTER:	x
+STA_MEMBER:	x
+STA_DEPEXPR:	x
+STA_TEMPLATE:	x
+STA_ATOMIC:	x
+
+
+###########################################################################
+###########################################################################
+
+[Field assertions]
+
+TS_elaborated.atype : is_named_atomic_type_option
+PointerToMemberType.inClassNAT : is_named_atomic_type
+
+
+###########################################################################
+###########################################################################
+
+[Private accessors]
+
+Variable.templInfo:		x->templateInfo()
+CompoundType.compound_scope:	dynamic_cast<Scope*>(x)
+CompoundType.bases:		const_cast<ObjList<BaseClass>*>(&x->get_bases())
+Scope.scope_compound:		dynamic_cast<CompoundType*>(x)
+
+
+# hack around the union in STemplateArgument
+STA_TYPE.t:	    x->sta_value.t
+STA_INT.i:	    &x->sta_value.i
+STA_ENUMERATOR.v:   x->sta_value.v
+STA_REFERENCE.v:    x->sta_value.v
+STA_POINTER.v:	    x->sta_value.v
+STA_MEMBER.v:	    x->sta_value.v
+STA_DEPEXPR.e:	    x->sta_value.e
+STA_ATOMIC.at:	    const_cast<AtomicType*>(x->sta_value.at)
+
+
+###########################################################################
+###########################################################################
+
+[Record variants]
+
+CompoundType

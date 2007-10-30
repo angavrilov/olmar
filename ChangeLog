@@ -1,3 +1,27 @@
+2007-10-30  Hendrik Tews  <tews@tandem.cs.ru.nl>
+
+        Olmar
+        * new reflection method:
+          - create first an empty ocaml object and register it in the
+            reflection value hash
+          - reflect all child nodes
+          - fill the object with the child links
+        * circularities are treated automatically, but cannot be checked
+          any more
+        * only one reflection value hash on the ocaml side, but values are
+          registered with a type, which is derived from the reflection
+          function 
+        * Ocaml_reflections data is gone, reflection is non-const, because
+          some stupid accessor functions are non-const
+        * reflection functions are sorted, to make the output independent
+          of the hash order
+        * lots of evasive changes
+        * elsa reflection works, regression tests -oast, -graph pass
+
+        Elsa
+        * small tweaks for new elsa reflection
+        
+
 2007-10-16  Hendrik Tews  <tews@tandem.cs.ru.nl>
 
         AST

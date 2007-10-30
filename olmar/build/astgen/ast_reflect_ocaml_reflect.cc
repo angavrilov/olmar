@@ -16,37 +16,37 @@
  */
 
 
-value ocaml_reflect_ASTSpecFile(ASTSpecFile const * x, Ocaml_reflection_data * data);
-value ocaml_reflect_ToplevelForm_ast_list(ASTList<ToplevelForm> const * x, Ocaml_reflection_data * data);
-value ocaml_reflect_ToplevelForm(ToplevelForm const * x, Ocaml_reflection_data * data);
-value ocaml_reflect_TF_verbatim(TF_verbatim const * x, Ocaml_reflection_data * data);
-value ocaml_reflect_TF_impl_verbatim(TF_impl_verbatim const * x, Ocaml_reflection_data * data);
-value ocaml_reflect_TF_ocaml_type_verbatim(TF_ocaml_type_verbatim const * x, Ocaml_reflection_data * data);
-value ocaml_reflect_TF_xml_verbatim(TF_xml_verbatim const * x, Ocaml_reflection_data * data);
-value ocaml_reflect_TF_class(TF_class const * x, Ocaml_reflection_data * data);
-value ocaml_reflect_TF_option(TF_option const * x, Ocaml_reflection_data * data);
-value ocaml_reflect_TF_custom(TF_custom const * x, Ocaml_reflection_data * data);
-value ocaml_reflect_TF_enum(TF_enum const * x, Ocaml_reflection_data * data);
+value ocaml_reflect_ASTSpecFile(ASTSpecFile * x);
+value ocaml_reflect_ToplevelForm_ast_list(ASTList<ToplevelForm> * x);
+value ocaml_reflect_ToplevelForm(ToplevelForm * x);
+value ocaml_reflect_TF_verbatim(TF_verbatim * x);
+value ocaml_reflect_TF_impl_verbatim(TF_impl_verbatim * x);
+value ocaml_reflect_TF_ocaml_type_verbatim(TF_ocaml_type_verbatim * x);
+value ocaml_reflect_TF_xml_verbatim(TF_xml_verbatim * x);
+value ocaml_reflect_TF_class(TF_class * x);
+value ocaml_reflect_TF_option(TF_option * x);
+value ocaml_reflect_TF_custom(TF_custom * x);
+value ocaml_reflect_TF_enum(TF_enum * x);
 /* relying on extern
- * value ocaml_reflect_string(string const * x, Ocaml_reflection_data * data)
+ * value ocaml_reflect_string(string * x)
  */
-value ocaml_reflect_ASTClass(ASTClass const * x, Ocaml_reflection_data * data);
-value ocaml_reflect_ASTClass_ast_list(ASTList<ASTClass> const * x, Ocaml_reflection_data * data);
-value ocaml_reflect_string_ast_list(ASTList<string> const * x, Ocaml_reflection_data * data);
-value ocaml_reflect_CustomCode(CustomCode const * x, Ocaml_reflection_data * data);
-value ocaml_reflect_Annotation(Annotation const * x, Ocaml_reflection_data * data);
-value ocaml_reflect_UserDecl(UserDecl const * x, Ocaml_reflection_data * data);
-value ocaml_reflect_FieldOrCtorArg_ast_list(ASTList<FieldOrCtorArg> const * x, Ocaml_reflection_data * data);
-value ocaml_reflect_FieldOrCtorArg(FieldOrCtorArg const * x, Ocaml_reflection_data * data);
-value ocaml_reflect_BaseClass_ast_list(ASTList<BaseClass> const * x, Ocaml_reflection_data * data);
-value ocaml_reflect_BaseClass(BaseClass const * x, Ocaml_reflection_data * data);
-value ocaml_reflect_Annotation_ast_list(ASTList<Annotation> const * x, Ocaml_reflection_data * data);
+value ocaml_reflect_ASTClass(ASTClass * x);
+value ocaml_reflect_ASTClass_ast_list(ASTList<ASTClass> * x);
+value ocaml_reflect_string_ast_list(ASTList<string> * x);
+value ocaml_reflect_CustomCode(CustomCode * x);
+value ocaml_reflect_Annotation(Annotation * x);
+value ocaml_reflect_UserDecl(UserDecl * x);
+value ocaml_reflect_FieldOrCtorArg_ast_list(ASTList<FieldOrCtorArg> * x);
+value ocaml_reflect_FieldOrCtorArg(FieldOrCtorArg * x);
+value ocaml_reflect_BaseClass_ast_list(ASTList<BaseClass> * x);
+value ocaml_reflect_BaseClass(BaseClass * x);
+value ocaml_reflect_Annotation_ast_list(ASTList<Annotation> * x);
 /* relying on extern
- * value ocaml_reflect_AccessCtl(AccessCtl const * x, Ocaml_reflection_data * data)
+ * value ocaml_reflect_AccessCtl(AccessCtl * x)
  */
-value ocaml_reflect_AccessMod(AccessMod const * x, Ocaml_reflection_data * data);
+value ocaml_reflect_AccessMod(AccessMod * x);
 /* relying on extern
- * value ocaml_reflect_FieldFlags(FieldFlags const * x, Ocaml_reflection_data * data)
+ * value ocaml_reflect_FieldFlags(FieldFlags * x)
  */
 
 
@@ -55,721 +55,679 @@ value ocaml_reflect_AccessMod(AccessMod const * x, Ocaml_reflection_data * data)
  */
 
 
-value ocaml_reflect_Annotation(Annotation const * x, Ocaml_reflection_data * data) {
-  switch(x->kind()) {
-  case Annotation::USERDECL:
-    return ocaml_reflect_UserDecl(x->asUserDeclC(), data);
-
-  case Annotation::CUSTOMCODE:
-    return ocaml_reflect_CustomCode(x->asCustomCodeC(), data);
-
-  case Annotation::NUM_KINDS:
-    xassert(false);
-    break;
-  }
-  xassert(false);
-}
-
-
-value ocaml_reflect_FieldOrCtorArg(FieldOrCtorArg const * x, Ocaml_reflection_data * data) {
-  /* reflect FieldOrCtorArg into a record */ 
-  CAMLparam0();
-  CAMLlocal2(res, child);
-  res = find_ocaml_shared_node_value(x);
-  if( res != Val_None ) {
-    xassert(Is_block(res) && Tag_val(res) == 0);
-    CAMLreturn(Field(res, 0));
-  }
-
-  if(data->stack.contains(x)) {
-    cerr << "cyclic ast detected during ocaml reflection\n";
-    xassert(false);
-  } else {
-    data->stack.add(x);
-  }
-  res = caml_alloc(5, 0);
-
-  child = ocaml_ast_annotation(x, data);
-  Store_field(res, 0, child);
-
-  child = ocaml_reflect_FieldFlags(&x->flags, data);
-  Store_field(res, 1, child);
-
-  child = ocaml_reflect_string(&x->type, data);
-  Store_field(res, 2, child);
-
-  child = ocaml_reflect_string(&x->name, data);
-  Store_field(res, 3, child);
-
-  child = ocaml_reflect_string(&x->defaultValue, data);
-  Store_field(res, 4, child);
-
-  register_ocaml_shared_node_value(x, res);
-  data->stack.remove(x);
-  CAMLreturn(res);
-}
-
-
-value ocaml_reflect_ASTClass_ast_list(ASTList<ASTClass> const * x, Ocaml_reflection_data * data) {
-  CAMLparam0();
-  CAMLlocal4(res, tmp, elem, previous);
-  res = find_ocaml_shared_list_value(x);
-  if( res != Val_None ) {
-    xassert(Is_block(res) && Tag_val(res) == 0);
-    CAMLreturn(Field(res, 0));
-  }
-
-  previous = 0;
-
-  FOREACH_ASTLIST(ASTClass, *x, iter) {
-    elem = ocaml_reflect_ASTClass(iter.data(), data);
-    tmp = caml_alloc_small(2, Tag_cons);
-    Field(tmp, 0) = elem;
-    Field(tmp, 1) = Val_emptylist;
-    if(previous == 0) {
-      res = tmp;
-    } else {
-      Store_field(previous, 1, tmp);
-    }
-    previous = tmp;
-  }
-
-  register_ocaml_shared_list_value(x, res);
-  CAMLreturn(res);
-}
-
-
-value ocaml_reflect_TF_enum(TF_enum const * x, Ocaml_reflection_data * data) {
-  /* reflect TF_enum into a variant */ 
-  CAMLparam0();
-  CAMLlocal2(res, child);
-  res = find_ocaml_shared_node_value(x);
-  if( res != Val_None ) {
-    xassert(Is_block(res) && Tag_val(res) == 0);
-    CAMLreturn(Field(res, 0));
-  }
-
-  if(data->stack.contains(x)) {
-    cerr << "cyclic ast detected during ocaml reflection\n";
-    xassert(false);
-  } else {
-    data->stack.add(x);
-  }
-  res = caml_alloc(3, 7);
-
-  child = ocaml_ast_annotation(x, data);
-  Store_field(res, 0, child);
-
-  child = ocaml_reflect_string(&x->name, data);
-  Store_field(res, 1, child);
-
-  child = ocaml_reflect_string_ast_list(&x->enumerators, data);
-  Store_field(res, 2, child);
-
-  register_ocaml_shared_node_value(x, res);
-  data->stack.remove(x);
-  CAMLreturn(res);
-}
-
-
-value ocaml_reflect_TF_custom(TF_custom const * x, Ocaml_reflection_data * data) {
-  /* reflect TF_custom into a variant */ 
-  CAMLparam0();
-  CAMLlocal2(res, child);
-  res = find_ocaml_shared_node_value(x);
-  if( res != Val_None ) {
-    xassert(Is_block(res) && Tag_val(res) == 0);
-    CAMLreturn(Field(res, 0));
-  }
-
-  if(data->stack.contains(x)) {
-    cerr << "cyclic ast detected during ocaml reflection\n";
-    xassert(false);
-  } else {
-    data->stack.add(x);
-  }
-  res = caml_alloc(2, 6);
-
-  child = ocaml_ast_annotation(x, data);
-  Store_field(res, 0, child);
-
-  child = ocaml_reflect_CustomCode(x->cust, data);
-  Store_field(res, 1, child);
-
-  register_ocaml_shared_node_value(x, res);
-  data->stack.remove(x);
-  CAMLreturn(res);
-}
-
-
-value ocaml_reflect_TF_option(TF_option const * x, Ocaml_reflection_data * data) {
-  /* reflect TF_option into a variant */ 
-  CAMLparam0();
-  CAMLlocal2(res, child);
-  res = find_ocaml_shared_node_value(x);
-  if( res != Val_None ) {
-    xassert(Is_block(res) && Tag_val(res) == 0);
-    CAMLreturn(Field(res, 0));
-  }
-
-  if(data->stack.contains(x)) {
-    cerr << "cyclic ast detected during ocaml reflection\n";
-    xassert(false);
-  } else {
-    data->stack.add(x);
-  }
-  res = caml_alloc(3, 5);
-
-  child = ocaml_ast_annotation(x, data);
-  Store_field(res, 0, child);
-
-  child = ocaml_reflect_string(&x->name, data);
-  Store_field(res, 1, child);
-
-  child = ocaml_reflect_string_ast_list(&x->args, data);
-  Store_field(res, 2, child);
-
-  register_ocaml_shared_node_value(x, res);
-  data->stack.remove(x);
-  CAMLreturn(res);
-}
-
-
-value ocaml_reflect_TF_class(TF_class const * x, Ocaml_reflection_data * data) {
-  /* reflect TF_class into a variant */ 
-  CAMLparam0();
-  CAMLlocal2(res, child);
-  res = find_ocaml_shared_node_value(x);
-  if( res != Val_None ) {
-    xassert(Is_block(res) && Tag_val(res) == 0);
-    CAMLreturn(Field(res, 0));
-  }
-
-  if(data->stack.contains(x)) {
-    cerr << "cyclic ast detected during ocaml reflection\n";
-    xassert(false);
-  } else {
-    data->stack.add(x);
-  }
-  res = caml_alloc(3, 4);
-
-  child = ocaml_ast_annotation(x, data);
-  Store_field(res, 0, child);
-
-  child = ocaml_reflect_ASTClass(x->super, data);
-  Store_field(res, 1, child);
-
-  child = ocaml_reflect_ASTClass_ast_list(&x->ctors, data);
-  Store_field(res, 2, child);
-
-  register_ocaml_shared_node_value(x, res);
-  data->stack.remove(x);
-  CAMLreturn(res);
-}
-
-
-value ocaml_reflect_TF_xml_verbatim(TF_xml_verbatim const * x, Ocaml_reflection_data * data) {
-  /* reflect TF_xml_verbatim into a variant */ 
-  CAMLparam0();
-  CAMLlocal2(res, child);
-  res = find_ocaml_shared_node_value(x);
-  if( res != Val_None ) {
-    xassert(Is_block(res) && Tag_val(res) == 0);
-    CAMLreturn(Field(res, 0));
-  }
-
-  if(data->stack.contains(x)) {
-    cerr << "cyclic ast detected during ocaml reflection\n";
-    xassert(false);
-  } else {
-    data->stack.add(x);
-  }
-  res = caml_alloc(2, 3);
-
-  child = ocaml_ast_annotation(x, data);
-  Store_field(res, 0, child);
-
-  child = ocaml_reflect_string(&x->code, data);
-  Store_field(res, 1, child);
-
-  register_ocaml_shared_node_value(x, res);
-  data->stack.remove(x);
-  CAMLreturn(res);
-}
-
-
-value ocaml_reflect_TF_ocaml_type_verbatim(TF_ocaml_type_verbatim const * x, Ocaml_reflection_data * data) {
-  /* reflect TF_ocaml_type_verbatim into a variant */ 
-  CAMLparam0();
-  CAMLlocal2(res, child);
-  res = find_ocaml_shared_node_value(x);
-  if( res != Val_None ) {
-    xassert(Is_block(res) && Tag_val(res) == 0);
-    CAMLreturn(Field(res, 0));
-  }
-
-  if(data->stack.contains(x)) {
-    cerr << "cyclic ast detected during ocaml reflection\n";
-    xassert(false);
-  } else {
-    data->stack.add(x);
-  }
-  res = caml_alloc(2, 2);
-
-  child = ocaml_ast_annotation(x, data);
-  Store_field(res, 0, child);
-
-  child = ocaml_reflect_string(&x->code, data);
-  Store_field(res, 1, child);
-
-  register_ocaml_shared_node_value(x, res);
-  data->stack.remove(x);
-  CAMLreturn(res);
-}
-
-
-value ocaml_reflect_TF_impl_verbatim(TF_impl_verbatim const * x, Ocaml_reflection_data * data) {
-  /* reflect TF_impl_verbatim into a variant */ 
-  CAMLparam0();
-  CAMLlocal2(res, child);
-  res = find_ocaml_shared_node_value(x);
-  if( res != Val_None ) {
-    xassert(Is_block(res) && Tag_val(res) == 0);
-    CAMLreturn(Field(res, 0));
-  }
-
-  if(data->stack.contains(x)) {
-    cerr << "cyclic ast detected during ocaml reflection\n";
-    xassert(false);
-  } else {
-    data->stack.add(x);
-  }
-  res = caml_alloc(2, 1);
-
-  child = ocaml_ast_annotation(x, data);
-  Store_field(res, 0, child);
-
-  child = ocaml_reflect_string(&x->code, data);
-  Store_field(res, 1, child);
-
-  register_ocaml_shared_node_value(x, res);
-  data->stack.remove(x);
-  CAMLreturn(res);
-}
-
-
-value ocaml_reflect_TF_verbatim(TF_verbatim const * x, Ocaml_reflection_data * data) {
-  /* reflect TF_verbatim into a variant */ 
-  CAMLparam0();
-  CAMLlocal2(res, child);
-  res = find_ocaml_shared_node_value(x);
-  if( res != Val_None ) {
-    xassert(Is_block(res) && Tag_val(res) == 0);
-    CAMLreturn(Field(res, 0));
-  }
-
-  if(data->stack.contains(x)) {
-    cerr << "cyclic ast detected during ocaml reflection\n";
-    xassert(false);
-  } else {
-    data->stack.add(x);
-  }
-  res = caml_alloc(2, 0);
-
-  child = ocaml_ast_annotation(x, data);
-  Store_field(res, 0, child);
-
-  child = ocaml_reflect_string(&x->code, data);
-  Store_field(res, 1, child);
-
-  register_ocaml_shared_node_value(x, res);
-  data->stack.remove(x);
-  CAMLreturn(res);
-}
-
-
-value ocaml_reflect_ToplevelForm(ToplevelForm const * x, Ocaml_reflection_data * data) {
-  switch(x->kind()) {
-  case ToplevelForm::TF_VERBATIM:
-    return ocaml_reflect_TF_verbatim(x->asTF_verbatimC(), data);
-
-  case ToplevelForm::TF_IMPL_VERBATIM:
-    return ocaml_reflect_TF_impl_verbatim(x->asTF_impl_verbatimC(), data);
-
-  case ToplevelForm::TF_OCAML_TYPE_VERBATIM:
-    return ocaml_reflect_TF_ocaml_type_verbatim(x->asTF_ocaml_type_verbatimC(), data);
-
-  case ToplevelForm::TF_XML_VERBATIM:
-    return ocaml_reflect_TF_xml_verbatim(x->asTF_xml_verbatimC(), data);
-
-  case ToplevelForm::TF_CLASS:
-    return ocaml_reflect_TF_class(x->asTF_classC(), data);
-
-  case ToplevelForm::TF_OPTION:
-    return ocaml_reflect_TF_option(x->asTF_optionC(), data);
-
-  case ToplevelForm::TF_CUSTOM:
-    return ocaml_reflect_TF_custom(x->asTF_customC(), data);
-
-  case ToplevelForm::TF_ENUM:
-    return ocaml_reflect_TF_enum(x->asTF_enumC(), data);
-
-  case ToplevelForm::NUM_KINDS:
-    xassert(false);
-    break;
-  }
-  xassert(false);
-}
-
-
-value ocaml_reflect_FieldOrCtorArg_ast_list(ASTList<FieldOrCtorArg> const * x, Ocaml_reflection_data * data) {
-  CAMLparam0();
-  CAMLlocal4(res, tmp, elem, previous);
-  res = find_ocaml_shared_list_value(x);
-  if( res != Val_None ) {
-    xassert(Is_block(res) && Tag_val(res) == 0);
-    CAMLreturn(Field(res, 0));
-  }
-
-  previous = 0;
-
-  FOREACH_ASTLIST(FieldOrCtorArg, *x, iter) {
-    elem = ocaml_reflect_FieldOrCtorArg(iter.data(), data);
-    tmp = caml_alloc_small(2, Tag_cons);
-    Field(tmp, 0) = elem;
-    Field(tmp, 1) = Val_emptylist;
-    if(previous == 0) {
-      res = tmp;
-    } else {
-      Store_field(previous, 1, tmp);
-    }
-    previous = tmp;
-  }
-
-  register_ocaml_shared_list_value(x, res);
-  CAMLreturn(res);
-}
-
-
-value ocaml_reflect_AccessMod(AccessMod const * x, Ocaml_reflection_data * data) {
-  /* reflect AccessMod into a record */ 
-  CAMLparam0();
-  CAMLlocal2(res, child);
-  res = find_ocaml_shared_node_value(x);
-  if( res != Val_None ) {
-    xassert(Is_block(res) && Tag_val(res) == 0);
-    CAMLreturn(Field(res, 0));
-  }
-
-  if(data->stack.contains(x)) {
-    cerr << "cyclic ast detected during ocaml reflection\n";
-    xassert(false);
-  } else {
-    data->stack.add(x);
-  }
-  res = caml_alloc(3, 0);
-
-  child = ocaml_ast_annotation(x, data);
-  Store_field(res, 0, child);
-
-  child = ocaml_reflect_AccessCtl(&x->acc, data);
-  Store_field(res, 1, child);
-
-  child = ocaml_reflect_string_ast_list(&x->mods, data);
-  Store_field(res, 2, child);
-
-  register_ocaml_shared_node_value(x, res);
-  data->stack.remove(x);
-  CAMLreturn(res);
-}
-
-
-value ocaml_reflect_BaseClass(BaseClass const * x, Ocaml_reflection_data * data) {
-  /* reflect BaseClass into a record */ 
-  CAMLparam0();
-  CAMLlocal2(res, child);
-  res = find_ocaml_shared_node_value(x);
-  if( res != Val_None ) {
-    xassert(Is_block(res) && Tag_val(res) == 0);
-    CAMLreturn(Field(res, 0));
-  }
-
-  if(data->stack.contains(x)) {
-    cerr << "cyclic ast detected during ocaml reflection\n";
-    xassert(false);
-  } else {
-    data->stack.add(x);
-  }
-  res = caml_alloc(3, 0);
-
-  child = ocaml_ast_annotation(x, data);
-  Store_field(res, 0, child);
-
-  child = ocaml_reflect_AccessCtl(&x->access, data);
-  Store_field(res, 1, child);
-
-  child = ocaml_reflect_string(&x->name, data);
-  Store_field(res, 2, child);
-
-  register_ocaml_shared_node_value(x, res);
-  data->stack.remove(x);
-  CAMLreturn(res);
-}
-
-
-value ocaml_reflect_ASTSpecFile(ASTSpecFile const * x, Ocaml_reflection_data * data) {
-  /* reflect ASTSpecFile into a record */ 
-  CAMLparam0();
-  CAMLlocal2(res, child);
-  res = find_ocaml_shared_node_value(x);
-  if( res != Val_None ) {
-    xassert(Is_block(res) && Tag_val(res) == 0);
-    CAMLreturn(Field(res, 0));
-  }
-
-  if(data->stack.contains(x)) {
-    cerr << "cyclic ast detected during ocaml reflection\n";
-    xassert(false);
-  } else {
-    data->stack.add(x);
-  }
-  res = caml_alloc(2, 0);
-
-  child = ocaml_ast_annotation(x, data);
-  Store_field(res, 0, child);
-
-  child = ocaml_reflect_ToplevelForm_ast_list(&x->forms, data);
-  Store_field(res, 1, child);
-
-  register_ocaml_shared_node_value(x, res);
-  data->stack.remove(x);
-  CAMLreturn(res);
-}
-
-
-value ocaml_reflect_ASTClass(ASTClass const * x, Ocaml_reflection_data * data) {
+value ocaml_reflect_ASTClass(ASTClass * x) {
   /* reflect ASTClass into a record */ 
   CAMLparam0();
   CAMLlocal2(res, child);
-  res = find_ocaml_shared_node_value(x);
-  if( res != Val_None ) {
-    xassert(Is_block(res) && Tag_val(res) == 0);
+
+  res = find_ocaml_shared_value(x, 1);
+  if(res != Val_None) {
+    xassert(Is_block(res) && Tag_val(res) == 0 && Wosize_val(res) == 1);
     CAMLreturn(Field(res, 0));
   }
 
-  if(data->stack.contains(x)) {
-    cerr << "cyclic ast detected during ocaml reflection\n";
-    xassert(false);
-  } else {
-    data->stack.add(x);
-  }
   res = caml_alloc(6, 0);
+  register_ocaml_shared_value(x, res, 1);
 
-  child = ocaml_ast_annotation(x, data);
+  child = ocaml_ast_annotation(x);
   Store_field(res, 0, child);
 
-  child = ocaml_reflect_string(&x->name, data);
+  child = ocaml_reflect_string(&x->name);
   Store_field(res, 1, child);
 
-  child = ocaml_reflect_FieldOrCtorArg_ast_list(&x->args, data);
+  child = ocaml_reflect_FieldOrCtorArg_ast_list(&x->args);
   Store_field(res, 2, child);
 
-  child = ocaml_reflect_FieldOrCtorArg_ast_list(&x->lastArgs, data);
+  child = ocaml_reflect_FieldOrCtorArg_ast_list(&x->lastArgs);
   Store_field(res, 3, child);
 
-  child = ocaml_reflect_BaseClass_ast_list(&x->bases, data);
+  child = ocaml_reflect_BaseClass_ast_list(&x->bases);
   Store_field(res, 4, child);
 
-  child = ocaml_reflect_Annotation_ast_list(&x->decls, data);
+  child = ocaml_reflect_Annotation_ast_list(&x->decls);
   Store_field(res, 5, child);
 
-  register_ocaml_shared_node_value(x, res);
-  data->stack.remove(x);
   CAMLreturn(res);
 }
 
 
-value ocaml_reflect_ToplevelForm_ast_list(ASTList<ToplevelForm> const * x, Ocaml_reflection_data * data) {
+value ocaml_reflect_ASTClass_ast_list(ASTList<ASTClass> * x) {
   CAMLparam0();
   CAMLlocal4(res, tmp, elem, previous);
-  res = find_ocaml_shared_list_value(x);
-  if( res != Val_None ) {
-    xassert(Is_block(res) && Tag_val(res) == 0);
+
+  if( x == NULL) CAMLreturn(Val_emptylist);
+
+  res = find_ocaml_shared_value(x, 2);
+  if(res != Val_None) {
+    xassert(Is_block(res) && Tag_val(res) == 0 && Wosize_val(res) == 1);
     CAMLreturn(Field(res, 0));
   }
 
   previous = 0;
 
-  FOREACH_ASTLIST(ToplevelForm, *x, iter) {
-    elem = ocaml_reflect_ToplevelForm(iter.data(), data);
-    tmp = caml_alloc_small(2, Tag_cons);
-    Field(tmp, 0) = elem;
-    Field(tmp, 1) = Val_emptylist;
+  FOREACH_ASTLIST_NC(ASTClass, *x, iter) {
+    tmp = caml_alloc(2, Tag_cons);
     if(previous == 0) {
       res = tmp;
+      register_ocaml_shared_value(x, res, 2);
     } else {
       Store_field(previous, 1, tmp);
     }
+    elem = ocaml_reflect_ASTClass(iter.data());
+    Store_field(tmp, 0, elem);
+    Store_field(tmp, 1, Val_emptylist);
     previous = tmp;
   }
 
-  register_ocaml_shared_list_value(x, res);
+  if(previous == 0){
+    res = Val_emptylist;
+    register_ocaml_shared_value(x, res, 2);
+  }
+
   CAMLreturn(res);
 }
 
 
-value ocaml_reflect_UserDecl(UserDecl const * x, Ocaml_reflection_data * data) {
-  /* reflect UserDecl into a variant */ 
+value ocaml_reflect_ASTSpecFile(ASTSpecFile * x) {
+  /* reflect ASTSpecFile into a record */ 
   CAMLparam0();
   CAMLlocal2(res, child);
-  res = find_ocaml_shared_node_value(x);
-  if( res != Val_None ) {
-    xassert(Is_block(res) && Tag_val(res) == 0);
+
+  res = find_ocaml_shared_value(x, 3);
+  if(res != Val_None) {
+    xassert(Is_block(res) && Tag_val(res) == 0 && Wosize_val(res) == 1);
     CAMLreturn(Field(res, 0));
   }
 
-  if(data->stack.contains(x)) {
-    cerr << "cyclic ast detected during ocaml reflection\n";
-    xassert(false);
-  } else {
-    data->stack.add(x);
-  }
-  res = caml_alloc(4, 0);
+  res = caml_alloc(2, 0);
+  register_ocaml_shared_value(x, res, 3);
 
-  child = ocaml_ast_annotation(x, data);
+  child = ocaml_ast_annotation(x);
   Store_field(res, 0, child);
 
-  child = ocaml_reflect_AccessMod(x->amod, data);
+  child = ocaml_reflect_ToplevelForm_ast_list(&x->forms);
   Store_field(res, 1, child);
 
-  child = ocaml_reflect_string(&x->code, data);
-  Store_field(res, 2, child);
-
-  child = ocaml_reflect_string(&x->init, data);
-  Store_field(res, 3, child);
-
-  register_ocaml_shared_node_value(x, res);
-  data->stack.remove(x);
   CAMLreturn(res);
 }
 
 
-value ocaml_reflect_CustomCode(CustomCode const * x, Ocaml_reflection_data * data) {
+value ocaml_reflect_AccessMod(AccessMod * x) {
+  /* reflect AccessMod into a record */ 
+  CAMLparam0();
+  CAMLlocal2(res, child);
+
+  res = find_ocaml_shared_value(x, 4);
+  if(res != Val_None) {
+    xassert(Is_block(res) && Tag_val(res) == 0 && Wosize_val(res) == 1);
+    CAMLreturn(Field(res, 0));
+  }
+
+  res = caml_alloc(3, 0);
+  register_ocaml_shared_value(x, res, 4);
+
+  child = ocaml_ast_annotation(x);
+  Store_field(res, 0, child);
+
+  child = ocaml_reflect_AccessCtl(&x->acc);
+  Store_field(res, 1, child);
+
+  child = ocaml_reflect_string_ast_list(&x->mods);
+  Store_field(res, 2, child);
+
+  CAMLreturn(res);
+}
+
+
+value ocaml_reflect_Annotation(Annotation * x) {
+  switch(x->kind()) {
+  case Annotation::USERDECL:
+    return ocaml_reflect_UserDecl(x->asUserDecl());
+
+  case Annotation::CUSTOMCODE:
+    return ocaml_reflect_CustomCode(x->asCustomCode());
+
+  default:
+    xassert(false);
+    break;
+  }
+  xassert(false);
+}
+
+
+value ocaml_reflect_Annotation_ast_list(ASTList<Annotation> * x) {
+  CAMLparam0();
+  CAMLlocal4(res, tmp, elem, previous);
+
+  if( x == NULL) CAMLreturn(Val_emptylist);
+
+  res = find_ocaml_shared_value(x, 5);
+  if(res != Val_None) {
+    xassert(Is_block(res) && Tag_val(res) == 0 && Wosize_val(res) == 1);
+    CAMLreturn(Field(res, 0));
+  }
+
+  previous = 0;
+
+  FOREACH_ASTLIST_NC(Annotation, *x, iter) {
+    tmp = caml_alloc(2, Tag_cons);
+    if(previous == 0) {
+      res = tmp;
+      register_ocaml_shared_value(x, res, 5);
+    } else {
+      Store_field(previous, 1, tmp);
+    }
+    elem = ocaml_reflect_Annotation(iter.data());
+    Store_field(tmp, 0, elem);
+    Store_field(tmp, 1, Val_emptylist);
+    previous = tmp;
+  }
+
+  if(previous == 0){
+    res = Val_emptylist;
+    register_ocaml_shared_value(x, res, 5);
+  }
+
+  CAMLreturn(res);
+}
+
+
+value ocaml_reflect_BaseClass(BaseClass * x) {
+  /* reflect BaseClass into a record */ 
+  CAMLparam0();
+  CAMLlocal2(res, child);
+
+  res = find_ocaml_shared_value(x, 6);
+  if(res != Val_None) {
+    xassert(Is_block(res) && Tag_val(res) == 0 && Wosize_val(res) == 1);
+    CAMLreturn(Field(res, 0));
+  }
+
+  res = caml_alloc(3, 0);
+  register_ocaml_shared_value(x, res, 6);
+
+  child = ocaml_ast_annotation(x);
+  Store_field(res, 0, child);
+
+  child = ocaml_reflect_AccessCtl(&x->access);
+  Store_field(res, 1, child);
+
+  child = ocaml_reflect_string(&x->name);
+  Store_field(res, 2, child);
+
+  CAMLreturn(res);
+}
+
+
+value ocaml_reflect_BaseClass_ast_list(ASTList<BaseClass> * x) {
+  CAMLparam0();
+  CAMLlocal4(res, tmp, elem, previous);
+
+  if( x == NULL) CAMLreturn(Val_emptylist);
+
+  res = find_ocaml_shared_value(x, 7);
+  if(res != Val_None) {
+    xassert(Is_block(res) && Tag_val(res) == 0 && Wosize_val(res) == 1);
+    CAMLreturn(Field(res, 0));
+  }
+
+  previous = 0;
+
+  FOREACH_ASTLIST_NC(BaseClass, *x, iter) {
+    tmp = caml_alloc(2, Tag_cons);
+    if(previous == 0) {
+      res = tmp;
+      register_ocaml_shared_value(x, res, 7);
+    } else {
+      Store_field(previous, 1, tmp);
+    }
+    elem = ocaml_reflect_BaseClass(iter.data());
+    Store_field(tmp, 0, elem);
+    Store_field(tmp, 1, Val_emptylist);
+    previous = tmp;
+  }
+
+  if(previous == 0){
+    res = Val_emptylist;
+    register_ocaml_shared_value(x, res, 7);
+  }
+
+  CAMLreturn(res);
+}
+
+
+value ocaml_reflect_CustomCode(CustomCode * x) {
   /* reflect CustomCode into a variant */ 
   CAMLparam0();
   CAMLlocal2(res, child);
-  res = find_ocaml_shared_node_value(x);
-  if( res != Val_None ) {
-    xassert(Is_block(res) && Tag_val(res) == 0);
+
+  res = find_ocaml_shared_value(x, 8);
+  if(res != Val_None) {
+    xassert(Is_block(res) && Tag_val(res) == 0 && Wosize_val(res) == 1);
     CAMLreturn(Field(res, 0));
   }
 
-  if(data->stack.contains(x)) {
-    cerr << "cyclic ast detected during ocaml reflection\n";
-    xassert(false);
-  } else {
-    data->stack.add(x);
-  }
   res = caml_alloc(3, 1);
+  register_ocaml_shared_value(x, res, 8);
 
-  child = ocaml_ast_annotation(x, data);
+  child = ocaml_ast_annotation(x);
   Store_field(res, 0, child);
 
-  child = ocaml_reflect_string(&x->qualifier, data);
+  child = ocaml_reflect_string(&x->qualifier);
   Store_field(res, 1, child);
 
-  child = ocaml_reflect_string(&x->code, data);
+  child = ocaml_reflect_string(&x->code);
   Store_field(res, 2, child);
 
-  register_ocaml_shared_node_value(x, res);
-  data->stack.remove(x);
   CAMLreturn(res);
 }
 
 
-value ocaml_reflect_string_ast_list(ASTList<string> const * x, Ocaml_reflection_data * data) {
+value ocaml_reflect_FieldOrCtorArg(FieldOrCtorArg * x) {
+  /* reflect FieldOrCtorArg into a record */ 
+  CAMLparam0();
+  CAMLlocal2(res, child);
+
+  res = find_ocaml_shared_value(x, 9);
+  if(res != Val_None) {
+    xassert(Is_block(res) && Tag_val(res) == 0 && Wosize_val(res) == 1);
+    CAMLreturn(Field(res, 0));
+  }
+
+  res = caml_alloc(5, 0);
+  register_ocaml_shared_value(x, res, 9);
+
+  child = ocaml_ast_annotation(x);
+  Store_field(res, 0, child);
+
+  child = ocaml_reflect_FieldFlags(&x->flags);
+  Store_field(res, 1, child);
+
+  child = ocaml_reflect_string(&x->type);
+  Store_field(res, 2, child);
+
+  child = ocaml_reflect_string(&x->name);
+  Store_field(res, 3, child);
+
+  child = ocaml_reflect_string(&x->defaultValue);
+  Store_field(res, 4, child);
+
+  CAMLreturn(res);
+}
+
+
+value ocaml_reflect_FieldOrCtorArg_ast_list(ASTList<FieldOrCtorArg> * x) {
   CAMLparam0();
   CAMLlocal4(res, tmp, elem, previous);
-  res = find_ocaml_shared_list_value(x);
-  if( res != Val_None ) {
-    xassert(Is_block(res) && Tag_val(res) == 0);
+
+  if( x == NULL) CAMLreturn(Val_emptylist);
+
+  res = find_ocaml_shared_value(x, 10);
+  if(res != Val_None) {
+    xassert(Is_block(res) && Tag_val(res) == 0 && Wosize_val(res) == 1);
     CAMLreturn(Field(res, 0));
   }
 
   previous = 0;
 
-  FOREACH_ASTLIST(string, *x, iter) {
-    elem = ocaml_reflect_string(iter.data(), data);
-    tmp = caml_alloc_small(2, Tag_cons);
-    Field(tmp, 0) = elem;
-    Field(tmp, 1) = Val_emptylist;
+  FOREACH_ASTLIST_NC(FieldOrCtorArg, *x, iter) {
+    tmp = caml_alloc(2, Tag_cons);
     if(previous == 0) {
       res = tmp;
+      register_ocaml_shared_value(x, res, 10);
     } else {
       Store_field(previous, 1, tmp);
     }
+    elem = ocaml_reflect_FieldOrCtorArg(iter.data());
+    Store_field(tmp, 0, elem);
+    Store_field(tmp, 1, Val_emptylist);
     previous = tmp;
   }
 
-  register_ocaml_shared_list_value(x, res);
+  if(previous == 0){
+    res = Val_emptylist;
+    register_ocaml_shared_value(x, res, 10);
+  }
+
   CAMLreturn(res);
 }
 
 
-value ocaml_reflect_BaseClass_ast_list(ASTList<BaseClass> const * x, Ocaml_reflection_data * data) {
+value ocaml_reflect_TF_class(TF_class * x) {
+  /* reflect TF_class into a variant */ 
+  CAMLparam0();
+  CAMLlocal2(res, child);
+
+  res = find_ocaml_shared_value(x, 11);
+  if(res != Val_None) {
+    xassert(Is_block(res) && Tag_val(res) == 0 && Wosize_val(res) == 1);
+    CAMLreturn(Field(res, 0));
+  }
+
+  res = caml_alloc(3, 4);
+  register_ocaml_shared_value(x, res, 11);
+
+  child = ocaml_ast_annotation(x);
+  Store_field(res, 0, child);
+
+  child = ocaml_reflect_ASTClass(x->super);
+  Store_field(res, 1, child);
+
+  child = ocaml_reflect_ASTClass_ast_list(&x->ctors);
+  Store_field(res, 2, child);
+
+  CAMLreturn(res);
+}
+
+
+value ocaml_reflect_TF_custom(TF_custom * x) {
+  /* reflect TF_custom into a variant */ 
+  CAMLparam0();
+  CAMLlocal2(res, child);
+
+  res = find_ocaml_shared_value(x, 12);
+  if(res != Val_None) {
+    xassert(Is_block(res) && Tag_val(res) == 0 && Wosize_val(res) == 1);
+    CAMLreturn(Field(res, 0));
+  }
+
+  res = caml_alloc(2, 6);
+  register_ocaml_shared_value(x, res, 12);
+
+  child = ocaml_ast_annotation(x);
+  Store_field(res, 0, child);
+
+  child = ocaml_reflect_CustomCode(x->cust);
+  Store_field(res, 1, child);
+
+  CAMLreturn(res);
+}
+
+
+value ocaml_reflect_TF_enum(TF_enum * x) {
+  /* reflect TF_enum into a variant */ 
+  CAMLparam0();
+  CAMLlocal2(res, child);
+
+  res = find_ocaml_shared_value(x, 13);
+  if(res != Val_None) {
+    xassert(Is_block(res) && Tag_val(res) == 0 && Wosize_val(res) == 1);
+    CAMLreturn(Field(res, 0));
+  }
+
+  res = caml_alloc(3, 7);
+  register_ocaml_shared_value(x, res, 13);
+
+  child = ocaml_ast_annotation(x);
+  Store_field(res, 0, child);
+
+  child = ocaml_reflect_string(&x->name);
+  Store_field(res, 1, child);
+
+  child = ocaml_reflect_string_ast_list(&x->enumerators);
+  Store_field(res, 2, child);
+
+  CAMLreturn(res);
+}
+
+
+value ocaml_reflect_TF_impl_verbatim(TF_impl_verbatim * x) {
+  /* reflect TF_impl_verbatim into a variant */ 
+  CAMLparam0();
+  CAMLlocal2(res, child);
+
+  res = find_ocaml_shared_value(x, 14);
+  if(res != Val_None) {
+    xassert(Is_block(res) && Tag_val(res) == 0 && Wosize_val(res) == 1);
+    CAMLreturn(Field(res, 0));
+  }
+
+  res = caml_alloc(2, 1);
+  register_ocaml_shared_value(x, res, 14);
+
+  child = ocaml_ast_annotation(x);
+  Store_field(res, 0, child);
+
+  child = ocaml_reflect_string(&x->code);
+  Store_field(res, 1, child);
+
+  CAMLreturn(res);
+}
+
+
+value ocaml_reflect_TF_ocaml_type_verbatim(TF_ocaml_type_verbatim * x) {
+  /* reflect TF_ocaml_type_verbatim into a variant */ 
+  CAMLparam0();
+  CAMLlocal2(res, child);
+
+  res = find_ocaml_shared_value(x, 15);
+  if(res != Val_None) {
+    xassert(Is_block(res) && Tag_val(res) == 0 && Wosize_val(res) == 1);
+    CAMLreturn(Field(res, 0));
+  }
+
+  res = caml_alloc(2, 2);
+  register_ocaml_shared_value(x, res, 15);
+
+  child = ocaml_ast_annotation(x);
+  Store_field(res, 0, child);
+
+  child = ocaml_reflect_string(&x->code);
+  Store_field(res, 1, child);
+
+  CAMLreturn(res);
+}
+
+
+value ocaml_reflect_TF_option(TF_option * x) {
+  /* reflect TF_option into a variant */ 
+  CAMLparam0();
+  CAMLlocal2(res, child);
+
+  res = find_ocaml_shared_value(x, 16);
+  if(res != Val_None) {
+    xassert(Is_block(res) && Tag_val(res) == 0 && Wosize_val(res) == 1);
+    CAMLreturn(Field(res, 0));
+  }
+
+  res = caml_alloc(3, 5);
+  register_ocaml_shared_value(x, res, 16);
+
+  child = ocaml_ast_annotation(x);
+  Store_field(res, 0, child);
+
+  child = ocaml_reflect_string(&x->name);
+  Store_field(res, 1, child);
+
+  child = ocaml_reflect_string_ast_list(&x->args);
+  Store_field(res, 2, child);
+
+  CAMLreturn(res);
+}
+
+
+value ocaml_reflect_TF_verbatim(TF_verbatim * x) {
+  /* reflect TF_verbatim into a variant */ 
+  CAMLparam0();
+  CAMLlocal2(res, child);
+
+  res = find_ocaml_shared_value(x, 17);
+  if(res != Val_None) {
+    xassert(Is_block(res) && Tag_val(res) == 0 && Wosize_val(res) == 1);
+    CAMLreturn(Field(res, 0));
+  }
+
+  res = caml_alloc(2, 0);
+  register_ocaml_shared_value(x, res, 17);
+
+  child = ocaml_ast_annotation(x);
+  Store_field(res, 0, child);
+
+  child = ocaml_reflect_string(&x->code);
+  Store_field(res, 1, child);
+
+  CAMLreturn(res);
+}
+
+
+value ocaml_reflect_TF_xml_verbatim(TF_xml_verbatim * x) {
+  /* reflect TF_xml_verbatim into a variant */ 
+  CAMLparam0();
+  CAMLlocal2(res, child);
+
+  res = find_ocaml_shared_value(x, 18);
+  if(res != Val_None) {
+    xassert(Is_block(res) && Tag_val(res) == 0 && Wosize_val(res) == 1);
+    CAMLreturn(Field(res, 0));
+  }
+
+  res = caml_alloc(2, 3);
+  register_ocaml_shared_value(x, res, 18);
+
+  child = ocaml_ast_annotation(x);
+  Store_field(res, 0, child);
+
+  child = ocaml_reflect_string(&x->code);
+  Store_field(res, 1, child);
+
+  CAMLreturn(res);
+}
+
+
+value ocaml_reflect_ToplevelForm(ToplevelForm * x) {
+  switch(x->kind()) {
+  case ToplevelForm::TF_VERBATIM:
+    return ocaml_reflect_TF_verbatim(x->asTF_verbatim());
+
+  case ToplevelForm::TF_IMPL_VERBATIM:
+    return ocaml_reflect_TF_impl_verbatim(x->asTF_impl_verbatim());
+
+  case ToplevelForm::TF_OCAML_TYPE_VERBATIM:
+    return ocaml_reflect_TF_ocaml_type_verbatim(x->asTF_ocaml_type_verbatim());
+
+  case ToplevelForm::TF_XML_VERBATIM:
+    return ocaml_reflect_TF_xml_verbatim(x->asTF_xml_verbatim());
+
+  case ToplevelForm::TF_CLASS:
+    return ocaml_reflect_TF_class(x->asTF_class());
+
+  case ToplevelForm::TF_OPTION:
+    return ocaml_reflect_TF_option(x->asTF_option());
+
+  case ToplevelForm::TF_CUSTOM:
+    return ocaml_reflect_TF_custom(x->asTF_custom());
+
+  case ToplevelForm::TF_ENUM:
+    return ocaml_reflect_TF_enum(x->asTF_enum());
+
+  default:
+    xassert(false);
+    break;
+  }
+  xassert(false);
+}
+
+
+value ocaml_reflect_ToplevelForm_ast_list(ASTList<ToplevelForm> * x) {
   CAMLparam0();
   CAMLlocal4(res, tmp, elem, previous);
-  res = find_ocaml_shared_list_value(x);
-  if( res != Val_None ) {
-    xassert(Is_block(res) && Tag_val(res) == 0);
+
+  if( x == NULL) CAMLreturn(Val_emptylist);
+
+  res = find_ocaml_shared_value(x, 19);
+  if(res != Val_None) {
+    xassert(Is_block(res) && Tag_val(res) == 0 && Wosize_val(res) == 1);
     CAMLreturn(Field(res, 0));
   }
 
   previous = 0;
 
-  FOREACH_ASTLIST(BaseClass, *x, iter) {
-    elem = ocaml_reflect_BaseClass(iter.data(), data);
-    tmp = caml_alloc_small(2, Tag_cons);
-    Field(tmp, 0) = elem;
-    Field(tmp, 1) = Val_emptylist;
+  FOREACH_ASTLIST_NC(ToplevelForm, *x, iter) {
+    tmp = caml_alloc(2, Tag_cons);
     if(previous == 0) {
       res = tmp;
+      register_ocaml_shared_value(x, res, 19);
     } else {
       Store_field(previous, 1, tmp);
     }
+    elem = ocaml_reflect_ToplevelForm(iter.data());
+    Store_field(tmp, 0, elem);
+    Store_field(tmp, 1, Val_emptylist);
     previous = tmp;
   }
 
-  register_ocaml_shared_list_value(x, res);
+  if(previous == 0){
+    res = Val_emptylist;
+    register_ocaml_shared_value(x, res, 19);
+  }
+
   CAMLreturn(res);
 }
 
 
-value ocaml_reflect_Annotation_ast_list(ASTList<Annotation> const * x, Ocaml_reflection_data * data) {
+value ocaml_reflect_UserDecl(UserDecl * x) {
+  /* reflect UserDecl into a variant */ 
+  CAMLparam0();
+  CAMLlocal2(res, child);
+
+  res = find_ocaml_shared_value(x, 20);
+  if(res != Val_None) {
+    xassert(Is_block(res) && Tag_val(res) == 0 && Wosize_val(res) == 1);
+    CAMLreturn(Field(res, 0));
+  }
+
+  res = caml_alloc(4, 0);
+  register_ocaml_shared_value(x, res, 20);
+
+  child = ocaml_ast_annotation(x);
+  Store_field(res, 0, child);
+
+  child = ocaml_reflect_AccessMod(x->amod);
+  Store_field(res, 1, child);
+
+  child = ocaml_reflect_string(&x->code);
+  Store_field(res, 2, child);
+
+  child = ocaml_reflect_string(&x->init);
+  Store_field(res, 3, child);
+
+  CAMLreturn(res);
+}
+
+
+value ocaml_reflect_string_ast_list(ASTList<string> * x) {
   CAMLparam0();
   CAMLlocal4(res, tmp, elem, previous);
-  res = find_ocaml_shared_list_value(x);
-  if( res != Val_None ) {
-    xassert(Is_block(res) && Tag_val(res) == 0);
+
+  if( x == NULL) CAMLreturn(Val_emptylist);
+
+  res = find_ocaml_shared_value(x, 21);
+  if(res != Val_None) {
+    xassert(Is_block(res) && Tag_val(res) == 0 && Wosize_val(res) == 1);
     CAMLreturn(Field(res, 0));
   }
 
   previous = 0;
 
-  FOREACH_ASTLIST(Annotation, *x, iter) {
-    elem = ocaml_reflect_Annotation(iter.data(), data);
-    tmp = caml_alloc_small(2, Tag_cons);
-    Field(tmp, 0) = elem;
-    Field(tmp, 1) = Val_emptylist;
+  FOREACH_ASTLIST_NC(string, *x, iter) {
+    tmp = caml_alloc(2, Tag_cons);
     if(previous == 0) {
       res = tmp;
+      register_ocaml_shared_value(x, res, 21);
     } else {
       Store_field(previous, 1, tmp);
     }
+    elem = ocaml_reflect_string(iter.data());
+    Store_field(tmp, 0, elem);
+    Store_field(tmp, 1, Val_emptylist);
     previous = tmp;
   }
 
-  register_ocaml_shared_list_value(x, res);
+  if(previous == 0){
+    res = Val_emptylist;
+    register_ocaml_shared_value(x, res, 21);
+  }
+
   CAMLreturn(res);
 }
 

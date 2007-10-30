@@ -1,0 +1,25 @@
+--- ../../../elsa/cc_tcheck.ast	2007-04-11 10:16:06.000000000 +0200
++++ cc_tcheck.ast	2007-10-20 08:59:40.000000000 +0200
+@@ -231,21 +231,21 @@
+        public(xml_TY,nullable,xmlShouldSerialize) Variable *var = NULL;
+ 
+        // if the lookup is *not* dependent (and some other conditions
+        // hold...), this will point to 'var' and be preserved when
+        // the AST is cloned
+        public(xml_TY,nullable,xmlShouldSerialize) Variable *nondependentVar = NULL;
+        custom clone { ret->nondependentVar = nondependentVar; }
+      }
+ 
+   -> TS_elaborated {
+-       public(xml_TY,nullable) NamedAtomicType *atype = NULL;
++       public(xml_TY,nullable) AtomicType *atype = NULL;
+      }
+ 
+   -> TS_classSpec {
+        public(xml_TY) CompoundType *ctype = NULL;
+        public void tcheckIntoCompound(
+          Env &env, DeclFlags dflags, CompoundType *ct);
+        private void tcheckFunctionBodies(Env &env);
+ 
+        public void printExtras(ostream &os, int indent) const;
+        custom debugPrint { printExtras(os, indent); }

@@ -22,16 +22,24 @@ type list_kind =
   | LK_sobj_list
     (* not really a list ... but well *)
   | LK_sobj_set
+      (* StringObjDict is a map, but the mapped objects contain all the 
+       * information. We treat it like a set therefore.
+       *)
+  | LK_string_obj_dict
+    (* StringRefMap is a hash *)
+  | LK_string_ref_map
 
 
 (* type of fields and constructor arguments *)
 type ast_type =
   | AT_base of string
   | AT_node of ast_class
+      (* AT_option( inner type, c-type string) *)
+  | AT_option of ast_type * string
   | AT_ref of ast_type
-  | AT_option of ast_type
       (* AT_list( ast or fake list, inner kind, inner c-type string ) *)
   | AT_list of list_kind * ast_type * string
+
 
 (* a field or constructor argument *)
 and ast_field = {
@@ -41,6 +49,8 @@ and ast_field = {
   af_mod_type : ast_type;
   af_is_pointer : bool;
   af_is_base_field : bool;
+  af_is_private : bool;
+  af_is_circular : bool;
 }
 
 (* a superclass or a subclass *)
@@ -52,6 +62,7 @@ and ast_class = {
   mutable ac_fields : ast_field list;
   ac_super : ast_class option;
   mutable ac_subclasses : ast_class list;
+  ac_record : bool;
 }
 
 
@@ -83,6 +94,8 @@ val source_loc_meta_fun : string
 
 val variant_name : ast_class -> string
 
+val variant_record_name : ast_class -> string
+
 val node_ml_type_name : ast_class -> string
 
 val translated_class_name : ast_class -> string
@@ -97,6 +110,19 @@ val name_of_superast_no_ast : string
  * makes node types polymorphic with 'a if with_tick_a
  *)
 val string_of_ast_type : bool -> ast_type -> string
+
+(* deletes a possible outer AT_ref *)
+val unref_type : ast_type -> ast_type
+
+val is_ref_type : ast_type -> bool
+
+
+val field_has_assertion : ast_class -> ast_field -> bool
+
+(* generate_field_assertion indent field_access class field -> 
+ *                                                   assertions ml text *)
+val generate_field_assertion : 
+  string -> string -> ast_class -> ast_field -> string list
 
 (* setup_oast_translation argument_list application_name
  * adds -tr <config_file> to the argument_list,

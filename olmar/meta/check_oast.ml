@@ -6,6 +6,8 @@
 
 open Ast_annotation
 open Ast_ast_type_descr
+(* elsa version *)
+open Elsa_ast_type_descr
 
 
 let file = ref ""
@@ -89,20 +91,22 @@ let main () =
 	exit (if res then 0 else 1)
     end
   else 
-    begin
-      Printf.eprintf "no elsa support at the moment\n";
-      exit 1
-    end
+    (* non-elsa version *)
     (* 
      * begin
-     *   let (_size, ast) = Elsa_oast_header.unmarshal_oast !file in
-     *   let res = 
-     * 	Memcheck.check !check_flags ast 
-     * 	  (compilationUnit_type_type_descr annotated_type_descr)
-     *   in
-     * 	exit (if res then 0 else 1)
+     *   Printf.eprintf "no elsa support at the moment\n";
+     *   exit 1
      * end
      *)
+    (* elsa version *)
+    begin
+      let (_size, ast) = Elsa_oast_header.unmarshal_oast !file in
+      let res = 
+    	Memcheck.check !check_flags ast 
+    	  (compilationUnit_type_type_descr annotated_type_descr)
+      in
+    	exit (if res then 0 else 1)
+    end
 ;;
 
 

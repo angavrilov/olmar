@@ -25,16 +25,19 @@ type node_selection =
 
 let print_this_node node_array i = node_array.(i) <- true
 
-let mark_noloc_iter node_array flag i node = 
-  let loc_opt = super_source_loc node
-  in
-    match loc_opt with
-      | Some (file, line, char) ->
-	  if (file = "<noloc>" or file = "<init>")
-	    && line = 1 && char = 1 
-	  then
-	    node_array.(i) <- flag
-      | None -> ()
+let mark_noloc_iter _node_array _flag _i _node = ()
+  (* 
+   * no source locs in astgen asts
+   * let loc_opt = super_source_loc node
+   * in
+   *   match loc_opt with
+   *     | Some (file, line, char) ->
+   * 	  if (file = "<noloc>" or file = "<init>")
+   * 	    && line = 1 && char = 1 
+   * 	  then
+   * 	    node_array.(i) <- flag
+   *     | None -> ()
+   *)
 
 
 let mark_noloc_nodes node_array ast_array flag =
@@ -85,7 +88,7 @@ let mark_direction node_array ast_array visited dir_fun nodes =
 let mark_real_nodes node_array ast_array down =
   let visited = Array.create (Array.length node_array) (-1) 
   in
-    mark_direction node_array ast_array visited (fun i -> down.(i)) [0, [1]]
+    mark_direction node_array ast_array visited (fun i -> down.(i)) [0, [0]]
 
 
 let mark_node_diameter node_array ast_array up down diameter =
@@ -114,16 +117,19 @@ let match_line line loc_opt =
     | Some(_, lline, _) -> lline = line
     | None -> false
 
-let mark_line node_array ast_array file line char =
-  let match_fun =
+let mark_line _node_array ast_array file line char =
+  let _match_fun =
     match file,line,char with
       | (Some f, Some l, None) -> match_file_line f l
       | (None,   Some l, None) -> match_line l
       | _ -> assert false
   in
-  let ast_doit i node =
-    if match_fun (super_source_loc node) then
-      print_this_node node_array i
+  let ast_doit _i _node = ()
+    (* 
+     * no sourcelocs in astgen asts
+     * if match_fun (super_source_loc node) then
+     *   print_this_node node_array i
+     *)
   in
     match ast_array with
       | Ast_oast ast_array -> Superast.iteri ast_doit ast_array

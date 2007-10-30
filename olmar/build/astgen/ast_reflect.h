@@ -10,17 +10,15 @@
 #include "ast_reflect_ocaml_reflect.h"
 
 
-void reflect_into_ocaml(char ** argv, string base, ASTSpecFile const * ast);
+void reflect_into_ocaml(char ** argv, string base, ASTSpecFile * ast);
 
 
 
 // ------ variant types, will be treated in gen_reflection, eventually ------
 
-value ocaml_reflect_AccessCtl(AccessCtl const * x, 
-			      Ocaml_reflection_data * data);
+value ocaml_reflect_AccessCtl(AccessCtl const * x);
 
-value ocaml_reflect_FieldFlags(FieldFlags const * x, 
-			       Ocaml_reflection_data * data);
+value ocaml_reflect_FieldFlags(FieldFlags const * x);
 
 
 #endif // OCAML_REFLECT

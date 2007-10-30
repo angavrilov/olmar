@@ -5,45 +5,64 @@
 NATIVE_OCAML := 1
 # set to ``cmo'' for ocaml bytecode compilation
 # and to ``cmx'' for native compilation
-OCAML_OBJ_EXT := cmx
-OCAML_LIB_EXT := cmxa
 
 
 # main targets
-first: elsa.type.dot
+first: stage_2
 stage_1:
-stage_2: elsa.ast.oast
-
-#all: astgen_lib.$(OCAML_LIB_EXT) astgen_or ast.ast.oast
+stage_2: quickreflectiontest
 
 # directories of other software
 SMBASE := ../../../smbase
 AST := ../../../ast
+ELKHOUND := ../../../elkhound
 ELSA := ../../../elsa
 GENERAL := ../general
 ASTGEN := ../astgen
 META := ../../meta
 
+OC_OBJ_EXT := cmx
+OC_LIB_EXT := cmxa
+OC_COMP_FLAGS := -w Ae
+OC_INC_FLAGS := -I $(GENERAL)
+OC_FLAGS := $(OC_COMP_FLAGS) $(OC_INC_FLAGS)
+OC_BYTE_FLAGS := -g
+OCDEPOPTS := -native
+
+OCDEBUG=0
+ifeq ($(OCDEBUG),1)
+  OCOPT := $(OCC) -g
+  OCCC  := $(OCC) -g
+  OCC   := $(OCC) -g
+  OC_OBJ_EXT := cmo
+  OC_LIB_EXT := cma
+  OCDEPOPTS :=
+endif
+
+
+
 LIBSMBASE := $(SMBASE)/libsmbase.a
-OCAMLDIR := /usr/local/stow/ocaml-3.09-godi/lib/ocaml/std-lib
+LIBAST      := $(AST)/libast.a
+LIBELKHOUND := $(ELKHOUND)/libelkhound.a
+OCDIR := /usr/local/stow/ocaml-3.09-godi/lib/ocaml/std-lib
 
 ifeq ($(NATIVE_OCAML),1)
 #native
-OCAMLLIBS := -L $(OCAMLDIR) -lasmrun -ldl
-OCAMLDEPOPTS := -native
+OCLIBS := -L $(OCDIR) -lasmrun -ldl
+OCDEPOPTS := -native
 else
 #bytecode
-OCAMLLIBS := -L $(OCAMLDIR) -lcamlrun -lcurses -ldl
-OCAMLDEPOPTS :=
+OCLIBS := -L $(OCDIR) -lcamlrun -lcurses -ldl
+OCDEPOPTS :=
 endif
 
 
 
 # external tools
 PERL := perl
-OCAMLC   := ocamlc.opt
-OCAMLCC  := ocamlopt.opt
-OCAMLOPT := ocamlopt.opt
+OCC   := ocamlc.opt
+OCCC  := ocamlopt.opt
+OCOPT := ocamlopt.opt
 DEP := $(PERL) $(SMBASE)/depend.pl
 
 
@@ -61,12 +80,18 @@ TOCLEAN =
 # 	./config.status -reconfigure
 
 
-# ----------------------- compiler configuration -------------------
+#############################################################################
+#####
+##### compiler configuration
+#####
+#############################################################################
+
+
 # C++ preprocessor, compiler and linker
 CXX := ccache g++-4.1
 
 # flags for the C++ compiler (and preprocessor)
-CCFLAGS := -g -Wall -Wno-deprecated -D__UNIX__ -DNDEBUG -D__LINUX__ -Woverloaded-virtual -I$(SMBASE) -I$(AST) -I$(ELKHOUND) -I$(OCAMLDIR)
+CCFLAGS := -g -Wall -Wno-deprecated -D__UNIX__ -DNDEBUG -D__LINUX__ -Woverloaded-virtual -I$(SMBASE) -I$(AST) -I$(ELKHOUND) -I$(ELSA) -I$(OCDIR) -I$(GENERAL)
 
 # flags for the linker
 libraries := $(LIBELKHOUND) $(LIBAST) $(LIBSMBASE)
@@ -80,18 +105,36 @@ TODEPCLEAN += *.d
 	$(CXX) -c -o $@ $< $(if $(findstring $*,$(GCOV_MODS)),$(GCOV_OPTS) )$(CCFLAGS)
 	@$(DEP)   -o $@ $< $(if $(findstring $*,$(GCOV_MODS)),$(GCOV_OPTS) )$(CCFLAGS) >$*.d
 
-TOCLEAN += *.cmo *.cmi *.cmx
+TOCLEAN += *.cmo *.cmi *.cmx *.o *.cmxa *.cma *.a
 %.cmo: %.ml
-	$(OCAMLC) -c -I $(AST) $<
-
-%.cmi: %.mli
-	$(OCAMLC) -c -I $(AST) $<
+	$(OCC) $(OC_BYTE_FLAGS) $(OC_FLAGS) -c $<
 
 %.cmx: %.ml
-	$(OCAMLOPT) -c -I $(AST) $<
+	$(OCOPT) $(OC_FLAGS) -c $<
+
+%.cmi: %.mli
+	$(OCC) $(OC_FLAGS) -c $<
+
+-include mldeps.mk
 
 
-# ----------------------- elsa oast generation -------------------
+MLDISCARD := \
+	oast_header_start.ml
+
+.PHONY: mldeps
+depend: mldeps
+mldeps:
+	ocamldep $(OCDEPOPTS) $(OC_INC_FLAGS) \
+		`find . -name \*.ml -o -name \*.mli |\
+			egrep -v $(MLDISCARD)` > mldeps.mk
+
+
+#############################################################################
+#####
+##### elsa oast generation
+#####
+#############################################################################
+
 
 .PHONY: cc_ast_patch
 cc_ast_patch:
@@ -101,11 +144,18 @@ TOCLEAN += cc.ast
 cc.ast: $(ELSA)/cc.ast cc.ast.patch
 	patch -i cc.ast.patch -o cc.ast $(ELSA)/cc.ast
 
+.PHONY: cc_tcheck_ast_patch
+cc_tcheck_ast_patch:
+	diff -U 10 $(ELSA)/cc_tcheck.ast cc_tcheck.ast > cc_tcheck.ast.patch; \
+		true
+
+cc_tcheck.ast: $(ELSA)/cc_tcheck.ast cc_tcheck.ast.patch
+	patch -i cc_tcheck.ast.patch -o cc_tcheck.ast $(ELSA)/cc_tcheck.ast
 
 
 ELSA_AST_FILES :=\
 	cc.ast \
-	$(ELSA)/cc_tcheck.ast \
+	cc_tcheck.ast \
 	$(ELSA)/cc_print.ast \
 	$(ELSA)/cfg.ast \
 	$(ELSA)/cc_elaborate.ast \
@@ -122,6 +172,13 @@ elsa.ast.oast: $(ELSA_AST_FILES) $(ASTGEN)/astgen_or
 	rm elsa.ast.h elsa.ast.cc
 
 
+#############################################################################
+#####
+#####  check elsa oast
+#####
+#############################################################################
+
+
 .PHONY: check_elsa_oast
 check_elsa_oast: elsa.ast.oast $(META)/check_oast
 	$(META)/check_oast -ast elsa.ast.oast
@@ -132,18 +189,203 @@ elsa.type.dot: elsa.ast.oast elsa_reflection_control.txt $(META)/ast_type_graph
 		-tr elsa_reflection_control.txt elsa.ast.oast
 
 
-# .PHONY: elsa_reflection
-# elsa_reflection: gen_reflection
-# 	rm -rf $(ELSA_OR)/new
-# 	mkdir $(ELSA_OR)/new
-# 	./gen_reflection $(ELSA_OR)/elsa.ast.oast \
-# 		-tr elsa_reflection_control.txt \
-# 		-o $(ELSA_OR)/new/elsa_reflect
+#############################################################################
+#####
+#####  all.ast
+#####
+#############################################################################
+
+
+all.ast: $(ELSA_AST_FILES) 
+	if [ -f all.ast ] ; then \
+		line1=$$(head -1 all.ast); echo $$line1 > all.ast; \
+	else \
+		echo "// all.ast \$$Revision$$" >> all.ast; \
+	fi
+	for f in $^ ; do \
+		echo "//=========================== start of $$f" >> all.ast; \
+		cat $$f >> all.ast; \
+		echo "//=========================== end  of  $$f" >> all.ast; \
+	done
+
+
+
+#############################################################################
+#####
+##### elsa reflection code
+#####
+#############################################################################
+
+ELSA_REFLECTION_FILES := \
+	elsa_reflect_type.ml \
+	elsa_reflect_ocaml_reflect.cc \
+	elsa_reflect_ocaml_reflect.h
+
+TOCLEAN += $(ELSA_REFLECTION_FILES)
+$(ELSA_REFLECTION_FILES): elsa.ast.oast elsa_reflection_control.txt \
+		$(META)/gen_reflection 
+	$(META)/gen_reflection elsa.ast.oast \
+		-tr elsa_reflection_control.txt \
+		-o elsa_reflect
+
+
+TOCLEAN += elsa_oast_header.ml
+elsa_oast_header.ml: elsa_oast_header_start.ml \
+		$(GENERAL)/oast_header_trailer.ml all.ast
+	rm -f $@
+	cat elsa_oast_header_start.ml >> $@
+	head -1 all.ast | tr "." " " | \
+		(read -a aa; echo -n $${aa[5]}) >> $@
+	echo -e '\n#1' "\"$(realpath $(GENERAL)/oast_header_trailer.ml)\"" >> $@
+	cat $(GENERAL)/oast_header_trailer.ml >> $@
 
 
 
 
-# ------------------------ Misc ---------------------------------
+# List of ml modules needed by astgen. They are all combined 
+# into one elsa_ml_object.o file.
+
+ELSA_ML := \
+	elsa_ml_base_types.ml \
+	elsa_ml_flag_types.ml \
+	elsa_reflect_type.ml \
+	elsa_ast_util.ml \
+	elsa_oast_header.ml
+
+elsa_lib.cmxa: $(ELSA_ML:.ml=.cmx)
+	$(OCOPT) -o $@ -a $^
+
+elsa_lib.cma: $(ELSA_ML:.ml=.cmo)
+	$(OCC) -o $@ -a $^
+
+ELSA_ML_OBJECT := \
+	$(GENERAL)/astgen_general.$(OC_LIB_EXT) \
+	elsa_lib.$(OC_LIB_EXT) \
+	elsa_ml_base_reflection.ml \
+	elsa_ml_flag_constructors.ml \
+	elsa_caml_callbacks.ml
+
+
+elsa_ml_object.o: $(ELSA_ML_OBJECT:.ml=.$(OC_OBJ_EXT))
+	$(OCCC) -output-obj -o $@ $(OC_INC_FLAGS) $^
+
+
+elsa_reflect_type.cmx: elsa_ml_base_types.cmx elsa_ml_flag_types.cmx
+elsa_reflect_type.cmo: elsa_ml_base_types.cmo elsa_ml_flag_types.cmo
+
+
+.PHONY: elsa_patch
+elsa_patch:
+	diff -U 10 $(ELSA)/main.cc main_or.cc > elsa_reflection.patch; true
+
+TOCLEAN += main_or.cc
+main_or.cc: $(ELSA)/main.cc elsa_reflection.patch
+	patch -i elsa_reflection.patch -o main_or.cc $(ELSA)/main.cc
+
+
+LEXER_OBJS := \
+  $(ELSA)/cc_lang.o \
+  $(ELSA)/baselexer.o \
+  $(ELSA)/lexer.o \
+  $(ELSA)/lexer.yy.o \
+  $(ELSA)/cc_tokens.o
+
+XML_OBJS := \
+  $(ELSA)/xml_lexer.yy.o \
+  $(ELSA)/xml_lexer.o \
+  $(ELSA)/xml_reader.o \
+  $(ELSA)/xml_writer.o \
+  $(ELSA)/xml_file_reader.o \
+  $(ELSA)/xml_file_writer.o \
+  $(ELSA)/xml_type_reader.o \
+  $(ELSA)/xml_type_writer.o \
+  $(ELSA)/xml_ast_reader.o \
+  $(ELSA)/id_obj_dict.o \
+  $(ELSA)/xml_do_read.o
+
+EXT_OBJS := \
+  $(ELSA)/gnu.o \
+  $(ELSA)/kandr.o
+
+
+LEGACY_OBJ := \
+  elsa_ml_object.o \
+  $(AST)/ocamlhelp.o
+
+
+CCPARSE_OBJS := \
+  $(LEGACY_OBJ) \
+  $(GENERAL)/ocaml_reflection_base.o \
+  elsa_base_types.o \
+  elsa_flag_types.o \
+  elsa_reflect_ocaml_reflect.o \
+  elsa_additions.o \
+  $(ELSA)/cc_ocaml.o \
+  $(ELSA)/variable.o \
+  $(ELSA)/cc_type.o \
+  $(ELSA)/cc.ast.gen.o \
+  $(ELSA)/mtype.o \
+  $(ELSA)/integrity.o \
+  $(ELSA)/astvisit.o \
+  $(ELSA)/template.o \
+  $(ELSA)/notopt.o \
+  $(ELSA)/cc_env.o \
+  $(ELSA)/cc_tcheck.o \
+  $(ELSA)/const_eval.o \
+  $(ELSA)/implint.o \
+  $(ELSA)/serialno.o \
+  $(ELSA)/cc_scope.o \
+  $(ELSA)/cc_elaborate.o \
+  $(ELSA)/ast_build.o \
+  $(LEXER_OBJS) \
+  $(XML_OBJS) \
+  $(EXT_OBJS) \
+  $(ELSA)/builtinops.o \
+  $(ELSA)/cfg.o \
+  $(ELSA)/sprint.o \
+  $(ELSA)/mangle.o \
+  $(ELSA)/cc_err.o \
+  $(ELSA)/stdconv.o \
+  $(ELSA)/implconv.o \
+  $(ELSA)/overload.o \
+  $(ELSA)/typelistiter.o \
+  $(ELSA)/cc.gr.gen.o \
+  $(ELSA)/parssppt.o \
+  $(ELSA)/cc_flags.o \
+  $(ELSA)/cc_print.o \
+  $(ELSA)/cc_ast_aux.o \
+  $(ELSA)/lookupset.o \
+  $(ELSA)/ccparse.o
+
+-include $(CCPARSE_OBJS:.o=.d) main_or.d
+
+
+# parser binary
+TOCLEAN += ccparse_or
+ccparse_or: $(CCPARSE_OBJS) main_or.o $(libraries)
+	$(CXX) -o $@ $(CCPARSE_OBJS) main_or.o $(LDFLAGS) $(OCLIBS)
+
+
+TOCLEAN += quickreflectiontest
+quickreflectiontest: ccparse_or
+	./ccparse_or $(ELSA)/in/t0001.cc
+	touch quickreflectiontest
+	@echo BUILD FINISHED
+
+
+#############################################################################
+#####
+##### Misc
+#####
+#############################################################################
+
+# delete regrtest files too
+TOCLEAN += ccparse multitest.pl five-errors idemcheck chop_out
+TOCLEAN += config.summary
 
 clean:
+	rm -f core
 	rm -f $(TOCLEAN)
+	find -L . -name \*.oast -exec rm {} \;
+	find -L . -name \*.oast.dot -exec rm {} \;
+	find -L . -name \*.oast.ps -exec rm {} \;

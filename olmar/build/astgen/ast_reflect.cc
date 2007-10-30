@@ -9,7 +9,7 @@
 #include "ast_reflect.h"
 
 
-void reflect_into_ocaml(char ** argv, string ofile, ASTSpecFile const * ast){
+void reflect_into_ocaml(char ** argv, string ofile, ASTSpecFile * ast){
   CAMLparam0();
   CAMLlocal2(ocaml_ast, of);
 
@@ -23,10 +23,7 @@ void reflect_into_ocaml(char ** argv, string ofile, ASTSpecFile const * ast){
   xassert(register_closure);
   caml_callback(*register_closure, Val_unit);
   
-  Ocaml_reflection_data ocaml_data;
-
-  ocaml_ast = ocaml_reflect_ASTSpecFile(ast, &ocaml_data);
-  xassert(ocaml_data.stack.size() == 0);
+  ocaml_ast = ocaml_reflect_ASTSpecFile(ast);
 
   static value * marshal_callback = NULL;
   if(marshal_callback == NULL)
@@ -45,7 +42,7 @@ void reflect_into_ocaml(char ** argv, string ofile, ASTSpecFile const * ast){
 
 
 // hand written ocaml serialization function
-value ocaml_reflect_FieldFlags(FieldFlags const * f, Ocaml_reflection_data *d){
+value ocaml_reflect_FieldFlags(FieldFlags const * f){
   CAMLparam0();
   CAMLlocal2(camlf, result);
 
@@ -65,7 +62,7 @@ value ocaml_reflect_FieldFlags(FieldFlags const * f, Ocaml_reflection_data *d){
 
 
 // hand written ocaml serialization function
-value ocaml_reflect_AccessCtl(AccessCtl const * id, Ocaml_reflection_data *d) {
+value ocaml_reflect_AccessCtl(AccessCtl const * id) {
   // don't allocate here, so don't need the CAMLparam stuff
 
   static value * create_AC_PUBLIC_constructor_closure = NULL;

@@ -21,7 +21,12 @@ extern "C" {
 #include "str.h"	    // string
 
 
-// --------------------- ocaml value test macros  ---------------------------
+//***************************************************************************
+//***************************************************************************
+//*********         ocaml value test macros                   ***************
+//***************************************************************************
+//***************************************************************************
+
 
 // returns true on the values that we expect back from ocaml:
 // namly on plain structured data blocks
@@ -31,35 +36,50 @@ extern "C" {
 		      (x) != Infix_tag  && (x) != Object_tag && \
 		      (x) != Closure_tag && (x) != Lazy_tag)
 
-
-// --------------------- other ocaml helpers  -------------------------------
-
-const value Val_None = Val_int(0);
-
-
-// --------------------- shared values --------------------------------------
-
-value find_ocaml_shared_node_value(void const *);
-value find_ocaml_shared_list_value(void const *);
-void register_ocaml_shared_node_value(void const *, value);
-void register_ocaml_shared_list_value(void const *, value);
+// returns true on int32 objects (among other custom blocks)
+#define IS_OCAML_INT32(x) (Is_block(x) && Tag_hd(Hd_val(x)) == Custom_tag)
+// returns true on string objects
+#define IS_OCAML_STRING(x) (Is_block(x) && Tag_hd(Hd_val(x)) == String_tag)
+// returns true on float objects
+#define IS_OCAML_FLOAT(x) (Is_block(x) && Tag_hd(Hd_val(x)) == Double_tag)
 
 
-// --------------------- Ocaml_reflection_data ------------------------------
+//***************************************************************************
+//***************************************************************************
+//*********                  misc stuff                       ***************
+//***************************************************************************
+//***************************************************************************
 
-class Ocaml_reflection_data {
-public:
-  SObjSet<const void*> stack;		// used to detect cycles in the ast
 
-  Ocaml_reflection_data() : stack() {};
+value const Val_None = Val_int(0);
+int const Tag_some = 0;
 
-  // destructor checks if the stack is empty
-  ~Ocaml_reflection_data();
-};
+
+//***************************************************************************
+//***************************************************************************
+//*********              shared values                        ***************
+//***************************************************************************
+//***************************************************************************
+
+
+value find_ocaml_shared_value(void const *, unsigned);
+void register_ocaml_shared_value(void const *, value, unsigned);
+
+
+//***************************************************************************
+//***************************************************************************
+//*********  hand written serialization/reflection functions  ***************
+//***************************************************************************
+//***************************************************************************
+
 
 // hand written ocaml serialization function
 inline
-value ocaml_reflect_cstring(char const * s, Ocaml_reflection_data *d){
+value ocaml_reflect_cstring(char const * s){
+  /* 
+   * if(!s && s[0])
+   *   xassert(false);    
+   */
   xassert(s);
   return(caml_copy_string(s));
 }
@@ -67,24 +87,24 @@ value ocaml_reflect_cstring(char const * s, Ocaml_reflection_data *d){
 
 // hand written ocaml serialization function
 inline
-value ocaml_reflect_string(string const * s, Ocaml_reflection_data *d){
-  return(ocaml_reflect_cstring(s->c_str(), d));
+value ocaml_reflect_string(string const * s){
+  return(ocaml_reflect_cstring(s->c_str()));
 }
 
 
 // hand written ocaml serialization function
 inline
-value ocaml_from_int(const int &i, Ocaml_reflection_data *d){
+value ocaml_reflect_int(const int *i){
   // don't allocate
-  /* 
-   * if(!(i <= Max_long && Min_long <= i))
-   *   xassert(false);
-   */
-  xassert(i <= Max_long && Min_long <= i);
-  return(Val_int(i));
+  if(!(*i <= Max_long && Min_long <= *i))
+    xassert(false);
+  xassert(*i <= Max_long && Min_long <= *i);
+  return(Val_int(*i));
 }
 
+// hand written ocaml serialization function
+value ocaml_ast_annotation(const void *);
+value make_reference(value elem);
 
-value ocaml_ast_annotation(const void *, Ocaml_reflection_data *);
 
 #endif // OCAML_REFLECTION_BASE

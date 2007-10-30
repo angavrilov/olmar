@@ -21,18 +21,37 @@ let rec uplinks_field oc indent field_val field_type =
   let fpf format = fprintf oc format
   in match field_type with
     | AT_base _ -> assert false
-    | AT_list(_, inner, _) ->
+    | AT_list(kind, inner, _) ->
 	fpf "%sList.iter\n" indent;
 	fpf "%s  (fun x ->\n" indent;
-	uplinks_field oc (indent ^ "    ") "x" inner;
+	uplinks_field oc (indent ^ "     ") "x" inner;
 	fpf "%s  )\n" indent;
-	fpf "%s(List.rev %s);\n" indent field_val
-
+	(match kind with
+	   | LK_ast_list
+	   | LK_fake_list
+	   | LK_obj_list
+	   | LK_sobj_list
+	   | LK_sobj_set
+	   | LK_string_obj_dict ->
+	       fpf "%s  (List.rev %s);\n" indent field_val
+	   | LK_string_ref_map ->
+	       fpf "%s  (list_of_hashed_values %s);\n" indent field_val
+	)
     | AT_node cl -> 
 	fpf "%sadd_link up down myindex (%s %s);\n"
 	  indent
 	  (annotation_access_fun cl)
 	  field_val
+
+    | AT_option(inner, _) ->
+	fpf "%soption_iter\n" indent;
+	fpf "%s  (fun x ->\n" indent;
+	uplinks_field oc (indent ^ "     ") "x" inner;
+	fpf "%s  )\n" indent;
+	fpf "%s  %s;\n" indent field_val
+
+    | AT_ref inner ->
+	uplinks_field oc indent (sprintf "!(%s)" field_val) inner
 
 
 let uplinks_super oc cl =
@@ -49,13 +68,15 @@ let uplinks_super oc cl =
     List.iter
       (fun f ->
 	 if not f.af_is_base_field then
-	   uplinks_field oc "      " ("x." ^ f.af_name) f.af_mod_type
+	   uplinks_field oc "      " 
+	     ("x." ^ (translated_field_name cl f))
+	     f.af_mod_type
       )
       fields;
     out "      ()\n\n"
 
 
-let uplinks_sub oc super cl =
+let uplinks_sub_variant oc super cl =
   let out = output_string oc in
   let fpf format = fprintf oc format in
   let fields = get_all_fields_flat cl in
@@ -86,10 +107,22 @@ let uplinks_sub oc super cl =
 	 )
       fields_rev;
     out "      ()\n\n"
+
+
+let uplinks_sub_rec oc super recsub =
+  let fpf format = fprintf oc format 
+  in
+    fpf "  | %s(%s _) -> assert false\n\n"
+      (superast_constructor super) 
+      (variant_name recsub)
+
+
+let uplinks_sub oc super sub =
+  if sub.ac_record 
+  then uplinks_sub_rec oc super sub
+  else uplinks_sub_variant oc super sub
+
 	
-    
-
-
 
 let implementation input ast oc = 
   let out = output_string oc in
@@ -103,6 +136,7 @@ let implementation input ast oc =
       ];
     out "\n\n";
     
+    (* make it recursive such that record variants can call it on themselves *)
     out "let ast_node_fun up down myindex = function\n";
     fpf "  | %s -> assert false\n\n" name_of_superast_no_ast;
 
@@ -116,12 +150,21 @@ let implementation input ast oc =
 	     uplinks_super oc cl
 	   end 
 	 else 
-	   List.iter 
-	     (fun sub -> 
-		fpf "  (* %d *)\n" !counter;
-		incr counter;
-		uplinks_sub oc cl sub) 
-	     cl.ac_subclasses
+	   begin
+	     List.iter 
+	       (fun sub -> 
+		  fpf "  (* %d *)\n" !counter;
+		  incr counter;
+		  uplinks_sub oc cl sub;
+	       )
+	       cl.ac_subclasses;
+	     List.iter
+	       (fun recsub -> 
+		  fpf "  (* %d *)\n" !counter;
+		  incr counter;
+		  uplinks_super oc recsub)
+	       (List.filter (fun sub -> sub.ac_record) cl.ac_subclasses)
+	   end
       )
       ast;
 

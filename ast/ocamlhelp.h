@@ -56,7 +56,10 @@ value ocaml_list_rev(value l);
 // Every user of this code must define the class ToOcamlData.
 class ToOcamlData;
 
+#ifndef OCAML_REFLECTION_BASE
+// otherwise there is a conflict when compiling olmar v2
 const value Val_None = Val_int(0);
+#endif // OCAML_REFLECTION_BASE
 
 // hand written ocaml serialization function
 value option_some_constr(value v);

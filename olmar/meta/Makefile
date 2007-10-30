@@ -9,44 +9,53 @@
 
 # use the first goal for development, for release put it in comment and use all
 
-first: stage_1 ast.type.dot ast.ast.dot
+first: stage_1 stage_2
 #first: gen_reflection
 #first: ast_reflection diff_ast_reflection
 #first: check_oast
 
+OCDIR := /usr/local/stow/ocaml-3.09-godi/lib/ocaml/std-lib
 MEMCHECK:= $(HOME)/src/memcheck
 UTIL:= ../util
 GENERAL:=  ../build/general
 ASTGEN_OR:= ../build/astgen
+ELSA_OR:= ../build/elsa
 
 # external tools
-OCAMLC   := ocamlc.opt
-OCAMLOPT := ocamlopt.opt
-OCAMLCC  := ocamlopt.opt
+OCC   := ocamlc.opt
+OCOPT := ocamlopt.opt
+OCCC  := ocamlopt.opt
 CAMLP4O  := camlp4o
 
-OCAML_OBJ_EXT := cmx
-OCAML_LIB_EXT := cmxa
-OCAML_FLAGS := -w Ae
-OCAML_BYTE_FLAGS := -g
-OCAMLDEPOPTS := -native
+OC_OBJ_EXT := cmx
+OC_LIB_EXT := cmxa
+OC_COMP_FLAGS := -w Ae
+OC_INC_FLAGS := -I $(UTIL) -I $(GENERAL) -I $(ASTGEN_OR) -I $(ELSA_OR)
+OC_FLAGS := $(OC_COMP_FLAGS) $(OC_INC_FLAGS)
+OC_BYTE_FLAGS := -g
+OCDEPOPTS := -native
 
-OCAMLDEBUG=0
-ifeq ($(OCAMLDEBUG),1)
-  OCAMLOPT := $(OCAMLC) -g
-  OCAMLCC  := $(OCAMLC) -g
-  OCAMLC   := $(OCAMLC) -g
-  OCAML_OBJ_EXT := cmo
-  OCAML_LIB_EXT := cma
-  OCAMLDEPOPTS :=
+OCDEBUG=0
+ifeq ($(OCDEBUG),1)
+  OCOPT := $(OCC) -g
+  OCCC  := $(OCC) -g
+  OCC   := $(OCC) -g
+  OC_OBJ_EXT := cmo
+  OC_LIB_EXT := cma
+  OCDEPOPTS :=
 endif
 
+STAGE1_PROGRAMMS := ast_type_graph gen_reflection gen_superast \
+		gen_accessors gen_uplinks gen_graph 
+
 .PHONY: stage_1
-stage_1: check_oast ast_type_graph gen_reflection gen_superast gen_accessors \
-		gen_uplinks gen_graph 
+stage1: stage_1
+stage_1: $(STAGE1_PROGRAMMS)
 	$(MAKE) -C generated_ast all
 
-stage_2:
+stage2: stage_2
+stage_2: check_oast $(STAGE1_PROGRAMMS)
+	$(MAKE) -C generated_elsa all
 
 
 # list of files to clean in 'clean' (etc.) targets
@@ -62,46 +71,6 @@ TODISTCLEAN =
 # # reconfigure if the configure script has changed
 # config.status: configure.pl $(SMBASE)/sm_config.pm
 # 	./config.status -reconfigure
-
-
-############################################################################
-#### check_oast
-#### 
-
-CHECKTREE_ML=\
-	$(MEMCHECK)/memcheck.ml \
-	$(GENERAL)/astgen_general.$(OCAML_LIB_EXT) \
-	$(ASTGEN_OR)/astgen_lib.$(OCAML_LIB_EXT) \
-	ast_ast_type_descr.ml \
-	check_oast.ml
-
-check_oast.cmo: check_oast.ml ast_ast_type_descr.cmo
-	$(OCAMLC) $(OCAML_BYTE_FLAGS) $(OCAML_FLAGS) \
-		-I $(MEMCHECK) -I $(GENERAL) -I $(ASTGEN_OR) -c $<
-
-check_oast.cmx: check_oast.ml ast_ast_type_descr.cmx
-	$(OCAMLOPT) $(OCAML_FLAGS) \
-		-I $(MEMCHECK) -I $(GENERAL) -I $(ASTGEN_OR) -c $<
-
-TOCLEAN += check_oast
-check_oast: $(CHECKTREE_ML:.ml=.$(OCAML_OBJ_EXT))
-	$(OCAMLCC) $(OCAML_FLAGS) -o $@ -I $(MEMCHECK) -I $(GENERAL) \
-		-I $(ASTGEN_OR) unix.$(OCAML_LIB_EXT) $^
-
-TOCLEAN += check_oast_byte
-check_oast_byte: $(CHECKTREE_ML:.ml=.cmo)
-	$(OCAMLC) $(OCAML_BYTE_FLAGS) $(OCAML_FLAGS) -o $@ \
-		-I $(MEMCHECK) -I $(GENERAL) -I $(ASTGEN_OR) unix.cma $^
-
-
-$(MEMCHECK)/generate_type_descr.cmo:
-	$(MAKE) -C $(MEMCHECK) all
-
-$(MEMCHECK)/memcheck.cmo:
-	$(MAKE) -C $(MEMCHECK) all
-
-$(MEMCHECK)/memcheck.cmx:
-	$(MAKE) -C $(MEMCHECK) all
 
 
 ############################################################################
@@ -126,37 +95,75 @@ ast_ast_type_descr.ml: $(AST_AST_TYPE_DEF) $(AST_AST_TYPE_DESCR) Makefile
 	done
 
 ast_ast_type_descr.cmo: ast_ast_type_descr.ml $(MEMCHECK)/memcheck.cmi
-	$(OCAMLC) $(OCAML_BYTE_FLAGS) $(OCAML_FLAGS) -I $(MEMCHECK) -c $<
+	$(OCC) $(OC_BYTE_FLAGS) $(OC_FLAGS) -I $(MEMCHECK) -c $<
 
 ast_ast_type_descr.cmx: ast_ast_type_descr.ml $(MEMCHECK)/memcheck.cmx
-	$(OCAMLOPT) $(OCAML_FLAGS) -I $(MEMCHECK) -c $<
+	$(OCOPT) $(OC_FLAGS) -I $(MEMCHECK) -c $<
 
 
 #### for elsa asts
 
-## ELSA_AST_TYPE_DEF=\
-## 	/usr/local/lib/ocaml/hashtbl.ml \
-## 	$(ELSA)/cc_ml_types.ml \
-## 	$(ELSA)/ml_ctype.ml \
-## 	$(AST)/ast_annotation.ml \
-## 	$(ELSA)/cc_ast_gen_type.ml
-## 
-## ELSA_AST_TYPE_DESCR=\
-## 	ast_type_descr_header.ml\
-## 	$(MEMCHECK)/generate_type_descr.cmo
-## 
-## TOCLEAN += elsa_ast_type_descr.ml
-## elsa_ast_type_descr.ml: $(ELSA_AST_TYPE_DEF) $(ELSA_AST_TYPE_DESCR) Makefile
-## 	cat ast_type_descr_header.ml > $@
-## 	for f in $(ELSA_AST_TYPE_DEF) ; do \
-## 		$(CAMLP4O) $(MEMCHECK)/generate_type_descr.cmo $$f >> $@; \
-## 	done
-## 
-## elsa_ast_type_descr.cmo: elsa_ast_type_descr.ml $(MEMCHECK)/memcheck.cmi
-## 	$(OCAMLC) $(OCAML_BYTE_FLAGS) $(OCAML_FLAGS) -I $(MEMCHECK) -c $<
-## 
-## elsa_ast_type_descr.cmx: elsa_ast_type_descr.ml $(MEMCHECK)/memcheck.cmx
-## 	$(OCAMLOPT) $(OCAML_FLAGS) -I $(MEMCHECK) -c $<
+
+ELSA_AST_TYPE_DEF=\
+	$(OCDIR)/hashtbl.ml \
+	$(ELSA_OR)/elsa_ml_base_types.ml \
+	$(ELSA_OR)/elsa_ml_flag_types.ml \
+	$(ELSA_OR)/elsa_reflect_type.ml
+
+ELSA_AST_TYPE_DESCR=\
+	elsa_type_descr_header.ml\
+	$(MEMCHECK)/generate_type_descr.cmo
+
+TOCLEAN += elsa_ast_type_descr.ml
+elsa_ast_type_descr.ml: $(ELSA_AST_TYPE_DEF) $(ELSA_AST_TYPE_DESCR) Makefile
+	cat elsa_type_descr_header.ml > $@
+	for f in $(ELSA_AST_TYPE_DEF) ; do \
+		$(CAMLP4O) $(MEMCHECK)/generate_type_descr.cmo $$f >> $@; \
+	done
+
+elsa_ast_type_descr.cmo: elsa_ast_type_descr.ml $(MEMCHECK)/memcheck.cmi
+	$(OCC) $(OC_BYTE_FLAGS) $(OC_FLAGS) -I $(MEMCHECK) -c $<
+
+elsa_ast_type_descr.cmx: elsa_ast_type_descr.ml $(MEMCHECK)/memcheck.cmx
+	$(OCOPT) $(OC_FLAGS) -I $(MEMCHECK) -c $<
+
+
+############################################################################
+#### check_oast
+#### 
+
+CHECKTREE_ML=\
+	$(MEMCHECK)/memcheck.ml \
+	$(GENERAL)/astgen_general.$(OC_LIB_EXT) \
+	$(ASTGEN_OR)/astgen_lib.$(OC_LIB_EXT) \
+	$(ELSA_OR)/elsa_lib.$(OC_LIB_EXT) \
+	ast_ast_type_descr.ml \
+	elsa_ast_type_descr.ml \
+	check_oast.ml
+
+check_oast.cmo: check_oast.ml ast_ast_type_descr.cmo
+	$(OCC) $(OC_BYTE_FLAGS) $(OC_FLAGS) -I $(MEMCHECK) -c $<
+
+check_oast.cmx: check_oast.ml ast_ast_type_descr.cmx
+	$(OCOPT) $(OC_FLAGS) -I $(MEMCHECK) -c $<
+
+TOCLEAN += check_oast
+check_oast: $(CHECKTREE_ML:.ml=.$(OC_OBJ_EXT))
+	$(OCCC) $(OC_FLAGS) -o $@ -I $(MEMCHECK) unix.$(OC_LIB_EXT) $^
+
+TOCLEAN += check_oast_byte
+check_oast_byte: $(CHECKTREE_ML:.ml=.cmo)
+	$(OCC) $(OC_BYTE_FLAGS) $(OC_FLAGS) -o $@ -I $(MEMCHECK) unix.cma $^
+
+
+$(MEMCHECK)/generate_type_descr.cmo:
+	$(MAKE) -C $(MEMCHECK) all
+
+$(MEMCHECK)/memcheck.cmo:
+	$(MAKE) -C $(MEMCHECK) all
+
+$(MEMCHECK)/memcheck.cmx:
+	$(MAKE) -C $(MEMCHECK) all
 
 
 #############################################################################
@@ -165,16 +172,16 @@ ast_ast_type_descr.cmx: ast_ast_type_descr.ml $(MEMCHECK)/memcheck.cmx
 
 
 GEN_REFLECTION_ML=\
-	$(UTIL)/olmar_utils.$(OCAML_LIB_EXT) \
-	$(GENERAL)/astgen_general.$(OCAML_LIB_EXT) \
-	$(ASTGEN_OR)/astgen_lib.$(OCAML_LIB_EXT) \
+	$(UTIL)/olmar_utils.$(OC_LIB_EXT) \
+	$(GENERAL)/astgen_general.$(OC_LIB_EXT) \
+	$(ASTGEN_OR)/astgen_lib.$(OC_LIB_EXT) \
 	ast_config.ml \
 	meta_ast.ml \
 	gen_reflection.ml
 
 TOCLEAN += gen_reflection
-gen_reflection: $(GEN_REFLECTION_ML:.ml=.$(OCAML_OBJ_EXT))
-	$(OCAMLCC) $(OCAML_FLAGS) -o $@ $^
+gen_reflection: $(GEN_REFLECTION_ML:.ml=.$(OC_OBJ_EXT))
+	$(OCCC) $(OC_FLAGS) -o $@ $^
 
 
 .PHONY: ast_reflection
@@ -187,7 +194,7 @@ ast_reflection: gen_reflection
 
 .PHONY: diff_ast_reflection
 diff_ast_reflection:
-	$(MAKE) -C $(ASTGEN) diff_reflection
+	$(MAKE) -C $(ASTGEN_OR) diff-reflection
 
 
 #############################################################################
@@ -195,17 +202,17 @@ diff_ast_reflection:
 ##### gen_superast
 
 GEN_SUPERAST_ML=\
-	$(UTIL)/olmar_utils.$(OCAML_LIB_EXT) \
-	$(GENERAL)/astgen_general.$(OCAML_LIB_EXT) \
-	$(ASTGEN_OR)/astgen_lib.$(OCAML_LIB_EXT) \
+	$(UTIL)/olmar_utils.$(OC_LIB_EXT) \
+	$(GENERAL)/astgen_general.$(OC_LIB_EXT) \
+	$(ASTGEN_OR)/astgen_lib.$(OC_LIB_EXT) \
 	ast_config.ml \
 	meta_ast.ml \
 	gen_superast.ml
 
 
 TOCLEAN += gen_superast
-gen_superast: $(GEN_SUPERAST_ML:.ml=.$(OCAML_OBJ_EXT))
-	$(OCAMLCC) $(OCAML_FLAGS) -o $@ $^
+gen_superast: $(GEN_SUPERAST_ML:.ml=.$(OC_OBJ_EXT))
+	$(OCCC) $(OC_FLAGS) -o $@ $^
 
 
 #############################################################################
@@ -213,17 +220,17 @@ gen_superast: $(GEN_SUPERAST_ML:.ml=.$(OCAML_OBJ_EXT))
 ##### gen_accessors
 
 GEN_ACCESSORS_ML=\
-	$(UTIL)/olmar_utils.$(OCAML_LIB_EXT) \
-	$(GENERAL)/astgen_general.$(OCAML_LIB_EXT) \
-	$(ASTGEN_OR)/astgen_lib.$(OCAML_LIB_EXT) \
+	$(UTIL)/olmar_utils.$(OC_LIB_EXT) \
+	$(GENERAL)/astgen_general.$(OC_LIB_EXT) \
+	$(ASTGEN_OR)/astgen_lib.$(OC_LIB_EXT) \
 	ast_config.ml \
 	meta_ast.ml \
 	gen_accessors.ml
 
 
 TOCLEAN += gen_accessors
-gen_accessors: $(GEN_ACCESSORS_ML:.ml=.$(OCAML_OBJ_EXT))
-	$(OCAMLCC) $(OCAML_FLAGS) -o $@ $^
+gen_accessors: $(GEN_ACCESSORS_ML:.ml=.$(OC_OBJ_EXT))
+	$(OCCC) $(OC_FLAGS) -o $@ $^
 
 
 #############################################################################
@@ -231,17 +238,17 @@ gen_accessors: $(GEN_ACCESSORS_ML:.ml=.$(OCAML_OBJ_EXT))
 ##### gen_uplinks
 
 GEN_UPLINKS_ML=\
-	$(UTIL)/olmar_utils.$(OCAML_LIB_EXT) \
-	$(GENERAL)/astgen_general.$(OCAML_LIB_EXT) \
-	$(ASTGEN_OR)/astgen_lib.$(OCAML_LIB_EXT) \
+	$(UTIL)/olmar_utils.$(OC_LIB_EXT) \
+	$(GENERAL)/astgen_general.$(OC_LIB_EXT) \
+	$(ASTGEN_OR)/astgen_lib.$(OC_LIB_EXT) \
 	ast_config.ml \
 	meta_ast.ml \
 	gen_uplinks.ml
 
 
 TOCLEAN += gen_uplinks
-gen_uplinks: $(GEN_UPLINKS_ML:.ml=.$(OCAML_OBJ_EXT))
-	$(OCAMLCC) $(OCAML_FLAGS) -o $@ $^
+gen_uplinks: $(GEN_UPLINKS_ML:.ml=.$(OC_OBJ_EXT))
+	$(OCCC) $(OC_FLAGS) -o $@ $^
 
 
 #############################################################################
@@ -249,17 +256,17 @@ gen_uplinks: $(GEN_UPLINKS_ML:.ml=.$(OCAML_OBJ_EXT))
 ##### gen_graph
 
 GEN_GRAPH_ML=\
-	$(UTIL)/olmar_utils.$(OCAML_LIB_EXT) \
-	$(GENERAL)/astgen_general.$(OCAML_LIB_EXT) \
-	$(ASTGEN_OR)/astgen_lib.$(OCAML_LIB_EXT) \
+	$(UTIL)/olmar_utils.$(OC_LIB_EXT) \
+	$(GENERAL)/astgen_general.$(OC_LIB_EXT) \
+	$(ASTGEN_OR)/astgen_lib.$(OC_LIB_EXT) \
 	ast_config.ml \
 	meta_ast.ml \
 	gen_graph.ml
 
 
 TOCLEAN += gen_graph
-gen_graph: $(GEN_GRAPH_ML:.ml=.$(OCAML_OBJ_EXT))
-	$(OCAMLCC) $(OCAML_FLAGS) -o $@ $^
+gen_graph: $(GEN_GRAPH_ML:.ml=.$(OC_OBJ_EXT))
+	$(OCCC) $(OC_FLAGS) -o $@ $^
 
 TOCLEAN += ast.ast.dot
 ast.ast.dot: $(ASTGEN_OR)/ast.ast.oast generated_ast/ast_graph \
@@ -272,30 +279,36 @@ ast.ast.dot: $(ASTGEN_OR)/ast.ast.oast generated_ast/ast_graph \
 #####
 ##### ast_type_graph
 
-# $(UTIL)/olmar_utils.$(OCAML_LIB_EXT) \
-# $(GENERAL)/astgen_general.$(OCAML_LIB_EXT) \
-# $(ASTGEN_OR)/astgen_lib.$(OCAML_LIB_EXT) \
+# $(UTIL)/olmar_utils.$(OC_LIB_EXT) \
+# $(GENERAL)/astgen_general.$(OC_LIB_EXT) \
+# $(ASTGEN_OR)/astgen_lib.$(OC_LIB_EXT) \
 # ast_config.ml \
 # meta_ast.ml \
 
 AST_TYPE_GRAPH_ML=\
-	$(UTIL)/olmar_utils.$(OCAML_LIB_EXT) \
-	$(GENERAL)/astgen_general.$(OCAML_LIB_EXT) \
-	$(ASTGEN_OR)/astgen_lib.$(OCAML_LIB_EXT) \
+	$(UTIL)/olmar_utils.$(OC_LIB_EXT) \
+	$(GENERAL)/astgen_general.$(OC_LIB_EXT) \
+	$(ASTGEN_OR)/astgen_lib.$(OC_LIB_EXT) \
 	ast_config.ml \
 	meta_ast.ml \
 	ast_type_graph.ml
 
 
 TOCLEAN += ast_type_graph
-ast_type_graph: $(AST_TYPE_GRAPH_ML:.ml=.$(OCAML_OBJ_EXT))
-	$(OCAMLCC) $(OCAML_FLAGS) -o $@ $^
+ast_type_graph: $(AST_TYPE_GRAPH_ML:.ml=.$(OC_OBJ_EXT))
+	$(OCCC) $(OC_FLAGS) -o $@ $^
 
 TOCLEAN += ast.type.dot
 ast.type.dot: $(ASTGEN_OR)/ast.ast.oast ast_type_graph \
 		ast_reflection_control.txt
 	./ast_type_graph -tr ast_reflection_control.txt \
 		-o ast.type.dot $(ASTGEN_OR)/ast.ast.oast 
+
+TOCLEAN += elsa.type.dot
+elsa.type.dot: ast_type_graph $(ELSA_OR)/elsa.ast.oast \
+		$(ELSA_OR)/elsa_reflection_control.txt
+	./ast_type_graph -tr $(ELSA_OR)/elsa_reflection_control.txt \
+		-o elsa.type.dot $(ELSA_OR)/elsa.ast.oast
 
 
 ############################################################################
@@ -306,6 +319,7 @@ ast.type.dot: $(ASTGEN_OR)/ast.ast.oast ast_type_graph \
 clean:
 	rm -f $(TOCLEAN)
 	$(MAKE) -C generated_ast clean
+	$(MAKE) -C generated_elsa clean
 
 .PHONY: distclean
 distclean: clean
@@ -315,17 +329,15 @@ distclean: clean
 
 TOCLEAN += *.cmo *.cmxa *.cma *.a
 %.cmo: %.ml
-	$(OCAMLC) $(OCAML_BYTE_FLAGS) $(OCAML_FLAGS) -I $(UTIL) -I $(GENERAL) \
-		-I $(ASTGEN_OR) -c $<
+	$(OCC) $(OC_BYTE_FLAGS) $(OC_FLAGS) -c $<
 
 TOCLEAN += *.cmx *.o
 %.cmx: %.ml
-	$(OCAMLOPT) $(OCAML_FLAGS) -I $(UTIL) -I $(GENERAL) -I $(ASTGEN_OR) \
-		-c $<
+	$(OCOPT) $(OC_FLAGS) -c $<
 
 TOCLEAN += *.cmi
 %.cmi: %.mli
-	$(OCAMLC) $(OCAML_FLAGS) -I $(UTIL) -I $(GENERAL) -I $(ASTGEN_OR) -c $<
+	$(OCC) $(OC_FLAGS) -c $<
 
 
 -include mldeps.mk
@@ -333,5 +345,4 @@ TOCLEAN += *.cmi
 .PHONY: mldeps
 depend: mldeps
 mldeps:
-	ocamldep $(OCAMLDEPOPTS) -I $(UTIL) -I $(GENERAL) -I $(ASTGEN_OR) \
-		*ml *mli > mldeps.mk
+	ocamldep $(OCDEPOPTS) $(OC_INC_FLAGS) *ml *mli > mldeps.mk

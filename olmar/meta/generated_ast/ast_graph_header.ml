@@ -37,6 +37,13 @@ end
 
 module G = Dot_graph.Make(Node_id)
 
+let make_node id labels attributes childs =
+  let res = G.make_node id labels attributes childs 
+  in
+    incr nodes_counter;
+    edge_counter := !edge_counter + List.length childs;
+    res
+
 
 type 'a ast_array =
   | Ast_oast of 'a

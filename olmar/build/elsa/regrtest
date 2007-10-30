@@ -1,0 +1,15 @@
+#!/bin/bash
+
+rm -rf ./ccparse
+ln ./ccparse_or ./ccparse
+
+# Add these names here to TOCLEAN at the end of the Makefile!!
+linkfiles="multitest.pl five-errors idemcheck chop_out config.summary"
+
+#set -x
+rm -f $linkfiles
+for f in $linkfiles ; do
+    ln ../../../elsa/$f .
+done
+
+../../../elsa/regrtest $*

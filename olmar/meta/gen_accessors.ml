@@ -28,13 +28,25 @@ let variant_annot oc cl =
     fpf "let %s = function\n" (annotation_access_fun cl);
     List.iter
       (fun sub ->
-	 fpf "  | %s(annot" (variant_name sub);
-	 List.iter
-	   (List.iter (fun _ -> out ", _"))
-	   (get_all_fields sub);
-	 out ")\n")
+	 if sub.ac_record then
+	   begin
+	     fpf "  | %s x -> x.%s\n" 
+	       (variant_name sub)
+	       (annotation_field_name sub)
+	   end
+	 else
+	   begin
+	     fpf "  | %s(annot" (variant_name sub);
+	     List.iter
+	       (List.iter (fun _ -> out ", _"))
+	       (get_all_fields sub);
+	     out ") -> annot\n"
+	   end)
       cl.ac_subclasses;
-    out "    -> annot\n\n"
+    out "\n\n";
+    List.iter
+      (fun recsub -> record_annot oc recsub)
+      (List.filter (fun sub -> sub.ac_record) cl.ac_subclasses)
 	      
 
 let do_annot oc ast =
@@ -79,7 +91,7 @@ let variant_source_loc oc cl =
 	 match field_opt with
 	   | None -> assert false
 	   | Some source_loc_field ->
-	       fpf "  | %s(%s) -> loc\n"
+	       fpf "  | %s(_, %s) -> loc\n"
 		 (variant_name sub)
 		 (String.concat ", "
 		    (List.map

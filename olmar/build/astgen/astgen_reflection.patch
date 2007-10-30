@@ -1,5 +1,5 @@
---- ../../../ast/astgen.cc	2007-08-28 21:38:50.000000000 +0200
-+++ astgen_or.cc	2007-08-28 21:59:31.000000000 +0200
+--- ../../../ast/astgen.cc	2006-11-08 13:44:42.000000000 +0100
++++ astgen_or.cc	2007-10-18 21:26:17.000000000 +0200
 @@ -12,20 +12,24 @@
  #include "srcloc.h"        // SourceLocManager
  #include "strtokp.h"       // StrtokParse
@@ -12,7 +12,7 @@
  #include <ctype.h>         // isalnum
  
 +
-+void reflect_into_ocaml(char ** argv, string base, ASTSpecFile const * ast);
++void reflect_into_ocaml(char ** argv, string base, ASTSpecFile * ast);
 +
 +
  // propertly a member of ListClass below, but I don't like nested

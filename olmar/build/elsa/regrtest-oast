@@ -1,0 +1,58 @@
+#!/bin/bash
+
+
+# regression test  (need to run regrtest -ocaml in ../elsa before)
+#
+# runs check-oast on all ast files found (check their internal consistency)
+# (check-oast requires ocaml with the SafeUnmarshal library, see check-oast.ml)
+#
+# currently the SafeUnmarshal consitency check works only on small files
+# (it takes more than 2 hours to input a 4.7MB of marshaled ast on my machine)
+# you might kill this if it gets to slow
+
+trap "echo Interupted; exit 1" SIGINT
+
+# load variable ast-files
+. regrtest-ast-files
+
+
+function usage(){
+    echo "usage: regrtest-oast [-skip <n>]"
+    exit 1
+}
+
+skip=0
+typeset -i count=0
+
+#echo args: $#
+
+while [ $# -ge 1 ] ; do
+    case $1 in
+	-skip)	
+	    if [ $# -lt 2 ] ; then
+		usage
+	    fi
+	    skip=$2
+	    shift;;
+	*)  usage;;
+    esac
+    shift
+done
+
+for f in $ast_files ; do
+    if [ $skip -gt $count ]; then
+	echo "[$count] skip $f"
+    else
+	echo "[$count] test $f "
+	size=$(ls -l $f | awk '{print $5;}')
+	TIMEFORMAT="user time %U s size $size"
+	time ../../meta/check_oast $f
+	result=$?
+	if [ ! $result -eq 0 ] ; then
+	    echo check_oast exit $result on $f >&2
+	    exit $result
+	fi
+    fi
+    count=$count+1
+done
+

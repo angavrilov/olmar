@@ -1,0 +1,27 @@
+#!/bin/bash
+
+# regression test  (need to run regrtest before)
+#
+
+
+trap "echo Interupted; exit 1" SIGINT
+
+# load variable ast-files
+. regrtest-ast-files
+
+function usage(){
+    echo "usage: regtest-files"
+    exit 1
+}
+
+find -H ./in -name \*.oast -print | sort > output-find 2>&1
+echo $ast_files | tr ' ' '\n' | sort > output-var
+
+diff output-find output-var
+result=$?
+if [ $result -eq 0 ] ; then
+    echo test passed
+    rm -f output-find output-var
+else
+    echo test failed
+fi

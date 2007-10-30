@@ -24,7 +24,14 @@ let superast_type_decl ast oc =
       (fun cl ->
 	 fpf "  | %s of 'a %s\n"
 	   (superast_constructor cl)
-	   (node_ml_type_name cl))
+	   (node_ml_type_name cl);
+	 List.iter 
+	   (fun recsub -> 
+	      fpf "  | %s of 'a %s\n"
+		(superast_constructor recsub)
+		(node_ml_type_name recsub))
+	   (List.filter (fun sub -> sub.ac_record) cl.ac_subclasses)
+      )
       ast;
     fpf "  | %s\n" name_of_superast_no_ast
 
@@ -57,7 +64,7 @@ let interface input ast oc =
 let into_array_fun_name cl =
   let cl = match cl.ac_super with
     | None -> cl
-    | Some super -> super
+    | Some super -> if cl.ac_record then cl else super
   in 
     (node_ml_type_name cl) ^ "_into_array"
 
@@ -75,6 +82,10 @@ let into_array_header first oc cl =
 
 let rec into_array_fun oc = function
   | AT_base _ -> assert false;
+  | AT_list(LK_string_ref_map, inner, _) ->
+      output_string oc "Hashtbl.iter (fun (_ : string) -> (";
+      into_array_fun oc inner;
+      output_string oc "))"
   | AT_list(_, inner, _) ->
       output_string oc "List.iter (";
       into_array_fun oc inner;
@@ -82,6 +93,11 @@ let rec into_array_fun oc = function
   | AT_node cl -> 
       output_string oc (into_array_fun_name cl);
       output_string oc " ast_array order_fun visited_nodes"
+  | AT_option(inner, _) ->
+      output_string oc "option_iter (";
+      into_array_fun oc inner;
+      output_string oc ")"
+  | AT_ref _ -> assert false 		(* ref only outermost *)
 
 
 let into_array_rec_field oc field indent name =
@@ -89,69 +105,108 @@ let into_array_rec_field oc field indent name =
   let fpf format = fprintf oc format 
   in
     out indent;
-    into_array_fun oc field.af_mod_type;
+    into_array_fun oc (unref_type field.af_mod_type);
     out " ";
-    fpf "%s;\n" name
+    if is_ref_type field.af_mod_type 
+    then fpf "!(%s);\n" name
+    else fpf "%s;\n" name
       
 
 let record_into_array first oc cl =
   let out = output_string oc in
-  let fpf format = fprintf oc format 
+  let fpf format = fprintf oc format in
+  let fields = get_all_fields_flat cl
   in
     into_array_header first oc cl;
     fpf "  let annot = x.%s\n" (annotation_field_name cl);
     out "  in\n";
     out "    if visited visited_nodes annot then ()\n";
     out "    else begin\n";
+
+    List.iter
+      (fun field ->
+	 if field_has_assertion cl field
+	 then
+	   List.iter
+	     (fun assertion -> 
+		out assertion;
+		out ";\n")
+	     (generate_field_assertion "      " 
+		("x." ^ (translated_field_name cl field)) cl field))
+      fields;
+
     fpf "      ast_array.(id_annotation annot) <- %s x;\n"
       (superast_constructor cl);
     out "      visit visited_nodes annot;\n";
     out "      order_fun (id_annotation annot);\n\n";
 
     List.iter
-      (List.iter
-	 (fun field ->
-	    if not field.af_is_base_field
-	    then
-	      into_array_rec_field oc field "      " ("x." ^ field.af_name)))
-      (get_all_fields cl);
+      (fun field ->
+	 if not field.af_is_base_field
+	 then
+	   into_array_rec_field oc field "      "
+	     ("x." ^ (translated_field_name cl field)))
+      fields;
 
     out "    end\n\n\n"
 
-let variant_case_into_array oc cl =
+let variant_case_variant_into_array oc super cl =
   let out = output_string oc in
   let fpf format = fprintf oc format in
   let fields = get_all_fields_flat cl in
-  let field_counter = ref 1 
+  let field_names =
+    List.map2
+      (fun field name ->
+	 if field.af_is_base_field && (not (field_has_assertion cl field))
+	 then "_"
+	 else name)
+      fields
+      (generate_names "a" (List.length fields))
   in
-    if List.for_all (fun f -> f.af_is_base_field) fields
-    then
-      fpf "         | %s _ -> ()\n\n" (variant_name cl)
-    else 
-      begin
-	fpf "         | %s(_" (variant_name cl);
-	List.iter 
-	  (fun f -> 
-	     if f.af_is_base_field 
-	     then 
-	       out ", _"
-	     else
-	       fpf ", a%d" !field_counter;
-	     incr field_counter)
-	  fields;
-	out ") ->\n";
-	field_counter := 1;
-	List.iter
-	  (fun f ->
-	     if not f.af_is_base_field
-	     then
-	       into_array_rec_field oc f "             " 
-		 (sprintf "a%d" !field_counter);
-	     incr field_counter)
-	  fields;
-	out "\n"
-      end
-      
+    fpf "         | %s(%s) ->\n" 
+      (variant_name cl)
+      (String.concat ", " ("_" :: field_names));
+
+    List.iter2
+      (fun field name ->
+	 if field_has_assertion cl field
+	 then
+	   List.iter
+	     (fun assertion -> 
+		out assertion;
+		out ";\n")
+	     (generate_field_assertion "             " name cl field))
+      fields field_names;
+
+
+    fpf "             ast_array.(id_annotation annot) <- %s x;\n"
+      (superast_constructor super);
+    out "             visit visited_nodes annot;\n";
+    out "             order_fun (id_annotation annot);\n";
+    List.iter2
+      (fun f name ->
+	 if not f.af_is_base_field
+	 then
+	   into_array_rec_field oc f "             " name)
+      fields field_names;
+    out "\n"
+
+
+let variant_case_record_into_array oc recsub =
+  let out = output_string oc in
+  let fpf format = fprintf oc format 
+  in
+    fpf "         | %s x ->\n" (variant_name recsub);
+    out "             ";
+    into_array_fun oc (AT_node recsub);
+    out " x\n\n"
+  
+
+let variant_case_into_array oc super sub =
+  if sub.ac_record 
+  then variant_case_record_into_array oc sub
+  else variant_case_variant_into_array oc super sub
+
 
 let variant_into_array first oc cl =
   let out = output_string oc in
@@ -162,16 +217,16 @@ let variant_into_array first oc cl =
     out "  in\n";
     out "    if visited visited_nodes annot then ()\n";
     out "    else begin\n";
-    fpf "      ast_array.(id_annotation annot) <- %s x;\n"
-      (superast_constructor cl);
-    out "      visit visited_nodes annot;\n";
-    out "      order_fun (id_annotation annot);\n";
     out "      (match x with\n";
     
-    List.iter (variant_case_into_array oc) cl.ac_subclasses;
+    List.iter (variant_case_into_array oc cl) cl.ac_subclasses;
     out "      );\n";
     out "    end\n";
-    out "\n\n"
+    out "\n\n";
+
+    List.iter
+      (fun recsub -> record_into_array first oc recsub)
+      (List.filter (fun sub -> sub.ac_record) cl.ac_subclasses)
 
 
 (******************************************************************************
@@ -182,6 +237,25 @@ let variant_into_array first oc cl =
  ******************************************************************************
  ******************************************************************************)
 
+let do_source_loc_super_case oc cl =
+  let out = output_string oc in
+  let fpf format = fprintf oc format 
+  in
+    fpf "  | %s " (superast_constructor cl);
+    if
+      if cl.ac_subclasses = []
+      then
+	get_source_loc_field cl <> None
+      else
+	List.for_all
+	  (fun sub -> get_source_loc_field sub <> None)
+	  cl.ac_subclasses
+    then
+      fpf "x -> Some(%s x)\n" (source_loc_access_fun cl)
+    else
+      out "_ -> None\n"
+
+
 let do_source_loc_accessor oc ast = 
   let out = output_string oc in
   let fpf format = fprintf oc format 
@@ -190,20 +264,10 @@ let do_source_loc_accessor oc ast =
     fpf "  | %s -> assert false\n" name_of_superast_no_ast;
     List.iter
       (fun cl ->
-	 fpf "  | %s " (superast_constructor cl);
-	 if
-	   if cl.ac_subclasses = []
-	   then
-	     get_source_loc_field cl <> None
-	   else
-	     List.for_all
-	       (fun sub -> get_source_loc_field sub <> None)
-	       cl.ac_subclasses
-	 then
-	   fpf "x -> Some(%s x)\n" (source_loc_access_fun cl)
-	 else
-	   out "_ -> None\n"
-      )
+	 do_source_loc_super_case oc cl;
+	 List.iter
+	   (fun recsub -> do_source_loc_super_case oc recsub)
+	   (List.filter (fun sub -> sub.ac_record) cl.ac_subclasses))
       ast;
     out "\n\n"
 

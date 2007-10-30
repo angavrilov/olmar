@@ -1,0 +1,28 @@
+# this is a -*- sh -*- file
+
+ast_files_1_1=$(ls ./in/t*.oast)
+ast_files_1_2=$(ls ./in/d*.oast)
+ast_files_1_3=$(ls ./in/k*.oast)
+ast_files_1_4=$(ls ./in/s*.oast)
+ast_files_1_5=$(ls ./in/u*.oast)
+ast_files_1="$ast_files_1_1 $ast_files_1_2 $ast_files_1_3 $ast_files_1_4 $ast_files_1_5"
+ast_files_2=$(ls ./in/c/t*.oast)
+ast_files_3=$(ls ./in/c/d*.oast)
+ast_files_4=$(ls ./in/c/k*.oast)
+ast_files_5=$(ls ./in/c99/*.oast)
+ast_files_6=$(ls ./in/gnu/bugs/*.oast)
+ast_files_7=$(ls ./in/gnu/cil/*.oast)
+ast_files_8_1=$(ls ./in/gnu/g*.oast)
+ast_files_8_2=$(ls ./in/gnu/a*.oast)
+ast_files_8_3=$(ls ./in/gnu/c*.oast)
+ast_files_8_4=$(ls ./in/gnu/d*.oast)
+ast_files_8_5=$(ls ./in/gnu/k*.oast)
+ast_files_8_6=$(ls ./in/gnu/t*.oast)
+ast_files_8="$ast_files_8_1 $ast_files_8_2 $ast_files_8_3 $ast_files_8_4 $ast_files_8_5 $ast_files_8_6"
+ast_files_10=$(ls ./in/kandr/*.oast)
+ast_files_11=$(ls ./in/msvc/*.oast)
+ast_files_12=$(ls ./in/std/*.oast)
+ast_files_13=$(ls ./in/big/*.oast)
+
+ast_files="$ast_files_1 $ast_files_2 $ast_files_3 $ast_files_4 $ast_files_5 $ast_files_6 $ast_files_7 $ast_files_8 $ast_files_9 $ast_files_10 $ast_files_11 $ast_files_12 $ast_files_13"
+

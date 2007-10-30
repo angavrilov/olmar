@@ -58,6 +58,7 @@ TODISTCLEAN =
 ##### gen_uplinks
 
 OLMAR_UTILS_ML=\
+	stdlib_missing.ml \
 	more_string.ml \
 	dense_set.ml \
 	dot_graph.ml

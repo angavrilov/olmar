@@ -24,7 +24,7 @@
  */
 
 
-value ocaml_reflect_ASTSpecFile(ASTSpecFile const * x, Ocaml_reflection_data * data);
+value ocaml_reflect_ASTSpecFile(ASTSpecFile * x);
 
 
 #endif // AST_REFLECT_OCAML_REFLECT_H

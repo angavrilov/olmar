@@ -84,8 +84,8 @@ let name_and_type_of_field cl f =
 let rec get_pointed_node = function
   | AT_base _ -> assert false
   | AT_node n -> n
-  | AT_ref inner 
-  | AT_option inner
+  | AT_option(inner, _)
+  | AT_ref inner
   | AT_list(_, inner, _) 
     -> get_pointed_node inner
 

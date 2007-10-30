@@ -1,3 +1,5 @@
+*.d
 cc.ast
+cc_tcheck.ast
 elsa.ast.oast
 elsa.type.dot

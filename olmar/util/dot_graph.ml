@@ -172,7 +172,13 @@ module Make(Node_id : Node_id) = struct
   let check_for_complete_graph () =
     if Hashtbl.length unresolved_parents <> 0
     then 
-      raise Graph_incomplete
+      begin
+	Hashtbl.iter 
+	  (fun id _parents -> 
+	     Printf.eprintf "node %s missing\n" (string_of_t id))
+	  unresolved_parents;
+	raise Graph_incomplete
+      end
 
 
   let get_root_nodes () =

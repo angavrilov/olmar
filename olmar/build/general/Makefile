@@ -3,33 +3,44 @@
 
 # set to ``cmo'' for ocaml bytecode compilation
 # and to ``cmx'' for native compilation
-OCAML_LIB_EXT := cmxa
-
-# main targets
-stage_1: ocaml_reflection_base.o astgen_general.$(OCAML_LIB_EXT)
-
-stage_2:
-
+OC_LIB_EXT := cmxa
 
 # directories of other software
 SMBASE := ../../../smbase
 LIBSMBASE := $(SMBASE)/libsmbase.a
-OCAMLDIR := /usr/local/stow/ocaml-3.09-godi/lib/ocaml/std-lib
+OCDIR := /usr/local/stow/ocaml-3.09-godi/lib/ocaml/std-lib
 
 
 # external tools
-OCAMLC   := ocamlc.opt
-OCAMLOPT := ocamlopt.opt
+OCC   := ocamlc.opt
+OCOPT := ocamlopt.opt
 
 # C++ compiler, etc.
 CXX := ccache g++-4.1
 
 # set to -native for native and empty for bytecode
-OCAMLDEPOPTS := -native
+OCDEPOPTS := -native
+
+OCDEBUG=0
+ifeq ($(OCDEBUG),1)
+  OCOPT := $(OCC) -g
+  OCCC  := $(OCC) -g
+  OCC   := $(OCC) -g
+  OC_OBJ_EXT := cmo
+  OC_LIB_EXT := cma
+  OCDEPOPTS :=
+endif
+
+
+# main targets
+stage_1: ocaml_reflection_base.o astgen_general.$(OC_LIB_EXT)
+
+stage_2:
+
 
 # flags for the C and C++ compilers (and preprocessor)
 CCFLAGS := -g -Wall -Wno-deprecated -D__UNIX__ -DNDEBUG -D__LINUX__ \
-		-I$(SMBASE) -I $(OCAMLDIR)
+		-I$(SMBASE) -I $(OCDIR)
 
 # list of files to clean in 'clean' (etc.) targets
 # (these get added to below)
@@ -47,13 +58,13 @@ TOCLEAN =
 
 TOCLEAN += *.cmo *.cmi *.cmx *.cmxa *.cma *.o *.a
 %.cmi: %.mli
-	$(OCAMLC) -c $<
+	$(OCC) -c $<
 
 %.cmo: %.ml
-	$(OCAMLC) -c $<
+	$(OCC) -c $<
 
 %.cmx: %.ml
-	$(OCAMLOPT) -c $<
+	$(OCOPT) -c $<
 
 # remake the generated Makefile if its inputs have changed
 #Makefile: Makefile.in config.status
@@ -71,10 +82,10 @@ ASTGENLIB_ML=\
 	ast_annotation.ml
 
 astgen_general.cma: $(ASTGENLIB_ML:.ml=.cmo)
-	$(OCAMLC) -a -o $@ $^
+	$(OCC) -a -o $@ $^
 
 astgen_general.cmxa: $(ASTGENLIB_ML:.ml=.cmx)
-	$(OCAMLOPT) -a -o $@ $^
+	$(OCOPT) -a -o $@ $^
 
 
 -include mldeps.mk
@@ -82,7 +93,7 @@ astgen_general.cmxa: $(ASTGENLIB_ML:.ml=.cmx)
 .PHONY: mldeps
 depend: mldeps
 mldeps:
-	ocamldep $(OCAMLDEPOPTS) $(ASTGENLIB_ML) > mldeps.mk
+	ocamldep $(OCDEPOPTS) $(ASTGENLIB_ML) > mldeps.mk
 
 # ------------------------ misc ---------------------
 

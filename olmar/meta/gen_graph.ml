@@ -11,14 +11,20 @@ open Meta_ast
 (******************************************************************************
  ******************************************************************************
  *
- * uplinks ml
+ * ??
  *
  ******************************************************************************
  ******************************************************************************)
 
+let add_string_quotes s = sprintf "\"%s\"" s
+
+
+(* Generate the code to convert any base type into a string.
+ * Used to generate the labels.
+ *)
 let rec get_string_of_type oc id = function
   | AT_base base_type -> 
-      if base_type = "string" 
+      if base_type = "string" or base_type = "StringRef"
       then 
 	fprintf oc "(truncate_string %s)" id
       else
@@ -28,17 +34,39 @@ let rec get_string_of_type oc id = function
       output_string oc "(string_of_list (List.map (fun x -> ";
       get_string_of_type oc "x" inner;
       fprintf oc ") %s))" id
+  | AT_option(inner, _) ->
+      output_string oc "(string_of_option (fun x -> ";
+      get_string_of_type oc "x" inner;
+      fprintf oc ") %s)" id
+  | AT_ref inner ->
+      get_string_of_type oc (sprintf "!(%s)" id) inner
 
+
+(* Generate the code for accessing the annotation(s) of the child(s)
+ * inside some field. Used for the child arrows.
+ *)
 let rec gen_id_annot oc label id top_level = function
   | AT_base _ -> assert false
   | AT_node cl -> 
       if top_level then output_string oc "[";
-      fprintf oc "(%s %s, \"%s\")" (annotation_access_fun cl) id label;
+      fprintf oc "(%s %s, %s)" (annotation_access_fun cl) id label;
       if top_level then output_string oc "]";
+  | AT_list(LK_string_ref_map, inner, _) ->
+      output_string oc "Hashtbl.fold (fun (key : string) v res -> ";
+      gen_id_annot oc 
+	(sprintf "(Printf.sprintf \"%%s[%%s]\" %s key)" label)
+	"v" false inner;
+      fprintf oc "::res) %s []" id
   | AT_list(_, inner, _) ->
       output_string oc "count_label_rev (List.map (fun x -> ";
       gen_id_annot oc label "x" false inner;
       fprintf oc ") %s)" id
+  | AT_option(inner, _) ->
+      output_string oc "list_of_option (fun x -> ";
+      gen_id_annot oc label "x" false inner;
+      fprintf oc ") %s" id
+  | AT_ref inner ->
+      gen_id_annot oc label (sprintf "!(%s)" id) top_level inner
 
 
 let graph_node oc cl annot fields field_names =
@@ -58,7 +86,7 @@ let graph_node oc cl annot fields field_names =
 	 | None -> field_assoc
 	 | Some f -> List.remove_assq f field_assoc)
   in
-    fpf "      G.make_node (id_annotation %s)\n" annot;
+    fpf "      make_node (id_annotation %s)\n" annot;
     fpf "        ((Printf.sprintf \"%s %%d\" (id_annotation %s)) ::\n"
       (translated_class_name cl) annot;
     (match source_loc_field with
@@ -91,7 +119,8 @@ let graph_node oc cl annot fields field_names =
     (List.iter 
        (fun (child_field, child_field_name) -> 
 	  out "             ";
-	  gen_id_annot oc (translated_field_name cl child_field)
+	  gen_id_annot oc (add_string_quotes 
+			     (translated_field_name cl child_field))
 	    child_field_name true child_field.af_mod_type;
 	  out ";\n"
        ) 
@@ -114,7 +143,7 @@ let graph_super oc cl =
       fields field_names
 
 
-let graph_sub oc super cl =
+let graph_sub_variant oc super cl =
   let fpf format = fprintf oc format in
   let fields = get_all_fields_flat cl in
   let field_names = generate_names "a" (List.length fields)
@@ -123,6 +152,19 @@ let graph_sub oc super cl =
       (superast_constructor super) (variant_name cl)
       (String.concat ", " ("annot" :: field_names));
     graph_node oc cl "annot" fields field_names
+
+
+let graph_sub_rec oc super sub =
+  let fpf format = fprintf oc format 
+  in
+    fpf "  | %s(%s _) ->assert false\n\n" 
+      (superast_constructor super) (variant_name sub)
+
+
+let graph_sub oc super sub =
+  if sub.ac_record 
+  then graph_sub_rec oc super sub
+  else graph_sub_variant oc super sub
 
 
 let implementation input ast oc = 
@@ -150,12 +192,20 @@ let implementation input ast oc =
 	     graph_super oc cl
 	   end 
 	 else 
-	   List.iter 
-	     (fun sub -> 
-		fpf "  (* %d *)\n" !counter;
-		incr counter;
-		graph_sub oc cl sub) 
-	     cl.ac_subclasses
+	   begin
+	     List.iter 
+	       (fun sub -> 
+		  fpf "  (* %d *)\n" !counter;
+		  incr counter;
+		  graph_sub oc cl sub) 
+	       cl.ac_subclasses;
+	     List.iter
+	       (fun recsub -> 
+		  fpf "  (* %d *)\n" !counter;
+		  incr counter;
+		  graph_super oc recsub)
+	       (List.filter (fun sub -> sub.ac_record) cl.ac_subclasses)
+	   end
       )
       ast;
 
