@@ -9,18 +9,9 @@
  *)
 
 
-(* 
- * open Cc_ml_types
- * open Ml_ctype
- * open Cc_ast_gen_type
- * open Ast_annotation
- * open Ast_accessors
- * open Ast_util
- *)
-open Cc_ml_types
-open Ml_ctype
-open Cc_ast_gen_type
 open Ast_annotation
+open Elsa_ml_flag_types
+open Elsa_reflect_type
 open Ast_accessors
 open Cfg_type
 open Cfg_util
@@ -236,41 +227,41 @@ let finish_fun_call = function
 
 (* append the list of nested scope names to accumulator name *)
 let rec get_scope_name sourceLoc name_list scope =
-  match scope.scope_kind with
+  match scope.scopeKind with
     | SK_GLOBAL -> name_list
     | SK_NAMESPACE ->
-	(match !(scope.namespace_var) with
+	(match (scope.namespaceVar) with
 	   | None ->
-	       fatal sourceLoc scope.poly_scope
+	       fatal sourceLoc scope.scope_annotation
 		 (Printf.sprintf "scope %d without var node" 
-		    (id_annotation scope.poly_scope));
+		    (id_annotation scope.scope_annotation));
 	   | Some variable ->
-	       match variable.var_name with
+	       match variable.variable_name with
 		 | None -> 
-		     fatal sourceLoc variable.poly_var
+		     fatal sourceLoc variable.variable_annotation
 		       "scope var without name";
 		 | Some name ->
-		     match scope.parent_scope with
+		     match scope.parentScope with
 		       | None -> 
-			   fatal sourceLoc scope.poly_scope
+			   fatal sourceLoc scope.scope_annotation
 			     "inner scope without parent";
 		       | Some parent ->
 			   get_scope_name sourceLoc (name :: name_list) parent
 	)
     | SK_CLASS ->
-	(match !(scope.scope_compound) with
+	(match (scope.scope_compound) with
 	   | None -> 
-	       fatal sourceLoc scope.poly_scope
+	       fatal sourceLoc scope.scope_annotation
 		 "class scope without compound";
 	   | Some compound ->
 	       match compound.compound_name with
 		 | None ->
-		     fatal sourceLoc compound.compound_info_poly
+		     fatal sourceLoc compound.compoundType_annotation
 		       "class scope compound without name";
 		 | Some name ->
-		     match scope.parent_scope with
+		     match scope.parentScope with
 		       | None -> 
-			   fatal sourceLoc scope.poly_scope
+			   fatal sourceLoc scope.scope_annotation
 			     "class scope without parent";
 		       | Some parent ->
 			   get_scope_name sourceLoc (name :: name_list) parent
@@ -281,7 +272,7 @@ let rec get_scope_name sourceLoc name_list scope =
     | SK_PARAMETER
     | SK_UNKNOWN
       ->
-	fatal sourceLoc scope.poly_scope"strange scope"
+	fatal sourceLoc scope.scope_annotation "strange scope"
 
 
 (* convert an atomic argument type into a string (no C++ syntax) *)
@@ -292,7 +283,7 @@ let string_of_atomic_type sourceLoc = function
   | CompoundType(compound) ->
       (match compound.compound_name with
 	| None -> 
-	    fatal sourceLoc compound.compound_info_poly
+	    fatal sourceLoc compound.compoundType_annotation
 	      "atomic compound argument without name";
 	| Some x -> x
       )
@@ -323,7 +314,7 @@ let string_of_atomic_type sourceLoc = function
 
 (* convert an argument type into a string, (no C++ syntax) *)
 let rec string_of_ctype sourceLoc = function
-  | CVAtomicType(annot, cVFlags, atomicType) ->
+  | CVAtomicType(annot, atomicType, cVFlags) ->
       if List.mem CV_VOLATILE cVFlags then 
 	found sourceLoc annot Unimplemented "volatile function argument";
       let const = List.mem CV_CONST cVFlags
@@ -362,7 +353,7 @@ let rec string_of_ctype sourceLoc = function
       found sourceLoc annot Unimplemented "array type argument";
       "unknown ctype I"
 
-  | DependentSizeArrayType(annot, _cType, _size_expr) ->
+  | DependentSizedArrayType(annot, _cType, _size_expr) ->
       found sourceLoc annot Unimplemented "dependent size array argument";
       "unknown ctype II"
 
@@ -374,7 +365,7 @@ let rec string_of_ctype sourceLoc = function
 
 (* get a string representation of one parameter type *)
 and get_param_type sourceLoc variable =
-  match !(variable.var_type) with
+  match !(variable.variable_type) with
     | None -> assert false
     | Some ctype -> string_of_ctype sourceLoc ctype
   
@@ -382,7 +373,7 @@ and get_param_type sourceLoc variable =
  * to disambiguate overloaded functions
  *)
 let get_param_types sourceLoc variable =
-  match !(variable.var_type) with
+  match !(variable.variable_type) with
     | None -> assert false
     | Some ctype -> 
 	match ctype with 
@@ -396,7 +387,7 @@ let get_param_types sourceLoc variable =
 			fatal sourceLoc annot
 			  "method without implicit argument";
 		    | receiver :: args ->
-			match receiver.var_name with
+			match receiver.variable_name with
 			  | Some "__receiver" -> args
 			  | _ -> 
 			      fatal sourceLoc annot
@@ -410,7 +401,7 @@ let get_param_types sourceLoc variable =
 	  | PointerType _
 	  | ReferenceType _
 	  | ArrayType _
-	  | DependentSizeArrayType _
+	  | DependentSizedArrayType _
 	  | PointerToMemberType _ ->
 	      found sourceLoc (cType_annotation ctype) Unimplemented
 		"function without function type";
@@ -419,17 +410,17 @@ let get_param_types sourceLoc variable =
 
 (* extracts the function id from the variable declaration node *)
 let get_function_id_from_variable_node sourceLoc variable =
-  match variable.var_name with
+  match variable.variable_name with
     | None -> 
-	fatal sourceLoc variable.poly_var
+	fatal sourceLoc variable.variable_annotation
 	  "function var node without name";
-    | Some var_name -> 
+    | Some variable_name -> 
 	match variable.scope with
 	  | None -> 
-	      fatal sourceLoc variable.poly_var
+	      fatal sourceLoc variable.variable_annotation
 		"function decl with empty scope"
 	  | Some scope ->
-	      { name = get_scope_name sourceLoc [var_name] scope;
+	      { name = get_scope_name sourceLoc [variable_name] scope;
 		param_types = get_param_types sourceLoc variable;
 	      }
 		
@@ -439,15 +430,12 @@ let get_function_id_from_variable_node sourceLoc variable =
  * function definition 
  *)
 let get_function_definition_id sourceLoc declarator =
-  let (annot, _iDeclarator, _init_opt, 
-       variable_opt, _ctype_opt, _declaratorContext,
-       _statement_opt_ctor, _statement_opt_dtor) = declarator
-  in
-    match variable_opt with
-      | None -> 
-	  fatal sourceLoc annot"function def with empty declarator";
-      | Some variable ->
-	  get_function_id_from_variable_node sourceLoc variable
+  match declarator.declarator_var with
+    | None -> 
+	fatal sourceLoc declarator.declarator_annotation 
+	  "function def with empty declarator";
+    | Some variable ->
+	get_function_id_from_variable_node sourceLoc variable
 
 (* extracts the function id from 
  * - a simple function call 
@@ -489,22 +477,21 @@ let opt_iter f = function
   | Some x -> f x
 
 
-let rec compilationUnit_fun 
-    ((_annot, name, tu) : annotated compilationUnit_type) =
+let rec compilationUnit_fun (cu : annotated compilationUnit_type) =
   let comp_unit_id = {
-    name = ["CU " ^ name];
+    name = ["CU " ^ cu.unit_name];
     param_types = []
   } in
-  let comp_unit_loc = (name, 1, 0) in
-  let comp_unit = function_def comp_unit_id comp_unit_loc name 0
+  let comp_unit_loc = (cu.unit_name, 1, 0) in
+  let comp_unit = function_def comp_unit_id comp_unit_loc cu.unit_name 0
   in
-    translationUnit_fun comp_unit tu;
+    translationUnit_fun comp_unit cu.unit;
     finish_fun_call comp_unit
 
 
 and translationUnit_fun comp_unit
-    ((_annot, topForm_list, _scope_opt)  : annotated translationUnit_type) =
-  List.iter (topForm_fun comp_unit) topForm_list
+    (tu : annotated translationUnit_type) =
+  List.iter (topForm_fun comp_unit) tu.topForms
 
 
 and topForm_fun comp_unit = function
@@ -535,9 +522,7 @@ and typeSpecifier_fun ts =
   match ts with
     | TS_classSpec(_annot, _sourceLoc, _cVFlags, _typeIntr, _pQName_opt, 
 		   _baseClassSpec_list, memberList, _compoundType) -> 
-	let (_, mem_list) = memberList
-	in
-	  List.iter member_fun mem_list
+	  List.iter member_fun memberList.member_list
 
     | TS_name _
     | TS_simple _
@@ -568,21 +553,18 @@ and member_fun = function
 
 
 
-and function_fun sourceLoc 
-    (annot, _declFlags, _typeSpecifier, declarator, memberInit_list, 
-     s_compound_opt, _handler_list, _func, _variable_opt_1, 
-     _variable_opt_2, _statement_opt, _bool) =
+and function_fun sourceLoc fu =
   (* XXX handler_list?? And the FullExpressionAnnot therein?? *)
   (* XXX dtorStatement ?? *)
   (* XXX declarator might contain initializers or other expressions? *)
   let entry = 
-    function_def (get_function_definition_id sourceLoc declarator) 
-      sourceLoc !current_oast (id_annotation annot);
+    function_def (get_function_definition_id sourceLoc fu.nameAndParams) 
+      sourceLoc !current_oast (id_annotation fu.function_annotation);
   in
     List.iter 
       (memberInit_fun entry sourceLoc)
-      memberInit_list;
-    (match s_compound_opt with
+      fu.inits;
+    (match fu.function_dtor_statement with
        | None -> ()
        | Some compound -> 
 	   statement_fun entry compound
@@ -590,22 +572,19 @@ and function_fun sourceLoc
     finish_fun_call entry
 
 
-and memberInit_fun current_func sourceLoc
-    (annot, _pQName, argExpression_list, _data_member_var_opt, 
-     class_member_compound_opt, _ctor_var_opt, full_expr_annot, 
-     statement_opt) 
-    =
-  (match full_expr_annot with
-     | (_, []) -> ()
+and memberInit_fun current_func sourceLoc mi =
+  (match mi.member_init_annot.declarations with
+     | [] -> ()
      | _ -> 
-	 found sourceLoc annot Unimplemented
+	 found sourceLoc mi.memberInit_annotation Unimplemented
 	   "declaration in FullExpressionAnnot";
   );
   (* go through the arguments *)
-  List.iter (argExpression_fun current_func sourceLoc) argExpression_list;
-  if (class_member_compound_opt <> None) && (statement_opt = None) then
-    found sourceLoc annot Unimplemented "base init without ctor statement";
-  opt_iter (statement_fun current_func) statement_opt      
+  List.iter (argExpression_fun current_func sourceLoc) mi.args;
+  if (mi.base <> None) && (mi.member_init_ctor_statement = None) then
+    found sourceLoc mi.memberInit_annotation 
+      Unimplemented "base init without ctor statement";
+  opt_iter (statement_fun current_func) mi.member_init_ctor_statement
 
 
 and statement_fun current_func = function
@@ -690,21 +669,20 @@ and statement_fun current_func = function
  * In inner declarations we don't accept class definitions and there must be 
  * at least one variable declared and
  *)
-and outer_declaration_fun current_func sourceLoc
-    (_annot, _declFlags, typeSpecifier, declarator_list) =
-  typeSpecifier_fun typeSpecifier;
-  List.iter (declarator_fun current_func sourceLoc) declarator_list
+and outer_declaration_fun current_func sourceLoc dt =
+  typeSpecifier_fun dt.declaration_spec;
+  List.iter (declarator_fun current_func sourceLoc) dt.decllist
 
 
-and inner_declaration_fun current_func sourceLoc
-    (annot, _declFlags, typeSpecifier, declarator_list) =
-  if declarator_list = [] then
-    found sourceLoc annot Unimplemented "empty declaration list";
-  (match typeSpecifier with
+and inner_declaration_fun current_func sourceLoc dt =
+  if dt.decllist = [] then
+    found sourceLoc dt.declaration_annotation
+      Unimplemented "empty declaration list";
+  (match dt.declaration_spec with
      | TS_classSpec _ ->
 	 found 
-	   (typeSpecifier_loc typeSpecifier)
-	   (typeSpecifier_annotation typeSpecifier)
+	   (typeSpecifier_loc dt.declaration_spec)
+	   (typeSpecifier_annotation dt.declaration_spec)
 	   Unimplemented
 	   "inner class spec";
 
@@ -717,28 +695,28 @@ and inner_declaration_fun current_func sourceLoc
      | TS_typeof _
        -> 
 	 found
-	   (typeSpecifier_loc typeSpecifier) 
-	   (typeSpecifier_annotation typeSpecifier)
+	   (typeSpecifier_loc dt.declaration_spec) 
+	   (typeSpecifier_annotation dt.declaration_spec)
 	   Unimplemented
 	   "unknown type specifier in inner decl";
   );
-  List.iter (declarator_fun current_func sourceLoc) declarator_list
+  List.iter (declarator_fun current_func sourceLoc) dt.decllist
 
 
-and declarator_fun current_func sourceLoc
-    (annot, _iDeclarator, init_opt, _variable_opt, _ctype_opt, 
-     _declaratorContext, statement_opt_ctor, statement_opt_dtor) =
+and declarator_fun current_func sourceLoc declarator =
   (* It seems that IN_ctor arguments are removed, give a message
    * if we find some.
    *)
-  (match init_opt with
+  (match declarator.init with
      | Some(IN_ctor(_,_,_,_ :: _,_,_)) ->
-	 found sourceLoc annot Message "IN_ctor with arguments"
+	 found sourceLoc declarator.declarator_annotation
+	   Message "IN_ctor with arguments"
      | _ -> ());
   (* Tell me if there is a ctor without init! *)
-  (match (init_opt, statement_opt_ctor) with
+  (match (declarator.init, declarator.declarator_ctor_statement) with
      | (None, Some _) -> 
-	 fatal sourceLoc annot "declarator with ctor and without init"
+	 fatal sourceLoc declarator.declarator_annotation
+	   "declarator with ctor and without init"
      | _ -> ());
   (* Came to the conclusion that ctor statement is synthesised from
    * init. Therefore, whenever there is a ctor there is also an init.
@@ -751,20 +729,21 @@ and declarator_fun current_func sourceLoc
    * ctor. For other initializers all material is in the initializer 
    * and there is no ctor at all (eg Z * z = new ...).
    *)
-  (match (init_opt, statement_opt_ctor) with
+  (match (declarator.init, declarator.declarator_ctor_statement) with
      | (Some(IN_ctor _), None) -> 
-	 fatal sourceLoc annot "IN_ctor without ctor statement"
+	 fatal sourceLoc declarator.declarator_annotation
+	   "IN_ctor without ctor statement"
      | _ -> ());
   
   (* do some processing now *)
-  if (match init_opt with
+  if (match declarator.init with
 	| Some(IN_ctor _) -> true
 	| _ -> false)
   then
-    opt_iter (statement_fun current_func) statement_opt_ctor
+    opt_iter (statement_fun current_func) declarator.declarator_ctor_statement
   else
-    opt_iter (initializer_fun current_func) init_opt;
-  opt_iter (statement_fun current_func) statement_opt_dtor
+    opt_iter (initializer_fun current_func) declarator.init;
+  opt_iter (statement_fun current_func) declarator.declarator_dtor_statement
 
 
 and initializer_fun current_func = function
@@ -776,15 +755,17 @@ and initializer_fun current_func = function
 
   | IN_compound(_annot, sourceLoc, fullExpressionAnnot, init_list) -> 
       
-      if snd fullExpressionAnnot <> [] then
-	found sourceLoc (fst fullExpressionAnnot) Unimplemented
+      if fullExpressionAnnot.declarations <> [] then
+	found sourceLoc (fullExpressionAnnot.fullExpressionAnnot_annotation) 
+	  Unimplemented
 	  "IN_compound with nonempty fullExpressionAnnot";
       List.iter (initializer_fun current_func) init_list
 
   | IN_ctor(annot, sourceLoc, fullExpressionAnnot, 
 	    argExpression_list, _var_opt, _bool) -> 
-      if snd fullExpressionAnnot <> [] then
-	found sourceLoc (fst fullExpressionAnnot) Unimplemented
+      if fullExpressionAnnot.declarations <> [] then
+	found sourceLoc (fullExpressionAnnot.fullExpressionAnnot_annotation) 
+	  Unimplemented
 	  "IN_ctor with nonempty fullExpressionAnnot";
       if argExpression_list <> [] then
 	 found sourceLoc annot Message "IN_ctor with arguments";
@@ -793,22 +774,23 @@ and initializer_fun current_func = function
 
   | IN_designated(annot, sourceLoc, fullExpressionAnnot, 
 		  _designator_list, _init) -> 
-      if snd fullExpressionAnnot <> [] then
-	found sourceLoc (fst fullExpressionAnnot) Unimplemented
+      if fullExpressionAnnot.declarations <> [] then
+	found sourceLoc (fullExpressionAnnot.fullExpressionAnnot_annotation) 
+	  Unimplemented
 	  "IN_designated with nonempty fullExpressionAnnot";
       (* if this assertion is triggered investigate what to traverse *)
       found sourceLoc annot Unimplemented "designated initializer";
 
 
 
-and full_expression_fun current_func sourceLoc
-    (_annot, expression_opt, fullExpressionAnnot) =
-  opt_iter (expression_fun current_func sourceLoc) expression_opt;
-  fullExpressionAnnot_fun current_func sourceLoc fullExpressionAnnot
+and full_expression_fun current_func sourceLoc fet =
+  opt_iter (expression_fun current_func sourceLoc) fet.full_expr_expr;
+  fullExpressionAnnot_fun current_func sourceLoc fet.full_expr_annot
 
 
-and fullExpressionAnnot_fun current_func sourceLoc (_annot, decl_list) =
-    List.iter (inner_declaration_fun current_func sourceLoc) decl_list
+and fullExpressionAnnot_fun current_func sourceLoc fea =
+    List.iter (inner_declaration_fun current_func sourceLoc) 
+      fea.declarations
 
 
 and condition_fun current_func sourceLoc = function
@@ -989,13 +971,12 @@ and expression_fun current_func sourceLoc = function
 
 
 
-and argExpression_fun current_func sourceLoc (_annot, expression) =
-  expression_fun current_func sourceLoc expression
+and argExpression_fun current_func sourceLoc ae =
+  expression_fun current_func sourceLoc ae.arg_expr_expr
 
 
-and argExpressionListOpt_fun current_func sourceLoc 
-    (_annot, argExpressionList) =
-  List.iter (argExpression_fun current_func sourceLoc) argExpressionList
+and argExpressionListOpt_fun current_func sourceLoc ae =
+  List.iter (argExpression_fun current_func sourceLoc) ae.arg_expression_list
 
 and handler_fun _ =
   (* XXX
@@ -1021,7 +1002,7 @@ let print_gc_stat () =
 
 let do_file file =
   let _ = current_oast := file in
-  let (_, ast) = Oast_header.unmarshal_oast file
+  let (_, ast) = Elsa_oast_header.unmarshal_oast file
   in
     compilationUnit_fun ast
 

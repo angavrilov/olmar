@@ -2,6 +2,17 @@
 #  See file license.txt for terms of use                              #
 #######################################################################
 
+#   13  wine ./probcc2
+#   14  ls
+#   15  cd liquor/LiQDist/LIQBIN/
+#   16  ls
+#   17  wine ./probcc2
+#   18  po
+#   19  pp ~/src/elsa-trunk/modelcheck/test/
+#   20  wine ~/src/liquor/LiQDist/LIQBIN/probcc2.exe t001.probmela 
+#   21  pp
+#   22  wine ./liquor.exe 
+
 
 .PHONY: all
 
@@ -10,19 +21,23 @@ all: test
 
 
 # directories of other software; 
-ELSA      := ../elsa
-ASTTOOLS  := ../asttools
+OLMARUTIL := ../olmar/util
+GENERAL   := ../olmar/build/general
+ELSA      := ../olmar/build/elsa
+GENELSA   := ../olmar/meta/generated_elsa
 CFG	  := ../cfg
 
 # external tools
-OCAMLC   := ocamlc.opt
-OCAMLOPT := ocamlopt.opt
-OCAMLCC  := ocamlopt.opt
+OCC   := ocamlc.opt
+OCOPT := ocamlopt.opt
+OCCC  := ocamlopt.opt
 
-OCAML_OBJ_EXT := cmx
-OCAML_LIB_EXT := cmxa
-OCAML_FLAGS := -w Ae
-OCAML_BYTE_FLAGS := -g
+OC_OBJ_EXT := cmx
+OC_LIB_EXT := cmxa
+OC_FLAGS := -w Ae
+OC_BYTE_FLAGS := -g
+
+OC_INC := -I $(GENERAL) -I $(ELSA) -I $(CFG)
 
 
 # list of files to clean in 'clean' (etc.) targets
@@ -32,27 +47,20 @@ TOCLEAN =
 
 .PHONY: test
 test: kernel_prop_model test/t001.oast test/t001.dot
-	./kernel_prop_model -fn f test/t001.oast
+	./kernel_prop_model -fn f test/t001.oast -o test/t001.probmela
 
 
 KERNEL_PROP_MODEL_ML=\
-	$(ELSA)/elsa_util.ml \
-	$(ELSA)/ast_annotation.ml \
-	$(ELSA)/oast_header_version.ml \
-	$(ELSA)/oast_header.ml \
-	$(ELSA)/cc_ml_types.ml \
-	$(ASTTOOLS)/ast_accessors.ml \
-	$(ASTTOOLS)/ast_util.ml \
-	$(ASTTOOLS)/dense_set.ml \
-	$(ASTTOOLS)/superast.ml \
-	$(CFG)/cfg_type.ml \
-	$(CFG)/cfg_util.ml \
-	$(CFG)/build.ml \
+	$(OLMARUTIL)/olmar_utils.$(OC_LIB_EXT) \
+	$(GENERAL)/astgen_general.$(OC_LIB_EXT) \
+	$(ELSA)/elsa_lib.$(OC_LIB_EXT) \
+	$(GENELSA)/elsa_ast_util.$(OC_LIB_EXT) \
+	$(CFG)/cfg_lib.$(OC_LIB_EXT) \
 	kernel_prop_model.ml
 
 TOCLEAN += kernel_prop_model
-kernel_prop_model: $(KERNEL_PROP_MODEL_ML:.ml=.$(OCAML_OBJ_EXT))
-	$(OCAMLCC) $(OCAML_FLAGS) -o $@ unix.$(OCAML_LIB_EXT) $^
+kernel_prop_model: $(KERNEL_PROP_MODEL_ML:.ml=.$(OC_OBJ_EXT))
+	$(OCCC) $(OC_FLAGS) -o $@ unix.$(OC_LIB_EXT) $^
 
 
 
@@ -64,24 +72,23 @@ clean:
 
 TOCLEAN += *.cmo
 %.cmo: %.ml
-	$(OCAMLC) $(OCAML_BYTE_FLAGS) $(OCAML_FLAGS) \
-		-I $(CFG) -I $(ELSA) -I $(ASTTOOLS) -c $<
+	$(OCC) $(OC_BYTE_FLAGS) $(OC_FLAGS) $(OC_INC) -c $<
 
 TOCLEAN += *.cmx *.o
 %.cmx: %.ml
-	$(OCAMLOPT) $(OCAML_FLAGS) -I $(CFG) -I $(ELSA) -I $(ASTTOOLS) -c $<
+	$(OCOPT) $(OC_FLAGS) $(OC_INC) -c $<
 
 TOCLEAN += *.cmi
 %.cmi: %.mli
-	$(OCAMLC) $(OCAML_FLAGS) -I $(CFG) -I $(ELSA) -I $(ASTTOOLS) -c $<
+	$(OCC) $(OC_FLAGS) $(OC_INC) -c $<
 
 TOCLEAN += test/*.oast
 %.oast: %.cc
-	$(ELSA)/ccparse -oc $@ $<
+	$(ELSA)/ccparse_or -oc $@ $<
 
 TOCLEAN += test/*.dot
 %.dot: %.oast
-	$(ASTTOOLS)/ast_graph -o $@ $<
+	$(GENELSA)/ast_graph -o $@ $<
 
 
 -include mldeps.mk
@@ -89,4 +96,4 @@ TOCLEAN += test/*.dot
 .PHONY: mldeps
 depend: mldeps
 mldeps:
-	ocamldep -I $(CFG) -I $(ELSA) -I $(ASTTOOLS) *ml *mli > mldeps.mk
+	ocamldep $(OC_INC) *ml *mli > mldeps.mk

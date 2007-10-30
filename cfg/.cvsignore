@@ -1,5 +1,7 @@
 *.cmi
 *.cmo
 *.cmx
+*.cma
+*.cmxa
 cfg
 regression-errors

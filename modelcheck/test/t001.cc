@@ -1,6 +1,7 @@
 
 void f () {
-  if( 2 == 2)
+  int i = 5;
+  if( i == 2 )
     return;
 }
 

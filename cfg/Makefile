@@ -5,32 +5,33 @@
 
 .PHONY: all
 
-all: test
+all: cfg_lib.cmxa test
 #all: cfg
 
 
 # directories of other software; 
-ELSA      := ../elsa
-ASTTOOLS  := ../asttools
 OLMARUTIL := ../olmar/util
+GENERAL   := ../olmar/build/general
+ELSA      := ../olmar/build/elsa
+GENELSA   := ../olmar/meta/generated_elsa
 
 # external tools
-OCAMLC   := ocamlc.opt
-OCAMLOPT := ocamlopt.opt
-OCAMLCC  := ocamlopt.opt
+OCC   := ocamlc.opt
+OCOPT := ocamlopt.opt
+OCCC  := ocamlopt.opt
 
-OCAML_OBJ_EXT := cmx
-OCAML_LIB_EXT := cmxa
-OCAML_FLAGS := -w Ae
-OCAML_BYTE_FLAGS := -g
+OC_OBJ_EXT := cmx
+OC_LIB_EXT := cmxa
+OC_FLAGS := -w Ae
+OC_BYTE_FLAGS := -g
 
-OCAMLDEBUG=0
-ifeq ($(OCAMLDEBUG),1)
-  OCAMLOPT := $(OCAMLC) -g
-  OCAMLCC  := $(OCAMLC) -g
-  OCAMLC   := $(OCAMLC) -g
-  OCAML_OBJ_EXT := cmo
-  OCAML_LIB_EXT := cma
+OCDEBUG=0
+ifeq ($(OCDEBUG),1)
+  OCOPT := $(OCC) -g
+  OCCC  := $(OCC) -g
+  OCC   := $(OCC) -g
+  OC_OBJ_EXT := cmo
+  OC_LIB_EXT := cma
 endif
 
 # list of files to clean in 'clean' (etc.) targets
@@ -56,24 +57,30 @@ test: cfg $(TESTFILES:.cc=.oast) $(TESTFILES:.cc=.dot)
 	done
 
 CFG_ML=\
-	$(ELSA)/elsa_util.ml \
-	$(ELSA)/cc_ml_types.ml \
-	$(ELSA)/ast_annotation.ml \
-	$(ELSA)/oast_header_version.ml \
-	$(ELSA)/oast_header.ml \
-	$(ASTTOOLS)/ast_accessors.ml \
-	$(ASTTOOLS)/dense_set.ml \
-	$(ASTTOOLS)/superast.ml \
 	cfg_type.ml \
 	cfg_util.ml \
 	build.ml \
-	$(OLMARUTIL)/dot_graph.ml \
-	dot.ml \
+	dot.ml
+
+cfg_lib.cma: $(CFG_ML:.ml=.cmo)
+	$(OCC) -a -o $@ $^
+
+cfg_lib.cmxa: $(CFG_ML:.ml=.cmx)
+	$(OCOPT) -a -o $@ $^
+
+###########################################################################
+
+CFG_PROG_ML=\
+	$(OLMARUTIL)/olmar_utils.$(OC_LIB_EXT) \
+	$(GENERAL)/astgen_general.$(OC_LIB_EXT) \
+	$(ELSA)/elsa_lib.$(OC_LIB_EXT) \
+	$(GENELSA)/elsa_ast_util.$(OC_LIB_EXT) \
+	cfg_lib.$(OC_LIB_EXT) \
 	main.ml
 
 TOCLEAN += cfg
-cfg: $(CFG_ML:.ml=.$(OCAML_OBJ_EXT))
-	$(OCAMLCC) $(OCAML_FLAGS) -o $@ $^
+cfg: $(CFG_PROG_ML:.ml=.$(OC_OBJ_EXT))
+	$(OCCC) $(OC_FLAGS) -o $@ $^
 
 
 
@@ -83,27 +90,27 @@ clean:
 	rm -f test/*.o
 	rm -f test/*.pml
 
-OCAMLINCLUDES := -I $(ELSA) -I $(ASTTOOLS) -I $(OLMARUTIL)
+OCINCLUDES := -I $(OLMARUTIL) -I $(GENERAL) -I $(ELSA) -I $(GENELSA)
 
 TOCLEAN += *.cmo
 %.cmo: %.ml
-	$(OCAMLC) $(OCAML_BYTE_FLAGS) $(OCAML_FLAGS) $(OCAMLINCLUDES) -c $<
+	$(OCC) $(OC_BYTE_FLAGS) $(OC_FLAGS) $(OCINCLUDES) -c $<
 
 TOCLEAN += *.cmx *.o
 %.cmx: %.ml
-	$(OCAMLOPT) $(OCAML_FLAGS) $(OCAMLINCLUDES) -c $<
+	$(OCOPT) $(OC_FLAGS) $(OCINCLUDES) -c $<
 
 TOCLEAN += *.cmi
 %.cmi: %.mli
-	$(OCAMLC) $(OCAML_FLAGS) $(OCAMLINCLUDES) -c $<
+	$(OCC) $(OC_FLAGS) $(OCINCLUDES) -c $<
 
 TOCLEAN += test/*.oast
 %.oast: %.cc
-	$(ELSA)/ccparse -oc $@ $<
+	$(ELSA)/ccparse_or -oc $@ $<
 
 TOCLEAN += test/*.dot
 %.dot: %.oast
-	$(ASTTOOLS)/ast_graph -o $@ $<
+	$(GENELSA)/ast_graph -o $@ $<
 
 
 -include mldeps.mk
@@ -111,4 +118,4 @@ TOCLEAN += test/*.dot
 .PHONY: mldeps
 depend: mldeps
 mldeps:
-	ocamldep $(OCAMLINCLUDES) *ml *mli > mldeps.mk
+	ocamldep $(OCINCLUDES) *ml *mli > mldeps.mk

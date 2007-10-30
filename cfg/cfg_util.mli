@@ -2,9 +2,9 @@
 (*  See file license.txt for terms of use                              *)
 (***********************************************************************)
 
-open Cc_ml_types
-open Cc_ast_gen_type
 open Ast_annotation
+open Elsa_ml_base_types
+open Elsa_reflect_type
 open Superast
 open Cfg_type
 

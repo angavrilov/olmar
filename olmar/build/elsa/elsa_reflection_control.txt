@@ -5,6 +5,10 @@
 ###########################################################################
 ###########################################################################
 
+# to comment the first line of every renaming block use
+# (fset 'comment-renaming [?\C-\M-s ?^ ?$ down ?#])
+#
+
 [Renamings]
 
 BaseClassSpec.name		base_class_spec_name
@@ -14,6 +18,11 @@ Variable.name			variable_name
 EnumValue.name			enum_value_name
 CompilationUnit.name		unit_name
 CompoundType.name		compound_name
+
+BaseClass.access		base_access
+BaseClassSpec.access		spec_access
+BaseClassSubobj.access		base_sub_access
+CompoundType.access		compound_access
 
 BaseClassSpec.type		base_class_spec_type
 Declarator.type			declarator_type
@@ -35,13 +44,13 @@ Enumerator.var			enumerator_var
 Declarator.var			declarator_var
 TemplateInfo.var		template_info_var
 
-BaseClass.access		base_access
-BaseClassSpec.access		spec_access
-BaseClassSubobj.access		base_sub_access
-
 BaseClass.isVirtual		base_is_virtual
 BaseClassSpec.isVirtual		spec_is_virtual
 BaseClassSubobj.isVirtual	base_sub_is_virtual
+
+ExceptionSpec.types		exception_spec_types
+ExnSpec.types			exn_spec_types
+FunctionExnSpec.types		fun_exn_spec_types
 
 Function.body			function_body
 Handler.body			handler_body
@@ -69,9 +78,6 @@ AttributeSpecifier.next		next_attribute_specifier
 
 TemplateInfo.params		template_info_params
 InheritedTemplateParams.params	inherited_template_params
-
-ExceptionSpec.types		exception_spec_types
-ExnSpec.types			exn_spec_types
 
 BaseClass.ct			base_ct
 BaseClassSubobj.ct		base_sub_ct

@@ -6,6 +6,7 @@
 ast_ast_type_descr.ml
 ast_type_graph
 check_oast
+elsa_ast_type_descr.ml
 gen_accessors
 gen_graph
 gen_reflection

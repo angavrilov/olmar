@@ -1,0 +1,16 @@
+*.cma
+*.cmi
+*.cmo
+*.cmx
+*.cmxa
+ast_accessors.ml
+ast_accessors_generated.ml
+ast_graph
+ast_graph.ml
+ast_graph_generated.ml
+superast.ml
+superast.mli
+superast_generated.ml
+superast_generated.mli
+uplinks.ml
+uplinks_generated.ml

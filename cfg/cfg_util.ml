@@ -2,8 +2,8 @@
 (*  See file license.txt for terms of use                              *)
 (***********************************************************************)
 
-open Cc_ast_gen_type
 open Ast_annotation
+open Elsa_reflect_type
 open Superast
 open Cfg_type
 
@@ -76,7 +76,7 @@ type function_application =
 let apply_func_def f context fun_id = function
   | None -> f context fun_id Undefined
   | Some def ->
-      let aa = Superast.load_marshaled_ast_array def.oast
+      let (aa,_) = Superast.load_marshaled_ast_array def.oast
       in
 	if def.node_id < Array.length aa
 	then

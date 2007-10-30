@@ -1,11 +1,9 @@
 digraph "CFG" {
     node [ color = "lightblue", style = filled ];
     edge [ arrowtail=odot ];
-    "3" [pos="91,-150", label="Z::~Z\nfile: test/t007.cc\nline 5"];
-    "1" [pos="313,-300", label="printf\nArg 1: pointer(const(char))"];
-    "0" [pos="313,-150", label="Z::constructor-special\nArg 1: int\nfile: test/t007.cc\nline 7"];
+    "1" [pos="91,-150", label="Z::~Z\nfile: test/t007.cc\nline 5"];
+    "2" [pos="291,-150", label="Z::constructor-special\nArg 1: int\nfile: test/t007.cc\nline 7"];
+    "0" [pos="200,0", label="CU test/t007.cc\nfile: test/t007.cc\nline 1"];
     "0" -> "1";
-    "2" [pos="222,0", label="CU test/t007.cc\nfile: test/t007.cc\nline 1"];
-    "2" -> "3";
-    "2" -> "0";
+    "0" -> "2";
 }

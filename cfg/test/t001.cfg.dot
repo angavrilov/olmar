@@ -1,7 +1,3 @@
 digraph "CFG" {
     node [ color = "lightblue", style = filled ];
     edge [ arrowtail=odot ];
-    "1" [pos="55,-150", label="f\nArg 1: int"];
-    "0" [pos="55,0", label="g\nfile: test/t001.cc\nline 4"];
-    "0" -> "1";
-}

@@ -12,7 +12,9 @@ OCAML_LIB_EXT := cmxa
 # main targets
 stage_1: astgen_lib.$(OCAML_LIB_EXT) astgen_or ast.ast.oast
 
-stage_2: check_ast_oast
+stage_2: 
+
+stage_3: check_ast_oast
 
 
 # directories of other software

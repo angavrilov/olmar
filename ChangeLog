@@ -1,5 +1,8 @@
 2007-10-30  Hendrik Tews  <tews@tandem.cs.ru.nl>
 
+        CFG / Modelcheck
+        * adopted to olmar v2
+
         Olmar
         * new reflection method:
           - create first an empty ocaml object and register it in the

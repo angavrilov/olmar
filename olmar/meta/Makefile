@@ -58,6 +58,9 @@ stage_2: check_oast $(STAGE1_PROGRAMMS)
 	$(MAKE) -C generated_elsa all
 
 
+stage_3:
+
+
 # list of files to clean in 'clean' (etc.) targets
 # (these get added to below)
 TOCLEAN =

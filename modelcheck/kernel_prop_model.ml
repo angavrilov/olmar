@@ -2,9 +2,10 @@
 (*  See file license.txt for terms of use                              *)
 (***********************************************************************)
 
-open Cc_ast_gen_type
 open Ast_annotation
-open Ast_util
+open Elsa_ml_flag_types
+open Elsa_reflect_type
+open Elsa_ast_util
 open Cfg_type
 open Cfg_util
 open Build
@@ -79,16 +80,47 @@ let gc_report () =
     Printf.printf "GC size %d\n"
       stat.Gc.live_words
 
+
+let op_of_binop = function
+  | BIN_EQUAL -> "=="
+  | _ -> assert false
+
 (***********************************************************************
  *
  * ast recursion
  *
  ***********************************************************************)
 
+let pqname_fun = function
+  | PQ_name(_, _loc, name) -> 
+      p name
+  | _ -> assert false
+
+
+let rec expression_fun = function
+  | E_binary(_, _typ, ex1, binop, ex2) ->
+      expression_fun ex1;
+      p (op_of_binop binop);
+      expression_fun ex2
+
+  | E_variable(_, _typ, pqname, _, _) ->
+      pqname_fun pqname
+
+  | E_intLit(_, _typ, _string, value) ->
+      pf "%ld" value
+
+  | _ -> assert false
+
+
+let rec condition_fun = function
+  | CN_expr(_, fullexpr) -> 
+      expression_fun (the fullexpr.full_expr_expr)
+  | _ -> assert false
 
 let rec block_fun = function
   | S_skip(_annot, _sourceLoc) -> 
-      pc ["skip statement"]
+      (* pc ["skip statement"]; *)
+      p "  skip\n"
 
   | S_label(_annot, _sourceLoc, _stringRef, statement) -> 
       pc ["label statement"];
@@ -106,14 +138,19 @@ let rec block_fun = function
       pc ["expression statement"]
 
   | S_compound(_annot, _sourceLoc, statement_list) -> 
-      pc ["block"];
+      (* pc ["block"]; *)
       List.iter block_fun statement_list
 
-  | S_if(_annot, _sourceLoc, _condition, statement_then, statement_else) -> 
-      pc ["if statement"];
+  | S_if(_annot, _sourceLoc, condition, statement_then, statement_else) -> 
+      (* pc ["if statement"]; *)
+      p "  if:: ";
+      condition_fun condition;
+      p " -> \n";
       block_fun statement_then;
-      pc ["else branch"];
-      block_fun statement_else	
+      (* pc ["else branch"]; *)
+      p "    :: else -> \n";
+      block_fun statement_else;
+      p "  fi\n"
 
   | S_switch(_annot, _sourceLoc, _condition, statement) -> 
       pc ["switch statement"];
@@ -139,13 +176,21 @@ let rec block_fun = function
       pc ["continue statement"]
 
   | S_return(_annot, _sourceLoc, _fullExpression_opt, _statement_opt) -> 
-      pc ["return statement"]
+      (* pc ["return statement"]; *)
+      p "  return();\n"
 
   | S_goto(_annot, _sourceLoc, _stringRef) -> 
       pc ["goto statement"]
 
-  | S_decl(_annot, _sourceLoc, _declaration) -> 
-      pc ["declaration"]
+  | S_decl(_annot, _sourceLoc, declaration) -> 
+      (* pc ["declaration"]; *)
+      List.iter
+	(fun decl ->
+	   pf "  abstract int %s;\n" 
+	     (the (the decl.declarator_var).variable_name)
+	)
+	declaration.decllist
+      
 
   | S_try(_annot, _sourceLoc, statement, _handler_list) -> 
       pc ["try statement"];
@@ -186,8 +231,10 @@ let report_func context_opt fun_id func_appl =
 	      Printf.sprintf "node %d in %s" def.node_id def.oast;
 	      con_text
 	     ];
+	  pf "function void %s() {\n" (fun_def_name def);
 	  block_fun (body_of_function func);
-	  p "\n\n";
+	  p "  return()\n";
+	  p "}\n\n";
 	  
       | Short_oast def -> 
 	  pc ["Error on " ^ fun_def_name def;
@@ -266,7 +313,12 @@ let get_ids overload funs =
 	     res)
     []
     funs
-       
+
+
+let print_main_process () = 
+  p "active proctype main () {\n";
+  p "  f();\n";
+  p "}\n\n"
 
 let main () =
   saved_command_line := String.concat " " (Array.to_list Sys.argv);
@@ -280,11 +332,13 @@ let main () =
   in
     out_channel := get_output_channel();
     print_header ();
-    iter_callees (apply_func_def report_func) cfg fun_ids
+    iter_callees (apply_func_def report_func) cfg fun_ids;
     (* 
      * iter_callees (apply_func_def_gc gc_report report_func id) cfg fun_ids;
      * gc_report()
      *)
+    print_main_process()
+      
 ;;
 
 

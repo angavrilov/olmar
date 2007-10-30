@@ -16,6 +16,9 @@ stage_1:
 stage_2:
 	for d in $(SUBDIRS) ; do $(MAKE) -C $$d $@; done
 
+stage_3:
+	for d in $(SUBDIRS) ; do $(MAKE) -C $$d $@; done
+
 clean:
 	for d in $(SUBDIRS) ; do $(MAKE) -C $$d $@; done
 

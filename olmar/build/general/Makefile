@@ -37,6 +37,8 @@ stage_1: ocaml_reflection_base.o astgen_general.$(OC_LIB_EXT)
 
 stage_2:
 
+stage_3:
+
 
 # flags for the C and C++ compilers (and preprocessor)
 CCFLAGS := -g -Wall -Wno-deprecated -D__UNIX__ -DNDEBUG -D__LINUX__ \

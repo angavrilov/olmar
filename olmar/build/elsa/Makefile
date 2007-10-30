@@ -11,6 +11,8 @@ NATIVE_OCAML := 1
 first: stage_2
 stage_1:
 stage_2: quickreflectiontest
+stage_3:
+
 
 # directories of other software
 SMBASE := ../../../smbase

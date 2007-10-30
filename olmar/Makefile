@@ -11,7 +11,7 @@ SUBDIRS=util build meta
 
 .PHONY: all stage_1 stage_2 clean depend
 
-all: stage_1 stage_2
+all: stage_1 stage_2 stage_3
 
 
 stage_1:
@@ -19,6 +19,10 @@ stage_1:
 
 
 stage_2:
+	for d in $(SUBDIRS) ; do $(MAKE) -C $$d $@; done
+
+
+stage_3:
 	for d in $(SUBDIRS) ; do $(MAKE) -C $$d $@; done
 
 
@@ -32,6 +36,7 @@ depend:
 
 stage1: stage_1
 stage2: stage_2
+stage3: stage_3
 
 MLDISCARD := \
 	oast_header_start.ml

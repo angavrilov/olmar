@@ -1,5 +1,17 @@
+*.cma
+*.cmi
+*.cmo
+*.cmx
+*.cmxa
 *.d
 cc.ast
 cc_tcheck.ast
+ccparse_or
 elsa.ast.oast
 elsa.type.dot
+elsa_oast_header.ml
+elsa_reflect_ocaml_reflect.cc
+elsa_reflect_ocaml_reflect.h
+elsa_reflect_type.ml
+main_or.cc
+quickreflectiontest
