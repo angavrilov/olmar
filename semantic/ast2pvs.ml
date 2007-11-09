@@ -2392,12 +2392,12 @@ and expression_fun x =
 
     | E_sizeof(annot, type_opt, expression, int) ->
 	(*TODO*)
-        trace "E_sizeof(";
+	trace "E_sizeof(";
+	Format.print_string "size(uidt(dt_";
 	Option.app cType_fun type_opt;
-        Format.print_string "sizeof(";
-	expression_fun expression;
-        Format.print_string ")";
-	int_fun int;
+        Format.print_string "))";
+	(*expression_fun expression;*)
+	(*int_fun int;*)
         trace ")";
 
     | E_unary(annot, type_opt, unaryOp, expression) ->
