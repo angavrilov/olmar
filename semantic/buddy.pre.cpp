@@ -1061,7 +1061,7 @@ Buddy::alloc (unsigned ord, bool zero)
 
         if (zero)
 	  // integral conversion not supported by the semantics compiler yet
-	  memset (reinterpret_cast<void *>(l_addr), 0, 1/*ul*/ << (block->ord + page_ord));
+	  memset (reinterpret_cast<void *>(l_addr), 0, 1u/*l*/ << (block->ord + page_ord));
 
         return reinterpret_cast<void *>(l_addr);
     }
