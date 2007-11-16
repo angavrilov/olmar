@@ -3,7 +3,7 @@
 # Makefile for semantic
 
 .PHONY: all
-all: ast2pvs testall test.pvs test.ps buddy.pvs
+all: ast2pvs testall test.pvs test.ps buddy.pvs ptab.pvs
 
 ##########
 # The semantics compiler itself (based on various elsa/asttools files, which
@@ -50,4 +50,4 @@ testall: $(patsubst %.cpp,%.pvs,$(wildcard test???.cpp))
 .PHONY: clean
 clean:
 	rm -f *.cmi *.cmx *.o ast2pvs
-	rm -f test*.pvs test.ps buddy.pvs
+	rm -f test*.pvs test.ps buddy.pvs ptab.pvs
