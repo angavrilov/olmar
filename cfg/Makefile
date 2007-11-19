@@ -47,7 +47,9 @@ TESTFILES=\
 	test/t005.cc\
 	test/t006.cc\
 	test/t007.cc\
-	test/t008.cc
+	test/t008.cc\
+	test/t009.cc\
+	test/t010.cc
 
 .PHONY: test
 test: cfg $(TESTFILES:.cc=.oast) $(TESTFILES:.cc=.dot)
@@ -83,6 +85,13 @@ cfg: $(CFG_PROG_ML:.ml=.$(OC_OBJ_EXT))
 	$(OCCC) $(OC_FLAGS) -o $@ $^
 
 
+CFG_PROG_BYTE_ML=$(CFG_PROG_ML:.$(OC_LIB_EXT)=.cma)
+
+TOCLEAN += cfg.byte
+cfg.byte: $(CFG_PROG_BYTE_ML:.ml=.cmo)
+	$(OCC) -g $(OC_FLAGS) -o $@ $^
+
+
 
 .PHONY: clean
 clean:
@@ -109,7 +118,7 @@ TOCLEAN += test/*.oast
 	$(ELSA)/ccparse_or -oc $@ $<
 
 TOCLEAN += test/*.dot
-%.dot: %.oast
+%.dot: %.oast $(GENELSA)/ast_graph
 	$(GENELSA)/ast_graph -o $@ $<
 
 

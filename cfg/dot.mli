@@ -9,3 +9,9 @@ open Cfg_type
  * or stdout if outfile = None
  *)
 val cfg_to_dot : cfg_type -> string option -> unit
+
+
+
+(* generate only the call graph from the functions given *)
+val function_call_graphs_to_dot : 
+  cfg_type -> string option -> function_id_type list -> unit

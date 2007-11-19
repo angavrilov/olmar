@@ -10,29 +10,29 @@
 # use the first goal for development, for release put it in comment and use all
 
 # external tools
-OCAMLC   := ocamlc.opt
-OCAMLOPT := ocamlopt.opt
-OCAMLCC  := ocamlopt.opt
+OCC   := ocamlc.opt
+OCOPT := ocamlopt.opt
+OCCC  := ocamlopt.opt
 CAMLP4O  := camlp4o
 
-OCAML_OBJ_EXT := cmx
-OCAML_LIB_EXT := cmxa
-OCAML_FLAGS := -w Ae
-OCAML_BYTE_FLAGS := -g
-OCAMLDEPOPTS := -native
+OC_OBJ_EXT := cmx
+OC_LIB_EXT := cmxa
+OC_FLAGS := -w Ae
+OC_BYTE_FLAGS := -g
+OCDEPOPTS := -native
 
-OCAMLDEBUG=0
-ifeq ($(OCAMLDEBUG),1)
-  OCAMLOPT := $(OCAMLC) -g
-  OCAMLCC  := $(OCAMLC) -g
-  OCAMLC   := $(OCAMLC) -g
-  OCAML_OBJ_EXT := cmo
-  OCAML_LIB_EXT := cma
-  OCAMLDEPOPTS :=
+OCDEBUG=0
+ifeq ($(OCDEBUG),1)
+  OCOPT := $(OCC) -g
+  OCCC  := $(OCC) -g
+  OCC   := $(OCC) -g
+  OC_OBJ_EXT := cmo
+  OC_LIB_EXT := cma
+  OCDEPOPTS :=
 endif
 
 .PHONY: stage_1
-stage_1: olmar_utils.$(OCAML_LIB_EXT)
+stage_1: olmar_utils.$(OC_LIB_EXT)
 
 stage_2:
 
@@ -65,11 +65,11 @@ OLMAR_UTILS_ML=\
 
 TOCLEAN += olmar_utils.cmxa
 olmar_utils.cmxa: $(OLMAR_UTILS_ML:.ml=.cmx)
-	$(OCAMLCC) $(OCAML_FLAGS) -o $@ -a $^
+	$(OCCC) $(OC_FLAGS) -o $@ -a $^
 
 TOCLEAN += olmar_utils.cma
 olmar_utils.cma: $(OLMAR_UTILS_ML:.ml=.cmo)
-	$(OCAMLCC) $(OCAML_FLAGS) -o $@ -a $^
+	$(OCC) $(OC_FLAGS) -o $@ -a $^
 
 
 ############################################################################
@@ -79,7 +79,7 @@ olmar_utils.cma: $(OLMAR_UTILS_ML:.ml=.cmo)
 .PHONY: clean
 clean:
 	rm -f $(TOCLEAN)
-	$(MAKE) -C generated_ast clean
+
 
 .PHONY: distclean
 distclean: clean
@@ -89,15 +89,15 @@ distclean: clean
 
 TOCLEAN += *.cmo *.cmxa *.cma *.a
 %.cmo: %.ml
-	$(OCAMLC) $(OCAML_BYTE_FLAGS) $(OCAML_FLAGS) -c $<
+	$(OCC) $(OC_BYTE_FLAGS) $(OC_FLAGS) -c $<
 
 TOCLEAN += *.cmx *.o
 %.cmx: %.ml
-	$(OCAMLOPT) $(OCAML_FLAGS) -c $<
+	$(OCOPT) $(OC_FLAGS) -c $<
 
 TOCLEAN += *.cmi
 %.cmi: %.mli
-	$(OCAMLC) $(OCAML_FLAGS) -c $<
+	$(OCC) $(OC_FLAGS) -c $<
 
 
 -include mldeps.mk
@@ -105,4 +105,4 @@ TOCLEAN += *.cmi
 .PHONY: mldeps
 depend: mldeps
 mldeps:
-	ocamldep $(OCAMLDEPOPTS) *ml *mli > mldeps.mk
+	ocamldep $(OCDEPOPTS) *ml *mli > mldeps.mk

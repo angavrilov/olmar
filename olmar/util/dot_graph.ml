@@ -23,8 +23,19 @@ module type Dot_graph = sig
   val make_node_unlabelled : 
     id -> string list -> (string * string) list -> id list -> node
 
-  (* write_dot_file graph_name command_lines outfile_name *)
-  val write_dot_file : string -> string list -> string option -> unit
+  (* write_graph graph_name command_lines outfile_name *)
+  val write_graph : string -> string list -> string option -> unit
+
+  (* write_tree graph_name command_lines outfile_name *)
+  val write_tree : string -> string list -> string option -> unit
+
+  (* write_ordered_tree int_from_id graph_name command_lines 
+   *                                           outfile_name tree roots
+   * 
+   *)
+  val write_ordered_tree : 
+    (id -> int) -> 
+      string -> string list -> string option -> id list array -> id list -> unit
 
 end
 
@@ -46,6 +57,7 @@ module Make(Node_id : Node_id) = struct
     attributes : (string * string) list;
     childs : child_type child_link list;
     mutable opt_childs : node child_link list;
+    mutable ext_child_hash : (id, unit) Hashtbl.t option;
     mutable parents : node list
   }
 
@@ -81,6 +93,15 @@ module Make(Node_id : Node_id) = struct
       incr next_interal_id;
       res
 
+  let hashtbl_find_with_error msg hash key =
+    try
+      Hashtbl.find hash key
+    with
+      | Not_found as x->
+	  Printf.eprintf msg (string_of_t key);
+	  raise x
+
+
   let get_childs node =
     if node.opt_childs <> [] then node.opt_childs
     else if node.childs = [] then []
@@ -89,9 +110,11 @@ module Make(Node_id : Node_id) = struct
 	List.map
 	  (function
 	     | Labelled(Child_id id, l) -> 
-		 Labelled(Hashtbl.find node_hash id, l)
+		 Labelled(hashtbl_find_with_error "child %s missing\n%!"
+			    node_hash id, l)
 	     | Unlabelled(Child_id id) ->
-		 Unlabelled(Hashtbl.find node_hash id)
+		 Unlabelled(hashtbl_find_with_error "child %s missing\n%!"
+			      node_hash id)
 	     | Labelled(Child_node node, l) -> 
 		 Labelled(node, l)
 	     | Unlabelled(Child_node node) ->
@@ -107,6 +130,19 @@ module Make(Node_id : Node_id) = struct
 	 | Labelled(c, _)
 	 | Unlabelled c -> c)
       (get_childs node)
+
+
+  let get_ext_child_hash node =
+    match node.ext_child_hash with
+      | Some h -> h
+      | None ->
+	  let h = Hashtbl.create 13
+	  in
+	    List.iter
+	      (fun c -> Hashtbl.add h c.external_id ())
+	      (get_childs_unlabelled node);
+	    node.ext_child_hash <- Some h;
+	    h
 
 
   let set_parent parent = function
@@ -153,6 +189,7 @@ module Make(Node_id : Node_id) = struct
 	label_lines = label;
 	childs = childs;
 	opt_childs = [];
+	ext_child_hash = None;
 	parents = 
 	  try 
 	    !(Hashtbl.find unresolved_parents id)
@@ -163,6 +200,15 @@ module Make(Node_id : Node_id) = struct
 	Hashtbl.remove unresolved_parents id;
 	Hashtbl.add node_hash id node;
 	List.iter (set_parent node) childs;
+	(try
+	   (* check whether circles added new parents in unresolved_parents *)
+	   let new_parents = !(Hashtbl.find unresolved_parents id)
+	   in
+	     assert(List.for_all (fun parent -> parent == node) new_parents);
+	     Hashtbl.remove unresolved_parents id;
+	     node.parents <- new_parents @ node.parents
+	 with
+	   | Not_found -> ());
 	node
 
   let make_node_unlabelled id label attr childs =
@@ -207,7 +253,38 @@ module Make(Node_id : Node_id) = struct
       done;
       Buffer.contents b
 
-  let write_node oc level left right node =
+
+  let write_node_attribute oc (name, value) =
+    Printf.fprintf oc ", %s=\"%s\""
+      name
+      (dot_escape value)
+
+
+
+  let write_node oc node more_attributes =
+    Printf.fprintf oc "    \"%s\" [label=\"%s\"" 
+      (string_of_int node.internal_id)
+      (dot_escape (String.concat "\n" node.label_lines));
+
+    List.iter (write_node_attribute oc) more_attributes;
+    List.iter (write_node_attribute oc) node.attributes;
+
+    output_string oc "];\n";
+
+    List.iter
+      (function
+	 | Labelled(child, label) ->
+	     Printf.fprintf oc "    \"%d\" -> \"%d\" [label=\"%s\"];\n"
+	       node.internal_id child.internal_id
+	       (dot_escape label)
+	 | Unlabelled child ->
+	     Printf.fprintf oc "    \"%d\" -> \"%d\";\n"
+	       node.internal_id child.internal_id
+      )
+      (get_childs node)
+
+
+  let write_node_pos oc level left right node =
     let max_len = 
       List.fold_right
 	(fun s m -> max (String.length s) m)
@@ -224,29 +301,7 @@ module Make(Node_id : Node_id) = struct
     in
     let y = -level * row_space
     in
-      Printf.fprintf oc "    \"%s\" [pos=\"%d,%d\", label=\"%s\"" 
-	(string_of_int node.internal_id)
-	x y
-	(dot_escape (String.concat "\n" node.label_lines));
-      List.iter
-	(fun (name, value) -> 
-	   Printf.fprintf oc ", %s=\"%s\""
-	     name
-	     (dot_escape value))
-	node.attributes;
-      output_string oc "];\n";
-
-      List.iter
-	(function
-	   | Labelled(child, label) ->
-	       Printf.fprintf oc "    \"%d\" -> \"%d\" [label=\"%s\"];\n"
-		 node.internal_id child.internal_id
-		 (dot_escape label)
-	   | Unlabelled child ->
-	       Printf.fprintf oc "    \"%d\" -> \"%d\";\n"
-		 node.internal_id child.internal_id
-	)
-	(get_childs node);
+      write_node oc node [("pos", Printf.sprintf "%d,%d" x y)];
       width
 
 
@@ -266,7 +321,7 @@ module Make(Node_id : Node_id) = struct
       let right_margin = 
 	recurse_write_list oc ds direct_childs (level +1) left_margin
       in
-      let width = write_node oc level left_margin right_margin node
+      let width = write_node_pos oc level left_margin right_margin node
       in
 	max right_margin (left_margin + width)
 
@@ -286,10 +341,26 @@ module Make(Node_id : Node_id) = struct
 	 Printf.fprintf oc "    %s;\n" line)
       graph_commands
 
+
   let write_footer oc =
     output_string oc "}\n"
 
-  let write_dot_file name graph_commands outfile =
+
+  let write_graph name graph_commands outfile =
+    let oc = 
+      match outfile with
+  	| None -> stdout
+  	| Some f -> open_out f
+    in
+      write_header oc name graph_commands;
+      Hashtbl.iter (fun _ node -> write_node oc node []) node_hash;
+      write_footer oc;
+      (match outfile with
+	 | Some _ -> close_out oc
+	 | None -> ())	   
+
+
+  let write_tree name graph_commands outfile =
     let ds = DS.make () in
     let oc = 
       match outfile with
@@ -302,6 +373,49 @@ module Make(Node_id : Node_id) = struct
       write_header oc name graph_commands;
       assert(roots <> []);
       ignore(recurse_write_list oc ds roots 0 0);
+      write_footer oc;
+      (match outfile with
+	 | Some _ -> close_out oc
+	 | None -> ())	   
+   
+
+  let rec write_ordered_subtree oc id_from_int tree node_id level current_x =
+    let left_margin = current_x in
+    let right_margin = 
+      write_ordered_subtree_list oc id_from_int tree (level +1) 
+	left_margin tree.(id_from_int node_id)
+    in
+    let width = 
+      if Hashtbl.mem node_hash node_id
+      then
+	write_node_pos oc level left_margin right_margin 
+	  (Hashtbl.find node_hash node_id)
+      else 0
+    in
+      max right_margin (left_margin + width)
+
+  and write_ordered_subtree_list 
+      oc id_from_int tree level current_x node_id_list =
+    List.fold_left
+      (fun current_x node_id -> 
+	 write_ordered_subtree oc id_from_int tree node_id level current_x)
+      current_x
+      node_id_list
+
+
+  let write_ordered_tree id_from_int name graph_commands outfile tree roots =
+    let oc = 
+      match outfile with
+	| None -> stdout
+	| Some f -> open_out f
+    in 
+      write_header oc name graph_commands;
+      ignore(
+	List.fold_left
+	  (fun current_x root_id ->
+	     write_ordered_subtree oc id_from_int tree root_id 0 current_x)
+	  0
+	  roots);
       write_footer oc;
       (match outfile with
 	 | Some _ -> close_out oc

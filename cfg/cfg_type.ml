@@ -37,7 +37,7 @@ type function_entry =
   | Redef of function_def * 
       (function_id_type, unit) Hashtbl.t * 
       (function_id_type, unit) Hashtbl.t * 
-      sourceLoc * bool ref
+      sourceLoc * int * bool ref
 
 type cfg_type = (function_id_type, function_def) Hashtbl.t
 

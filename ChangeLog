@@ -1,3 +1,24 @@
+2007-11-19  Hendrik Tews  <tews@tandem.cs.ru.nl>
+
+        * various makefile fixes (stop on error, building bytecode)
+
+        Olmar
+        * fix sharing bug (for string option)
+        * C++ addresses are not shifted any more (passed as nativeint)
+        * fix dot_graph bug with reflexive nodes 
+        * preserve string sharing in the ast
+        * make ast ids independent of the memory layout of the ast (visit
+          members in a scope in alphabetical order)
+        * label special constructors in ast graph
+        * make all scopes special in ast graph generation
+        
+        CFG
+        * inherited constructors
+        * constructors/destructors of temporaries
+        * color missing functions in red
+        * -fun <func> for the callgraph of func
+        
+
 2007-10-30  Hendrik Tews  <tews@tandem.cs.ru.nl>
 
         CFG / Modelcheck

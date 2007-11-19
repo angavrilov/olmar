@@ -109,18 +109,20 @@ let string_of_function_id (name : function_id_type) =
     doit name.name
 
 
-let redefinition_error entry other_loc name =
+let redefinition_error entry other_loc other_node name =
   Printf.printf 
     ("%s: %s\n"
-     ^^ "    nonidentical function redefinition in %s\n"
+     ^^ "    nonidentical function redefinition in %s (id %d)\n"
      ^^ "    callee %s missing in one of the definitions\n"
-     ^^ "%s: original definition in %s\n")
+     ^^ "%s: original definition in %s (id %d)\n")
     (error_location entry.loc)
     (string_of_function_id entry.fun_id)
     (!current_oast)
+    other_node
     (string_of_function_id name)
     (error_location other_loc)
     entry.oast
+    entry.node_id
 
 
 (***********************************************************************
@@ -144,7 +146,7 @@ let function_def fun_id sourceLoc oast node =
       List.iter 
 	(fun f -> Hashtbl.add check_hash f ())
 	entry.callees;
-      Redef(entry, call_hash, check_hash, sourceLoc, ref false)
+      Redef(entry, call_hash, check_hash, sourceLoc, node, ref false)
   else
     let entry = {
       fun_id = fun_id;
@@ -164,7 +166,7 @@ let add_callee current_fun f =
 	if not (Hashtbl.mem call_hash f)
 	then
 	  Hashtbl.add call_hash f ()
-    | Redef(entry, call_hash, check_hash, other_loc, error) ->
+    | Redef(entry, call_hash, check_hash, other_loc, other_node, error) ->
 	if not (Hashtbl.mem call_hash f)
 	then
 	  begin
@@ -176,7 +178,7 @@ let add_callee current_fun f =
 	      if not !error 
 	      then
 		begin
-		  redefinition_error entry other_loc f;
+		  redefinition_error entry other_loc other_node f;
 		  error := true
 		end
 	  end
@@ -187,7 +189,7 @@ exception Finished
 let finish_fun_call = function
   | New(entry, call_hash) ->
       entry.callees <- Hashtbl.fold (fun f _ l -> f::l) call_hash []
-  | Redef(entry, _call_hash, check_hash, other_loc, error) ->
+  | Redef(entry, _call_hash, check_hash, other_loc, other_node, error) ->
       if not !error then
 	if Hashtbl.length check_hash = 0 
 	then
@@ -213,7 +215,7 @@ let finish_fun_call = function
 	     with
 	       | Finished -> ();
 	    );
-	    redefinition_error entry other_loc !missing_fun
+	    redefinition_error entry other_loc other_node !missing_fun
 	
 	
 
@@ -454,7 +456,7 @@ let get_function_id sourceLoc function_expression =
     | E_fieldAcc(annot, _type_opt, _expression, _pQName, var_opt) -> 
 	(match var_opt with
 	   | None ->
-	       fatal sourceLoc annot"field access without var node";
+	       fatal sourceLoc annot "field access without var node";
 	   | Some variable ->
 	       get_function_id_from_variable_node sourceLoc variable
 	)
@@ -555,7 +557,8 @@ and member_fun = function
 
 and function_fun sourceLoc fu =
   (* XXX handler_list?? And the FullExpressionAnnot therein?? *)
-  (* XXX dtorStatement ?? *)
+  (* XXX dtorStatement -- contains superclass/member destructors in 
+     destructors *)
   (* XXX declarator might contain initializers or other expressions? *)
   let entry = 
     function_def (get_function_definition_id sourceLoc fu.nameAndParams) 
@@ -564,11 +567,8 @@ and function_fun sourceLoc fu =
     List.iter 
       (memberInit_fun entry sourceLoc)
       fu.inits;
-    (match fu.function_dtor_statement with
-       | None -> ()
-       | Some compound -> 
-	   statement_fun entry compound
-    );
+    opt_iter (statement_fun entry) fu.function_body;
+    opt_iter (statement_fun entry) fu.function_dtor_statement;
     finish_fun_call entry
 
 
@@ -723,7 +723,10 @@ and declarator_fun current_func sourceLoc declarator =
    * Inits of the form IN_ctor lack their arguments, therefore for such
    * inits, it is necessary to traverse the ctor. Things like int i(3) 
    * are apparently rewritten into IN_expr. Therefore we have the hypothesis 
-   * that you have IN_ctor precisely when you have a ctor.
+   * that you have IN_ctor precisely when you have a direct ctor call.
+   * 
+   * However, temporaries and their descructor calls can only be found
+   * in the FullExpressionAnnot of the IN_ctor.
    * 
    * We assume now that the material of IN_ctor is captured in the 
    * ctor. For other initializers all material is in the initializer 
@@ -739,8 +742,15 @@ and declarator_fun current_func sourceLoc declarator =
   if (match declarator.init with
 	| Some(IN_ctor _) -> true
 	| _ -> false)
-  then
-    opt_iter (statement_fun current_func) declarator.declarator_ctor_statement
+  then 
+    begin
+      opt_iter (statement_fun current_func) 
+	declarator.declarator_ctor_statement;
+      match declarator.init with
+	| Some(IN_ctor(_, sourceLoc, fullannot, _args, _var, _bool)) -> 
+	    fullExpressionAnnot_fun current_func sourceLoc fullannot
+	| _ -> assert false
+    end
   else
     opt_iter (initializer_fun current_func) declarator.init;
   opt_iter (statement_fun current_func) declarator.declarator_dtor_statement
@@ -822,7 +832,9 @@ and expression_fun current_func sourceLoc = function
   | E_funCall(annot, _type_opt, expression_func, 
 	      argExpression_list, expression_retobj_opt) -> 
       (match expression_retobj_opt with
-	 | None -> ()
+	 | None 
+	 | Some(E_variable _)
+	     -> ()
 	 | Some _ -> 
 	     (* if this assertion is hit: investigate if we have to traverse
 	      * the expression_retobj

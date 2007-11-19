@@ -344,7 +344,7 @@ let main () =
   in
     mark_nodes node_array ast_array up down sels;
     do_marked_nodes node_array ast_array;
-    G.write_dot_file oast_file (dot_commands()) !out_file;
+    G.write_tree oast_file (dot_commands()) !out_file;
     Printf.printf "graph with %d nodes and %d edges generated\n%!"
       !nodes_counter !edge_counter
       

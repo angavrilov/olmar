@@ -27,3 +27,11 @@ val remove : int -> t -> unit
 
     (* create a fresh empty set *)
 val make : unit -> t
+
+    (* interval ds start end in_set
+     * checks if all elements in the closed interval start - end
+     * are in the set (for in_set = true) or 
+     * not in the set (for in_set = false)
+     *)
+val interval : t -> int -> int -> bool -> bool
+

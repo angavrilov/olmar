@@ -1,0 +1,20 @@
+digraph "CFG" {
+    node [ color = "lightblue", style = filled ];
+    edge [ arrowtail=odot ];
+    "5" [label="f", color="OrangeRed"];
+    "7" [label="g", color="OrangeRed"];
+    "4" [label="A::~A\nfile: test/t009.cc\nline 7"];
+    "4" -> "5";
+    "6" [label="B::~B\nfile: test/t009.cc\nline 12"];
+    "6" -> "4";
+    "6" -> "7";
+    "3" [label="A::constructor-special\nfile: test/t009.cc\nline 6"];
+    "2" [label="B::constructor-special\nfile: test/t009.cc\nline 11"];
+    "2" -> "3";
+    "1" [label="A::operator=\nArg 1: reference(const(A))\nfile: test/t009.cc\nline 6"];
+    "8" [label="B::constructor-special\nArg 1: reference(const(B))\nfile: test/t009.cc\nline 11"];
+    "8" -> "9";
+    "0" [label="B::operator=\nArg 1: reference(const(B))\nfile: test/t009.cc\nline 11"];
+    "0" -> "1";
+    "9" [label="A::constructor-special\nArg 1: reference(const(A))\nfile: test/t009.cc\nline 6"];
+}

@@ -20,14 +20,14 @@ let string_of_flag_list string_of_elem = function
 let node_hash = Hashtbl.create 19813
 
 
-let get_shared_node (addr : int) (typ : int) =
+let get_shared_node (addr : nativeint) (typ : int) =
   try
     Some(Hashtbl.find node_hash (addr, typ))
   with
     | Not_found -> None
 
 
-let register_shared_node (addr : int) (typ : int) (obj : Obj.t) =
+let register_shared_node (addr : nativeint) (typ : int) (obj : Obj.t) =
   assert(not (Hashtbl.mem node_hash (addr, typ)));
   Hashtbl.add node_hash (addr, typ) obj
 

@@ -1,0 +1,21 @@
+digraph "CFG" {
+    node [ color = "lightblue", style = filled ];
+    edge [ arrowtail=odot ];
+    "0" [label="t\nfile: test/t010.cc\nline 19"];
+    "0" -> "1";
+    "0" -> "2";
+    "0" -> "3";
+    "0" -> "4";
+    "0" -> "5";
+    "0" -> "6";
+    "7" [label="f1", color="OrangeRed"];
+    "8" [label="f2", color="OrangeRed"];
+    "1" [label="B_Temp::~B_Temp\nfile: test/t010.cc\nline 13"];
+    "1" -> "8";
+    "2" [label="h\nArg 1: int", color="OrangeRed"];
+    "5" [label="B_Temp::constructor-special\nArg 1: reference(const(B_Temp))\nfile: test/t010.cc\nline 11"];
+    "4" [label="A_Temp::~A_Temp\nfile: test/t010.cc\nline 8"];
+    "4" -> "7";
+    "3" [label="g\nArg 1: A_Temp", color="OrangeRed"];
+    "6" [label="A_Temp::constructor-special\nArg 1: reference(const(A_Temp))\nfile: test/t010.cc\nline 6"];
+}

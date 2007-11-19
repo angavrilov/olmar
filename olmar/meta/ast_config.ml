@@ -38,6 +38,9 @@ let downcast_hash = Hashtbl.create 23
 
 let record_variant_hash = Hashtbl.create 53
 
+let graph_label_fun_hash = Hashtbl.create 53
+
+
 
 (******************************************************************************
  ******************************************************************************
@@ -117,6 +120,7 @@ type config_file_modus =
   | Field_assertions
   | Private_accessors
   | Record_variants
+  | Graph_label_funs
 
 
 let config_sections =
@@ -136,6 +140,7 @@ let config_sections =
 	("[field assertions]", Field_assertions);
 	("[private accessors]", Private_accessors);
 	("[record variants]", Record_variants);
+	("[additional graph labels]", Graph_label_funs);
       ];
     hash
 
@@ -190,6 +195,8 @@ let parse_config_file tr =
 		scanf_id tr !line_number line 
 		  (fun id ->
 		     Hashtbl.add record_variant_hash (trim_white_space id) ())
+	    | Graph_label_funs ->
+		do_colon_ids graph_label_fun_hash tr !line_number line
 	end
     done
   in
@@ -268,3 +275,7 @@ let get_private_accessor class_name field_name =
 
 let variant_is_record class_name =
   Hashtbl.mem record_variant_hash (translate_olmar_name None class_name)
+
+
+let get_graph_label_fun class_name =
+  Hashtbl.find graph_label_fun_hash (translate_olmar_name None class_name)

@@ -288,3 +288,12 @@ STA_ATOMIC.at:	    const_cast<AtomicType*>(x->sta_value.at)
 [Record variants]
 
 CompoundType
+
+
+###########################################################################
+###########################################################################
+
+[Additional Graph Labels]
+
+Function:	  fun_class_constructor_label
+Variable:	  var_class_constructor_label

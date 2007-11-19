@@ -23,8 +23,19 @@ module type Dot_graph = sig
   val make_node_unlabelled : 
     id -> string list -> (string * string) list -> id list -> node
 
-  (* write_dot_file graph_name command_lines outfile_name *)
-  val write_dot_file : string -> string list -> string option -> unit
+  (* write_graph graph_name command_lines outfile_name *)
+  val write_graph : string -> string list -> string option -> unit
+
+  (* write_tree graph_name command_lines outfile_name *)
+  val write_tree : string -> string list -> string option -> unit
+
+  (* write_ordered_tree int_from_id graph_name command_lines 
+   *                                           outfile_name tree roots
+   * 
+   *)
+  val write_ordered_tree : 
+    (id -> int) -> 
+      string -> string list -> string option -> id list array -> id list -> unit
 
 end
 

@@ -1,3 +1,12 @@
 digraph "CFG" {
     node [ color = "lightblue", style = filled ];
     edge [ arrowtail=odot ];
+    "3" [label="operator new\nArg 1: unsigned int\nfile: test/t008.cc\nline 11"];
+    "3" -> "1";
+    "2" [label="A::constructor-special\nArg 1: int\nfile: test/t008.cc\nline 8"];
+    "2" -> "1";
+    "1" [label="printf\nArg 1: pointer(const(char))", color="OrangeRed"];
+    "0" [label="main\nfile: test/t008.cc\nline 17"];
+    "0" -> "1";
+    "0" -> "2";
+}

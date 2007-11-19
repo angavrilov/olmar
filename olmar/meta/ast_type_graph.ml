@@ -3,6 +3,7 @@
 (***********************************************************************)
 
 
+open Ast_config
 open Meta_ast
 
 
@@ -33,38 +34,54 @@ module G = Dot_graph.Make(Node_id)
  ******************************************************************************)
 
 
-let color_hash = Hashtbl.create 153
+(* 
+ * let color_hash = Hashtbl.create 153
+ * 
+ * let get_color id =
+ *   try
+ *     Hashtbl.find color_hash id
+ *   with
+ *     | Not_found ->
+ * 	Printf.eprintf "color missing for %s\n" id;
+ * 	"white"
+ * 
+ * let _ = 
+ *   List.iter 
+ *     (fun (id_list, color) -> 
+ *        List.iter (fun id -> Hashtbl.add color_hash id color) id_list)
+ *     [
+ *       (["ASTSpecFile"], "orange");
+ *       (["ToplevelForm";
+ * 	"TF_verbatim";
+ * 	"TF_impl_verbatim";
+ * 	"TF_ocaml_type_verbatim";
+ * 	"TF_xml_verbatim";
+ * 	"TF_class";
+ * 	"TF_option";
+ * 	"TF_custom";
+ * 	"TF_enum";], "red");
+ *       (["ASTClass"; "FieldOrCtorArg"], "cyan");
+ *       (["BaseClass"], "purple");
+ *       (["AccessMod";
+ * 	"Annotation";
+ * 	"UserDecl";
+ * 	"CustomCode"], "grey")
+ *     ]
+ *)
 
-let get_color id =
-  try
-    Hashtbl.find color_hash id
-  with
-    | Not_found ->
-	Printf.eprintf "color missing for %s\n" id;
-	"white"
 
-let _ = 
-  List.iter 
-    (fun (id_list, color) -> 
-       List.iter (fun id -> Hashtbl.add color_hash id color) id_list)
-    [
-      (["ASTSpecFile"], "orange");
-      (["ToplevelForm";
-	"TF_verbatim";
-	"TF_impl_verbatim";
-	"TF_ocaml_type_verbatim";
-	"TF_xml_verbatim";
-	"TF_class";
-	"TF_option";
-	"TF_custom";
-	"TF_enum";], "red");
-      (["ASTClass"; "FieldOrCtorArg"], "cyan");
-      (["BaseClass"], "purple");
-      (["AccessMod";
-	"Annotation";
-	"UserDecl";
-	"CustomCode"], "grey")
-    ]
+let get_color cl =
+  let cl = match cl.ac_super with
+    | None -> cl
+    | Some cl -> cl
+  in
+    try
+      get_node_color cl.ac_name
+    with
+      | Not_found -> 
+	  Printf.eprintf "color missing for %s\n" cl.ac_name;
+	  "white"
+
 
 
 (******************************************************************************
@@ -101,7 +118,7 @@ let gen_graph_child_or_record cl =
 	cl.ac_id
 	((Printf.sprintf "%s %d" (translated_class_name cl) cl.ac_id) ::
 	   (List.map (name_and_type_of_field cl) attributes))
-	[("color", get_color (translated_class_name cl))]
+	[("color", get_color cl)]
 	(List.map
 	   (fun f ->
 	      ((get_pointed_node f.af_mod_type).ac_id, 
@@ -118,7 +135,7 @@ let gen_graph_super cl =
 	cl.ac_id
 	((Printf.sprintf "%s %d" (translated_class_name cl) cl.ac_id) ::
 	   (List.map (name_and_type_of_field cl) attributes))
-	[("color", get_color (translated_class_name cl))]
+	[("color", get_color cl)]
 	(List.map (fun c -> (c.ac_id, None)) cl.ac_subclasses));
     List.iter gen_graph_child_or_record cl.ac_subclasses
 
@@ -157,7 +174,7 @@ let main () =
   let (oast_file, ast) = setup_ml_ast arguments "gen_superast" 
   in
     (List.iter gen_graph ast);
-    G.write_dot_file oast_file dot_commands !output_option
+    G.write_tree oast_file dot_commands !output_option
     
 ;;
 

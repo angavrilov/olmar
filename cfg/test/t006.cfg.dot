@@ -1,3 +1,13 @@
 digraph "CFG" {
     node [ color = "lightblue", style = filled ];
     edge [ arrowtail=odot ];
+    "0" [label="g\nfile: test/t006.cc\nline 10"];
+    "0" -> "1";
+    "0" -> "2";
+    "0" -> "3";
+    "0" -> "4";
+    "1" [label="A::~A\nfile: test/t006.cc\nline 2"];
+    "4" [label="A::constructor-special\nArg 1: int\nfile: test/t006.cc\nline 4"];
+    "2" [label="size", color="OrangeRed"];
+    "3" [label="A::constructor-special\nfile: test/t006.cc\nline 5"];
+}

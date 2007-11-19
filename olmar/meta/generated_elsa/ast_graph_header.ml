@@ -17,13 +17,16 @@ open Superast
  *
  ************************************************************************)
 
+let normal_scope = ref false
+
 let normal_top_level_scope = ref false
 
 let nodes_counter = ref 0
 
 let edge_counter = ref 0
 
-let max_string_length = ref 15
+let max_string_length = ref 30
+
 
 (************************************************************************
  *
@@ -102,4 +105,62 @@ let truncate_string s =
 
 let loc_label (file, line, char) =
   Printf.sprintf "loc: %s:%d:%d" file line char
+
+
+(************************************************************************
+ *
+ * node specific labelling functions
+ *
+ ************************************************************************)
+
+let fun_class_constructor_label (f : 'a function_type) = 
+  let same_class_compound compound =
+    match f.nameAndParams.declarator_var with
+      | None -> false
+      | Some var -> match var.scope with
+	  | None -> false
+	  | Some scope -> match scope.scope_compound with
+	      | None -> false
+	      | Some class_compound -> class_compound == compound
+  in
+    match f.funcType with
+      | FunctionType(_, flags, _rettype, args, _excn) ->
+	  (match (List.mem FF_CTOR flags, List.mem FF_DTOR flags) with
+	     | true, true -> ["constructor AND destructor"]
+	     | true, _ -> 
+		 (match args with
+		    | [] -> ["default constructor"]
+		    | [arg] -> 
+			(match !(arg.variable_type) with
+			   | None -> ["missing type in only constructor arg"]
+			   | Some typ ->
+			       match typ with
+				 | ReferenceType
+				     (_, CVAtomicType
+					(_, CompoundType(compound) ,
+					 [CV_CONST])) 
+				     when same_class_compound compound ->
+				     ["copy constructor"]
+				     
+				 | ReferenceType _
+				 | CVAtomicType _
+				 | PointerType _
+				 | FunctionType _
+				 | ArrayType _
+				 | DependentSizedArrayType _
+				 | PointerToMemberType _
+				   -> ["other constructor"]
+			)
+		    | _ -> ["other constructor"]
+		 )
+	     | _, true -> ["destructor"]
+	     | _ -> []
+	  )
+      | _ -> assert false
+
+
+let var_class_constructor_label (v : 'a variable_type) =
+  match !(v.funcDefn) with
+    | None -> []
+    | Some fun_type -> fun_class_constructor_label fun_type
 

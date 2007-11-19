@@ -26,7 +26,7 @@ let next_annotation () =
     incr next_id;
     id
 
-let create_ast_annotation (c_addr : int) = 
+let create_ast_annotation (c_addr : nativeint) = 
   try
     let res = Hashtbl.find addr_hash c_addr
     in

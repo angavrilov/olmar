@@ -21,7 +21,7 @@
   for(StringObjDict<T>::Iter iter(dict); !iter.isDone(); iter.next())
 
 #define FOREACH_STRINGREFMAP_NC(T, map, iter) \
-  for(StringRefMap<T>::Iter iter(map); !iter.isDone(); iter.adv())
+  for(StringRefMap<T>::SortedKeyIter iter(map); !iter.isDone(); iter.adv())
 
 
 typedef int Array_size;

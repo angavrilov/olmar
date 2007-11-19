@@ -12,29 +12,29 @@ ASTGEN_OR:= ../../build/astgen
 
 
 # external tools
-OCAMLC   := ocamlc.opt
-OCAMLOPT := ocamlopt.opt
-OCAMLCC  := ocamlopt.opt
+OCC   := ocamlc.opt
+OCOPT := ocamlopt.opt
+OCCC  := ocamlopt.opt
 CAMLP4O  := camlp4o
 
-OCAML_OBJ_EXT := cmx
-OCAML_LIB_EXT := cmxa
-OCAML_FLAGS := -w Ae
-OCAML_BYTE_FLAGS := -g
-OCAMLDEPOPTS := -native
+OC_OBJ_EXT := cmx
+OC_LIB_EXT := cmxa
+OC_FLAGS := -w Ae
+OC_BYTE_FLAGS := -g
+OCDEPOPTS := -native
 
-OCAMLDEBUG=0
-ifeq ($(OCAMLDEBUG),1)
-  OCAMLOPT := $(OCAMLC) -g
-  OCAMLCC  := $(OCAMLC) -g
-  OCAMLC   := $(OCAMLC) -g
-  OCAML_OBJ_EXT := cmo
-  OCAML_LIB_EXT := cma
-  OCAMLDEPOPTS :=
+OCDEBUG=0
+ifeq ($(OCDEBUG),1)
+  OCOPT := $(OCC) -g
+  OCCC  := $(OCC) -g
+  OCC   := $(OCC) -g
+  OC_OBJ_EXT := cmo
+  OC_LIB_EXT := cma
+  OCDEPOPTS :=
 endif
 
 .PHONY: all
-all: 	superast.cmx uplinks.cmx ast_graph
+all: 	superast.$(OC_OBJ_EXT) uplinks.$(OC_OBJ_EXT)
 
 
 # list of files to clean in 'clean' (etc.) targets
@@ -77,11 +77,11 @@ ast_graph.cmx: uplinks.cmx
 ast_graph.cmo: uplinks.cmo
 
 AST_GRAPH_ML=\
-	$(UTIL)/olmar_utils.$(OCAML_LIB_EXT) \
-	$(GENERAL)/astgen_general.$(OCAML_LIB_EXT) \
-	$(ASTGEN_OR)/astgen_lib.$(OCAML_LIB_EXT) \
-	../ast_config.$(OCAML_OBJ_EXT) \
-	../meta_ast.$(OCAML_OBJ_EXT) \
+	$(UTIL)/olmar_utils.$(OC_LIB_EXT) \
+	$(GENERAL)/astgen_general.$(OC_LIB_EXT) \
+	$(ASTGEN_OR)/astgen_lib.$(OC_LIB_EXT) \
+	../ast_config.$(OC_OBJ_EXT) \
+	../meta_ast.$(OC_OBJ_EXT) \
 	ast_accessors.ml \
 	superast.ml \
 	uplinks.ml \
@@ -89,8 +89,8 @@ AST_GRAPH_ML=\
 
 
 TOCLEAN += ast_graph
-ast_graph: $(AST_GRAPH_ML:.ml=.$(OCAML_OBJ_EXT))
-	$(OCAMLCC) $(OCAML_FLAGS) -o $@ $^
+ast_graph: $(AST_GRAPH_ML:.ml=.$(OC_OBJ_EXT))
+	$(OCCC) $(OC_FLAGS) -o $@ $^
 
 
 ############################################################################
@@ -170,7 +170,7 @@ superast.ml: superast_header.ml superast_generated.ml superast_trailer.ml
 	cat superast_trailer.ml >> $@
 
 
-superast.cmi: ast_accessors.$(OCAML_OBJ_EXT)
+superast.cmi: ast_accessors.$(OC_OBJ_EXT)
 superast.cmx: superast.cmi
 superast.cmo: superast.cmi
 
@@ -190,17 +190,17 @@ distclean: clean
 
 TOCLEAN += *.cmo *.cmxa *.cma *.a
 %.cmo: %.ml
-	$(OCAMLC) $(OCAML_BYTE_FLAGS) $(OCAML_FLAGS) -I $(UTIL) -I $(GENERAL) \
+	$(OCC) $(OC_BYTE_FLAGS) $(OC_FLAGS) -I $(UTIL) -I $(GENERAL) \
 		-I $(ASTGEN_OR) -I .. -c $<
 
 TOCLEAN += *.cmx *.o
 %.cmx: %.ml
-	$(OCAMLOPT) $(OCAML_FLAGS) -I $(UTIL) -I $(GENERAL) -I $(ASTGEN_OR) \
+	$(OCOPT) $(OC_FLAGS) -I $(UTIL) -I $(GENERAL) -I $(ASTGEN_OR) \
 		-I .. -c $<
 
 TOCLEAN += *.cmi
 %.cmi: %.mli
-	$(OCAMLC) $(OCAML_FLAGS) -I $(UTIL) -I $(GENERAL) -I $(ASTGEN_OR) \
+	$(OCC) $(OC_FLAGS) -I $(UTIL) -I $(GENERAL) -I $(ASTGEN_OR) \
 		-I .. -c $<
 
 
@@ -209,5 +209,5 @@ TOCLEAN += *.cmi
 .PHONY: mldeps
 depend: mldeps
 mldeps:
-	ocamldep $(OCAMLDEPOPTS) -I $(UTIL) -I $(GENERAL) -I $(ASTGEN_OR) \
+	ocamldep $(OCDEPOPTS) -I $(UTIL) -I $(GENERAL) -I $(ASTGEN_OR) \
 		*ml *mli > mldeps.mk

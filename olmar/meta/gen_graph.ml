@@ -89,6 +89,13 @@ let graph_node oc cl annot fields field_names =
     fpf "      make_node (id_annotation %s)\n" annot;
     fpf "        ((Printf.sprintf \"%s %%d\" (id_annotation %s)) ::\n"
       (translated_class_name cl) annot;
+    (try 
+       let f = get_graph_label_fun cl.ac_name
+       in
+	 fpf "          (%s x) @\n" f
+     with
+       | Not_found -> ()
+    );
     (match source_loc_field with
        | None -> ()
        | Some f ->
@@ -97,9 +104,9 @@ let graph_node oc cl annot fields field_names =
     );
     (List.iter
        (fun (attr, id) ->
-	  fpf "           [(\"%s: \" ^ " (translated_field_name cl attr);
+	  fpf "           (\"%s: \" ^ " (translated_field_name cl attr);
 	  get_string_of_type oc id attr.af_mod_type;
-	  out ")] @\n"
+	  out ") :: \n"
        )
        attributes);
     out "           [])\n";

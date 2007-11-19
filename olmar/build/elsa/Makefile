@@ -1,18 +1,6 @@
 # Makefile for build/elsa
 # see license.txt for copyright and terms of use
 
-# set to 1 for native compilation, 0 for bytecode
-NATIVE_OCAML := 1
-# set to ``cmo'' for ocaml bytecode compilation
-# and to ``cmx'' for native compilation
-
-
-# main targets
-first: stage_2
-stage_1:
-stage_2: quickreflectiontest
-stage_3:
-
 
 # directories of other software
 SMBASE := ../../../smbase
@@ -23,12 +11,37 @@ GENERAL := ../general
 ASTGEN := ../astgen
 META := ../../meta
 
+LIBSMBASE := $(SMBASE)/libsmbase.a
+LIBAST      := $(AST)/libast.a
+LIBELKHOUND := $(ELKHOUND)/libelkhound.a
+OCDIR := /usr/local/stow/ocaml-3.09-godi/lib/ocaml/std-lib
+
+# external tools
+PERL := perl
+OCC   := ocamlc.opt
+OCCC  := ocamlopt.opt
+OCOPT := ocamlopt.opt
+DEP := $(PERL) $(SMBASE)/depend.pl
+
+
+# C++ preprocessor, compiler and linker
+CXX := ccache g++-4.1
+
+# flags for the C++ compiler (and preprocessor)
+CCFLAGS := -g -Wall -Wno-deprecated -D__UNIX__ -DNDEBUG -D__LINUX__ -Woverloaded-virtual -I$(SMBASE) -I$(AST) -I$(ELKHOUND) -I$(ELSA) -I$(OCDIR) -I$(GENERAL)
+
+# flags for the linker
+libraries := $(LIBELKHOUND) $(LIBAST) $(LIBSMBASE)
+LDFLAGS := -g -Wall $(libraries)
+
+
 OC_OBJ_EXT := cmx
 OC_LIB_EXT := cmxa
 OC_COMP_FLAGS := -w Ae
 OC_INC_FLAGS := -I $(GENERAL)
 OC_FLAGS := $(OC_COMP_FLAGS) $(OC_INC_FLAGS)
 OC_BYTE_FLAGS := -g
+OCLIBS := -L $(OCDIR) -lasmrun -ldl
 OCDEPOPTS := -native
 
 OCDEBUG=0
@@ -38,34 +51,17 @@ ifeq ($(OCDEBUG),1)
   OCC   := $(OCC) -g
   OC_OBJ_EXT := cmo
   OC_LIB_EXT := cma
+  OCLIBS := -L $(OCDIR) -lcamlrun -ldl
   OCDEPOPTS :=
 endif
 
 
+# main targets
+first: stage_2
+stage_1:
+stage_2: quickreflectiontest
+stage_3:
 
-LIBSMBASE := $(SMBASE)/libsmbase.a
-LIBAST      := $(AST)/libast.a
-LIBELKHOUND := $(ELKHOUND)/libelkhound.a
-OCDIR := /usr/local/stow/ocaml-3.09-godi/lib/ocaml/std-lib
-
-ifeq ($(NATIVE_OCAML),1)
-#native
-OCLIBS := -L $(OCDIR) -lasmrun -ldl
-OCDEPOPTS := -native
-else
-#bytecode
-OCLIBS := -L $(OCDIR) -lcamlrun -lcurses -ldl
-OCDEPOPTS :=
-endif
-
-
-
-# external tools
-PERL := perl
-OCC   := ocamlc.opt
-OCCC  := ocamlopt.opt
-OCOPT := ocamlopt.opt
-DEP := $(PERL) $(SMBASE)/depend.pl
 
 
 # list of files to clean in 'clean' (etc.) targets
@@ -80,24 +76,6 @@ TOCLEAN =
 # # reconfigure if the configure script has changed
 # config.status: configure.pl $(SMBASE)/sm_config.pm
 # 	./config.status -reconfigure
-
-
-#############################################################################
-#####
-##### compiler configuration
-#####
-#############################################################################
-
-
-# C++ preprocessor, compiler and linker
-CXX := ccache g++-4.1
-
-# flags for the C++ compiler (and preprocessor)
-CCFLAGS := -g -Wall -Wno-deprecated -D__UNIX__ -DNDEBUG -D__LINUX__ -Woverloaded-virtual -I$(SMBASE) -I$(AST) -I$(ELKHOUND) -I$(ELSA) -I$(OCDIR) -I$(GENERAL)
-
-# flags for the linker
-libraries := $(LIBELKHOUND) $(LIBAST) $(LIBSMBASE)
-LDFLAGS := -g -Wall $(libraries)
 
 
 # compile .cc in this directory to a .o

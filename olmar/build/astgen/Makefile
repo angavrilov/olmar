@@ -1,57 +1,57 @@
 # Makefile for build/astgen
 # see license.txt for copyright and terms of use
 
-# set to 1 for native compilation, 0 for bytecode
-NATIVE_OCAML := 1
-# set to ``cmo'' for ocaml bytecode compilation
-# and to ``cmx'' for native compilation
-OCAML_OBJ_EXT := cmx
-OCAML_LIB_EXT := cmxa
-
-
-# main targets
-stage_1: astgen_lib.$(OCAML_LIB_EXT) astgen_or ast.ast.oast
-
-stage_2: 
-
-stage_3: check_ast_oast
-
-
 # directories of other software
 SMBASE := ../../../smbase
 AST := ../../../ast
 GENERAL := ../general
 LIBSMBASE := $(SMBASE)/libsmbase.a
-OCAMLDIR := /usr/local/stow/ocaml-3.09-godi/lib/ocaml/std-lib
+OCDIR := /usr/local/stow/ocaml-3.09-godi/lib/ocaml/std-lib
 META := ../../meta
-
-ifeq ($(NATIVE_OCAML),1)
-#native
-OCAMLLIBS := -L $(OCAMLDIR) -lasmrun -ldl
-OCAMLDEPOPTS := -native
-else
-#bytecode
-OCAMLLIBS := -L $(OCAMLDIR) -lcamlrun -lcurses -ldl
-OCAMLDEPOPTS :=
-endif
-
 
 
 # external tools
 PERL := perl
-OCAMLC   := ocamlc.opt
-OCAMLCC  := ocamlopt.opt
-OCAMLOPT := ocamlopt.opt
+OCC   := ocamlc.opt
+OCCC  := ocamlopt.opt
+OCOPT := ocamlopt.opt
 
 # C++ compiler, etc.
 CXX := ccache g++-4.1
 
 # flags for the C and C++ compilers (and preprocessor)
 CCFLAGS := -g -Wall -Wno-deprecated -D__UNIX__ -DNDEBUG -D__LINUX__ \
-		-I$(SMBASE) -I $(AST) -I $(GENERAL) -I $(OCAMLDIR)
+		-I$(SMBASE) -I $(AST) -I $(GENERAL) -I $(OCDIR)
 
 # flags for the linker
 LDFLAGS := -g -Wall $(LIBSMBASE)
+
+OC_OBJ_EXT := cmx
+OC_LIB_EXT := cmxa
+OCLIBS := -L $(OCDIR) -lasmrun -ldl
+OCDEPOPTS := -native
+
+OCDEBUG=0
+ifeq ($(OCDEBUG),1)
+  OCOPT := $(OCC) -g
+  OCCC  := $(OCC) -g
+  OCC   := $(OCC) -g
+  OC_OBJ_EXT := cmo
+  OC_LIB_EXT := cma
+  OCLIBS := -L $(OCDIR) -lcamlrun -ldl
+  OCDEPOPTS :=
+endif
+
+
+
+# main targets
+stage_1: astgen_lib.$(OC_LIB_EXT) astgen_or ast.ast.oast
+
+stage_2: 
+
+stage_3: check_ast_oast
+
+
 
 
 # list of files to clean in 'clean' (etc.) targets
@@ -65,13 +65,13 @@ TOCLEAN =
 
 TOCLEAN += *.cmo *.cmi *.cmx *.cmxa *.cma *.o *.a
 %.cmi: %.mli
-	$(OCAMLC) -I $(GENERAL) -c $<
+	$(OCC) -I $(GENERAL) -c $<
 
 %.cmo: %.ml
-	$(OCAMLC) -I $(GENERAL) -c $<
+	$(OCC) -I $(GENERAL) -c $<
 
 %.cmx: %.ml
-	$(OCAMLOPT) -I $(GENERAL) -c $<
+	$(OCOPT) -I $(GENERAL) -c $<
 
 # remake the generated Makefile if its inputs have changed
 #Makefile: Makefile.in config.status
@@ -114,24 +114,24 @@ ASTGEN_ML := \
 .PHONY: mldeps
 depend: mldeps
 mldeps:
-	ocamldep $(OCAMLDEPOPTS) -I $(GENERAL) $(ASTGEN_ML) > mldeps.mk
+	ocamldep $(OCDEPOPTS) -I $(GENERAL) $(ASTGEN_ML) > mldeps.mk
 
 
 astgen_lib.cmxa : $(ASTGEN_ML:.ml=.cmx)
-	$(OCAMLOPT) -o $@ -a $^
+	$(OCOPT) -o $@ -a $^
 
 astgen_lib.cma : $(ASTGEN_ML:.ml=.cmo)
-	$(OCAMLC) -o $@ -a $^
+	$(OCC) -o $@ -a $^
 
 
 ASTGEN_ML_OBJECT := \
-	$(GENERAL)/astgen_general.$(OCAML_LIB_EXT) \
-	astgen_lib.$(OCAML_LIB_EXT) \
+	$(GENERAL)/astgen_general.$(OC_LIB_EXT) \
+	astgen_lib.$(OC_LIB_EXT) \
 	ast_caml_callbacks.ml
 
 
-astgen_ml_object.o: $(ASTGEN_ML_OBJECT:.ml=.$(OCAML_OBJ_EXT)) 
-	$(OCAMLCC) -output-obj -o $@ $^	
+astgen_ml_object.o: $(ASTGEN_ML_OBJECT:.ml=.$(OC_OBJ_EXT)) 
+	$(OCCC) -output-obj -o $@ $^	
 
 
 .PHONY: astgen_patch
@@ -160,8 +160,7 @@ ASTGEN_OR_OBJS := \
 # line because ast.hand.cc #includes it
 TOCLEAN += astgen_or
 astgen_or: $(ASTGEN_OR_OBJS) $(LIBSMBASE) 
-	$(CXX) -o astgen_or $(ASTGEN_OR_OBJS) $(LDFLAGS) $(AST)/libast.a \
-		$(OCAMLLIBS)
+	$(CXX) -o astgen_or $(ASTGEN_OR_OBJS) $(LDFLAGS) $(AST)/libast.a $(OCLIBS)
 
 
 #############################################################################

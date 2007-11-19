@@ -39,7 +39,7 @@ val pseudo_annotation : unit -> annotated
 *************************************************************************)
 
 (* create a new unique ast annotation *)
-val create_ast_annotation : int -> annotated
+val create_ast_annotation : nativeint -> annotated
 
 (* return the maximal id used *)
 val max_annotation : unit -> int

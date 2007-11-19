@@ -115,3 +115,43 @@ let remove el set =
     then
       set.(string_i).[char_i] <- 
 	char_of_int ((int_of_char set.(string_i).[char_i]) lxor mask)
+
+
+(* interval ds start end in_set
+ * checks if all elements in the closed interval start - end
+ * are in the set (for in_set = true) or 
+ * not in the set (for in_set = false)
+ * 
+ * val interval : t -> int -> int -> bool -> bool
+ *)
+let interval ds start ende in_set =
+  let res = ref true in
+  let start_fast = start - (start mod 8) + 8 in
+  let (start_i, start_b, _) = get_position start_fast in
+  let end_fast = ende - (ende mod 8) -1 in
+  let (end_i, end_b, _) = get_position end_fast in
+  let expected_val = if in_set then '\255' else '\000'
+  in
+    for i = start to start_fast -1 do
+      if mem i ds <> in_set
+      then
+	res := false
+    done;
+    for i = start_i to end_i do
+      let len_i = String.length ds.(i)
+      in
+	for b = (if i = start_i then start_b else 0) 
+	to (if i = end_i then end_b else Sys.max_string_length)
+	do
+	  if (if b < len_i then ds.(i).[b] else '\000') <> expected_val 
+	  then 
+	    res := false
+	done
+    done;
+    for i = end_fast + 1 to ende do
+      if mem i ds <> in_set
+      then
+	res := false
+    done;
+    !res
+    

@@ -9,6 +9,60 @@
  *
  ************************************************************************)
 
+let is_scope_node ast_array i =
+  match ast_array.(i) with
+    | No_ast_node -> assert false
+    | Scope_type _ -> true
+    | CompilationUnit_type _
+    | TranslationUnit_type _
+    | TopForm_type _
+    | Function_type _
+    | MemberInit_type _
+    | Declaration_type _
+    | ASTTypeId_type _
+    | PQName_type _
+    | TypeSpecifier_type _
+    | BaseClassSpec_type _
+    | Enumerator_type _
+    | MemberList_type _
+    | Member_type _
+    | ExceptionSpec_type _
+    | OperatorName_type _
+    | Statement_type _
+    | Condition_type _
+    | Handler_type _
+    | Expression_type _
+    | FullExpression_type _
+    | ArgExpression_type _
+    | ArgExpressionListOpt_type _
+    | Initializer_type _
+    | TemplateDeclaration_type _
+    | TemplateParameter_type _
+    | TemplateArgument_type _
+    | NamespaceDecl_type _
+    | Declarator_type _
+    | IDeclarator_type _
+    | FullExpressionAnnot_type _
+    | ASTTypeof_type _
+    | Designator_type _
+    | AttributeSpecifierList_type _
+    | AttributeSpecifier_type _
+    | Attribute_type _
+    | Variable_type _
+    | OverloadSet_type _
+    | TemplateInfo_type _
+    | InheritedTemplateParams_type _
+    | BaseClass_type _
+    | BaseClassSubobj_type _
+    | EnumValue_type _
+    | AtomicType_type _
+    | CompoundType_type _
+    | FunctionExnSpec_type _
+    | CType_type _
+    | STemplateArgument_type _
+	-> false
+
+
 type node_selection =
   | All_nodes
   | Real_nodes
@@ -19,6 +73,8 @@ type node_selection =
   | Add_diameter of int
   | Del_noloc
   | Add_noloc
+  | Normal_scope
+  | Special_scope
   | Normal_top_scope
   | Special_top_scope
 
@@ -64,11 +120,13 @@ let mark_direction node_array ast_array visited dir_fun nodes =
 	if dia > visited.(i) then begin
 	  print_this_node node_array i;
 	  visited.(i) <- dia;
-	  if (!normal_top_level_scope or top_scope_opt <> Some i)
+	  if (top_scope_opt = Some i && not !normal_top_level_scope) or
+	    (top_scope_opt <> Some i &&
+	       is_scope_node ast_array i && not !normal_scope)
 	  then	     
-	    doit (((max 0 (dia -1)), (dir_fun i)) :: (dia, l) :: ll)
-	  else
 	    doit ((dia, l) :: ll)
+	  else
+	    doit (((max 0 (dia -1)), (dir_fun i)) :: (dia, l) :: ll)
 	end
 	else
 	    doit ((dia, l) :: ll)
@@ -89,7 +147,7 @@ let mark_node_diameter node_array ast_array up down diameter =
       get_current_selection (i+1) (if node_array.(i) then i::res else res)
   in
   let visited () = Array.create (Array.length node_array) 0 in    
-  let start_selection = get_current_selection 1 [] 
+  let start_selection = get_current_selection 0 [] 
   in
     mark_direction node_array ast_array (visited ())
       (fun i -> up.(i)) [(diameter +1, start_selection)];
@@ -133,11 +191,174 @@ let mark_nodes node_array ast_array up down sels =
        | Add_diameter i -> mark_node_diameter node_array ast_array up down i
        | Del_noloc -> mark_noloc_nodes node_array ast_array false
        | Add_noloc -> mark_noloc_nodes node_array ast_array true
+       | Normal_scope -> normal_scope := true
+       | Special_scope -> normal_scope := false
        | Normal_top_scope -> normal_top_level_scope := true
        | Special_top_scope -> normal_top_level_scope := false
        | Loc(file,line,char) -> mark_line node_array ast_array file line char
     )
     sels
+
+
+(************************************************************************
+ *
+ * direct child array
+ *
+ ************************************************************************)
+
+module DS = Dense_set
+
+let is_variable_or_scope_node ast_array id =
+    match ast_array.(id) with
+      | No_ast_node -> assert false
+      | CompilationUnit_type _ 
+      | TranslationUnit_type _ 
+      | TopForm_type _
+      | Function_type _ 
+      | MemberInit_type _ 
+      | Declaration_type _ 
+      | ASTTypeId_type _ 
+      | PQName_type _
+      | TypeSpecifier_type _
+      | BaseClassSpec_type _ 
+      | Enumerator_type _
+      | MemberList_type _ 
+      | Member_type _
+      | ExceptionSpec_type _ 
+      | OperatorName_type _ 
+      | Statement_type _
+      | Condition_type _ 
+      | Handler_type _ 
+      | Expression_type _ 
+      | FullExpression_type _ 
+      | ArgExpression_type _ 
+      | ArgExpressionListOpt_type _ 
+      | Initializer_type _
+      | TemplateDeclaration_type _ 
+      | TemplateParameter_type _
+      | TemplateArgument_type _ 
+      | NamespaceDecl_type _ 
+      | Declarator_type _ 
+      | IDeclarator_type _
+      | FullExpressionAnnot_type _ 
+      | ASTTypeof_type _ 
+      | Designator_type _
+      | AttributeSpecifierList_type _ 
+      | AttributeSpecifier_type _ 
+      | Attribute_type _
+      | OverloadSet_type _ 
+      | TemplateInfo_type _
+      | InheritedTemplateParams_type _ 
+      | BaseClass_type _ 
+      | BaseClassSubobj_type _ 
+      | EnumValue_type _ 
+      | AtomicType_type _ 
+      | CompoundType_type _ 
+      | FunctionExnSpec_type _ 
+      | CType_type _ 
+      | STemplateArgument_type _ 
+	-> false
+
+      | Scope_type _ 
+      | Variable_type _ -> true
+
+
+let filter_scope_option ast_array up all_childs = function
+  | None -> all_childs
+  | Some scope ->
+      if List.for_all 
+	(is_variable_or_scope_node ast_array) 
+	up.(id_annotation (scope_annotation scope))
+      then
+	all_childs
+      else
+	List.filter 
+	  (fun id -> id <> id_annotation (scope_annotation scope))
+	  all_childs
+
+
+let filter_scopes ast_array up down node_id =
+  match ast_array.(node_id) with
+    | No_ast_node -> assert false
+    | CompilationUnit_type _ 
+    | TranslationUnit_type _ 
+    | TopForm_type _
+    | Function_type _ 
+    | MemberInit_type _ 
+    | Declaration_type _ 
+    | ASTTypeId_type _ 
+    | PQName_type _
+    | TypeSpecifier_type _
+    | BaseClassSpec_type _ 
+    | Enumerator_type _
+    | MemberList_type _ 
+    | Member_type _
+    | ExceptionSpec_type _ 
+    | OperatorName_type _ 
+    | Statement_type _
+    | Condition_type _ 
+    | Handler_type _ 
+    | Expression_type _ 
+    | FullExpression_type _ 
+    | ArgExpression_type _ 
+    | ArgExpressionListOpt_type _ 
+    | Initializer_type _
+    | TemplateDeclaration_type _ 
+    | TemplateParameter_type _
+    | TemplateArgument_type _ 
+    | NamespaceDecl_type _ 
+    | Declarator_type _ 
+    | IDeclarator_type _
+    | FullExpressionAnnot_type _ 
+    | ASTTypeof_type _ 
+    | Designator_type _
+    | AttributeSpecifierList_type _ 
+    | AttributeSpecifier_type _ 
+    | Attribute_type _
+    | OverloadSet_type _ 
+    | TemplateInfo_type _
+    | InheritedTemplateParams_type _ 
+    | BaseClass_type _ 
+    | BaseClassSubobj_type _ 
+    | EnumValue_type _ 
+    | AtomicType_type _ 
+    | CompoundType_type _ 
+    | FunctionExnSpec_type _ 
+    | CType_type _ 
+    | STemplateArgument_type _ 
+	-> down.(node_id)
+
+    | Scope_type s ->
+	filter_scope_option ast_array up down.(node_id) s.parentScope
+    | Variable_type v ->
+	filter_scope_option ast_array up down.(node_id) v.scope
+
+
+let rec direct_child_rec (ast_array : 'a array) up down ds direct_childs node_id =
+  assert(not (DS.mem node_id ds));
+  DS.add node_id ds;
+  List.iter
+    (fun child_id ->
+       if not (DS.mem child_id ds) 
+       then
+	 begin
+	   direct_childs.(node_id) <- child_id :: direct_childs.(node_id);
+	   direct_child_rec ast_array up down ds direct_childs child_id
+	 end)
+    (filter_scopes ast_array up down node_id);
+  direct_childs.(node_id) <- List.rev direct_childs.(node_id)
+
+
+let direct_child_array ast_array up down =
+  let len = Array.length down in
+  let ds = DS.make () in
+  let direct_childs = Array.create len []
+  in
+    assert(Array.length up = len && Array.length ast_array = len);
+    direct_child_rec ast_array up down ds direct_childs 0;
+    assert(DS.interval ds 0 (len -1) true);
+    direct_childs
+
 
 
 
@@ -208,10 +429,16 @@ let arguments = Arg.align
      " unselect nodes with a <noloc> location");
     ("-with-noloc", Arg.Unit (fun () -> select Add_noloc),
      " select nodes with a <noloc> location");
+    ("-normal-scope", Arg.Unit (fun () -> select Normal_scope),
+     " don't treat scopes special");
+    ("-special-scope", Arg.Unit (fun () -> select Special_scope),
+     " treat scopes special");
     ("-normal-top-scope", Arg.Unit (fun () -> select Normal_top_scope),
      " don't treat top level scope special");
     ("-special-top-scope", Arg.Unit (fun () -> select Special_top_scope),
-     " don't treat top level scope special");
+     " treat top level scope special");
+    ("-field-len", Arg.Set_int max_string_length,
+     "len set maximal field length");
     ("-o", Arg.String out_file_fun,
      "file set output file name [default nodes.dot]");
     ("-size", Arg.Set size_flag,
@@ -253,6 +480,8 @@ let real_node_selection = function
   | Del_noloc
   | Add_noloc
       -> true
+  | Normal_scope
+  | Special_scope
   | Normal_top_scope
   | Special_top_scope
       -> false
@@ -286,13 +515,18 @@ let main () =
       | (Add_diameter _) :: _
       | Add_noloc :: _
 	-> sels
+      | Normal_scope :: _
+      | Special_scope :: _
       | Normal_top_scope :: _
       | Special_top_scope :: _
 	-> assert false
   in
     mark_nodes node_array ast_array up down sels;
     do_marked_nodes node_array ast_array;
-    G.write_dot_file oast_file (dot_commands()) !out_file;
+    (* G.write_dot_file oast_file (dot_commands()) !out_file; *)
+    G.write_ordered_tree (fun x -> x) oast_file (dot_commands()) !out_file
+      (direct_child_array ast_array up down) 
+      [0];
     Printf.printf "graph with %d nodes and %d edges generated\n%!"
       !nodes_counter !edge_counter
       

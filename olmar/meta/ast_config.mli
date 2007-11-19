@@ -29,3 +29,5 @@ val get_field_assertion : string -> string -> string
 val get_private_accessor : string -> string -> string
 
 val variant_is_record : string -> bool
+
+val get_graph_label_fun : string -> string

@@ -62,8 +62,8 @@ int const Tag_some = 0;
 //***************************************************************************
 
 
-value find_ocaml_shared_value(void const *, unsigned);
-void register_ocaml_shared_value(void const *, value, unsigned);
+value find_ocaml_shared_value(void const *, int);
+void register_ocaml_shared_value(void const *, value, int);
 
 
 //***************************************************************************
@@ -73,16 +73,7 @@ void register_ocaml_shared_value(void const *, value, unsigned);
 //***************************************************************************
 
 
-// hand written ocaml serialization function
-inline
-value ocaml_reflect_cstring(char const * s){
-  /* 
-   * if(!s && s[0])
-   *   xassert(false);    
-   */
-  xassert(s);
-  return(caml_copy_string(s));
-}
+value ocaml_reflect_cstring(char const * s);
 
 
 // hand written ocaml serialization function
@@ -96,8 +87,8 @@ value ocaml_reflect_string(string const * s){
 inline
 value ocaml_reflect_int(const int *i){
   // don't allocate
-  if(!(*i <= Max_long && Min_long <= *i))
-    xassert(false);
+  // if(!(*i <= Max_long && Min_long <= *i))
+  //   xassert(false);
   xassert(*i <= Max_long && Min_long <= *i);
   return(Val_int(*i));
 }
