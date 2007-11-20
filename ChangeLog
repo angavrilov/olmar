@@ -1,3 +1,7 @@
+2007-11-20  Hendrik Tews  <tews@tandem.cs.ru.nl>
+
+        * configure scripts for olmar and the root dir
+
 2007-11-19  Hendrik Tews  <tews@tandem.cs.ru.nl>
 
         * various makefile fixes (stop on error, building bytecode)
