@@ -25,7 +25,11 @@ OC_COMP_FLAGS := -w Ae
 OC_INC_FLAGS := -I $(UTIL) -I $(GENERAL) -I $(ELSA_OR) -I ..
 OC_FLAGS := $(OC_COMP_FLAGS) $(OC_INC_FLAGS)
 OC_BYTE_FLAGS := -g
-OCDEPOPTS := -native
+ifeq ($(OC_NATIVE),1)
+  OCDEPOPTS := -native
+else
+  OCDEPOPTS :=
+endif
 
 OCDEBUG=0
 ifeq ($(OCDEBUG),1)
@@ -231,8 +235,7 @@ TOCLEAN += *.cmi
 .PHONY: mldeps
 depend: mldeps
 mldeps:
-	ocamldep $(OCDEPOPTS) $(OC_INC_FLAGS)
-		*ml *mli > mldeps.mk
+	ocamldep $(OCDEPOPTS) $(OC_INC_FLAGS) *ml *mli > mldeps.mk
 
 
 # re-create Makefile if Makefile.in has changed

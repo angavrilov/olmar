@@ -1,5 +1,7 @@
 2007-11-20  Hendrik Tews  <tews@tandem.cs.ru.nl>
 
+        * makefile fixes
+
         * configure scripts for olmar and the root dir
 
 2007-11-19  Hendrik Tews  <tews@tandem.cs.ru.nl>

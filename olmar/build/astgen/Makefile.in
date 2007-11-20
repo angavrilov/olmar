@@ -33,8 +33,13 @@ CCFLAGS := $(CONFCCFLAGS) -I$(SMBASE) -I$(AST) -I$(GENERAL) -I$(OCDIR)
 # flags for the linker
 LDFLAGS := -g -Wall $(LIBSMBASE)
 
-OCLIBS := -L $(OCDIR) -lasmrun -ldl
-OCDEPOPTS := -native
+ifeq ($(OC_NATIVE),1)
+  OCDEPOPTS := -native
+  OCLIBS := -L $(OCDIR) -lasmrun -ldl
+else
+  OCDEPOPTS :=
+  OCLIBS := -L $(OCDIR) -lcamlrun -lcurses -ldl
+endif
 
 OCDEBUG=0
 ifeq ($(OCDEBUG),1)

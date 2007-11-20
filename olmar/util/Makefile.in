@@ -16,10 +16,15 @@ OCOPT := @OCOPT@
 
 OC_OBJ_EXT := @OC_OBJ_EXT@
 OC_LIB_EXT := @OC_LIB_EXT@
+OC_NATIVE:=@OC_NATIVE@
 
 OC_FLAGS := -w Ae
 OC_BYTE_FLAGS := -g
-OCDEPOPTS := -native
+ifeq ($(OC_NATIVE),1)
+  OCDEPOPTS := -native
+else
+  OCDEPOPTS :=
+endif
 
 OCDEBUG=0
 ifeq ($(OCDEBUG),1)

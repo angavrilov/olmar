@@ -22,7 +22,11 @@ OCDIR := @OCDIR@
 
 
 # set to -native for native and empty for bytecode
-OCDEPOPTS := -native
+ifeq ($(OC_NATIVE),1)
+  OCDEPOPTS := -native
+else
+  OCDEPOPTS :=
+endif
 
 OCDEBUG=0
 ifeq ($(OCDEBUG),1)

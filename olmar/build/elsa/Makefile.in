@@ -35,6 +35,11 @@ OCDIR := @OCDIR@
 PERL := perl
 DEP := $(PERL) $(SMBASE)/depend.pl
 
+# ocaml compiler flags
+OC_COMP_FLAGS := -w Ae
+OC_INC_FLAGS := -I $(GENERAL)
+OC_FLAGS := $(OC_COMP_FLAGS) $(OC_INC_FLAGS)
+OC_BYTE_FLAGS := -g
 
 # flags for the C++ compiler (and preprocessor)
 CCFLAGS := $(CONFCCFLAGS) -Woverloaded-virtual -I$(SMBASE) -I$(AST) -I$(ELKHOUND) -I$(ELSA) -I$(OCDIR) -I$(GENERAL)
@@ -44,14 +49,13 @@ libraries := $(LIBELKHOUND) $(LIBAST) $(LIBSMBASE)
 LDFLAGS := -g -Wall $(libraries)
 
 
-OC_OBJ_EXT := cmx
-OC_LIB_EXT := cmxa
-OC_COMP_FLAGS := -w Ae
-OC_INC_FLAGS := -I $(GENERAL)
-OC_FLAGS := $(OC_COMP_FLAGS) $(OC_INC_FLAGS)
-OC_BYTE_FLAGS := -g
-OCLIBS := -L $(OCDIR) -lasmrun -ldl
-OCDEPOPTS := -native
+ifeq ($(OC_NATIVE),1)
+  OCDEPOPTS := -native
+  OCLIBS := -L $(OCDIR) -lasmrun -ldl
+else
+  OCDEPOPTS :=
+  OCLIBS := -L $(OCDIR) -lcamlrun -lcurses -ldl
+endif
 
 OCDEBUG=0
 ifeq ($(OCDEBUG),1)
