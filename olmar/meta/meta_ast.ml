@@ -65,8 +65,35 @@ and ast_class = {
   mutable ac_fields : ast_field list;
   ac_super : ast_class option;
   mutable ac_subclasses : ast_class list;
-  ac_record : bool;
+  mutable ac_record : bool;
 }
+
+
+(******************************************************************************
+ ******************************************************************************
+ *
+ * some ast_class accessor functions (more below)
+ *
+ ******************************************************************************
+ ******************************************************************************)
+
+let get_all_fields cl =
+  match cl.ac_super with
+    | None -> [cl.ac_args; cl.ac_last_args; cl.ac_fields]
+    | Some super ->
+	assert(cl.ac_subclasses = []);
+	assert(cl.ac_last_args = []);
+	[super.ac_args; super.ac_fields; cl.ac_args; cl.ac_fields; 
+	 super.ac_last_args]
+	
+
+
+let get_all_fields_flat cl = List.flatten (get_all_fields cl)
+  
+
+let count_fields ll =
+  List.fold_left (fun sum l -> sum + List.length l) 0 ll
+
 
 
 (******************************************************************************
@@ -394,12 +421,13 @@ let type_modifier_p = function
 let extract_fields cl =
   let res = ref [] in
   let extract_field = function
-    | UserDecl(_annot, access_mod, code, _init) ->
-	let modifiers = fieldFlags_of_strings access_mod.mods
+    (* | UserDecl(_annot, access_mod, code, _init) -> *)
+    | UserDecl decl ->
+	let modifiers = fieldFlags_of_strings decl.amod.mods
 	in
 	  if List.mem FF_FIELD modifiers or List.mem FF_XML modifiers
 	  then
-	    let (field_type, field_name) = split_field_type_name code in
+	    let (field_type, field_name) = split_field_type_name decl.code in
 	    let typ = make_ast_type field_type in
 	    let field =
 	      { af_name = field_name;
@@ -409,7 +437,7 @@ let extract_fields cl =
 		  make_mod_type cl.cl_name field_name typ modifiers field_type;
 		af_is_pointer = field_is_pointer typ field_type;
 		af_is_base_field = is_base_field typ;
-		af_is_private = access_mod.acc = AC_PRIVATE;
+		af_is_private = decl.amod.acc = AC_PRIVATE;
 		af_is_circular = List.mem FF_CIRCULAR modifiers;
 	      }
 	    in
@@ -444,6 +472,13 @@ let update_fields cl =
     ast_cl.ac_fields <- extract_fields cl
 
 
+let update_ac_record cl =
+  if count_fields (get_all_fields cl) > 2
+    or variant_is_record cl.ac_name
+  then
+    cl.ac_record <- true
+
+
 let make_ast_class super cl =
   { ac_id = id_annotation cl.aSTClass_annotation;
     ac_name = cl.cl_name;
@@ -452,7 +487,7 @@ let make_ast_class super cl =
     ac_fields = [];
     ac_super = super;
     ac_subclasses = [];
-    ac_record = variant_is_record cl.cl_name;
+    ac_record = false;
   }
 
 let ml_ast_of_oast oast =
@@ -473,6 +508,9 @@ let ml_ast_of_oast oast =
     iter_oast_nodes
       (fun super sublist -> List.iter update_fields (super::sublist))
       oast;
+    List.iter 
+      (fun super -> List.iter update_ac_record super.ac_subclasses)
+      !ml_ast;
     List.rev !ml_ast
 
 
@@ -534,25 +572,6 @@ let superast_constructor cl =
   String.capitalize (node_ml_type_name cl)
 
 let name_of_superast_no_ast = "No_ast_node"
-
-
-let get_all_fields cl =
-  match cl.ac_super with
-    | None -> [cl.ac_args; cl.ac_last_args; cl.ac_fields]
-    | Some super ->
-	assert(cl.ac_subclasses = []);
-	assert(cl.ac_last_args = []);
-	[super.ac_args; super.ac_fields; cl.ac_args; cl.ac_fields; 
-	 super.ac_last_args]
-	
-
-
-let get_all_fields_flat cl = List.flatten (get_all_fields cl)
-  
-
-let count_fields ll =
-  List.fold_left (fun sum l -> sum + List.length l) 0 ll
-
 
 
 let get_source_loc_field cl =

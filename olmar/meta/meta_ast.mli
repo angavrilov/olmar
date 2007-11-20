@@ -62,7 +62,7 @@ and ast_class = {
   mutable ac_fields : ast_field list;
   ac_super : ast_class option;
   mutable ac_subclasses : ast_class list;
-  ac_record : bool;
+  mutable ac_record : bool;
 }
 
 

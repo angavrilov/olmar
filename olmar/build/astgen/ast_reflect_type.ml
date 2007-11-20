@@ -52,8 +52,16 @@ and 'a accessMod_type = {
 
 
 and 'a annotation_type = 
-  | UserDecl of 'a * 'a accessMod_type * string * string
+  | UserDecl of 'a userDecl_type
   | CustomCode of 'a * string * string
+
+
+and 'a userDecl_type = {
+  userDecl_annotation : 'a;
+  amod : 'a accessMod_type;
+  code : string;
+  init : string;
+}
 
 
 and 'a fieldOrCtorArg_type = {

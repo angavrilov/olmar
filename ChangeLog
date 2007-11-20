@@ -1,5 +1,9 @@
 2007-11-20  Hendrik Tews  <tews@tandem.cs.ru.nl>
 
+        * variant type restriction implemented: everything with more than
+          2 fields becomes a record
+        * bootstrap astgen_or
+
         * makefile fixes
 
         * configure scripts for olmar and the root dir

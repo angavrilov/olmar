@@ -55,8 +55,7 @@ value ocaml_reflect_AccessMod(AccessMod * x);
  */
 
 
-value ocaml_reflect_ASTClass(ASTClass * x) {
-  /* reflect ASTClass into a record */ 
+value ocaml_reflect_UserDecl_variant(UserDecl *x) {
   CAMLparam0();
   CAMLlocal2(res, child);
 
@@ -66,8 +65,29 @@ value ocaml_reflect_ASTClass(ASTClass * x) {
     CAMLreturn(Field(res, 0));
   }
 
-  res = caml_alloc(6, 0);
+  res = caml_alloc(1, 0);
   register_ocaml_shared_value(x, res, 1);
+
+  child = ocaml_reflect_UserDecl(x);
+  Store_field(res, 0, child);
+
+  CAMLreturn(res);
+}
+
+
+value ocaml_reflect_ASTClass(ASTClass * x) {
+  /* reflect ASTClass into a record */ 
+  CAMLparam0();
+  CAMLlocal2(res, child);
+
+  res = find_ocaml_shared_value(x, 2);
+  if(res != Val_None) {
+    xassert(Is_block(res) && Tag_val(res) == 0 && Wosize_val(res) == 1);
+    CAMLreturn(Field(res, 0));
+  }
+
+  res = caml_alloc(6, 0);
+  register_ocaml_shared_value(x, res, 2);
 
   child = ocaml_ast_annotation(x);
   Store_field(res, 0, child);
@@ -97,7 +117,7 @@ value ocaml_reflect_ASTClass_ast_list(ASTList<ASTClass> * x) {
 
   if( x == NULL) CAMLreturn(Val_emptylist);
 
-  res = find_ocaml_shared_value(x, 2);
+  res = find_ocaml_shared_value(x, 3);
   if(res != Val_None) {
     xassert(Is_block(res) && Tag_val(res) == 0 && Wosize_val(res) == 1);
     CAMLreturn(Field(res, 0));
@@ -109,7 +129,7 @@ value ocaml_reflect_ASTClass_ast_list(ASTList<ASTClass> * x) {
     tmp = caml_alloc(2, Tag_cons);
     if(previous == 0) {
       res = tmp;
-      register_ocaml_shared_value(x, res, 2);
+      register_ocaml_shared_value(x, res, 3);
     } else {
       Store_field(previous, 1, tmp);
     }
@@ -121,7 +141,7 @@ value ocaml_reflect_ASTClass_ast_list(ASTList<ASTClass> * x) {
 
   if(previous == 0){
     res = Val_emptylist;
-    register_ocaml_shared_value(x, res, 2);
+    register_ocaml_shared_value(x, res, 3);
   }
 
   CAMLreturn(res);
@@ -133,14 +153,14 @@ value ocaml_reflect_ASTSpecFile(ASTSpecFile * x) {
   CAMLparam0();
   CAMLlocal2(res, child);
 
-  res = find_ocaml_shared_value(x, 3);
+  res = find_ocaml_shared_value(x, 4);
   if(res != Val_None) {
     xassert(Is_block(res) && Tag_val(res) == 0 && Wosize_val(res) == 1);
     CAMLreturn(Field(res, 0));
   }
 
   res = caml_alloc(2, 0);
-  register_ocaml_shared_value(x, res, 3);
+  register_ocaml_shared_value(x, res, 4);
 
   child = ocaml_ast_annotation(x);
   Store_field(res, 0, child);
@@ -157,14 +177,14 @@ value ocaml_reflect_AccessMod(AccessMod * x) {
   CAMLparam0();
   CAMLlocal2(res, child);
 
-  res = find_ocaml_shared_value(x, 4);
+  res = find_ocaml_shared_value(x, 5);
   if(res != Val_None) {
     xassert(Is_block(res) && Tag_val(res) == 0 && Wosize_val(res) == 1);
     CAMLreturn(Field(res, 0));
   }
 
   res = caml_alloc(3, 0);
-  register_ocaml_shared_value(x, res, 4);
+  register_ocaml_shared_value(x, res, 5);
 
   child = ocaml_ast_annotation(x);
   Store_field(res, 0, child);
@@ -182,7 +202,7 @@ value ocaml_reflect_AccessMod(AccessMod * x) {
 value ocaml_reflect_Annotation(Annotation * x) {
   switch(x->kind()) {
   case Annotation::USERDECL:
-    return ocaml_reflect_UserDecl(x->asUserDecl());
+    return ocaml_reflect_UserDecl_variant(x->asUserDecl());
 
   case Annotation::CUSTOMCODE:
     return ocaml_reflect_CustomCode(x->asCustomCode());
@@ -201,7 +221,7 @@ value ocaml_reflect_Annotation_ast_list(ASTList<Annotation> * x) {
 
   if( x == NULL) CAMLreturn(Val_emptylist);
 
-  res = find_ocaml_shared_value(x, 5);
+  res = find_ocaml_shared_value(x, 6);
   if(res != Val_None) {
     xassert(Is_block(res) && Tag_val(res) == 0 && Wosize_val(res) == 1);
     CAMLreturn(Field(res, 0));
@@ -213,7 +233,7 @@ value ocaml_reflect_Annotation_ast_list(ASTList<Annotation> * x) {
     tmp = caml_alloc(2, Tag_cons);
     if(previous == 0) {
       res = tmp;
-      register_ocaml_shared_value(x, res, 5);
+      register_ocaml_shared_value(x, res, 6);
     } else {
       Store_field(previous, 1, tmp);
     }
@@ -225,7 +245,7 @@ value ocaml_reflect_Annotation_ast_list(ASTList<Annotation> * x) {
 
   if(previous == 0){
     res = Val_emptylist;
-    register_ocaml_shared_value(x, res, 5);
+    register_ocaml_shared_value(x, res, 6);
   }
 
   CAMLreturn(res);
@@ -237,14 +257,14 @@ value ocaml_reflect_BaseClass(BaseClass * x) {
   CAMLparam0();
   CAMLlocal2(res, child);
 
-  res = find_ocaml_shared_value(x, 6);
+  res = find_ocaml_shared_value(x, 7);
   if(res != Val_None) {
     xassert(Is_block(res) && Tag_val(res) == 0 && Wosize_val(res) == 1);
     CAMLreturn(Field(res, 0));
   }
 
   res = caml_alloc(3, 0);
-  register_ocaml_shared_value(x, res, 6);
+  register_ocaml_shared_value(x, res, 7);
 
   child = ocaml_ast_annotation(x);
   Store_field(res, 0, child);
@@ -265,7 +285,7 @@ value ocaml_reflect_BaseClass_ast_list(ASTList<BaseClass> * x) {
 
   if( x == NULL) CAMLreturn(Val_emptylist);
 
-  res = find_ocaml_shared_value(x, 7);
+  res = find_ocaml_shared_value(x, 8);
   if(res != Val_None) {
     xassert(Is_block(res) && Tag_val(res) == 0 && Wosize_val(res) == 1);
     CAMLreturn(Field(res, 0));
@@ -277,7 +297,7 @@ value ocaml_reflect_BaseClass_ast_list(ASTList<BaseClass> * x) {
     tmp = caml_alloc(2, Tag_cons);
     if(previous == 0) {
       res = tmp;
-      register_ocaml_shared_value(x, res, 7);
+      register_ocaml_shared_value(x, res, 8);
     } else {
       Store_field(previous, 1, tmp);
     }
@@ -289,7 +309,7 @@ value ocaml_reflect_BaseClass_ast_list(ASTList<BaseClass> * x) {
 
   if(previous == 0){
     res = Val_emptylist;
-    register_ocaml_shared_value(x, res, 7);
+    register_ocaml_shared_value(x, res, 8);
   }
 
   CAMLreturn(res);
@@ -301,14 +321,14 @@ value ocaml_reflect_CustomCode(CustomCode * x) {
   CAMLparam0();
   CAMLlocal2(res, child);
 
-  res = find_ocaml_shared_value(x, 8);
+  res = find_ocaml_shared_value(x, 9);
   if(res != Val_None) {
     xassert(Is_block(res) && Tag_val(res) == 0 && Wosize_val(res) == 1);
     CAMLreturn(Field(res, 0));
   }
 
   res = caml_alloc(3, 1);
-  register_ocaml_shared_value(x, res, 8);
+  register_ocaml_shared_value(x, res, 9);
 
   child = ocaml_ast_annotation(x);
   Store_field(res, 0, child);
@@ -328,14 +348,14 @@ value ocaml_reflect_FieldOrCtorArg(FieldOrCtorArg * x) {
   CAMLparam0();
   CAMLlocal2(res, child);
 
-  res = find_ocaml_shared_value(x, 9);
+  res = find_ocaml_shared_value(x, 10);
   if(res != Val_None) {
     xassert(Is_block(res) && Tag_val(res) == 0 && Wosize_val(res) == 1);
     CAMLreturn(Field(res, 0));
   }
 
   res = caml_alloc(5, 0);
-  register_ocaml_shared_value(x, res, 9);
+  register_ocaml_shared_value(x, res, 10);
 
   child = ocaml_ast_annotation(x);
   Store_field(res, 0, child);
@@ -362,7 +382,7 @@ value ocaml_reflect_FieldOrCtorArg_ast_list(ASTList<FieldOrCtorArg> * x) {
 
   if( x == NULL) CAMLreturn(Val_emptylist);
 
-  res = find_ocaml_shared_value(x, 10);
+  res = find_ocaml_shared_value(x, 11);
   if(res != Val_None) {
     xassert(Is_block(res) && Tag_val(res) == 0 && Wosize_val(res) == 1);
     CAMLreturn(Field(res, 0));
@@ -374,7 +394,7 @@ value ocaml_reflect_FieldOrCtorArg_ast_list(ASTList<FieldOrCtorArg> * x) {
     tmp = caml_alloc(2, Tag_cons);
     if(previous == 0) {
       res = tmp;
-      register_ocaml_shared_value(x, res, 10);
+      register_ocaml_shared_value(x, res, 11);
     } else {
       Store_field(previous, 1, tmp);
     }
@@ -386,7 +406,7 @@ value ocaml_reflect_FieldOrCtorArg_ast_list(ASTList<FieldOrCtorArg> * x) {
 
   if(previous == 0){
     res = Val_emptylist;
-    register_ocaml_shared_value(x, res, 10);
+    register_ocaml_shared_value(x, res, 11);
   }
 
   CAMLreturn(res);
@@ -398,14 +418,14 @@ value ocaml_reflect_TF_class(TF_class * x) {
   CAMLparam0();
   CAMLlocal2(res, child);
 
-  res = find_ocaml_shared_value(x, 11);
+  res = find_ocaml_shared_value(x, 12);
   if(res != Val_None) {
     xassert(Is_block(res) && Tag_val(res) == 0 && Wosize_val(res) == 1);
     CAMLreturn(Field(res, 0));
   }
 
   res = caml_alloc(3, 4);
-  register_ocaml_shared_value(x, res, 11);
+  register_ocaml_shared_value(x, res, 12);
 
   child = ocaml_ast_annotation(x);
   Store_field(res, 0, child);
@@ -425,14 +445,14 @@ value ocaml_reflect_TF_custom(TF_custom * x) {
   CAMLparam0();
   CAMLlocal2(res, child);
 
-  res = find_ocaml_shared_value(x, 12);
+  res = find_ocaml_shared_value(x, 13);
   if(res != Val_None) {
     xassert(Is_block(res) && Tag_val(res) == 0 && Wosize_val(res) == 1);
     CAMLreturn(Field(res, 0));
   }
 
   res = caml_alloc(2, 6);
-  register_ocaml_shared_value(x, res, 12);
+  register_ocaml_shared_value(x, res, 13);
 
   child = ocaml_ast_annotation(x);
   Store_field(res, 0, child);
@@ -449,14 +469,14 @@ value ocaml_reflect_TF_enum(TF_enum * x) {
   CAMLparam0();
   CAMLlocal2(res, child);
 
-  res = find_ocaml_shared_value(x, 13);
+  res = find_ocaml_shared_value(x, 14);
   if(res != Val_None) {
     xassert(Is_block(res) && Tag_val(res) == 0 && Wosize_val(res) == 1);
     CAMLreturn(Field(res, 0));
   }
 
   res = caml_alloc(3, 7);
-  register_ocaml_shared_value(x, res, 13);
+  register_ocaml_shared_value(x, res, 14);
 
   child = ocaml_ast_annotation(x);
   Store_field(res, 0, child);
@@ -476,14 +496,14 @@ value ocaml_reflect_TF_impl_verbatim(TF_impl_verbatim * x) {
   CAMLparam0();
   CAMLlocal2(res, child);
 
-  res = find_ocaml_shared_value(x, 14);
+  res = find_ocaml_shared_value(x, 15);
   if(res != Val_None) {
     xassert(Is_block(res) && Tag_val(res) == 0 && Wosize_val(res) == 1);
     CAMLreturn(Field(res, 0));
   }
 
   res = caml_alloc(2, 1);
-  register_ocaml_shared_value(x, res, 14);
+  register_ocaml_shared_value(x, res, 15);
 
   child = ocaml_ast_annotation(x);
   Store_field(res, 0, child);
@@ -500,14 +520,14 @@ value ocaml_reflect_TF_ocaml_type_verbatim(TF_ocaml_type_verbatim * x) {
   CAMLparam0();
   CAMLlocal2(res, child);
 
-  res = find_ocaml_shared_value(x, 15);
+  res = find_ocaml_shared_value(x, 16);
   if(res != Val_None) {
     xassert(Is_block(res) && Tag_val(res) == 0 && Wosize_val(res) == 1);
     CAMLreturn(Field(res, 0));
   }
 
   res = caml_alloc(2, 2);
-  register_ocaml_shared_value(x, res, 15);
+  register_ocaml_shared_value(x, res, 16);
 
   child = ocaml_ast_annotation(x);
   Store_field(res, 0, child);
@@ -524,14 +544,14 @@ value ocaml_reflect_TF_option(TF_option * x) {
   CAMLparam0();
   CAMLlocal2(res, child);
 
-  res = find_ocaml_shared_value(x, 16);
+  res = find_ocaml_shared_value(x, 17);
   if(res != Val_None) {
     xassert(Is_block(res) && Tag_val(res) == 0 && Wosize_val(res) == 1);
     CAMLreturn(Field(res, 0));
   }
 
   res = caml_alloc(3, 5);
-  register_ocaml_shared_value(x, res, 16);
+  register_ocaml_shared_value(x, res, 17);
 
   child = ocaml_ast_annotation(x);
   Store_field(res, 0, child);
@@ -551,14 +571,14 @@ value ocaml_reflect_TF_verbatim(TF_verbatim * x) {
   CAMLparam0();
   CAMLlocal2(res, child);
 
-  res = find_ocaml_shared_value(x, 17);
+  res = find_ocaml_shared_value(x, 18);
   if(res != Val_None) {
     xassert(Is_block(res) && Tag_val(res) == 0 && Wosize_val(res) == 1);
     CAMLreturn(Field(res, 0));
   }
 
   res = caml_alloc(2, 0);
-  register_ocaml_shared_value(x, res, 17);
+  register_ocaml_shared_value(x, res, 18);
 
   child = ocaml_ast_annotation(x);
   Store_field(res, 0, child);
@@ -575,14 +595,14 @@ value ocaml_reflect_TF_xml_verbatim(TF_xml_verbatim * x) {
   CAMLparam0();
   CAMLlocal2(res, child);
 
-  res = find_ocaml_shared_value(x, 18);
+  res = find_ocaml_shared_value(x, 19);
   if(res != Val_None) {
     xassert(Is_block(res) && Tag_val(res) == 0 && Wosize_val(res) == 1);
     CAMLreturn(Field(res, 0));
   }
 
   res = caml_alloc(2, 3);
-  register_ocaml_shared_value(x, res, 18);
+  register_ocaml_shared_value(x, res, 19);
 
   child = ocaml_ast_annotation(x);
   Store_field(res, 0, child);
@@ -634,7 +654,7 @@ value ocaml_reflect_ToplevelForm_ast_list(ASTList<ToplevelForm> * x) {
 
   if( x == NULL) CAMLreturn(Val_emptylist);
 
-  res = find_ocaml_shared_value(x, 19);
+  res = find_ocaml_shared_value(x, 20);
   if(res != Val_None) {
     xassert(Is_block(res) && Tag_val(res) == 0 && Wosize_val(res) == 1);
     CAMLreturn(Field(res, 0));
@@ -646,7 +666,7 @@ value ocaml_reflect_ToplevelForm_ast_list(ASTList<ToplevelForm> * x) {
     tmp = caml_alloc(2, Tag_cons);
     if(previous == 0) {
       res = tmp;
-      register_ocaml_shared_value(x, res, 19);
+      register_ocaml_shared_value(x, res, 20);
     } else {
       Store_field(previous, 1, tmp);
     }
@@ -658,7 +678,7 @@ value ocaml_reflect_ToplevelForm_ast_list(ASTList<ToplevelForm> * x) {
 
   if(previous == 0){
     res = Val_emptylist;
-    register_ocaml_shared_value(x, res, 19);
+    register_ocaml_shared_value(x, res, 20);
   }
 
   CAMLreturn(res);
@@ -666,18 +686,18 @@ value ocaml_reflect_ToplevelForm_ast_list(ASTList<ToplevelForm> * x) {
 
 
 value ocaml_reflect_UserDecl(UserDecl * x) {
-  /* reflect UserDecl into a variant */ 
+  /* reflect UserDecl into a record */ 
   CAMLparam0();
   CAMLlocal2(res, child);
 
-  res = find_ocaml_shared_value(x, 20);
+  res = find_ocaml_shared_value(x, 21);
   if(res != Val_None) {
     xassert(Is_block(res) && Tag_val(res) == 0 && Wosize_val(res) == 1);
     CAMLreturn(Field(res, 0));
   }
 
   res = caml_alloc(4, 0);
-  register_ocaml_shared_value(x, res, 20);
+  register_ocaml_shared_value(x, res, 21);
 
   child = ocaml_ast_annotation(x);
   Store_field(res, 0, child);
@@ -701,7 +721,7 @@ value ocaml_reflect_string_ast_list(ASTList<string> * x) {
 
   if( x == NULL) CAMLreturn(Val_emptylist);
 
-  res = find_ocaml_shared_value(x, 21);
+  res = find_ocaml_shared_value(x, 22);
   if(res != Val_None) {
     xassert(Is_block(res) && Tag_val(res) == 0 && Wosize_val(res) == 1);
     CAMLreturn(Field(res, 0));
@@ -713,7 +733,7 @@ value ocaml_reflect_string_ast_list(ASTList<string> * x) {
     tmp = caml_alloc(2, Tag_cons);
     if(previous == 0) {
       res = tmp;
-      register_ocaml_shared_value(x, res, 21);
+      register_ocaml_shared_value(x, res, 22);
     } else {
       Store_field(previous, 1, tmp);
     }
@@ -725,7 +745,7 @@ value ocaml_reflect_string_ast_list(ASTList<string> * x) {
 
   if(previous == 0){
     res = Val_emptylist;
-    register_ocaml_shared_value(x, res, 21);
+    register_ocaml_shared_value(x, res, 22);
   }
 
   CAMLreturn(res);
