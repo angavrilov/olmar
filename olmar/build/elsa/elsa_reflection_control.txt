@@ -6,81 +6,431 @@
 ###########################################################################
 
 # to comment the first line of every renaming block use
-# (fset 'comment-renaming [?\C-\M-s ?^ ?$ down ?#])
-#
+# (fset 'comment-renaming [?\C-\M-s ?^ ?$ down down ?#])
+# (fset 'transform-double-field-warning
+#   [?\C-x ?\C-x ?\C-x ?n ?n ?\M-< ?\C-s ?l ?a ?b ?e ?l ?  ?\C-  ?\C-s ?u ?s ?e ?d ?  ?\C-m ?\M-b ?\C-b ?\M-w ?\C-a ?\C-  ?\M-> up ?\C-s ?b ?o ?t ?h ?  ?i ?n ?  ?\C-x ?\C-x ?\C-x ?\C-x ?\C-x ?r ?k ?\M-< ?\C-s ?  ?a ?n ?d ?  ?\C-k ?\C-a ?\C-y ?\C-m ?\C-\M-% ?  ?a ?n ?d ?. ?* ?\C-m ?\C-m ?! ?\M-< ?\C-\M-% ?$ ?\C-m ?. ?\C-y ?\M-y ?\C-m ?! ?\M-> ?\C-x ?n ?w ?\C-  ?\C-r ?# ?\C-d ?\C-x ?\C-x ?\M-x ?s ?o ?r ?t ?- ?l ?i ?n ?e ?s ?\C-m ?\C-x ?\C-x])
+
+# apply it at least 54 times
 
 [Renamings]
 
+###############################################################
+#############  classes
+
+#
+# atomic type variants
+#
+SimpleType			ATY_Simple
+CompoundType			ATY_Compound
+EnumType			ATY_Enum
+PseudoInstantiation		ATY_PseudoInstantiation
+TypeVariable			ATY_TypeVariable
+DependentQType			ATY_DependentQ
+
+#
+# type variants
+#
+CVAtomicType			TY_CVAtomicType
+PointerType			TY_PointerType
+ReferenceType			TY_ReferenceType
+FunctionType			TY_FunctionType
+ArrayType			TY_ArrayType
+DependentSizedArrayType		TY_DependentSizedArrayType
+PointerToMemberType		TY_PointerToMemberType
+
+
+
+#fields
+
+
+AT_func.loc			attribute_function_loc
+D_array.loc			array_decl_loc
+D_bitfield.loc			bitfield_decl_loc
+D_func.loc			function_decl_loc
+D_pointer.loc			pointer_decl_loc
+D_ptrToMember.loc		member_pointer_decl_loc
+E___builtin_constant_p.loc	expr_constant_loc
+E___builtin_va_arg.loc		expr_va_arg_loc
+Enumerator.loc			enumerator_loc
+IN_compound.loc			init_compound_loc
+IN_ctor.loc			init_ctor_loc
+IN_designated.loc		init_designated_loc
+IN_expr.loc			init_expr_loc
+PQ_operator.loc			pq_operator_loc
+PQ_qualifier.loc		pq_qualifier_loc
+PQ_template.loc			pq_template_loc
+S_case.loc			case_loc
+S_doWhile.loc			do_while_loc
+S_for.loc			for_loc
+S_if.loc			if_loc
+S_label.loc			label_loc
+S_rangeCase.loc			range_case_loc
+S_return.loc			return_loc
+S_switch.loc			switch_loc
+S_try.loc			try_loc
+S_while.loc			while_loc
+SubscriptDesignator.loc		subscript_designator_loc
+TF_explicitInst.loc		explicit_templ_inst_loc
+TF_linkage.loc			linkage_loc
+TF_namespaceDefn.loc		name_space_defn_loc
+TF_one_linkage.loc		one_linkage_loc
+TP_nontype.loc			templ_para_nontype_loc
+TP_type.loc			templ_para_type_loc
+TS_classSpec.loc		class_loc
+TS_elaborated.loc		elaborated_loc
+TS_enumSpec.loc			enum_loc
+TS_name.loc			type_name_loc
+TS_simple.loc			simple_type_loc
+TS_type.loc			type_loc
+TS_typeof.loc			typeof_loc
+Variable.loc			variable_loc
+
+
+BaseClassSpec.type		base_class_spec_type
+Declarator.type			declarator_type
+E___builtin_constant_p.type	constant_type
+E___builtin_va_arg.type		va_arg_type
+E_alignofExpr.type		align_of_expr_type
+E_alignofType.type		align_of_type_type
+E_arrow.type			expr_arrow_type
+E_assign.type			assign_type
+E_binary.type			binary_expr_type
+E_cast.type			cast_type
+E_charLit.type			char_lit_type
+E_compoundLit.type		compound_lit_type
+E_cond.type			cond_type
+E_constructor.type		constructor_type
+E_delete.type			delete_type
+E_effect.type			effect_type
+E_fieldAcc.type			field_access_type
+E_floatLit.type			float_lit_type
+E_funCall.type			fun_call_type
+E_gnuCond.type			gnu_cond_type
+E_intLit.type			int_lit_type
+E_keywordCast.type		keyword_cast_type
+E_new.type			new_type
+E_sizeof.type			sizeof_type
+E_sizeofType.type		sizeof_type_type
+E_stdConv.type			std_conversion_type
+E_stringLit.type		string_lit_type
+E_throw.type			throw_type
+E_unary.type			unary_expr_type
+E_variable.type			expr_variable_type
+TS_type.type			type_type
+Variable.type			variable_type
+
+
 BaseClassSpec.name		base_class_spec_name
+CompilationUnit.name		unit_name
+ATY_Compound.name		compound_name
+D_bitfield.name			bitfield_decl_name
+ATY_DependentQ.name		dependent_type_name
+E_variable.name			expr_variable_name
+ATY_Enum.name			enum_type_name
+EnumValue.name			enum_value_name
 Enumerator.name			enumerator_name
 MemberInit.name			member_init_name
+PQ_template.name		pq_template_name
+ATY_PseudoInstantiation.name	pseudo_inst_name
+S_label.name			label_name
+TF_namespaceDefn.name		name_space_defn_name
+TP_type.name			templ_type_name
+TS_classSpec.name		class_name
+TS_elaborated.name		elaborated_name
+TS_enumSpec.name		enum_name
+TS_name.name			type_name_name
+ATY_TypeVariable.name		type_var_name
 Variable.name			variable_name
-EnumValue.name			enum_value_name
-CompilationUnit.name		unit_name
-CompoundType.name		compound_name
 
+
+ArgExpression.expr		arg_expr_expr
+E___builtin_constant_p.expr	constant_expr
+E___builtin_va_arg.expr		va_arg_expr
+E_alignofExpr.expr		align_of_expr_expr
+E_cast.expr			cast_expr
+E_delete.expr			delete_expr
+E_effect.expr			effect_expr
+E_keywordCast.expr		keyword_cast_expr
+E_sizeof.expr			sizeof_expr
+E_stdConv.expr			std_conv_expr
+E_throw.expr			throw_expr
+E_unary.expr			unary_expr_expr
+Enumerator.expr			enumerator_expr
+FullExpression.expr		full_expr_expr
+S_case.expr			case_expr
+S_doWhile.expr			do_while_expr
+S_return.expr			return_expr
+
+
+D_func.cv			function_decl_cv
+D_pointer.cv			pointer_decl_cv
+D_ptrToMember.cv		member_pointer_decl_cv
+TS_classSpec.cv			class_cv
+TS_elaborated.cv		elaborated_cv
+TS_enumSpec.cv			enum_cv
+TS_name.cv			type_name_cv
+TS_simple.cv			simple_type_cv
+TS_type.cv			type_cv
+TS_typeof.cv			typeof_cv
+TY_PointerToMemberType.cv	member_pointer_cv
+
+
+ATY_Compound.access		compound_access
+ATY_DependentQ.access		dependent_access
+ATY_Enum.access			enum_type_access
+ATY_PseudoInstantiation.access	pseudo_inst_access
+ATY_TypeVariable.access		type_var_access
 BaseClass.access		base_access
 BaseClassSpec.access		spec_access
 BaseClassSubobj.access		base_sub_access
 CompoundType.access		compound_access
 
-BaseClassSpec.type		base_class_spec_type
-Declarator.type			declarator_type
-Variable.type			variable_type
 
 FullExpression.annot		full_expr_annot
-MemberInit.annot		member_init_annot
 Handler.annot			handler_annot
+IN_compound.annot		init_compound_annot
+IN_ctor.annot			init_ctor_annot
+IN_designated.annot		init_designated_annot
+IN_expr.annot			init_expr_annot
+MemberInit.annot		member_init_annot
 
-Enumerator.expr			enumerator_expr
-ArgExpression.expr		arg_expr_expr
-FullExpression.expr		full_expr_expr
+
+Declarator.var			declarator_var
+E_variable.var			expr_var_var
+Enumerator.var			enumerator_var
+TP_nontype.var			templ_para_nontype_var
+TP_type.var			templ_para_type_var
+TS_name.var			type_name_var
+TemplateInfo.var		template_info_var
+
+
+E_cond.cond			cond_cond
+E_gnuCond.cond			gnu_cond_cond
+S_for.cond			for_cond
+S_if.cond			if_cond
+S_switch.cond			switch_cond
+S_while.cond			while_cond
+
+
+ATY_PseudoInstantiation.args	pseudo_inst_args
+AT_func.args			function_args
+E_constructor.args		constructor_args
+E_funCall.args			fun_call_args
+IN_ctor.args			init_ctor_args
+MemberInit.args			member_init_args
+
+
+E___builtin_va_arg.atype	va_arg_atype
+E_alignofType.atype		align_of_type_atype
+E_new.atype			new_atype
+E_sizeofType.atype		sizeof_type_atype
+TS_elaborated.atype		elaborated_atype
+TS_typeof.atype			typeof_atype
+
+
+Function.body			function_body
+Handler.body			handler_body
+S_doWhile.body			do_while_body
+S_for.body			for_body
+S_try.body			try_body
+S_while.body			while_body
+
+
+ATY_Compound.typedefVar		compound_type_var
+ATY_DependentQ.typedefVar	dependent_q_type_var
+ATY_Enum.typedefVar		enum_type_var
+ATY_PseudoInstantiation.typedefVar	pseudo_inst_type_var
+ATY_TypeVariable.typedefVar	type_var_type_var
+
+
+D_array.base			array_decl_base
+D_func.base			function_decl_base
+D_pointer.base			pointer_decl_base
+D_ptrToMember.base		member_pointer_decl_base
+MemberInit.base			member_init_base
+
+
+Declarator.ctorStatement	declarator_ctor_statement
+E_new.ctorStatement		new_ctor_statement
+MemberInit.ctorStatement	member_init_ctor_statement
+S_return.ctorStatement		return_ctor_statement
+
+
+E_constructor.ctorVar		constructor_ctor_var
+E_new.ctorVar			new_ctor_var
+IN_ctor.ctorVar			init_ctor_var
+MemberInit.ctorVar		member_init_ctor_var
+
+
+Declarator.init			declarator_init
+E_compoundLit.init		compound_lit_init
+IN_designated.init		init_designated_init
+S_for.init			for_init
+
+
+AttributeSpecifier.next		next_attribute_specifier
+AttributeSpecifierList.next	next_list
+TP_nontype.next			templ_para_nontype_next
+TP_type.next			templ_para_type_next
+
+
+E_charLit.text			char_lit_text
+E_floatLit.text			float_lit_text
+E_intLit.text			int_lit_text
+E_stringLit.text		string_lit_text
+
+
+E_assign.op			assign_op
+E_binary.op			binary_expr_op
+E_effect.op			effect_op
+E_unary.op			unary_expr_op
+
+
+D_func.params			function_decl_params
+InheritedTemplateParams.params	inherited_template_params
+TY_FunctionType.params		function_type_params
+TemplateInfo.params		template_info_params
+
 
 Declaration.spec		declaration_spec
 ASTTypeId.spec			ast_type_id_spec
 AttributeSpecifierList.spec	attribute_specifier_list_spec
 
-Enumerator.var			enumerator_var
-Declarator.var			declarator_var
-TemplateInfo.var		template_info_var
+
+S_case.s			case_stmt
+S_label.s			label_stmt
+S_rangeCase.s			range_case_stmt
+
+
+D_array.size			array_decl_size
+E_sizeof.size			sizeof_size
+E_sizeofType.size		sizeof_type_size
+
 
 BaseClass.isVirtual		base_is_virtual
 BaseClassSpec.isVirtual		spec_is_virtual
 BaseClassSubobj.isVirtual	base_sub_is_virtual
 
+
+Declarator.dtorStatement	declarator_dtor_statement
+E_delete.dtorStatement		delete_dtor_statement
+Function.dtorStatement		function_dtor_statement
+
+
 ExceptionSpec.types		exception_spec_types
 ExnSpec.types			exn_spec_types
 FunctionExnSpec.types		fun_exn_spec_types
 
-Function.body			function_body
-Handler.body			handler_body
 
-MemberInit.ctorStatement	member_init_ctor_statement
-Declarator.ctorStatement	declarator_ctor_statement
+E_cast.ctype			cast_ctype
+E_keywordCast.ctype		keyword_cast_ctype
+TS_classSpec.ctype		class_ctype
+
+
+ATY_Compound.keyword		compound_keyword
+TS_classSpec.keyword		class_keyword
+TS_elaborated.keyword		elaborated_keyword
+
+
+PQ_qualifier.sargs		pq_qualifier_sargs
+PQ_template.sargs		pq_template_sargs
+
+
+PQ_qualifier.templArgs		pq_qualifier_templ_args
+PQ_template.templArgs		pq_template_temps_args
+
+
+Declaration.spec		declaration_spec
+E_constructor.spec		constructor_spec
+
+
+TF_linkage.linkageType		linkage_type
+TF_one_linkage.linkageType	one_linkage_type
+
+
+Function.inits			function_inits
+IN_compound.inits		init_compound_inits
+
+
+ATY_Enum.enum_name		enum_type_name
+TS_enumSpec.enum_name		enum_specifier_name
+
+
+E_cond.el			cond_else
+E_gnuCond.el			gnu_cond_else
+
 
 ASTTypeId.decl			ast_type_id_decl
 Declarator.decl			declarator_decl
 
+
 Function.dflags			function_dflags
 Declaration.dflags		declaration_dflags
 
-Function.dtorStatement		function_dtor_statement
-Declarator.dtorStatement	declarator_dtor_statement
+
+D_func.exnSpec			function_decl_exn
+TY_FunctionType.exnSpec		function_type_exn
+
+
+E_arrow.fieldName		array_field_name
+E_fieldAcc.fieldName		field_access_field_name
+
+
+TY_FunctionType.flags		function_type_flags
+Variable.flags			variables_flags
+
+
+E_constructor.retObj		constructor_ret_obj
+E_funCall.retObj		fun_call_ret_obj
+
+
+TF_linkage.forms		linkage_forms
+TF_namespaceDefn.forms		name_space_defn_forms
+
+
+E_variable.nondependentVar	expr_variable_nondep_var
+TS_name.nondependentVar		type_name_nondep_var
+
+
+E_throw.globalVar		throw_global_var
+Handler.globalVar		handler_global_var
+
+
+Function.handlers		function_handlers
+S_try.handlers			try_handlers
+
 
 MemberList.list			member_list
 ArgExpressionListOpt.list	arg_expression_list
 
-Enumerator.loc			enumerator_loc
-Variable.loc			variable_loc
 
-AttributeSpecifierList.next	next_list
-AttributeSpecifier.next		next_attribute_specifier
+ATY_DependentQ.rest		dependent_q_rest
+PQ_qualifier.rest		qualifier_rest
 
-TemplateInfo.params		template_info_params
-InheritedTemplateParams.params	inherited_template_params
 
 BaseClass.ct			base_ct
 BaseClassSubobj.ct		base_sub_ct
+
+
+E_arrow.obj			array_obj
+E_fieldAcc.obj			field_access_obj
+
+
+E_alignofExpr.alignment		expr_alignment
+E_alignofType.alignment		type_alignment
+
+
+ATY_Compound.bases		compound_bases
+TS_classSpec.bases		class_bases
+
+
+E_delete.colonColon		delete_colon
+E_new.colonColon		new_colon
+
+
+E_floatLit.d			float_lit_val
+TF_explicitInst.d		explicit_templ_inst_decl
+
 
 ###########################################################################
 ###########################################################################
@@ -287,7 +637,7 @@ STA_ATOMIC.at:	    const_cast<AtomicType*>(x->sta_value.at)
 
 [Record variants]
 
-CompoundType
+ON_newDel
 
 
 ###########################################################################

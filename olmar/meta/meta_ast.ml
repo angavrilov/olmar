@@ -522,11 +522,13 @@ let ml_ast_of_oast oast =
  *****************************************************************************
  *****************************************************************************)
 
+let translated_class_name cl = translate_olmar_name None cl.ac_name
+
+
 (* name of the annotation field *)
 let annotation_field_name cl =
-  (String.uncapitalize
-     (translate_olmar_name (Some cl.ac_name) cl.ac_name))
-  ^ "_annotation"
+  (translate_olmar_name (Some (translated_class_name cl))
+     (String.uncapitalize (cl.ac_name ^ "_annotation")))
 
 
 let annotation_access_fun cl =
@@ -534,7 +536,7 @@ let annotation_access_fun cl =
     | None -> cl
     | Some super -> if cl.ac_record then cl else super
   in
-    (String.uncapitalize (translate_olmar_name None super.ac_name)) 
+    (String.uncapitalize (translated_class_name super))
     ^ "_annotation"
 
 
@@ -543,14 +545,10 @@ let source_loc_access_fun cl =
     | None -> cl
     | Some super -> if cl.ac_record then cl else super
   in
-    (String.uncapitalize (translate_olmar_name None super.ac_name)) 
+    (String.uncapitalize (translated_class_name super)) 
     ^ "_loc"
 
 let source_loc_meta_fun = "super_source_loc"
-
-let translated_class_name cl = match cl.ac_super with
-  | None -> translate_olmar_name None cl.ac_name
-  | Some super -> translate_olmar_name (Some super.ac_name) cl.ac_name
 
 (* name of the variant constructor for a subclass *)
 let variant_name sub =
@@ -562,10 +560,10 @@ let variant_record_name sub =
   (String.uncapitalize(translated_class_name sub)) ^ "_record"
 
 let node_ml_type_name cl =
-  (String.uncapitalize (translate_olmar_name None cl.ac_name)) ^ "_type"
+  (String.uncapitalize (translated_class_name cl)) ^ "_type"
 
 let translated_field_name cl field =
-  translate_olmar_name (Some cl.ac_name) field.af_name
+  translate_olmar_name (Some (translated_class_name cl)) field.af_name
 
 
 let superast_constructor cl =

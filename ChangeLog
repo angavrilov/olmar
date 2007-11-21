@@ -1,3 +1,10 @@
+2007-11-21  Hendrik Tews  <tews@tandem.cs.ru.nl>
+
+        Olmar
+        * fixed some renaming problems
+        * elsa variant restriction: variants have at most two fields (+ annot)
+        * added renamings for the elsa ast
+
 2007-11-20  Hendrik Tews  <tews@tandem.cs.ru.nl>
 
         * variant type restriction implemented: everything with more than

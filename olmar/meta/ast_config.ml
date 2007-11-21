@@ -58,16 +58,20 @@ let error_msg file_name line_number msg =
 (* scan one line from the remaining section of the config file *)
 let do_renaming file_name line_number line =
   try
-    Scanf.sscanf line "%s@.%s %s" 
+    Scanf.sscanf line "%s@.%s %s%!" 
       (fun context name rename ->
+	 if (String.length context) = (String.length line) then
+	   raise (Scanf.Scan_failure "dot missing");
+	 (* Printf.eprintf "RENAME %s.%s->%s\n" context name rename; *)
 	 Hashtbl.add translate_name_hash 
 	   ((Some context), name)
 	   rename)
   with
     | Scanf.Scan_failure _ ->
 	try
-	  Scanf.sscanf line "%s %s" 
+	  Scanf.sscanf line "%s %s%!" 
 	    (fun name rename ->
+	       (* Printf.eprintf "RENAME %s->%s\n" name rename; *)
 	       Hashtbl.add translate_name_hash 
 		 (None, name)
 		 rename)

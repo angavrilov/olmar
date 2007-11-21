@@ -78,13 +78,13 @@ let generate_record_type oc cl =
   output_string oc "{\n";
   (* annotation field *)
   fprintf oc "  %s : 'a;\n" 
-    (check_record_field cl.ac_name (annotation_field_name cl));
+    (check_record_field (translated_class_name cl) (annotation_field_name cl));
   List.iter
     (List.iter
        (fun field ->
 	  fprintf oc "  %s : %s;\n"
 	    (check_record_field
-	       cl.ac_name
+	       (translated_class_name cl)
 	       (translated_field_name cl field))
 	    (string_of_ast_type true field.af_mod_type)
        ))
