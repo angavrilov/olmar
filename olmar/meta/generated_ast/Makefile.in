@@ -77,8 +77,7 @@ AST_GRAPH_ML=\
 	$(UTIL)/olmar_utils.$(OC_LIB_EXT) \
 	$(GENERAL)/astgen_general.$(OC_LIB_EXT) \
 	$(ASTGEN_OR)/astgen_lib.$(OC_LIB_EXT) \
-	../ast_config.$(OC_OBJ_EXT) \
-	../meta_ast.$(OC_OBJ_EXT) \
+	../meta_ast_lib.$(OC_LIB_EXT) \
 	ast_accessors.ml \
 	superast.ml \
 	uplinks.ml \

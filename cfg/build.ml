@@ -258,7 +258,7 @@ let rec get_scope_name sourceLoc name_list scope =
 	   | Some compound ->
 	       match compound.compound_name with
 		 | None ->
-		     fatal sourceLoc compound.compoundType_annotation
+		     fatal sourceLoc compound.aTY_Compound_annotation
 		       "class scope compound without name";
 		 | Some name ->
 		     match scope.parentScope with
@@ -279,44 +279,45 @@ let rec get_scope_name sourceLoc name_list scope =
 
 (* convert an atomic argument type into a string (no C++ syntax) *)
 let string_of_atomic_type sourceLoc = function
-  | SimpleType(_annot, simpleTypeId) ->
+  | ATY_Simple(_annot, simpleTypeId) ->
       string_of_simpleTypeId simpleTypeId
 
-  | CompoundType(compound) ->
+  | ATY_Compound(compound) ->
       (match compound.compound_name with
 	| None -> 
-	    fatal sourceLoc compound.compoundType_annotation
+	    fatal sourceLoc compound.aTY_Compound_annotation
 	      "atomic compound argument without name";
 	| Some x -> x
       )
 
-  | PseudoInstantiation(annot, _str, _variable_opt, _accessKeyword, 
-			_compound_info, _sTemplateArgument_list) ->
-      found sourceLoc annot Unimplemented
+  | ATY_PseudoInstantiation pseudo_inst ->
+      found sourceLoc pseudo_inst.aTY_PseudoInstantiation_annotation
+	Unimplemented
 	"atomic pseudo instantiation argument";
       "unknown atomic type I"
 
-  | EnumType(annot, string_opt, _variable, _accessKeyword, 
-	     _enum_value_list, _has_negatives) ->
-      (match string_opt with
+  | ATY_Enum enum ->
+      (match enum.enum_type_name with
 	 | None -> 
-	     fatal sourceLoc annot"enum argument without name";
+	     fatal sourceLoc enum.aTY_Enum_annotation
+	       "enum argument without name";
 	 | Some name -> name
       )
 
-  | TypeVariable(annot, _string, _variable, _accessKeyword) ->
-      found sourceLoc annot Unimplemented "type variable argument";
+  | ATY_TypeVariable tv ->
+      found sourceLoc tv.aTY_TypeVariable_annotation
+	Unimplemented "type variable argument";
       "unknown atomic type II"
 
-  | DependentQType(annot, _string, _variable, 
-		   _accessKeyword, _atomic, _pq_name) ->
-      found sourceLoc annot Unimplemented "dependent Q type argument";
+  | ATY_DependentQ depq ->
+      found sourceLoc depq.aTY_DependentQ_annotation
+	Unimplemented "dependent Q type argument";
       "unknown atomic type III"
 
 
 (* convert an argument type into a string, (no C++ syntax) *)
 let rec string_of_ctype sourceLoc = function
-  | CVAtomicType(annot, atomicType, cVFlags) ->
+  | TY_CVAtomic(annot, atomicType, cVFlags) ->
       if List.mem CV_VOLATILE cVFlags then 
 	found sourceLoc annot Unimplemented "volatile function argument";
       let const = List.mem CV_CONST cVFlags
@@ -325,7 +326,7 @@ let rec string_of_ctype sourceLoc = function
 	^ string_of_atomic_type sourceLoc atomicType
 	^ (if const then ")" else "")
 
-  | PointerType(annot, cVFlags, cType) ->
+  | TY_Pointer(annot, cVFlags, cType) ->
       if List.mem CV_VOLATILE cVFlags then 
 	found sourceLoc annot Unimplemented "volatile function argument";
       let const = List.mem CV_CONST cVFlags
@@ -335,33 +336,33 @@ let rec string_of_ctype sourceLoc = function
 	^ (string_of_ctype sourceLoc cType)
 	^ ")"
 
-  | ReferenceType(_annot, cType) ->
+  | TY_Reference(_annot, cType) ->
       "reference("
       ^ (string_of_ctype sourceLoc cType)
       ^ ")"
 
-  | FunctionType(annot, function_flags, cType, 
-		 variable_list, _cType_list_opt) ->
-      if function_flags <> [] then 
-	found sourceLoc annot Unimplemented "function type argument with flags";
+  | TY_Function f ->
+      if f.function_type_flags <> [] then 
+	found sourceLoc f.tY_Function_annotation
+	  Unimplemented "function type argument with flags";
       "function("
       ^ (String.concat ", " 
-	   (List.map (get_param_type sourceLoc) variable_list))
+	   (List.map (get_param_type sourceLoc) f.function_type_params))
       ^ " -> "
-      ^ (string_of_ctype sourceLoc cType)
+      ^ (string_of_ctype sourceLoc f.retType)
       ^ ")"
 
-  | ArrayType(annot, _cType, _array_size) ->
+  | TY_Array(annot, _cType, _array_size) ->
       found sourceLoc annot Unimplemented "array type argument";
       "unknown ctype I"
 
-  | DependentSizedArrayType(annot, _cType, _size_expr) ->
+  | TY_DependentSizedArray(annot, _cType, _size_expr) ->
       found sourceLoc annot Unimplemented "dependent size array argument";
       "unknown ctype II"
 
-  | PointerToMemberType(annot, _atomicType (* = NamedAtomicType *), 
-			_cVFlags, _cType) ->
-      found sourceLoc annot Unimplemented "member pointer argument";
+  | TY_PointerToMember p ->
+      found sourceLoc p.tY_PointerToMember_annotation
+	Unimplemented "member pointer argument";
       "unknown ctype III"
 
 
@@ -379,32 +380,31 @@ let get_param_types sourceLoc variable =
     | None -> assert false
     | Some ctype -> 
 	match ctype with 
-	  | FunctionType(annot, function_flags, _cType,
-			 variable_list, _cType_list_opt) ->
+	  | TY_Function ft ->
 	      let parameters =
-		if List.mem FF_METHOD function_flags
+		if List.mem FF_METHOD ft.function_type_flags
 		then
-		  match variable_list with
+		  match ft.function_type_params with
 		    | [] -> 
-			fatal sourceLoc annot
+			fatal sourceLoc ft.tY_Function_annotation
 			  "method without implicit argument";
 		    | receiver :: args ->
 			match receiver.variable_name with
 			  | Some "__receiver" -> args
 			  | _ -> 
-			      fatal sourceLoc annot
+			      fatal sourceLoc ft.tY_Function_annotation
 				"method without __receiver arg";
 		else
-		  variable_list
+		  ft.function_type_params
 	      in
 		List.map (get_param_type sourceLoc) parameters
 
-	  | CVAtomicType _
-	  | PointerType _
-	  | ReferenceType _
-	  | ArrayType _
-	  | DependentSizedArrayType _
-	  | PointerToMemberType _ ->
+	  | TY_CVAtomic _
+	  | TY_Pointer _
+	  | TY_Reference _
+	  | TY_Array _
+	  | TY_DependentSizedArray _
+	  | TY_PointerToMember _ ->
 	      found sourceLoc (cType_annotation ctype) Unimplemented
 		"function without function type";
 	      []		
@@ -445,18 +445,20 @@ let get_function_definition_id sourceLoc declarator =
  *)
 let get_function_id sourceLoc function_expression =
   match function_expression with
-    | E_variable(annot, _type_opt, _pQName, var_opt, _nondep_var_opt) ->
+    | E_variable v ->
 	(* Printf.printf "E_variable at %s\n" (error_location sourceLoc); *)
-	(match var_opt with
+	(match v.expr_var_var with
 	   | None ->
-	       fatal sourceLoc annot"function without decl var node";
+	       fatal sourceLoc v.e_variable_annotation
+		 "function without decl var node";
 	   | Some variable ->
 	       get_function_id_from_variable_node sourceLoc variable
 	)
-    | E_fieldAcc(annot, _type_opt, _expression, _pQName, var_opt) -> 
-	(match var_opt with
+    | E_fieldAcc f -> 
+	(match f.field with
 	   | None ->
-	       fatal sourceLoc annot "field access without var node";
+	       fatal sourceLoc f.e_fieldAcc_annotation
+		 "field access without var node";
 	   | Some variable ->
 	       get_function_id_from_variable_node sourceLoc variable
 	)
@@ -497,17 +499,17 @@ and translationUnit_fun comp_unit
 
 
 and topForm_fun comp_unit = function
-  | TF_linkage(_annot, _sourceLoc, _stringRef, translationUnit) -> 
-      translationUnit_fun comp_unit translationUnit
+  | TF_linkage l -> 
+      translationUnit_fun comp_unit l.linkage_forms
 
-  | TF_one_linkage(_annot, _sourceLoc, _stringRef, topForm) -> 
-      topForm_fun comp_unit topForm
+  | TF_one_linkage l -> 
+      topForm_fun comp_unit l.form
 
   | TF_func(_annot, sourceLoc, func) -> 
       function_fun sourceLoc func
 
-  | TF_namespaceDefn(_annot, _sourceLoc, _stringRef_opt, topForm_list) -> 
-      List.iter (topForm_fun comp_unit) topForm_list
+  | TF_namespaceDefn ns -> 
+      List.iter (topForm_fun comp_unit) ns.name_space_defn_forms
 
   | TF_decl(_annot, sourceLoc, declaration) -> 
       outer_declaration_fun comp_unit sourceLoc declaration
@@ -522,9 +524,8 @@ and topForm_fun comp_unit = function
 (* typeSpecifier's in Declarations *)
 and typeSpecifier_fun ts = 
   match ts with
-    | TS_classSpec(_annot, _sourceLoc, _cVFlags, _typeIntr, _pQName_opt, 
-		   _baseClassSpec_list, memberList, _compoundType) -> 
-	  List.iter member_fun memberList.member_list
+    | TS_classSpec cs ->
+	  List.iter member_fun cs.members.member_list
 
     | TS_name _
     | TS_simple _
@@ -566,7 +567,7 @@ and function_fun sourceLoc fu =
   in
     List.iter 
       (memberInit_fun entry sourceLoc)
-      fu.inits;
+      fu.function_inits;
     opt_iter (statement_fun entry) fu.function_body;
     opt_iter (statement_fun entry) fu.function_dtor_statement;
     finish_fun_call entry
@@ -580,8 +581,10 @@ and memberInit_fun current_func sourceLoc mi =
 	   "declaration in FullExpressionAnnot";
   );
   (* go through the arguments *)
-  List.iter (argExpression_fun current_func sourceLoc) mi.args;
-  if (mi.base <> None) && (mi.member_init_ctor_statement = None) then
+  List.iter (argExpression_fun current_func sourceLoc) mi.member_init_args;
+  if (mi.member_init_base <> None) && 
+    (mi.member_init_ctor_statement = None) 
+  then
     found sourceLoc mi.memberInit_annotation 
       Unimplemented "base init without ctor statement";
   opt_iter (statement_fun current_func) mi.member_init_ctor_statement
@@ -590,11 +593,11 @@ and memberInit_fun current_func sourceLoc mi =
 and statement_fun current_func = function
   | S_skip(_annot, _sourceLoc) -> ()
 	    
-  | S_label(_annot, _sourceLoc, _stringRef, statement) -> 
-      statement_fun current_func statement
+  | S_label s -> 
+      statement_fun current_func s.label_stmt
 
-  | S_case(_annot, _sourceLoc, _expression, statement, _int32) -> 
-      statement_fun current_func statement
+  | S_case c ->
+      statement_fun current_func c.case_stmt
 
   | S_default(_annot, _sourceLoc, statement) -> 
       statement_fun current_func statement
@@ -605,45 +608,44 @@ and statement_fun current_func = function
   | S_compound(_annot, _sourceLoc, statement_list) -> 
       List.iter (statement_fun current_func) statement_list
 
-  | S_if(_annot, sourceLoc, condition, statement_then, statement_else) -> 
-      condition_fun current_func sourceLoc condition;
-      statement_fun current_func statement_then;
-      statement_fun current_func statement_else
+  | S_if ifs ->
+      condition_fun current_func ifs.if_loc ifs.if_cond;
+      statement_fun current_func ifs.thenBranch;
+      statement_fun current_func ifs.elseBranch
 
-  | S_switch(_annot, sourceLoc, condition, statement) -> 
-      condition_fun current_func sourceLoc condition;
-      statement_fun current_func statement
+  | S_switch sw -> 
+      condition_fun current_func sw.switch_loc sw.switch_cond;
+      statement_fun current_func sw.branches
 
-  | S_while(_annot, sourceLoc, condition, statement) -> 
-      condition_fun current_func sourceLoc condition;
-      statement_fun current_func statement
+  | S_while sw -> 
+      condition_fun current_func sw.while_loc sw.while_cond;
+      statement_fun current_func sw.while_body
 
-  | S_doWhile(_annot, sourceLoc, statement, fullExpression) -> 
-      statement_fun current_func statement;
-      full_expression_fun current_func sourceLoc fullExpression
+  | S_doWhile dw -> 
+      statement_fun current_func dw.do_while_body;
+      full_expression_fun current_func dw.do_while_loc dw.do_while_expr
 
-  | S_for(_annot, sourceLoc, statement_init, condition, fullExpression, 
-	  statement_body) -> 
-      statement_fun current_func statement_init;
-      condition_fun current_func sourceLoc condition;
-      full_expression_fun current_func sourceLoc fullExpression;
-      statement_fun current_func statement_body
+  | S_for sf -> 
+      statement_fun current_func sf.for_init;
+      condition_fun current_func sf.for_loc sf.for_cond;
+      full_expression_fun current_func sf.for_loc sf.after;
+      statement_fun current_func sf.for_body
 
   | S_break(_annot, _sourceLoc) -> ()
 
   | S_continue(_annot, _sourceLoc) -> ()
 
-  | S_return(_annot, sourceLoc, fullExpression_opt, statement_opt) -> 
-      opt_iter (full_expression_fun current_func sourceLoc) fullExpression_opt;
-      opt_iter (statement_fun current_func) statement_opt
+  | S_return sr -> 
+      opt_iter (full_expression_fun current_func sr.return_loc) sr.return_expr;
+      opt_iter (statement_fun current_func) sr.return_ctor_statement
 
   | S_goto(_annot, _sourceLoc, _stringRef) -> ()
 
   | S_decl(_annot, sourceLoc, declaration) -> 
       inner_declaration_fun current_func sourceLoc declaration
 
-  | S_try(_annot, _sourceLoc, statement, _handler_list) -> 
-      statement_fun current_func statement
+  | S_try st -> 
+      statement_fun current_func st.try_body
 	(* XXX handlers? And the FullExpressionAnnot therein?? *)
 
   | S_asm(_annot, _sourceLoc, _e_stringLit) -> ()
@@ -653,11 +655,9 @@ and statement_fun current_func = function
   | S_function(_annot, sourceLoc, func) -> 
       function_fun sourceLoc func
 
-  | S_rangeCase(_annot, _sourceLoc, 
-		_expression_lo, _expression_hi, statement, 
-		_label_lo, _label_hi) -> 
+  | S_rangeCase src -> 
       (* XXX expressions?? *)
-      statement_fun current_func statement
+      statement_fun current_func src.range_case_stmt
 
   | S_computedGoto(_annot, sourceLoc, expression) -> 
       expression_fun current_func sourceLoc expression
@@ -707,13 +707,13 @@ and declarator_fun current_func sourceLoc declarator =
   (* It seems that IN_ctor arguments are removed, give a message
    * if we find some.
    *)
-  (match declarator.init with
-     | Some(IN_ctor(_,_,_,_ :: _,_,_)) ->
+  (match declarator.declarator_init with
+     | Some(IN_ctor { init_ctor_args = _ :: _ }) ->
 	 found sourceLoc declarator.declarator_annotation
 	   Message "IN_ctor with arguments"
      | _ -> ());
   (* Tell me if there is a ctor without init! *)
-  (match (declarator.init, declarator.declarator_ctor_statement) with
+  (match (declarator.declarator_init, declarator.declarator_ctor_statement) with
      | (None, Some _) -> 
 	 fatal sourceLoc declarator.declarator_annotation
 	   "declarator with ctor and without init"
@@ -732,64 +732,66 @@ and declarator_fun current_func sourceLoc declarator =
    * ctor. For other initializers all material is in the initializer 
    * and there is no ctor at all (eg Z * z = new ...).
    *)
-  (match (declarator.init, declarator.declarator_ctor_statement) with
+  (match (declarator.declarator_init, declarator.declarator_ctor_statement) with
      | (Some(IN_ctor _), None) -> 
 	 fatal sourceLoc declarator.declarator_annotation
 	   "IN_ctor without ctor statement"
      | _ -> ());
   
   (* do some processing now *)
-  if (match declarator.init with
+  if (match declarator.declarator_init with
 	| Some(IN_ctor _) -> true
 	| _ -> false)
   then 
     begin
       opt_iter (statement_fun current_func) 
 	declarator.declarator_ctor_statement;
-      match declarator.init with
-	| Some(IN_ctor(_, sourceLoc, fullannot, _args, _var, _bool)) -> 
-	    fullExpressionAnnot_fun current_func sourceLoc fullannot
+      match declarator.declarator_init with
+	| Some(IN_ctor ct) -> 
+	    fullExpressionAnnot_fun current_func ct.init_ctor_loc 
+	      ct.init_ctor_annot
 	| _ -> assert false
     end
   else
-    opt_iter (initializer_fun current_func) declarator.init;
+    opt_iter (initializer_fun current_func) declarator.declarator_init;
   opt_iter (statement_fun current_func) declarator.declarator_dtor_statement
 
 
 and initializer_fun current_func = function
     (* XXX do the FullExpressionAnnot in all cases!! *)
-  | IN_expr(_annot, sourceLoc, fullExpressionAnnot, expression_opt) -> 
+  | IN_expr iex -> 
       (* work around elsa bug: expression_opt should never be None *)
-      opt_iter (expression_fun current_func sourceLoc) expression_opt;
-      fullExpressionAnnot_fun current_func sourceLoc fullExpressionAnnot
+      opt_iter (expression_fun current_func iex.init_expr_loc) iex.e;
+      fullExpressionAnnot_fun current_func iex.init_expr_loc iex.init_expr_annot
 
-  | IN_compound(_annot, sourceLoc, fullExpressionAnnot, init_list) -> 
-      
-      if fullExpressionAnnot.declarations <> [] then
-	found sourceLoc (fullExpressionAnnot.fullExpressionAnnot_annotation) 
+  | IN_compound ic -> 
+      if ic.init_compound_annot.declarations <> [] then
+	found ic.init_compound_loc
+	  ic.init_compound_annot.fullExpressionAnnot_annotation
 	  Unimplemented
-	  "IN_compound with nonempty fullExpressionAnnot";
-      List.iter (initializer_fun current_func) init_list
+	  "IN_compound with nonempty init_compound_annot";
+      List.iter (initializer_fun current_func) ic.init_compound_inits
 
-  | IN_ctor(annot, sourceLoc, fullExpressionAnnot, 
-	    argExpression_list, _var_opt, _bool) -> 
-      if fullExpressionAnnot.declarations <> [] then
-	found sourceLoc (fullExpressionAnnot.fullExpressionAnnot_annotation) 
+  | IN_ctor ic -> 
+      if ic.init_ctor_annot.declarations <> [] then
+	found ic.init_ctor_loc ic.init_ctor_annot.fullExpressionAnnot_annotation
 	  Unimplemented
-	  "IN_ctor with nonempty fullExpressionAnnot";
-      if argExpression_list <> [] then
-	 found sourceLoc annot Message "IN_ctor with arguments";
+	  "IN_ctor with nonempty init_ctor_annot";
+      if ic.init_ctor_args <> [] then
+	 found ic.init_ctor_loc ic.iN_ctor_annotation
+	   Message "IN_ctor with arguments";
       (* we carefully checked above to avoid this case... *)
       assert false;
 
-  | IN_designated(annot, sourceLoc, fullExpressionAnnot, 
-		  _designator_list, _init) -> 
-      if fullExpressionAnnot.declarations <> [] then
-	found sourceLoc (fullExpressionAnnot.fullExpressionAnnot_annotation) 
+  | IN_designated id -> 
+      if id.init_designated_annot.declarations <> [] then
+	found id.init_designated_loc
+	  id.init_designated_annot.fullExpressionAnnot_annotation
 	  Unimplemented
-	  "IN_designated with nonempty fullExpressionAnnot";
+	  "IN_designated with nonempty init_designated_annot";
       (* if this assertion is triggered investigate what to traverse *)
-      found sourceLoc annot Unimplemented "designated initializer";
+      found id.init_designated_loc id.iN_designated_annotation
+	Unimplemented "designated initializer";
 
 
 
@@ -816,22 +818,20 @@ and condition_fun current_func sourceLoc = function
 and expression_fun current_func sourceLoc = function
   | E_boolLit(_annot, _type_opt, _bool) -> ()
 
-  | E_intLit(_annot, _type_opt, _stringRef, _ulong) -> ()
+  | E_intLit _ -> ()
 
-  | E_floatLit(_annot, _type_opt, _stringRef, _double) -> ()
+  | E_floatLit _ -> ()
 
-  | E_stringLit(_annot, _type_opt, _stringRef, 
-		      _e_stringLit_opt, _stringRef_opt) -> ()
+  | E_stringLit _ -> ()
 
-  | E_charLit(_annot, _type_opt, _stringRef, _int32) -> ()
+  | E_charLit _ -> ()
 
   | E_this(_annot, _type_opt, _variable) -> ()
 
-  | E_variable(_annot, _type_opt, _pQName, _var_opt, _nondep_var_opt) -> ()
+  | E_variable _ -> ()
 
-  | E_funCall(annot, _type_opt, expression_func, 
-	      argExpression_list, expression_retobj_opt) -> 
-      (match expression_retobj_opt with
+  | E_funCall fc -> 
+      (match fc.fun_call_ret_obj with
 	 | None 
 	 | Some(E_variable _)
 	     -> ()
@@ -839,48 +839,51 @@ and expression_fun current_func sourceLoc = function
 	     (* if this assertion is hit: investigate if we have to traverse
 	      * the expression_retobj
 	      *)
-	     found sourceLoc annot Unimplemented "retObj in E_funCall";
+	     found sourceLoc fc.e_funCall_annotation
+	       Unimplemented "retObj in E_funCall";
       );
-      expression_fun current_func sourceLoc expression_func;
-      List.iter (argExpression_fun current_func sourceLoc) argExpression_list;
-      add_callee current_func (get_function_id sourceLoc expression_func)
+      expression_fun current_func sourceLoc fc.func;
+      List.iter (argExpression_fun current_func sourceLoc) fc.fun_call_args;
+      add_callee current_func (get_function_id sourceLoc fc.func)
 
-  | E_constructor(annot, _type_opt, _typeSpecifier, argExpression_list, 
-		  var_opt, _bool, expression_retobj_opt) -> 
-      List.iter (argExpression_fun current_func sourceLoc) argExpression_list;
-      (match expression_retobj_opt with
+  | E_constructor ec (* (annot, _type_opt, _typeSpecifier, argExpression_list, 
+		   * var_opt, _bool, expression_retobj_opt) *) -> 
+      List.iter (argExpression_fun current_func sourceLoc) ec.constructor_args;
+      (match ec.constructor_ret_obj with
 	 | None -> ()
 	 | Some(E_variable _) -> ()
 	 | Some _ -> 
 	     (* if this assertion is hit: investigate if we have to traverse
 	      * the expression_retobj
 	      *)
-	     found sourceLoc annot Unimplemented "retObj in E_constructor";
+	     found sourceLoc ec.e_constructor_annotation
+	       Unimplemented "retObj in E_constructor";
       );
-      (match var_opt with
+      (match ec.constructor_ctor_var with
 	 | None ->
-	     fatal sourceLoc annot"E_constructor without constructor";
+	     fatal sourceLoc ec.e_constructor_annotation
+	       "E_constructor without constructor";
 	 | Some var ->
 	     add_callee current_func 
 	       (get_function_id_from_variable_node sourceLoc var)
       )
 
-  | E_fieldAcc(_annot, _type_opt, expression, _pQName, _var_opt) -> 
-      expression_fun current_func sourceLoc expression
+  | E_fieldAcc e -> 
+      expression_fun current_func sourceLoc e.field_access_obj
 	(* XXX what about those ~ destructor fields?? *)
 
-  | E_sizeof(_annot, _type_opt, _expression, _int) -> ()
+  | E_sizeof _ -> ()
       (* XXX is expression evaluated at runtime?? *)
 
-  | E_unary(_annot, _type_opt, _unaryOp, expression) -> 
-      expression_fun current_func sourceLoc expression
+  | E_unary e -> 
+      expression_fun current_func sourceLoc e.unary_expr_expr
 
-  | E_effect(_annot, _type_opt, _effectOp, expression) -> 
-      expression_fun current_func sourceLoc expression
+  | E_effect e -> 
+      expression_fun current_func sourceLoc e.effect_expr
 
-  | E_binary(_annot, _type_opt, expression_left, _binaryOp, expression_right) -> 
-      expression_fun current_func sourceLoc expression_left;
-      expression_fun current_func sourceLoc expression_right
+  | E_binary e -> 
+      expression_fun current_func sourceLoc e.e1;
+      expression_fun current_func sourceLoc e.e2
 
   | E_addrOf(_annot, _type_opt, expression) -> 
       expression_fun current_func sourceLoc expression
@@ -888,46 +891,41 @@ and expression_fun current_func sourceLoc = function
   | E_deref(_annot, _type_opt, expression) -> 
       expression_fun current_func sourceLoc expression
 
-  | E_cast(_annot, _type_opt, _aSTTypeId, expression, _bool) -> 
-      expression_fun current_func sourceLoc expression
+  | E_cast e -> 
+      expression_fun current_func sourceLoc e.cast_expr
 
-  | E_cond(_annot, _type_opt, expression_cond, 
-	   expression_true, expression_false) -> 
-      expression_fun current_func sourceLoc expression_cond;
-      expression_fun current_func sourceLoc expression_true;
-      expression_fun current_func sourceLoc expression_false
+  | E_cond e -> 
+      expression_fun current_func sourceLoc e.cond_cond;
+      expression_fun current_func sourceLoc e.th;
+      expression_fun current_func sourceLoc e.cond_else
 
-  | E_sizeofType(_annot, _type_opt, _aSTTypeId, _int, _bool) -> ()
+  | E_sizeofType _ -> ()
 
-  | E_assign(_annot, _type_opt, expression_target, 
-	     _binaryOp, expression_src) -> 
-      expression_fun current_func sourceLoc expression_target;
-      expression_fun current_func sourceLoc expression_src
+  | E_assign e -> 
+      expression_fun current_func sourceLoc e.target;
+      expression_fun current_func sourceLoc e.src
 
-  | E_new(annot, _type_opt, _bool, argExpression_list, _aSTTypeId, 
-	  argExpressionListOpt_opt, array_size_opt, _ctor_opt,
-	  statement_opt, _heep_var) -> 
-      List.iter (argExpression_fun current_func sourceLoc) argExpression_list;
-      opt_iter (argExpressionListOpt_fun current_func sourceLoc) 
-	argExpressionListOpt_opt;
-      opt_iter (expression_fun current_func sourceLoc) array_size_opt;
-      if statement_opt = None then
-	found sourceLoc annot Unimplemented "E_new without ctor statement";
-      opt_iter (statement_fun current_func) statement_opt
+  | E_new e -> 
+      List.iter (argExpression_fun current_func sourceLoc) e.placementArgs;
+      opt_iter (argExpressionListOpt_fun current_func sourceLoc) e.ctorArgs;
+      opt_iter (expression_fun current_func sourceLoc) e.arraySize;
+      if e.new_ctor_statement = None then
+	found sourceLoc e.e_new_annotation
+	  Unimplemented "E_new without ctor statement";
+      opt_iter (statement_fun current_func) e.new_ctor_statement
 
-  | E_delete(_annot, _type_opt, _bool_colon, _bool_array, 
-	     expression_opt, statement_opt) -> 
+  | E_delete e -> 
       (* XXX dtorStatement *)
-      opt_iter (expression_fun current_func sourceLoc) expression_opt;
-      opt_iter (statement_fun current_func) statement_opt
+      opt_iter (expression_fun current_func sourceLoc) e.delete_expr;
+      opt_iter (statement_fun current_func) e.delete_dtor_statement
 
-  | E_throw(_annot, _type_opt, _expression_opt, _var_opt, _statement_opt) -> 
+  | E_throw _ ->
       (* XXX *)
       (* XXX globalCtorStatement *)
       ()
 
-  | E_keywordCast(_annot, _type_opt, _castKeyword, _aSTTypeId, expression) -> 
-      expression_fun current_func sourceLoc expression
+  | E_keywordCast e -> 
+      expression_fun current_func sourceLoc e.keyword_cast_expr
 
   | E_typeidExpr(_annot, _type_opt, _expression) -> 
       (* XXX what's that? *)
@@ -941,45 +939,45 @@ and expression_fun current_func sourceLoc = function
       (* only used before typechecking *)
       assert false
 
-  | E_arrow(_annot, _type_opt, _expression, _pQName) -> 
+  | E_arrow _ -> 
       (* only used before typechecking *)
       assert false
 
   | E_statement(_annot, _type_opt, s_compound) -> 
       statement_fun current_func s_compound
 
-  | E_compoundLit(_annot, _type_opt, _aSTTypeId, _in_compound) -> 
+  | E_compoundLit _ -> 
       (* XXX *)
       (* XXX in_compound contains some expression or whatever leads to a 
        * FullExpressionAnnot 
        *)
       ()
 
-  | E___builtin_constant_p(_annot, _type_opt, _sourceLoc, _expression) -> 
+  | E___builtin_constant_p _ -> 
       (* XXX ?? *)
       ()
 
-  | E___builtin_va_arg(_annot, _type_opt, _sourceLoc, _expression, _aSTTypeId) -> 
+  | E___builtin_va_arg _ -> 
       (* XXX ?? *)
       ()
 
-  | E_alignofType(_annot, _type_opt, _aSTTypeId, _int) -> 
+  | E_alignofType _ -> 
       (* XXX evaluated? *)
       ()
 
-  | E_alignofExpr(_annot, _type_opt, _expression, _int) -> 
+  | E_alignofExpr _ -> 
       (* XXX what'd that? *)
       ()
 
-  | E_gnuCond(_annot, _type_opt, expression_cond, expression_false) -> 
-      expression_fun current_func sourceLoc expression_cond;
-      expression_fun current_func sourceLoc expression_false
+  | E_gnuCond e -> 
+      expression_fun current_func sourceLoc e.gnu_cond_cond;
+      expression_fun current_func sourceLoc e.gnu_cond_else
 
   | E_addrOfLabel(_annot, _type_opt, _stringRef) -> ()
 
-  | E_stdConv(_annot, _type_opt, expression, scs, _implicitConversion_Kind) ->
-      assert(check_standardConversion scs);
-      expression_fun current_func sourceLoc expression
+  | E_stdConv e ->
+      assert(check_standardConversion e.stdConv);
+      expression_fun current_func sourceLoc e.std_conv_expr
 
 
 

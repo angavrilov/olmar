@@ -7,12 +7,12 @@
 open Elsa_reflect_type
 
 let is_named_atomic_type = function
-  | SimpleType _ -> false
-  | CompoundType _
-  | EnumType _
-  | PseudoInstantiation _
-  | TypeVariable _
-  | DependentQType _ -> true
+  | ATY_Simple _ -> false
+  | ATY_Compound _
+  | ATY_Enum _
+  | ATY_PseudoInstantiation _
+  | ATY_TypeVariable _
+  | ATY_DependentQ _ -> true
 
 
 let is_named_atomic_type_option = function
@@ -23,9 +23,8 @@ let is_named_atomic_type_option = function
 
 let name_of_function fu =
   match fu.nameAndParams.declarator_decl with
-    | D_func (_annot, _sourceLoc, iDeclarator, _aSTTypeId_list, _cVFlags,
-	      _exceptionSpec_opt, _pq_name_list, _bool) ->
-	(match iDeclarator with
+    | D_func fdecl ->
+	(match fdecl.function_decl_base with
 	   | D_name (_annot, _sourceLoc, pQName_opt) ->
 	       (match pQName_opt with
 		  | Some pq_name ->

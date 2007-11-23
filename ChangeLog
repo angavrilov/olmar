@@ -1,3 +1,18 @@
+2007-11-23  Hendrik Tews  <tews@tandem.cs.ru.nl>
+
+        Olmar
+        * more renaming fixes
+        * everything fixed for the elsa variant restrictions: regression
+          tests pass
+        * backward translation in ast_config
+        * gen_superast generates a superast match template
+
+        wiki_bot
+        * runs fine, the mozilla wiki is up-to-date
+
+        cfg/modelcheck
+        * adoptions
+
 2007-11-21  Hendrik Tews  <tews@tandem.cs.ru.nl>
 
         Olmar

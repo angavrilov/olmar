@@ -39,6 +39,27 @@ let string_match_left space pattern =
   string_match space pattern 0
 
 
+
+let split delim text =
+  let res = ref [] in
+  let pos = ref(String.length text -1)
+  in
+    while !pos >= 0 do
+      let newpos = 
+	try
+	  String.rindex_from text !pos delim
+	with
+	  | Not_found -> -1
+      in
+	res := (String.sub text (newpos + 1) (!pos - newpos)) :: !res;
+	pos := newpos -1
+    done;
+    if !pos = -1 
+    then "" :: !res
+    else !res
+
+
+
 let translate from tos s =
   let s = String.copy s in
   let s_len = String.length s

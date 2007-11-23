@@ -30,7 +30,7 @@ TOCLEAN :=
 
 # simply redirect all goals into the subdirectories
 
-SUBDIRS := util build meta
+SUBDIRS := util build meta wiki_bot
 
 
 .PHONY: all stage_1 stage_2 clean depend

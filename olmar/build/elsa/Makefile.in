@@ -238,7 +238,7 @@ elsa_oast_header.ml: elsa_oast_header_start.ml \
 
 
 
-# List of ml modules needed by astgen. They are all combined 
+# List of ml modules needed by ccparse. They are all combined 
 # into one elsa_ml_object.o file.
 
 ELSA_ML := \

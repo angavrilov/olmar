@@ -3,5 +3,5 @@
 *.cmo
 *.cmx
 *.cmxa
-*.d
 Makefile
+wiki_bot

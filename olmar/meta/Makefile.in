@@ -177,6 +177,24 @@ $(MEMCHECK)/memcheck.cmx:
 
 #############################################################################
 #####
+##### meta_ast_lib
+
+META_AST_LIB_ML := \
+  ast_config.ml \
+  meta_ast.ml
+
+
+TOCLEAN += meta_ast_lib.cmxa
+meta_ast_lib.cmxa: $(META_AST_LIB_ML:.ml=.cmx)
+	$(OCCC) $(OC_FLAGS) -o $@ -a $^
+
+TOCLEAN += meta_ast_lib.cma
+meta_ast_lib.cma: $(META_AST_LIB_ML:.ml=.cmo)
+	$(OCC) $(OC_FLAGS) -o $@ -a $^
+
+
+#############################################################################
+#####
 ##### gen_reflection
 
 
@@ -184,8 +202,7 @@ GEN_REFLECTION_ML=\
 	$(UTIL)/olmar_utils.$(OC_LIB_EXT) \
 	$(GENERAL)/astgen_general.$(OC_LIB_EXT) \
 	$(ASTGEN_OR)/astgen_lib.$(OC_LIB_EXT) \
-	ast_config.ml \
-	meta_ast.ml \
+	meta_ast_lib.$(OC_LIB_EXT) \
 	gen_reflection.ml
 
 TOCLEAN += gen_reflection
@@ -214,8 +231,7 @@ GEN_SUPERAST_ML=\
 	$(UTIL)/olmar_utils.$(OC_LIB_EXT) \
 	$(GENERAL)/astgen_general.$(OC_LIB_EXT) \
 	$(ASTGEN_OR)/astgen_lib.$(OC_LIB_EXT) \
-	ast_config.ml \
-	meta_ast.ml \
+	meta_ast_lib.$(OC_LIB_EXT) \
 	gen_superast.ml
 
 
@@ -232,8 +248,7 @@ GEN_ACCESSORS_ML=\
 	$(UTIL)/olmar_utils.$(OC_LIB_EXT) \
 	$(GENERAL)/astgen_general.$(OC_LIB_EXT) \
 	$(ASTGEN_OR)/astgen_lib.$(OC_LIB_EXT) \
-	ast_config.ml \
-	meta_ast.ml \
+	meta_ast_lib.$(OC_LIB_EXT) \
 	gen_accessors.ml
 
 
@@ -250,8 +265,7 @@ GEN_UPLINKS_ML=\
 	$(UTIL)/olmar_utils.$(OC_LIB_EXT) \
 	$(GENERAL)/astgen_general.$(OC_LIB_EXT) \
 	$(ASTGEN_OR)/astgen_lib.$(OC_LIB_EXT) \
-	ast_config.ml \
-	meta_ast.ml \
+	meta_ast_lib.$(OC_LIB_EXT) \
 	gen_uplinks.ml
 
 
@@ -268,8 +282,7 @@ GEN_GRAPH_ML=\
 	$(UTIL)/olmar_utils.$(OC_LIB_EXT) \
 	$(GENERAL)/astgen_general.$(OC_LIB_EXT) \
 	$(ASTGEN_OR)/astgen_lib.$(OC_LIB_EXT) \
-	ast_config.ml \
-	meta_ast.ml \
+	meta_ast_lib.$(OC_LIB_EXT) \
 	gen_graph.ml
 
 
@@ -288,18 +301,11 @@ ast.ast.dot: $(ASTGEN_OR)/ast.ast.oast generated_ast/ast_graph \
 #####
 ##### ast_type_graph
 
-# $(UTIL)/olmar_utils.$(OC_LIB_EXT) \
-# $(GENERAL)/astgen_general.$(OC_LIB_EXT) \
-# $(ASTGEN_OR)/astgen_lib.$(OC_LIB_EXT) \
-# ast_config.ml \
-# meta_ast.ml \
-
 AST_TYPE_GRAPH_ML=\
 	$(UTIL)/olmar_utils.$(OC_LIB_EXT) \
 	$(GENERAL)/astgen_general.$(OC_LIB_EXT) \
 	$(ASTGEN_OR)/astgen_lib.$(OC_LIB_EXT) \
-	ast_config.ml \
-	meta_ast.ml \
+	meta_ast_lib.$(OC_LIB_EXT) \
 	ast_type_graph.ml
 
 

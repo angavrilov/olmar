@@ -98,16 +98,16 @@ let pqname_fun = function
 
 
 let rec expression_fun = function
-  | E_binary(_, _typ, ex1, binop, ex2) ->
-      expression_fun ex1;
-      p (op_of_binop binop);
-      expression_fun ex2
+  | E_binary e ->
+      expression_fun e.e1;
+      p (op_of_binop e.binary_expr_op);
+      expression_fun e.e2
 
-  | E_variable(_, _typ, pqname, _, _) ->
-      pqname_fun pqname
+  | E_variable e ->
+      pqname_fun e.expr_var_name
 
-  | E_intLit(_, _typ, _string, value) ->
-      pf "%ld" value
+  | E_intLit e ->
+      pf "%ld" e.i
 
   | _ -> assert false
 
@@ -122,13 +122,13 @@ let rec block_fun = function
       (* pc ["skip statement"]; *)
       p "  skip\n"
 
-  | S_label(_annot, _sourceLoc, _stringRef, statement) -> 
+  | S_label s -> 
       pc ["label statement"];
-      block_fun statement
+      block_fun s.label_stmt
 
-  | S_case(_annot, _sourceLoc, _expression, statement, _int32) -> 
+  | S_case s -> 
       pc ["case statement"];
-      block_fun statement;
+      block_fun s.case_stmt;
 
   | S_default(_annot, _sourceLoc, statement) -> 
       pc ["default statement"];
@@ -141,33 +141,32 @@ let rec block_fun = function
       (* pc ["block"]; *)
       List.iter block_fun statement_list
 
-  | S_if(_annot, _sourceLoc, condition, statement_then, statement_else) -> 
+  | S_if s -> 
       (* pc ["if statement"]; *)
       p "  if:: ";
-      condition_fun condition;
+      condition_fun s.if_cond;
       p " -> \n";
-      block_fun statement_then;
+      block_fun s.thenBranch;
       (* pc ["else branch"]; *)
       p "    :: else -> \n";
-      block_fun statement_else;
+      block_fun s.elseBranch;
       p "  fi\n"
 
-  | S_switch(_annot, _sourceLoc, _condition, statement) -> 
+  | S_switch s -> 
       pc ["switch statement"];
-      block_fun statement
+      block_fun s.branches
 
-  | S_while(_annot, _sourceLoc, _condition, statement) -> 
+  | S_while s -> 
       pc ["while statement"];
-      block_fun statement
+      block_fun s.while_body
 
-  | S_doWhile(_annot, _sourceLoc, statement, _fullExpression) -> 
+  | S_doWhile s -> 
       pc ["do while statement"];
-      block_fun statement
+      block_fun s.do_while_body
 
-  | S_for(_annot, _sourceLoc, _statement_init, _condition, _fullExpression, 
-	  statement_body) -> 
+  | S_for s -> 
       pc ["for statement"];
-      block_fun statement_body
+      block_fun s.for_body
 
   | S_break(_annot, _sourceLoc) -> 
       pc ["break statement"]
@@ -175,7 +174,7 @@ let rec block_fun = function
   | S_continue(_annot, _sourceLoc) -> 
       pc ["continue statement"]
 
-  | S_return(_annot, _sourceLoc, _fullExpression_opt, _statement_opt) -> 
+  | S_return _ -> 
       (* pc ["return statement"]; *)
       p "  return();\n"
 
@@ -192,9 +191,9 @@ let rec block_fun = function
 	declaration.decllist
       
 
-  | S_try(_annot, _sourceLoc, statement, _handler_list) -> 
+  | S_try s -> 
       pc ["try statement"];
-      block_fun statement
+      block_fun s.try_body
 
   | S_asm(_annot, _sourceLoc, _e_stringLit) -> 
       pc ["S_asm ??"]
@@ -205,11 +204,9 @@ let rec block_fun = function
   | S_function(_annot, _sourceLoc, _func) -> 
       pc ["nested function def"]
 
-  | S_rangeCase(_annot, _sourceLoc, 
-		_expression_lo, _expression_hi, statement, 
-		_label_lo, _label_hi) -> 
+  | S_rangeCase s -> 
       pc ["case range statement"];
-      block_fun statement
+      block_fun s.range_case_stmt
 
   | S_computedGoto(_annot, _sourceLoc, _expression) -> 
       pc ["computed goto statement"]

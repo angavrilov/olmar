@@ -1,29 +1,32 @@
-# Makefile for olmar/util
+# Makefile for olmar/wiki_bot
 #
 #  Copyright 2006-2007 Hendrik Tews, All rights reserved. #
 #  See file license.txt for terms of use                  #
 ###########################################################
 
-# Makefile.in
-# this is the Makefile for the ocaml ast tools
-
-# use the first goal for development, for release put it in comment and use all
+# other directories
+UTIL:= ../util
+GENERAL:=  ../build/general
+ASTGEN_OR:= ../build/astgen
+META=../meta
 
 # external tools
-OCC := @OCC@
-OCCC := @OCCC@
-OCOPT := @OCOPT@
+OCFIND=ocamlfind
 
 OC_OBJ_EXT := @OC_OBJ_EXT@
 OC_LIB_EXT := @OC_LIB_EXT@
 OC_NATIVE:=@OC_NATIVE@
 
-OC_FLAGS := -w Ae
+OC_COMP_FLAGS := -w Ae -package netclient
+OC_INC_FLAGS := -I $(UTIL) -I $(GENERAL) -I $(ASTGEN_OR) -I $(META)
+OC_FLAGS := $(OC_COMP_FLAGS) $(OC_INC_FLAGS)
 OC_BYTE_FLAGS := -g
 ifeq ($(OC_NATIVE),1)
   OCDEPOPTS := -native
+  OCFMOD := ocamlopt
 else
   OCDEPOPTS :=
+  OCFMOD := ocamlc
 endif
 
 OCDEBUG=0
@@ -34,37 +37,46 @@ ifeq ($(OCDEBUG),1)
   OC_OBJ_EXT := cmo
   OC_LIB_EXT := cma
   OCDEPOPTS :=
+  OCFMOD := ocamlc
 endif
 
-.PHONY: stage_1
-stage_1: olmar_utils.$(OC_LIB_EXT)
+OC :=$(OCFIND) $(OCFMOD)
 
-stage_2:
+all: stage_2
+
+stage_1:
+
+stage_2: wiki_bot
 
 stage_3:
+
+stage2: stage_2
 
 # list of files to clean in 'clean' (etc.) targets
 # (these get added to below)
 TOCLEAN :=
 TODISTCLEAN :=
 
+
 #############################################################################
 #####
-##### gen_uplinks
+##### wiki_bot
 
-OLMAR_UTILS_ML=\
-	stdlib_missing.ml \
-	more_string.ml \
-	dense_set.ml \
-	dot_graph.ml
+WIKI_ML := \
+	$(UTIL)/olmar_utils.$(OC_LIB_EXT) \
+	$(GENERAL)/astgen_general.$(OC_LIB_EXT) \
+	$(ASTGEN_OR)/astgen_lib.$(OC_LIB_EXT) \
+	$(META)/meta_ast_lib.$(OC_LIB_EXT) \
+	netstring_ext.ml \
+	form_values.ml \
+	wiki_http.ml \
+	wiki_bot.ml
 
-TOCLEAN += olmar_utils.cmxa
-olmar_utils.cmxa: $(OLMAR_UTILS_ML:.ml=.cmx)
-	$(OCCC) $(OC_FLAGS) -o $@ -a $^
+TOCLEAN += wiki_bot
+wiki_bot: $(WIKI_ML:.ml=.$(OC_OBJ_EXT))
+	$(OC) -linkpkg $(OC_FLAGS) -o $@ $^
 
-TOCLEAN += olmar_utils.cma
-olmar_utils.cma: $(OLMAR_UTILS_ML:.ml=.cmo)
-	$(OCC) $(OC_FLAGS) -o $@ -a $^
+# ./wiki_bot -tr ../build/elsa/elsa_reflection_control.txt ../build/elsa/elsa.ast.oast -summary
 
 
 ############################################################################
@@ -84,15 +96,15 @@ distclean: clean
 
 TOCLEAN += *.cmo *.cmxa *.cma *.a
 %.cmo: %.ml
-	$(OCC) $(OC_BYTE_FLAGS) $(OC_FLAGS) -c $<
+	$(OC) $(OC_BYTE_FLAGS) $(OC_FLAGS) -c $<
 
 TOCLEAN += *.cmx *.o
 %.cmx: %.ml
-	$(OCOPT) $(OC_FLAGS) -c $<
+	$(OC) $(OC_FLAGS) -c $<
 
 TOCLEAN += *.cmi
 %.cmi: %.mli
-	$(OCC) $(OC_FLAGS) -c $<
+	$(OC) $(OC_FLAGS) -c $<
 
 
 -include mldeps.mk
@@ -100,10 +112,10 @@ TOCLEAN += *.cmi
 .PHONY: mldeps
 depend: mldeps
 mldeps:
-	ocamldep $(OCDEPOPTS) *ml *mli > mldeps.mk
-
+	ocamldep $(OC_INC_FLAGS) $(OCDEPOPTS) *ml *mli > mldeps.mk
 
 # re-create Makefile if Makefile.in has changed
 TODISTCLEAN += Makefile
 Makefile: Makefile.in ../config.status
-	(cd ..; ./config.status -only util)
+	(cd ..; ./config.status -only wiki_bot)
+

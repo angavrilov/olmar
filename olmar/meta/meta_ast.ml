@@ -480,6 +480,7 @@ let update_ac_record cl =
 
 
 let make_ast_class super cl =
+  assert (cl.bases = []);
   { ac_id = id_annotation cl.aSTClass_annotation;
     ac_name = cl.cl_name;
     ac_args = [];
@@ -527,8 +528,10 @@ let translated_class_name cl = translate_olmar_name None cl.ac_name
 
 (* name of the annotation field *)
 let annotation_field_name cl =
-  (translate_olmar_name (Some (translated_class_name cl))
-     (String.uncapitalize (cl.ac_name ^ "_annotation")))
+  let cl_name = translated_class_name cl
+  in
+    (translate_olmar_name (Some cl_name)
+       (String.uncapitalize (cl_name ^ "_annotation")))
 
 
 let annotation_access_fun cl =

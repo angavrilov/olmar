@@ -3,3 +3,4 @@
 *.cmo
 *.cmx
 *.cmxa
+Makefile

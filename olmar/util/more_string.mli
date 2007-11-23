@@ -5,6 +5,11 @@
 (* string_match_left space pattern checks if space starts with pattern *)
 val string_match_left : string -> string -> bool
 
+(* split c text  splits text at all occurrences of c and returns 
+ * the list of all substrings without the delimiter c
+ *)
+val split : char -> string -> string list
+
 (* translate from tos s replaces in s all characters from from with the
  * corresponding ones in tos
  *)

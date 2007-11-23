@@ -123,40 +123,36 @@ let fun_class_constructor_label (f : 'a function_type) =
 	      | None -> false
 	      | Some class_compound -> class_compound == compound
   in
-    match f.funcType with
-      | FunctionType(_, flags, _rettype, args, _excn) ->
-	  (match (List.mem FF_CTOR flags, List.mem FF_DTOR flags) with
-	     | true, true -> ["constructor AND destructor"]
-	     | true, _ -> 
-		 (match args with
-		    | [] -> ["default constructor"]
-		    | [arg] -> 
-			(match !(arg.variable_type) with
-			   | None -> ["missing type in only constructor arg"]
-			   | Some typ ->
-			       match typ with
-				 | ReferenceType
-				     (_, CVAtomicType
-					(_, CompoundType(compound) ,
-					 [CV_CONST])) 
-				     when same_class_compound compound ->
-				     ["copy constructor"]
-				     
-				 | ReferenceType _
-				 | CVAtomicType _
-				 | PointerType _
-				 | FunctionType _
-				 | ArrayType _
-				 | DependentSizedArrayType _
-				 | PointerToMemberType _
-				   -> ["other constructor"]
-			)
-		    | _ -> ["other constructor"]
+    match (List.mem FF_CTOR f.funcType.function_type_flags, 
+	   List.mem FF_DTOR f.funcType.function_type_flags) with
+      | true, true -> ["constructor AND destructor"]
+      | true, _ -> 
+	  (match f.funcType.function_type_params with
+	     | [] -> ["default constructor"]
+	     | [arg] -> 
+		 (match !(arg.variable_type) with
+		    | None -> ["missing type in only constructor arg"]
+		    | Some typ ->
+			match typ with
+			  | TY_Reference
+			      (_, TY_CVAtomic(_, ATY_Compound(compound), 
+					      [CV_CONST])) 
+			      when same_class_compound compound ->
+			      ["copy constructor"]
+				
+			  | TY_Reference _
+			  | TY_CVAtomic _
+			  | TY_Pointer _
+			  | TY_Function _
+			  | TY_Array _
+			  | TY_DependentSizedArray _
+			  | TY_PointerToMember _
+			    -> ["other constructor"]
 		 )
-	     | _, true -> ["destructor"]
-	     | _ -> []
+	     | _ -> ["other constructor"]
 	  )
-      | _ -> assert false
+      | _, true -> ["destructor"]
+      | _ -> []
 
 
 let var_class_constructor_label (v : 'a variable_type) =

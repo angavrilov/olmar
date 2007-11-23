@@ -6,6 +6,8 @@ val parse_config_file : string -> unit
 
 val translate_olmar_name : string option -> string -> string
 
+val translate_back : string option -> string -> (string option * string)
+
 val get_ocaml_type_header : unit -> string list
 
 val is_basic_type : string -> bool

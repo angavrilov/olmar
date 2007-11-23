@@ -3,6 +3,7 @@
 *.cmo
 *.cmx
 *.cmxa
+Makefile
 ast_ast_type_descr.ml
 ast_type_graph
 check_oast

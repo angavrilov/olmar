@@ -91,12 +91,18 @@ let variant_source_loc oc cl =
 	 match field_opt with
 	   | None -> assert false
 	   | Some source_loc_field ->
-	       fpf "  | %s(_, %s) -> loc\n"
-		 (variant_name sub)
-		 (String.concat ", "
-		    (List.map
-		       (fun f -> if f == source_loc_field then "loc" else "_")
-		       (get_all_fields_flat sub))))
+	       if sub.ac_record 
+	       then
+		 fpf "  | %s x -> %s x\n" 
+		   (variant_name sub)
+		   (source_loc_access_fun sub)
+	       else
+		 fpf "  | %s(_, %s) -> loc\n"
+		   (variant_name sub)
+		   (String.concat ", "
+		      (List.map
+			 (fun f -> if f == source_loc_field then "loc" else "_")
+			 (get_all_fields_flat sub))))
       cl.ac_subclasses fields;
     out "\n\n"
   end
@@ -109,7 +115,12 @@ let do_source_loc oc ast =
        then
 	 record_source_loc oc cl
        else
-	 variant_source_loc oc cl)
+	 begin
+	   List.iter (fun reccl -> record_source_loc oc reccl)
+	     (List.filter (fun cl -> cl.ac_record) cl.ac_subclasses);
+	   variant_source_loc oc cl
+	 end
+	 )
     ast
 
 

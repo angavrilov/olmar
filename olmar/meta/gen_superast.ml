@@ -19,6 +19,7 @@ let superast_type_decl ast oc =
   let out = output_string oc in
   let fpf format = fprintf oc format 
   in
+    out "(* super_ast pattern matching template below *)\n\n";
     out "type 'a super_ast =\n";
     List.iter
       (fun cl ->
@@ -33,7 +34,22 @@ let superast_type_decl ast oc =
 	   (List.filter (fun sub -> sub.ac_record) cl.ac_subclasses)
       )
       ast;
-    fpf "  | %s\n" name_of_superast_no_ast
+    fpf "  | %s\n" name_of_superast_no_ast;
+    out "\n\n(* superast pattern matching template:\n\n";
+    fpf "  | %s -> assert false\n" name_of_superast_no_ast;
+    List.iter
+      (fun cl ->
+	 fpf "  | %s x\n"
+	   (superast_constructor cl);
+	 List.iter 
+	   (fun recsub -> 
+	      fpf "  | %s x\n"
+		(superast_constructor recsub))
+	   (List.filter (fun sub -> sub.ac_record) cl.ac_subclasses)
+      )
+      ast;
+    out "\n*)\n\n"
+
 
 
 let interface input ast oc = 

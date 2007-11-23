@@ -3,6 +3,7 @@
 *.cmo
 *.cmx
 *.cmxa
+Makefile
 ast_accessors.ml
 ast_accessors_generated.ml
 ast_graph

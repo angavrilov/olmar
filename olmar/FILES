@@ -1,8 +1,12 @@
 
 directories
 
+  util		utility ocaml modules
+
   build		additional sources and build directory for modified 
 		astgen, ccparse
 
   meta		tools that work on astgen syntax trees, 
 		that is on ast oast files
+
+  wiki_bot	bot for putting the elsa ast into the mozilla wiki

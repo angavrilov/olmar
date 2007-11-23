@@ -4,6 +4,7 @@
 *.cmx
 *.cmxa
 *.d
+Makefile
 ast.ast.cc
 ast.ast.h
 ast.ast.oast

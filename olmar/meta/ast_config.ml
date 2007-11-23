@@ -14,6 +14,8 @@ open More_string
 
 let translate_name_hash = Hashtbl.create 479
 
+let translate_backward_hash = Hashtbl.create 479
+
 let basic_type_hash = Hashtbl.create 53
 
 let implicit_pointer_hash = Hashtbl.create 23
@@ -40,6 +42,33 @@ let record_variant_hash = Hashtbl.create 53
 
 let graph_label_fun_hash = Hashtbl.create 53
 
+
+
+(******************************************************************************
+ ******************************************************************************
+ *
+ * backward translation
+ *
+ ******************************************************************************
+ ******************************************************************************)
+
+let fill_backward_translation () =
+  Hashtbl.iter 
+    (fun (context_opt, name) rename ->
+       if Hashtbl.mem translate_backward_hash (context_opt, rename)
+       then
+	 let context = match context_opt with
+	   | None -> ""
+	   | Some con -> con ^ "."
+	 in
+	   Printf.eprintf "Warning: %s%s and %s%s are both renamed to %s\n"
+	     context name
+	     context 
+	     (Hashtbl.find translate_backward_hash (context_opt, rename))
+	     rename
+       else
+	 Hashtbl.add translate_backward_hash (context_opt, rename) name)
+    translate_name_hash
 
 
 (******************************************************************************
@@ -210,7 +239,8 @@ let parse_config_file tr =
       | End_of_file -> 
 	  close_in ic;
 	  ocaml_reflect_header := List.rev !ocaml_reflect_header;
-	  ocaml_type_header := List.rev !ocaml_type_header
+	  ocaml_type_header := List.rev !ocaml_type_header;
+	  fill_backward_translation()
 
 
 (******************************************************************************
@@ -283,3 +313,22 @@ let variant_is_record class_name =
 
 let get_graph_label_fun class_name =
   Hashtbl.find graph_label_fun_hash (translate_olmar_name None class_name)
+
+
+let translate_back context rename =
+  let name = 
+    try
+      Hashtbl.find translate_backward_hash (context, rename)
+    with
+      | Not_found -> rename
+  in
+  let orig_context = match context with
+    | None -> None
+    | Some con -> 
+	try
+	  Some(Hashtbl.find translate_backward_hash (None, con))
+	with
+	  | Not_found -> context
+  in
+    (orig_context, name)
+    

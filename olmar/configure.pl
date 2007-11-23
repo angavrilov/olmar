@@ -333,7 +333,8 @@ sub writeConfigSummary {
 	"build/elsa", 
 	"meta", 
 	"meta/generated_elsa", 
-	"meta/generated_ast"
+	"meta/generated_ast",
+	"wiki_bot"
 	);
 
 
