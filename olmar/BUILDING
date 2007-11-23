@@ -1,0 +1,58 @@
+Explanation of the Olmar build procedure
+========================================
+
+
+Reasons
+=======
+
+The material is structures following its relations and purpose.
+This results in complicated build dependencies. For instance
+building build/elsa requires gen_reflection from meta, other
+material in meta, however, depends on build/elsa.
+
+Procedure
+=========
+
+The build process is organized in three stages: stage_{1,2,3}.
+The makefiles simply iterate three times over all directories in
+a predefined order, making one stage in every iteration. Quite a
+few directories do nothing for a certain stage. Directory util,
+for instance builds everything in stage_1.
+
+Directories are build in each stage in the following order:
+
+util
+build
+  | general
+  | astgen
+  | elsa
+meta
+  | generated_ast
+  | generated_elsa
+wiki_bot
+
+
+The Olmar components are build in the following order:
+
+stage_1
+  | util		all utility modules
+  | build/general	all general reflection modules
+  | build/astgen	astgen_lib, astgen_or, ast.ast.oast
+  | meta		programs for the astgen ast (all of gen_*)
+  | meta/generated_ast	superast, uplinks modules for astgen asts
+
+stage_2
+  | build/elsa		ocaml reflection enabled ccparse
+  | meta		check_oast
+  | meta/generated_elsa	elsa ast utility modules, ast_graph
+  | wiki_bot		build the bot
+
+stage_3
+  | build/astgen	check astgen ast
+
+
+
+
+### Local Variables:
+### mode: indented-text
+### End:

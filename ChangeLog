@@ -1,5 +1,7 @@
 2007-11-23  Hendrik Tews  <tews@tandem.cs.ru.nl>
 
+        * added olmar/BUILDING
+
         Olmar
         * more renaming fixes
         * everything fixed for the elsa variant restrictions: regression
