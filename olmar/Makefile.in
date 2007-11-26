@@ -22,7 +22,7 @@ OC_OBJ_EXT:=@OC_OBJ_EXT@
 OC_LIB_EXT:=@OC_LIB_EXT@
 OC_NATIVE:=@OC_NATIVE@
 OCDIR:=@OCDIR@
-
+OLMARSUBDIRS:=@OLMARSUBDIRS@
 
 TODISTCLEAN :=
 TOCLEAN :=
@@ -30,7 +30,7 @@ TOCLEAN :=
 
 # simply redirect all goals into the subdirectories
 
-SUBDIRS := util build meta wiki_bot
+SUBDIRS := $(OLMARSUBDIRS)
 
 
 .PHONY: all stage_1 stage_2 clean depend

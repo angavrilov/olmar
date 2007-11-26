@@ -1,3 +1,14 @@
+2007-11-26  Hendrik Tews  <tews@tandem.cs.ru.nl>
+
+        CFG
+        * added testcase for standard conversions
+
+        Olmar
+        * configure disables wiki_bot if ocamlfind is not found
+        * add generation of expression_type to ast_accessors
+        * new option -syntax for ast_graph to select only the real syntax
+          nodes
+
 2007-11-23  Hendrik Tews  <tews@tandem.cs.ru.nl>
 
         * added olmar/BUILDING

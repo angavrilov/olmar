@@ -49,7 +49,8 @@ TESTFILES=\
 	test/t007.cc\
 	test/t008.cc\
 	test/t009.cc\
-	test/t010.cc
+	test/t010.cc\
+	test/t012.cc
 
 .PHONY: test
 test: cfg $(TESTFILES:.cc=.oast) $(TESTFILES:.cc=.dot)

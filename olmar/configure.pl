@@ -238,6 +238,22 @@ else {
 
 
 # =========================================================================
+# ========================== ocamlfind ====================================
+# =========================================================================
+
+print("Searching ocamlfind with the netclient package ...");
+if (system("ocamlfind query netclient >/dev/null 2>&1") == 0) {
+  print "found\n";
+  $wiki_bot = 1;
+} 
+else {
+  print("NOT FOUND\ndisable building wiki_bot\n");
+  $wiki_bot = 0;
+}
+      
+
+
+# =========================================================================
 # ========================== C++ compiler =================================
 # =========================================================================
 
@@ -306,6 +322,19 @@ test_CXX_compiler();
 # =========================================================================
 # ========================== config summary ===============================
 # =========================================================================
+
+
+if($wiki_bot) {
+  $wiki_bot_text="enabled";
+  $OLMARSUBDIRS="util build meta wiki_bot"
+}
+else {
+  $wiki_bot_text="disabled";
+  $OLMARSUBDIRS="util build meta"
+}
+
+
+
 
 sub writeConfigSummary {
   my ($summary) = @_;
@@ -428,6 +457,7 @@ cat <<EOF
   OC_LIB_EXT:      $OC_LIB_EXT
   OC_NATIVE:       $OC_NATIVE
   OCDIR:           $OCDIR
+  wikibot:         $wiki_bot_text
 EOF
 OUTER_EOF
 
@@ -448,7 +478,8 @@ writeConfigStatus(
     "OC_OBJ_EXT" => "$OC_OBJ_EXT",
     "OC_LIB_EXT" => "$OC_LIB_EXT",
     "OC_NATIVE" => "$OC_NATIVE",
-    "OCDIR" => "$OCDIR"
+    "OCDIR" => "$OCDIR",
+    "OLMARSUBDIRS" => "$OLMARSUBDIRS"
     );
 
 

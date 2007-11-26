@@ -9,6 +9,133 @@
  *
  ************************************************************************)
 
+let is_syntax_node = function
+  | No_ast_node -> assert false
+  | CompilationUnit_type _
+  | TranslationUnit_type _
+  | TopForm_type _
+  | TF_explicitInst_type _
+  | TF_linkage_type _
+  | TF_one_linkage_type _
+  | TF_namespaceDefn_type _
+  | Function_type _
+  | MemberInit_type _
+  | Declaration_type _
+  | ASTTypeId_type _
+  | PQName_type _
+  | PQ_qualifier_type _
+  | PQ_operator_type _
+  | PQ_template_type _
+  | TypeSpecifier_type _
+  | TS_name_type _
+  | TS_simple_type _
+  | TS_elaborated_type _
+  | TS_classSpec_type _
+  | TS_enumSpec_type _
+  | TS_type_type _
+  | TS_typeof_type _
+  | BaseClassSpec_type _
+  | Enumerator_type _
+  | MemberList_type _
+  | Member_type _
+  | ExceptionSpec_type _
+  | OperatorName_type _
+  | ON_newDel_type _
+  | Statement_type _
+  | S_label_type _
+  | S_case_type _
+  | S_if_type _
+  | S_switch_type _
+  | S_while_type _
+  | S_doWhile_type _
+  | S_for_type _
+  | S_return_type _
+  | S_try_type _
+  | S_rangeCase_type _
+  | Condition_type _
+  | Handler_type _
+  | Expression_type _
+  | E_intLit_type _
+  | E_floatLit_type _
+  | E_stringLit_type _
+  | E_charLit_type _
+  | E_variable_type _
+  | E_funCall_type _
+  | E_constructor_type _
+  | E_fieldAcc_type _
+  | E_sizeof_type _
+  | E_unary_type _
+  | E_effect_type _
+  | E_binary_type _
+  | E_cast_type _
+  | E_cond_type _
+  | E_sizeofType_type _
+  | E_assign_type _
+  | E_new_type _
+  | E_delete_type _
+  | E_throw_type _
+  | E_keywordCast_type _
+  | E_arrow_type _
+  | E_stdConv_type _
+  | E_compoundLit_type _
+  | E___builtin_constant_p_type _
+  | E___builtin_va_arg_type _
+  | E_alignofType_type _
+  | E_alignofExpr_type _
+  | E_gnuCond_type _
+  | FullExpression_type _
+  | ArgExpression_type _
+  | ArgExpressionListOpt_type _
+  | Initializer_type _
+  | IN_expr_type _
+  | IN_compound_type _
+  | IN_ctor_type _
+  | IN_designated_type _
+  | TemplateDeclaration_type _
+  | TemplateParameter_type _
+  | TP_type_type _
+  | TP_nontype_type _
+  | TemplateArgument_type _
+  | NamespaceDecl_type _
+  | Declarator_type _
+  | IDeclarator_type _
+  | D_pointer_type _
+  | D_func_type _
+  | D_array_type _
+  | D_bitfield_type _
+  | D_ptrToMember_type _
+  | FullExpressionAnnot_type _
+  | ASTTypeof_type _
+  | Designator_type _
+  | SubscriptDesignator_type _
+  | AttributeSpecifierList_type _
+  | AttributeSpecifier_type _
+  | Attribute_type _
+  | AT_func_type _
+      -> true
+
+  | Variable_type _
+  | OverloadSet_type _
+  | TemplateInfo_type _
+  | InheritedTemplateParams_type _
+  | BaseClass_type _
+  | BaseClassSubobj_type _
+  | EnumValue_type _
+  | AtomicType_type _
+  | ATY_Compound_type _
+  | ATY_Enum_type _
+  | ATY_PseudoInstantiation_type _
+  | ATY_TypeVariable_type _
+  | ATY_DependentQ_type _
+  | FunctionExnSpec_type _
+  | CType_type _
+  | TY_Function_type _
+  | TY_PointerToMember_type _
+  | STemplateArgument_type _
+  | Scope_type _
+      -> false
+
+
 let is_scope_node ast_array i =
   match ast_array.(i) with
     | No_ast_node -> assert false
@@ -65,6 +192,7 @@ let is_scope_node ast_array i =
 type node_selection =
   | All_nodes
   | Real_nodes
+  | Syntax_nodes
   | No_nodes
   | Add_node of int
   | Del_node of int
@@ -101,6 +229,12 @@ let mark_all_nodes node_array flag =
     node_array.(i) <- flag
   done
 
+
+let mark_syntax_nodes node_array ast_array =
+  for i = 0 to Array.length node_array -1 do
+    if is_syntax_node ast_array.(i) then
+      node_array.(i) <- true
+  done
 
 let mark_direction node_array ast_array visited dir_fun nodes = 
   let top_scope_opt = 
@@ -184,6 +318,7 @@ let mark_nodes node_array ast_array up down sels =
     (function
        | All_nodes -> mark_all_nodes node_array true
        | Real_nodes -> mark_real_nodes node_array ast_array down
+       | Syntax_nodes -> mark_syntax_nodes node_array ast_array
        | No_nodes -> mark_all_nodes node_array false
        | Add_node i -> node_array.(i) <- true
        | Del_node i -> node_array.(i) <- false
@@ -401,6 +536,8 @@ let arguments = Arg.align
   [
     ("-all", Arg.Unit (fun () -> select All_nodes),
      " select all nodes");
+    ("-syntax", Arg.Unit (fun () -> select Syntax_nodes),
+     " select all syntax nodes");
     ("-real", Arg.Unit (fun () -> select Real_nodes),
      " select tree with root node 0");
     ("-none", Arg.Unit (fun () -> select No_nodes),
@@ -464,6 +601,7 @@ let dot_commands () =
 let real_node_selection = function
   | All_nodes
   | Real_nodes
+  | Syntax_nodes
   | No_nodes
   | Add_node _
   | Del_node _
@@ -502,6 +640,7 @@ let main () =
       | Loc _ :: _
       | All_nodes :: _
       | Real_nodes :: _
+      | Syntax_nodes :: _
       | No_nodes :: _
       | (Add_node _) :: _ 
       | (Add_diameter _) :: _

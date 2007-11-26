@@ -124,6 +124,48 @@ let do_source_loc oc ast =
     ast
 
 
+(******************************************************************************
+ ******************************************************************************
+ *
+ * Expression Type Accessor
+ *
+ ******************************************************************************
+ ******************************************************************************)
+
+
+let do_expr_type oc expr_cl =
+  let out = output_string oc in
+  let fpf format = fprintf oc format in
+  let type_field = List.hd expr_cl.ac_fields
+  in
+    out "let expression_type = function\n";
+    List.iter
+      (fun sub_expr ->
+	 if sub_expr.ac_record then
+	   fpf "  | %s x -> x.%s\n" 
+	     (variant_name sub_expr)
+	     (translated_field_name sub_expr type_field)
+	 else
+	   fpf "  | %s(_, %s) -> expr_type\n"
+	     (variant_name sub_expr)
+	     (String.concat ", "
+		(List.map
+		   (fun f -> if f == type_field then "expr_type" else "_")
+		   (get_all_fields_flat sub_expr)))
+      )
+      expr_cl.ac_subclasses
+
+
+
+(******************************************************************************
+ ******************************************************************************
+ *
+ * Implementation unit
+ *
+ ******************************************************************************
+ ******************************************************************************)
+
+let expr_type_accessor = ref false
 
 
 let implementation input ast oc = 
@@ -144,7 +186,14 @@ let implementation input ast oc =
     pr_comment_heading oc ["               SourceLoc accessors";];
     do_source_loc oc ast;
 
-    out "\n\n"
+    out "\n\n";
+    
+    if !expr_type_accessor then begin
+      pr_comment_heading oc ["               Expression type accessor";];
+      do_expr_type oc (get_node "Expression");
+
+      out "\n\n"
+    end
     
 
 
@@ -165,6 +214,8 @@ let arguments =
   [
     ("-o", Arg.String (fun s -> output_prefix_option := Some s),
      "out set output prefix to out");
+    ("-expr-type-accessor", Arg.Set expr_type_accessor,
+     " generate the type accessor for expressions");
   ]
 
 let main () =

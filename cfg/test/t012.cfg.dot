@@ -1,0 +1,7 @@
+digraph "CFG" {
+    node [ color = "lightblue", style = filled ];
+    edge [ arrowtail=odot ];
+    "1" [label="f\nArg 1: short int\nfile: test/t012.cc\nline 3"];
+    "0" [label="g\nArg 1: long int\nfile: test/t012.cc\nline 9"];
+    "0" -> "1";
+}

@@ -69,7 +69,8 @@ ast_accessors_generated.ml: \
 		../gen_accessors $(ELSA_OR)/elsa.ast.oast $(ELSA_REFL_CONTROL)
 	../gen_accessors $(ELSA_OR)/elsa.ast.oast \
 		-tr $(ELSA_REFL_CONTROL) \
-		-o ast_accessors_generated
+		-o ast_accessors_generated \
+		-expr-type-accessor
 
 TOCLEAN += ast_accessors.ml
 ast_accessors.ml: ast_accessors_header.ml ast_accessors_generated.ml \
