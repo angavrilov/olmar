@@ -87,7 +87,9 @@ let out = ref stdout
 (* AST translation code                                                      *)
 (* ------------------------------------------------------------------------- *)
 
-open Cc_ml_types
+open Elsa_reflect_type
+open Elsa_ml_base_types
+open Elsa_ml_flag_types
 
 let string_of_effectOp = function
   | EFF_POSTINC -> "postinc"
@@ -291,8 +293,8 @@ let string_of_declFlag = function
 (*  See file license.txt for terms of use                                    *)
 (* ------------------------------------------------------------------------- *)
 
-open Cc_ast_gen_type
-open Ml_ctype
+(*open Cc_ast_gen_type*)
+(*open Ml_ctype*)
 open Ast_annotation
 open Ast_accessors
 
@@ -320,7 +322,7 @@ let rec last = function
  **************************************************************************)
 
 let annotation_fun (a : annotated) =
-  Format.printf "(%d, %d)" (id_annotation a) (caddr_annotation a)
+  Format.printf "(%d)" (id_annotation a)
 
 let bool_fun (b : bool) = Format.print_bool b
 
@@ -410,7 +412,7 @@ let castKeyword_fun = function
   | CK_REINTERPRET -> Format.print_string "reinterpret_cast"
   | CK_CONST       -> assert false
 
-let function_flags_fun (_ : function_flags) =
+let function_flags_fun (_ : functionFlags) =
   trace "function_flags_fun()"  (*TODO*)
 
 let declaratorContext_fun (dc : declaratorContext) =
@@ -442,18 +444,9 @@ let implicitConversion_Kind_fun = function
 
 (***************** variable ***************************)
 
-let rec variable_fun (v : annotated variable) =
-  (* unused record copy to provoke compilation errors for new fields *)
-  let _dummy = {			
-    poly_var = v.poly_var; loc = v.loc; var_name = v.var_name;
-    var_type = v.var_type; flags = v.flags; value = v.value;
-    defaultParam = v.defaultParam; funcDefn = v.funcDefn;
-    overload = v.overload; virtuallyOverride = v.virtuallyOverride;
-    scope = v.scope; templ_info = v.templ_info;
-  }
-  in
+let rec variable_fun (v : annotated variable_type) =
     trace "variable_fun(";
-    (match v.var_name with
+    (match v.variable_name with
       | Some s -> string_fun s;
 	  (*
 	    Format.print_string "_";
@@ -483,121 +476,27 @@ let rec variable_fun (v : annotated variable) =
 (**************** templateInfo ************************)
 
 and templ_info_fun ti =
-  (* unused record copy to provoke compilation errors for new fields *)
-  let _dummy = {
-    poly_templ = ti.poly_templ; templ_kind = ti.templ_kind;
-    template_params = ti.template_params;
-    template_var = ti.template_var; inherited_params = ti.inherited_params; 
-    instantiation_of = ti.instantiation_of; 
-    instantiations = ti.instantiations; 
-    specialization_of = ti.specialization_of; 
-    specializations = ti.specializations; arguments = ti.arguments; 
-    inst_loc = ti.inst_loc; 
-    partial_instantiation_of = ti.partial_instantiation_of; 
-    partial_instantiations = ti.partial_instantiations; 
-    arguments_to_primary = ti.arguments_to_primary; 
-    defn_scope = ti.defn_scope; 
-    definition_template_info = ti.definition_template_info; 
-    instantiate_body = ti.instantiate_body; 
-    instantiation_disallowed = ti.instantiation_disallowed; 
-    uninstantiated_default_args = ti.uninstantiated_default_args; 
-    dependent_bases = ti.dependent_bases;
-  }
-  in
-    begin
       assert false;
 
-      annotation_fun ti.poly_templ;
-      templ_kind_fun ti.templ_kind;
-      List.iter variable_fun ti.template_params;
-
-      (* POSSIBLY CIRCULAR *)
-      Option.app variable_fun !(ti.template_var);
-      List.iter inherited_templ_params_fun ti.inherited_params;
-
-      (* POSSIBLY CIRCULAR *)
-      Option.app variable_fun !(ti.instantiation_of);
-      List.iter variable_fun ti.instantiations;
-
-      (* POSSIBLY CIRCULAR *)
-      Option.app variable_fun !(ti.specialization_of);
-      List.iter variable_fun ti.specializations;
-      List.iter sTemplateArgument_fun ti.arguments;
-      sourceLoc_fun ti.inst_loc;
-
-      (* POSSIBLY CIRCULAR *)
-      Option.app variable_fun !(ti.partial_instantiation_of);
-      List.iter variable_fun ti.partial_instantiations;
-      List.iter sTemplateArgument_fun ti.arguments_to_primary;
-      Option.app scope_fun ti.defn_scope;
-      Option.app templ_info_fun ti.definition_template_info;
-      bool_fun ti.instantiate_body;
-      bool_fun ti.instantiation_disallowed;
-      int_fun ti.uninstantiated_default_args;
-      List.iter cType_fun ti.dependent_bases;
-    end
 
 (************* inheritedTemplateParams ****************)
 
 and inherited_templ_params_fun itp =
-  (* unused record copy to provoke compilation errors for new fields *)
-  let _dummy = {
-    poly_inherited_templ = itp.poly_inherited_templ;
-    inherited_template_params = itp.inherited_template_params;
-    enclosing = itp.enclosing;
-  }
-  in
-    begin
       assert false;
-      assert (!(itp.enclosing) <> None);
-      annotation_fun itp.poly_inherited_templ;
-      List.iter variable_fun itp.inherited_template_params;
-
-      (* POSSIBLY CIRCULAR *)
-      Option.app compound_info_fun !(itp.enclosing);
-    end
 
 (***************** cType ******************************)
 
 and baseClass_fun baseClass =
-  (* unused record copy to provoke compilation errors for new fields *)
-  let _dummy = {
-    poly_base = baseClass.poly_base; compound = baseClass.compound;
-    bc_access = baseClass.bc_access; is_virtual = baseClass.is_virtual
-  } in
-    begin
       assert false;
-      annotation_fun baseClass.poly_base;
-      compound_info_fun baseClass.compound;
-      accessKeyword_fun baseClass.bc_access;
-      bool_fun baseClass.is_virtual
-    end
-
 
 and compound_info_fun i = 
-  (* unused record copy to provoke compilation errors for new fields *)
-  let _dummy = {
-    compound_info_poly = i.compound_info_poly;
-    compound_name = i.compound_name; typedef_var = i.typedef_var;
-    ci_access = i.ci_access; compound_scope = i.compound_scope;
-    is_forward_decl = i.is_forward_decl;
-    is_transparent_union = i.is_transparent_union; keyword = i.keyword;
-    data_members = i.data_members; bases = i.bases;
-    conversion_operators = i.conversion_operators;
-    friends = i.friends; inst_name = i.inst_name; syntax = i.syntax;
-    self_type = i.self_type;
-  } in
     begin
       trace "compound_info_fun(";
-      assert(match !(i.syntax) with
-	       | None -> true
-	       | Some (TS_classSpec _) -> true
-	       | _ -> false);
 (*
       annotation_fun i.compound_info_poly;
       Option.app string_fun i.compound_name;
 *)
-      variable_fun i.typedef_var;
+      variable_fun i.compound_type_var;
 (*
       accessKeyword_fun i.ci_access;
       scope_fun i.compound_scope;
@@ -634,26 +533,20 @@ and enum_value_fun (annot, string, nativeint) =
 
 and atomicType_fun x =
   match x with
-      SimpleType(annot, simpleTypeId) ->
+      ATY_Simple(annot, simpleTypeId) ->
 	trace "SimpleType(";
 	simpleTypeId_fun simpleTypeId;
 	trace ")";
 
-    | CompoundType(compound_info) ->
+    | ATY_Compound(compound_info) ->
 	trace "CompoundType(";
         compound_info_fun compound_info;
 	trace ")";
 
-    | PseudoInstantiation(annot, str, variable_opt, accessKeyword, 
-			 compound_info, sTemplateArgument_list) ->
+    | ATY_PseudoInstantiation _ ->
 	assert false;
-	string_fun str;
-	Option.app variable_fun variable_opt;
-	accessKeyword_fun accessKeyword;
-	compound_info_fun compound_info;
-	List.iter sTemplateArgument_fun sTemplateArgument_list;
 
-    | EnumType(annot, string, variable, accessKeyword, 
+    | ATY_Enum(annot, string, variable, accessKeyword, 
 	      enum_value_list, has_negatives) ->
 	trace "EnumType(";
 	assert (Option.isSome string);  (* anonymous enums not supported yet *)
@@ -664,20 +557,11 @@ and atomicType_fun x =
 	bool_fun has_negatives;*)
 	trace ")";
 
-    | TypeVariable(annot, string, variable, accessKeyword) ->
+    | ATY_TypeVariable _ ->
 	assert false;
-	string_fun string;
-	variable_fun variable;
-	accessKeyword_fun accessKeyword;
 
-    | DependentQType(annot, string, variable, 
-		    accessKeyword, atomic, pq_name) ->
+    | ATY_DependentQ _ ->
 	assert false;
-	string_fun string;
-	variable_fun variable;
-	accessKeyword_fun accessKeyword;
-	atomicType_fun atomic;
-	pQName_fun pq_name;
 
 
 and cType_fun x = 

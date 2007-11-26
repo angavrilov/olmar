@@ -11,9 +11,9 @@ all: ast2pvs testall test.pvs test.ps buddy.pvs ptab.pvs
 ##########
 
 ast2pvs: option.ml ast2pvs.ml
-	ocamlopt.opt -w Ae -I ../asttools/ -I ../elsa -c option.ml
-	ocamlopt.opt -w Aexyz -I ../asttools/ -I ../elsa -I . -c ast2pvs.ml
-	ocamlopt.opt -w Ae -o ast2pvs ../elsa/elsa_util.cmx ../elsa/cc_ml_types.cmx ../elsa/ast_annotation.cmx ../elsa/oast_header_version.cmx ../elsa/oast_header.cmx ../asttools/ast_accessors.cmx ../asttools/dense_set.cmx ../asttools/superast.cmx ../asttools/uplinks.cmx option.cmx ast2pvs.cmx
+	ocamlopt.opt -w Ae -c option.ml
+	ocamlopt.opt -w Aexyz -I ../olmar/build/elsa -I ../olmar/build/general -I ../olmar/meta/generated_elsa -c ast2pvs.ml
+	ocamlopt.opt -w Ae -o ast2pvs option.cmx ast2pvs.cmx
 
 ##########
 # A number of test programs.
