@@ -13,7 +13,7 @@ all: ast2pvs testall test.pvs test.ps buddy.pvs ptab.pvs
 ast2pvs: option.ml ast2pvs.ml
 	ocamlopt.opt -w Ae -c option.ml
 	ocamlopt.opt -w Aexyz -I ../olmar/build/elsa -I ../olmar/build/general -I ../olmar/meta/generated_elsa -c ast2pvs.ml
-	ocamlopt.opt -w Ae -o ast2pvs option.cmx ast2pvs.cmx
+	ocamlopt.opt -w Ae -o ast2pvs ../olmar/build/general/astgen_general.cmxa ../olmar/build/elsa/elsa_lib.cmxa ../olmar/meta/generated_elsa/elsa_ast_util.cmxa option.cmx ast2pvs.cmx
 
 ##########
 # A number of test programs.
@@ -25,7 +25,7 @@ ast2pvs: option.ml ast2pvs.ml
 
 # Ocaml abstract syntax trees
 %.oast: %.pre.cpp
-	../elsa/ccparse -oc $@ $<
+	../olmar/build/elsa/ccparse_or -oc $@ $<
 
 # PVS theories
 %.pvs: %.oast ast2pvs
@@ -33,7 +33,7 @@ ast2pvs: option.ml ast2pvs.ml
 
 # .dot graph files
 %.dot: %.oast
-	../asttools/ast_graph -real -o $@ $<
+	../olmar/meta/generated_elsa/ast_graph -real -o $@ $<
 
 # PostScript files (from .dot)
 %.ps: %.dot
