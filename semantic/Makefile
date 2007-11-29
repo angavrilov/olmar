@@ -21,7 +21,7 @@ ast2pvs: option.ml ast2pvs.ml
 
 # pre-processing of C++ sources
 %.pre.cpp: %.cpp
-	g++ -I include/ -E -o $@ $<
+	g++ -I nova/include/ -E -o $@ $<
 
 # Ocaml abstract syntax trees
 %.oast: %.pre.cpp
@@ -54,5 +54,5 @@ testall: $(patsubst %.cpp,%.pvs,$(wildcard test/test???.cpp))
 .PHONY: clean
 clean:
 	rm -f *.cmi *.cmx *.o ast2pvs
-	rm -f test/test*.pvs
+	rm -f test/test???.pvs
 	rm -f nova/buddy.pvs nova/ptab.pre.cpp nova/ptab.pvs
