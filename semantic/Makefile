@@ -3,7 +3,7 @@
 # Makefile for semantic
 
 .PHONY: all
-all: ast2pvs testall test.pvs test.ps buddy.pvs ptab.pvs
+all: ast2pvs testall nova/buddy.pvs nova/ptab.pre.cpp nova/ptab.pvs
 
 ##########
 # The semantics compiler itself (based on various elsa/asttools files, which
@@ -16,12 +16,12 @@ ast2pvs: option.ml ast2pvs.ml
 	ocamlopt.opt -w Ae -o ast2pvs ../olmar/build/general/astgen_general.cmxa ../olmar/build/elsa/elsa_lib.cmxa ../olmar/meta/generated_elsa/elsa_ast_util.cmxa option.cmx ast2pvs.cmx
 
 ##########
-# A number of test programs.
+# A number of test programs: C++ to PVS.
 ##########
 
 # pre-processing of C++ sources
 %.pre.cpp: %.cpp
-	g++ -E -o $@ $<
+	g++ -I include/ -E -o $@ $<
 
 # Ocaml abstract syntax trees
 %.oast: %.pre.cpp
@@ -31,6 +31,8 @@ ast2pvs: option.ml ast2pvs.ml
 %.pvs: %.oast ast2pvs
 	./ast2pvs $< $@
 
+##########
+
 # .dot graph files
 %.dot: %.oast
 	../olmar/meta/generated_elsa/ast_graph -real -o $@ $<
@@ -39,9 +41,11 @@ ast2pvs: option.ml ast2pvs.ml
 %.ps: %.dot
 	dot -Tps -o$@ $<
 
-# 'test???.cpp' -> 'test???.pvs'
+##########
+
+# 'test/test???.cpp' -> 'test/test???.pvs'
 .PHONY: testall
-testall: $(patsubst %.cpp,%.pvs,$(wildcard test???.cpp))
+testall: $(patsubst %.cpp,%.pvs,$(wildcard test/test???.cpp))
 
 ##########
 # clean
@@ -50,4 +54,5 @@ testall: $(patsubst %.cpp,%.pvs,$(wildcard test???.cpp))
 .PHONY: clean
 clean:
 	rm -f *.cmi *.cmx *.o ast2pvs
-	rm -f test*.pvs test.ps buddy.pvs ptab.pvs
+	rm -f test/test*.pvs
+	rm -f nova/buddy.pvs nova/ptab.pre.cpp nova/ptab.pvs

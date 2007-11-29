@@ -2003,14 +2003,13 @@ and expression_fun x =
 	assert false;
 
     | E_stringLit xx ->
-	trace "E_stringLit(";
-	(*TODO*)
-	(*Option.app cType_fun type_opt;*) (*?*)
-	string_fun xx.string_lit_text; (*?*)
-	assert (not (Option.isSome xx.continuation));
-	(*Option.app expression_fun e_stringLit_opt;*) (*?*)
-	(*Option.app string_fun stringRef_opt;*) (*?*)
-	trace ")";
+	let rec stringLit2string slit =
+	  slit.string_lit_text ^
+	    Option.getOpt(Option.map stringLit2string slit.continuation, "")
+	in
+	  trace "E_stringLit(";
+	  string_fun (stringLit2string xx);
+	  trace ")";
 
     | E_charLit xx ->
 	trace "E_charLit(";
