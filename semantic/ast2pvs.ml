@@ -2003,12 +2003,17 @@ and expression_fun x =
 	assert false;
 
     | E_stringLit xx ->
-	let rec stringLit2string slit =
-	  slit.string_lit_text ^
-	    Option.getOpt(Option.map stringLit2string slit.continuation, "")
+	let rec stringLit_fun slit =
+	  (* remove enclosing quotes *)
+	  Format.print_string
+	    (String.sub slit.string_lit_text 1
+		(String.length slit.string_lit_text - 2));
+	  Option.app stringLit_fun slit.continuation;
 	in
 	  trace "E_stringLit(";
-	  string_fun (stringLit2string xx);
+	  Format.print_string "\"";
+	  stringLit_fun xx;
+	  Format.print_string "\"";
 	  trace ")";
 
     | E_charLit xx ->
