@@ -12,8 +12,8 @@ all: ast2pvs testall nova/buddy.pvs nova/ptab.pre.cpp nova/ptab.pvs
 
 ast2pvs: option.ml ast2pvs.ml
 	ocamlopt.opt -w Ae -c option.ml
-	ocamlopt.opt -w Aexyz -I ../olmar/build/elsa -I ../olmar/build/general -I ../olmar/meta/generated_elsa -c ast2pvs.ml
-	ocamlopt.opt -w Ae -o ast2pvs ../olmar/build/general/astgen_general.cmxa ../olmar/build/elsa/elsa_lib.cmxa ../olmar/meta/generated_elsa/elsa_ast_util.cmxa option.cmx ast2pvs.cmx
+	ocamlopt.opt -w Aexyz -I ../olmar/build/elsa -I ../olmar/build/general -I ../olmar/meta/generated_elsa -I ../olmar/util -I ../cfg -c ast2pvs.ml
+	ocamlopt.opt -w Ae -o ast2pvs ../olmar/build/general/astgen_general.cmxa ../olmar/build/elsa/elsa_lib.cmxa ../olmar/util/dense_set.cmx ../olmar/meta/generated_elsa/elsa_ast_util.cmxa ../cfg/cfg_util.cmx ../cfg/cfg_type.cmx ../cfg/build.cmx option.cmx ast2pvs.cmx
 
 ##########
 # A number of test programs: C++ to PVS.

@@ -90,6 +90,9 @@ let out = ref stdout
 open Elsa_reflect_type
 open Elsa_ml_base_types
 open Elsa_ml_flag_types
+open Cfg_type
+open Cfg_util
+open Build
 
 let string_of_effectOp = function
   | EFF_POSTINC -> "postinc"
@@ -2613,7 +2616,7 @@ open Superast
 let arguments = []
 
 let usage_msg =
-  "Usage: ast2pvs input.ast [output.pvs]\n\
+  "Usage: ast2pvs input.ast [output.pvs] [functions]\n\
    \n\
    Recognized options are:"
 
@@ -2627,6 +2630,8 @@ let in_file_set  = ref false
 let out_file_name = ref ""
 let out_file_set  = ref false
 
+let funs = ref []
+
 let set_files s =
   if not !in_file_set then
     begin
@@ -2639,11 +2644,7 @@ let set_files s =
       out_file_set  := true
     end
   else
-    begin
-      Printf.eprintf
-        "Too many arguments: don't know what to do with %s.\n" s;
-      usage()
-    end
+    funs := !funs @ [s]
 
 let main () =
   Arg.parse arguments set_files usage_msg;
@@ -2651,10 +2652,9 @@ let main () =
     usage();  (* does not return *)
   if not !out_file_set then
     out_file_name := !in_file_name ^ ".pvs";
-  let (_, ast) = Elsa_oast_header.unmarshal_oast !in_file_name in
   let theory_name = try
-          String.sub !out_file_name 0 (String.index !out_file_name '.')
-        with Not_found -> !out_file_name in
+      String.sub !out_file_name 0 (String.index !out_file_name '.')
+    with Not_found -> !out_file_name in
   let lemma_name = theory_name ^ "_spec" in
     begin
       out := open_out !out_file_name;
@@ -2667,7 +2667,38 @@ let main () =
         @[<2>@\n\
           @[<2>IMPORTING@ Cpp_Verification@]@\n\
           @\n" theory_name;
-      compilationUnit_fun ast;
+      if !funs = [] then
+	(* Translates the entire compilation unit to PVS. *)
+	let (_, ast) = Elsa_oast_header.unmarshal_oast !in_file_name in
+	  compilationUnit_fun ast
+      else
+	(* Translate selected function(s) and their callees only. *)
+	begin
+	  let call_graph = do_file_list [!in_file_name] [] in
+	  let overload = make_overload_hash call_graph in
+	  let get_ids overload funs =
+	    List.fold_left
+	      (fun res f_name ->
+		try 
+		  match Hashtbl.find overload f_name with
+		    | []   -> assert false
+		    | [id] -> id :: res
+		    | ids  -> ids @ res
+		with
+		  | Not_found ->
+		      Printf.eprintf "Function %s unknown.\n" f_name;
+		      res)
+	      []
+	      funs in
+	  let fun_ids = get_ids overload !funs in
+	  let report_func _ _ func_appl = 
+	    match func_appl with
+	      | Func_def (_, func) ->
+		  func_fun func
+	      | _ ->
+		  assert false in
+	    iter_callees (apply_func_def report_func) call_graph fun_ids
+	end;
       (* TODO: this only works for int main(), not for int main(argc, argv)
 	 (cf. C++ Standard, 3.6.1.2) *)
       Format.printf "@[<2>PRECONDITION@ :@ PRED[State]@]@\n\
@@ -2680,7 +2711,7 @@ let main () =
             POSTCONDITION)@]@]@\n\
           @\n\
         END@ %s@]@." lemma_name theory_name;
-      close_out !out;
+      close_out !out
     end;;
 
 main ();;
