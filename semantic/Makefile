@@ -20,7 +20,7 @@ ast2pvs: option.ml ast2pvs.ml
 ##########
 
 # pre-processing of C++ sources
-%.pre.cpp: %.cpp
+%.pre.cpp: %.cpp nova/include/*.h
 	g++ -I nova/include/ -E -o $@ $<
 
 # Ocaml abstract syntax trees
