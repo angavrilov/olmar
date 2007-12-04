@@ -11,10 +11,6 @@ let fun_id_name fun_id = String.concat "::" fun_id.name
 
 let fun_def_name fun_def = fun_id_name fun_def.fun_id
 
-let error_location (file, line, char) =
-  Printf.sprintf "File \"%s\", line %d, character %d"
-    file line char
-
 let rec list_last = function
   | [] -> raise (Failure "list_last")
   | x :: [] -> x

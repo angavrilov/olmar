@@ -148,7 +148,7 @@ uplinks.cmi: superast.cmi $(GENERAL)/ast_annotation.cmi
 
 
 ############################################################################
-#### elsa_ast_utils
+#### elsa_ast_util
 #### 
 
 ELSA_AST_UTIL_ML= \

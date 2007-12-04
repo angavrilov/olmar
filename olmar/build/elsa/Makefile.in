@@ -64,7 +64,7 @@ ifeq ($(OCDEBUG),1)
   OCC   := $(OCC) -g
   OC_OBJ_EXT := cmo
   OC_LIB_EXT := cma
-  OCLIBS := -L $(OCDIR) -lcamlrun -ldl
+  OCLIBS := -L $(OCDIR) -lcamlrun -lcurses -ldl
   OCDEPOPTS :=
 endif
 

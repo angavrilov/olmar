@@ -23,6 +23,11 @@ val trim_white_space : string -> string
  *)
 val generate_names : string -> int -> string list
 
+(* Turn a (file, line, char) location into a standard 
+ * emacs error/warning string 
+ *)
+val string_of_location : (string * int * int) -> string
+
 
 (* print an ocaml comment to channel *)
 val pr_comment : out_channel -> string list -> unit

@@ -15,9 +15,6 @@ val fun_id_name : function_id_type -> string
 (* return the complete name of the function (with all scopes prepended) *)
 val fun_def_name : function_def -> string
 
-(* Turn the location into a standard emacs error string *)
-val error_location : sourceLoc -> string
-
 (* construct a hash mapping function names (without scope) to
  * all function id's with that name 
  *)

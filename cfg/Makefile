@@ -3,12 +3,6 @@
 #######################################################################
 
 
-.PHONY: all
-
-all: cfg_lib.cmxa test
-#all: cfg
-
-
 # directories of other software; 
 OLMARUTIL := ../olmar/util
 GENERAL   := ../olmar/build/general
@@ -33,6 +27,11 @@ ifeq ($(OCDEBUG),1)
   OC_OBJ_EXT := cmo
   OC_LIB_EXT := cma
 endif
+
+
+all: cfg_lib.$(OC_LIB_EXT) test
+#all: cfg
+
 
 # list of files to clean in 'clean' (etc.) targets
 # (these get added to below)

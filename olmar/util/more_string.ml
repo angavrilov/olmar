@@ -91,6 +91,10 @@ let rec generate_names_rec base res n =
 let generate_names base n = generate_names_rec base [] n
 
 
+let string_of_location (file, line, char) =
+  Printf.sprintf "File \"%s\", line %d, character %d"
+    file line char
+
 (******************************************************************************
  ******************************************************************************
  *

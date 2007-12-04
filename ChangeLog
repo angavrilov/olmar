@@ -1,3 +1,13 @@
+2007-12-04  Hendrik Tews  <tews@tandem.cs.ru.nl>
+
+        * fix byte-code compilation in various dirs
+        * put a generic string_of_location in olmar/util/more_string
+
+        Semantic:
+        * change Makefile for byte-code compilation (for debugging)
+        * pass locations down where necessary and print a source code
+          related error message just before assert false (on some locations)
+
 2007-11-26  Hendrik Tews  <tews@tandem.cs.ru.nl>
 
         CFG

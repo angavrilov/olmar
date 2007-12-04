@@ -9,6 +9,7 @@
  *)
 
 
+open More_string
 open Ast_annotation
 open Elsa_ml_flag_types
 open Elsa_reflect_type
@@ -83,7 +84,7 @@ let init_error_report_array report_levels =
 let found sourceLoc annot level mesg =
   if error_report_array.(error_level_index level) then
     Printf.eprintf "%s: (node %d)\nFound %s\n" 
-      (error_location sourceLoc) 
+      (string_of_location sourceLoc) 
       (id_annotation annot)
       mesg;
   if error_exit_array.(error_level_index level) then
@@ -115,12 +116,12 @@ let redefinition_error entry other_loc other_node name =
      ^^ "    nonidentical function redefinition in %s (id %d)\n"
      ^^ "    callee %s missing in one of the definitions\n"
      ^^ "%s: original definition in %s (id %d)\n")
-    (error_location entry.loc)
+    (string_of_location entry.loc)
     (string_of_function_id entry.fun_id)
     (!current_oast)
     other_node
     (string_of_function_id name)
-    (error_location other_loc)
+    (string_of_location other_loc)
     entry.oast
     entry.node_id
 
@@ -198,9 +199,9 @@ let finish_fun_call = function
 	   *   ("%s: %s \n"
 	   *    ^^ "    (seemingly) identical function redefinition\n"
 	   *    ^^ "%s: original\n")
-	   *   (error_location entry.loc)
+	   *   (string_of_location entry.loc)
 	   *   (string_of_function_id entry.fun_id)
-	   *   (error_location other_loc);
+	   *   (string_of_location other_loc);
            *)
 	  ()
 	else
@@ -446,7 +447,7 @@ let get_function_definition_id sourceLoc declarator =
 let get_function_id sourceLoc function_expression =
   match function_expression with
     | E_variable v ->
-	(* Printf.printf "E_variable at %s\n" (error_location sourceLoc); *)
+	(* Printf.printf "E_variable at %s\n" (string_of_location sourceLoc); *)
 	(match v.expr_var_var with
 	   | None ->
 	       fatal sourceLoc v.e_variable_annotation
