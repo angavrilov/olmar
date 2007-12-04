@@ -739,7 +739,7 @@ and topForm_fun x =
     | TF_decl (annot, sourceLoc, declaration) ->
 	trace "TF_decl(";
 	(* a variable or type declaration at file scope *)
-        declaration_fun declaration;
+        declaration_fun sourceLoc declaration;
 	trace ")";
 
     | TF_func(annot, sourceLoc, func) ->
@@ -1103,14 +1103,18 @@ and memberInit_fun loc x (*annot, pQName, argExpression_list,
   end
 
 
-and declaration_fun x (*annot, declFlags, typeSpecifier, declarator_list*) =
+and declaration_fun loc x (*annot, declFlags, typeSpecifier, declarator_list*) =
   begin
     trace "declaration_fun(";
     declFlags_fun x.declaration_dflags;
 
     (* TODO: only one declaration at a time supported at the moment *)
     if List.length x.decllist > 1 then
-      assert false;
+      begin
+	unimplemented x.declaration_annotation loc "multiple declaration";
+	assert false;
+      end;
+
 
     if List.mem DF_TYPEDEF x.declaration_dflags then
       (* typedef declaration *)
@@ -1495,7 +1499,7 @@ and member_fun x =
   match x with
     | MR_decl (annot, sourceLoc, declaration) ->
 	trace "MR_decl(";
-	declaration_fun declaration;
+	declaration_fun sourceLoc declaration;
 	trace ")";
 
     | MR_func (annot, sourceLoc, func) -> 
@@ -1949,7 +1953,7 @@ and statement_fun x =
 	trace "S_decl(";
 	(*TODO*)
         Format.print_string "e2s(";
-	declaration_fun declaration;
+	declaration_fun sourceLoc declaration;
         Format.print_string ")";
 	trace ")";
 
@@ -2555,7 +2559,7 @@ and fullExpression_fun loc x =
     trace "fullExpression_fun(";
     assert (Option.isSome (x.full_expr_expr));
     Option.app (expression_fun loc) x.full_expr_expr;
-    fullExpressionAnnot_fun x.full_expr_annot;
+    fullExpressionAnnot_fun loc x.full_expr_annot;
     trace ")"
   end
 
@@ -2584,7 +2588,7 @@ and init_fun x =
       IN_expr xx ->
 	trace "IN_expr(";
 	(* TODO: what is this? *)
-	fullExpressionAnnot_fun xx.init_expr_annot;
+	fullExpressionAnnot_fun xx.init_expr_loc xx.init_expr_annot;
 	assert (Option.isSome xx.e);
 	Option.app (expression_fun xx.init_expr_loc) xx.e;
 	trace ")";
@@ -2600,7 +2604,7 @@ and init_fun x =
 	   printed instead of this IN_ctor node's data. *)
 
 	(* TODO: what is this? *)
-	fullExpressionAnnot_fun xx.init_ctor_annot;
+	fullExpressionAnnot_fun xx.init_ctor_loc xx.init_ctor_annot;
 
 	(* the constructor function *)
 	assert (Option.isSome xx.init_ctor_var);
@@ -2638,7 +2642,7 @@ and templateDeclaration_fun loc x =
 	(*TODO*)
 	Format.printf ">>>>>";
 	Option.app templateParameter_fun templateParameter_opt;
-	declaration_fun declaration;
+	declaration_fun loc declaration;
 	Format.printf "<<<<<";
 	trace ")";
 
@@ -2695,10 +2699,10 @@ and namespaceDecl_fun x =
 	trace ")";
 
 
-and fullExpressionAnnot_fun x =
+and fullExpressionAnnot_fun loc x =
   begin
     trace "fullExpressionAnnot_fun(";
-    List.iter declaration_fun x.declarations;
+    List.iter (declaration_fun loc) x.declarations;
     trace ")";
   end
 
