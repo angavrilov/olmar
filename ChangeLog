@@ -1,6 +1,12 @@
 2007-12-04  Hendrik Tews  <tews@tandem.cs.ru.nl>
 
         Semantic
+        * multiple local variable declarations
+        * no asserts any more on sync_master
+        
+2007-12-04  Hendrik Tews  <tews@tandem.cs.ru.nl>
+
+        Semantic
         * pass location to declaration_fun and give an error at the next assert
         
 2007-12-04  Hendrik Tews  <tews@tandem.cs.ru.nl>

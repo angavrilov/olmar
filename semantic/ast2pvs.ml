@@ -264,7 +264,10 @@ let string_of_assignOp = function
   | BIN_IMPLIES	    -> assert false
   | BIN_EQUIVALENT  -> assert false
 
-let string_of_simpleTypeId = function
+(* there is already a string_of_simpleTypeId in elsa_ml_flag_types,
+ * rename this one
+ *)
+let local_string_of_simpleTypeId = function
   (* actual C++ types *)
   | ST_CHAR                  -> "char"
   | ST_UNSIGNED_CHAR         -> "uchar"
@@ -429,7 +432,7 @@ let declFlags_fun (dFs : declFlag list) =
 
 let simpleTypeId_fun (id : simpleTypeId) =
   trace "simpleTypeId_fun(";
-  Format.print_string (string_of_simpleTypeId id);
+  Format.print_string (local_string_of_simpleTypeId id);
   trace ")"
 
 let typeIntr_fun (_ : typeIntr) = 
@@ -1103,18 +1106,14 @@ and memberInit_fun loc x (*annot, pQName, argExpression_list,
   end
 
 
+(* declaration_fun is called both for toplevel declarations and 
+ * for declarations inside a block. I simply assume now that for typedefs
+ * it is only called at toplevel
+ *)
 and declaration_fun loc x (*annot, declFlags, typeSpecifier, declarator_list*) =
   begin
     trace "declaration_fun(";
     declFlags_fun x.declaration_dflags;
-
-    (* TODO: only one declaration at a time supported at the moment *)
-    if List.length x.decllist > 1 then
-      begin
-	unimplemented x.declaration_annotation loc "multiple declaration";
-	assert false;
-      end;
-
 
     if List.mem DF_TYPEDEF x.declaration_dflags then
       (* typedef declaration *)
@@ -1143,7 +1142,13 @@ and declaration_fun loc x (*annot, declFlags, typeSpecifier, declarator_list*) =
 	if List.length x.decllist = 0 then
 	  typeSpecifier_fun x.declaration_spec
 	else
-	  List.iter declarator_fun x.decllist;
+	  separate 
+	    (fun d -> 
+	       Format.printf "@[<2>";
+	       declarator_fun d;
+	       Format.printf "@]")
+	    (fun () -> Format.printf " ##@ ")
+	    x.decllist;
     trace ")";
   end
 
@@ -1952,9 +1957,9 @@ and statement_fun x =
 	(* (if present) still needs to be considered                         *)
 	trace "S_decl(";
 	(*TODO*)
-        Format.print_string "e2s(";
+        Format.printf "@[<2>e2s(";
 	declaration_fun sourceLoc declaration;
-        Format.print_string ")";
+        Format.printf ")@]";
 	trace ")";
 
     | S_try _ ->
