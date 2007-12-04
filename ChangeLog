@@ -1,5 +1,11 @@
 2007-12-04  Hendrik Tews  <tews@tandem.cs.ru.nl>
 
+        Semantic
+        * static casts
+        
+        
+2007-12-04  Hendrik Tews  <tews@tandem.cs.ru.nl>
+
         * fix name_of_function
 
         ast_graph

@@ -66,7 +66,7 @@ let translate from tos s =
   in
     if String.length from <> String.length tos 
     then
-      raise (Invalid_argument "Meta_ast.translate");
+      raise (Invalid_argument "More_string.translate");
     for i = 0 to String.length from -1 do
       let j = ref 0
       in

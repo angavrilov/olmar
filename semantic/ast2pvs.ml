@@ -94,6 +94,7 @@ open Elsa_ast_util
 open Cfg_type
 open Cfg_util
 open Build
+open Option
 
 let unimplemented annot loc message =
   Printf.eprintf
@@ -103,6 +104,44 @@ let unimplemented annot loc message =
     (id_annotation annot)
     !in_file_name
   
+let mangle_cv_flags = function 
+  | [] -> "nocv"
+  | flags -> String.concat "_" (List.map string_of_cVFlag flags)
+
+let rec mangle_ctype loc = function
+  | TY_CVAtomic(annot, atype, flags) ->
+      (mangle_cv_flags flags) ^ "_" ^
+      (match atype with
+	 | ATY_Simple(_, stype) -> 
+	     (translate " " "_" (string_of_simpleTypeId stype))
+	 | ATY_Compound c -> Option.valOf c.compound_name
+	 | ATY_Enum e -> Option.valOf e.enum_type_name
+	 | ATY_PseudoInstantiation _
+	 | ATY_TypeVariable _
+	 | ATY_DependentQ _
+	   -> unimplemented annot loc "mangle atomic type";
+	     assert false
+      )
+
+  | TY_Pointer(annot, flags, ptype) ->
+      (mangle_ctype loc ptype) ^ 
+	"_" ^ (mangle_cv_flags flags) ^
+	"_pointer"
+	
+  | TY_Reference(annot,rtype) ->
+      (mangle_ctype loc rtype) ^ "_reference"
+  | TY_Array(annot, atype, _asize) ->
+      (mangle_ctype loc atype) ^ "_array"
+  | TY_Function x ->
+      unimplemented x.tY_Function_annotation loc "mangle CVAtomic";
+      assert false
+  | TY_DependentSizedArray(annot,_,_) ->
+      unimplemented annot loc "mangle CVAtomic";
+      assert false
+  | TY_PointerToMember x ->
+      unimplemented x.tY_PointerToMember_annotation loc "mangle CVAtomic";
+      assert false
+
   
 
 (* ------------------------------------------------------------------------- *)
@@ -317,7 +356,8 @@ open Ast_annotation
 open Ast_accessors
 
 (* include Library *)
-include Option
+(* opened above *)
+(* include Option *)
 
 (* separate f s [x1; x2]  =  ignore (f x1); ignore (s ()); ignore (f x2) *)
 let separate f s =
@@ -2325,6 +2365,29 @@ and expression_fun loc x =
 
     | E_keywordCast xx ->
 	trace "E_keywordCast(";
+	(match xx.key with
+	   | CK_STATIC ->		(* generate a cast specific function *)
+	       Format.printf "static_cast_%s_to_%s"
+		 (* TODO: the following apparently ignores typedef's, 
+		  * because elsa expands typedef's those fields. For the 
+		  * target of the cast the real type is available in 
+		  * xx.keyword_cast_ctype, for the source expression, 
+		  * however, the unexpanded type seems not to be in the ast.
+		  * 
+		  * I (HT) believe it makes much more sense to work on the 
+		  * declared (unexpanded) types here. We might permit a cast 
+		  * from Phys to mword but not 
+		  * from unsigned long long to unsigned long.
+		  *)
+		 (mangle_ctype loc (Option.valOf xx.keyword_cast_type))
+		 (mangle_ctype loc 
+		    (Option.valOf (expression_type xx.keyword_cast_expr)))
+	   | CK_DYNAMIC
+	   | CK_REINTERPRET
+	   | CK_CONST ->			
+	       (* gererate a general function with the data 
+		* types as arguments 
+		*)
 					(* cast keyword *)
 	castKeyword_fun xx.e_keywordCast_annotation loc xx.key;  
 	Format.printf "(@[<2>dt_";
@@ -2340,6 +2403,8 @@ and expression_fun loc x =
 	Format.printf ")(@[<2>";
 	expression_fun loc xx.keyword_cast_expr;  (* expression *)
 	Format.printf ")@]@]";
+	(* close block opened at match xx.key *)
+	);
 	trace ")";
                                                      (* inside expression_fun *)
 
