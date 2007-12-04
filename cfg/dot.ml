@@ -5,6 +5,12 @@
 open Cfg_type
 open Cfg_util
 
+
+type cfg_dot_options = {
+  node_ids : bool
+}
+
+
 module Node_id = 
 struct
   type t = function_id_type
@@ -16,13 +22,22 @@ end
 module G = Dot_graph.Make(Node_id)
 
 
-let make_node cfg id =
+let make_node opts cfg id =
   let loc_label =
       (try
-	 match (Hashtbl.find cfg id).loc with
-	   | (file, line, _) ->
-	       [Printf.sprintf "file: %s" file;
-		Printf.sprintf "line %d" line]
+	 let def = Hashtbl.find cfg id in
+	 let (file, line, _) = def.loc 
+	 in
+	   [Printf.sprintf "file: %s" file;
+	    Printf.sprintf "line %d" line
+	   ] 
+	   @ 
+	     if opts.node_ids
+	     then
+	       [ Printf.sprintf "node %d" def.node_id;
+		 def.oast
+	       ]
+	     else []
        with
 	 | Not_found -> []
       )
@@ -63,13 +78,13 @@ let make_node cfg id =
       | G.Node_id_not_unique -> ()
 
 
-let make_nodes cfg _id def =
+let make_nodes opts cfg _id def =
   if def.callees <> [] 
   then
     begin
-      make_node cfg def.fun_id;
+      make_node opts cfg def.fun_id;
       List.iter
-	(make_node cfg)
+	(make_node opts cfg)
 	def.callees
     end
 
@@ -80,14 +95,14 @@ let cfg_commands =
   ]
 
 
-let cfg_to_dot cfg outfile = 
-  Hashtbl.iter (make_nodes cfg) cfg;
+let cfg_to_dot opts cfg outfile = 
+  Hashtbl.iter (make_nodes opts cfg) cfg;
   G.write_graph "CFG" cfg_commands outfile
 
 
-let function_call_graphs_to_dot cfg outfile fun_ids =
+let function_call_graphs_to_dot opts cfg outfile fun_ids =
   iter_callees
-    (fun _context fun_id _fun_def_opt -> make_node cfg fun_id)
+    (fun _context fun_id _fun_def_opt -> make_node opts cfg fun_id)
     cfg
     fun_ids;
   G.write_tree "CFG" cfg_commands outfile

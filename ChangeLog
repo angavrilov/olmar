@@ -1,5 +1,19 @@
 2007-12-04  Hendrik Tews  <tews@tandem.cs.ru.nl>
 
+        * fix name_of_function
+
+        ast_graph
+        * option -hide-types hides all type nodes
+
+        CFG
+        * option -ids adds node ids in dot
+
+        Semantic
+        * a few more orientation comments
+        * print function info in the generated pvs
+
+2007-12-04  Hendrik Tews  <tews@tandem.cs.ru.nl>
+
         * fix byte-code compilation in various dirs
         * put a generic string_of_location in olmar/util/more_string
 

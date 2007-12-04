@@ -11,3 +11,5 @@
 
 (* does assert false on None *)
 val the : 'a option -> 'a
+
+val implies : bool -> bool -> bool

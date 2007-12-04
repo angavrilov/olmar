@@ -20,20 +20,20 @@ let is_named_atomic_type_option = function
   | Some x -> is_named_atomic_type x
 
 
+exception Function_name_absent
 
 let name_of_function fu =
-  match fu.nameAndParams.declarator_decl with
-    | D_func fdecl ->
-	(match fdecl.function_decl_base with
-	   | D_name (_annot, _sourceLoc, pQName_opt) ->
-	       (match pQName_opt with
-		  | Some pq_name ->
-		      (match pq_name with
-			 | PQ_name (_annot, _sourceLoc, name) -> name
-			 | _ -> assert false)
-		  | None -> assert false)
-	   | _ -> assert false)
-    | _ -> assert false
+  match fu.nameAndParams.declarator_var with
+    | None -> raise Function_name_absent
+    | Some variable -> match variable.variable_name with
+	| None -> raise Function_name_absent
+	| Some name -> name
+
+let safe_name_of_function fu =
+  try
+    name_of_function fu
+  with
+    | Function_name_absent -> "? function name not present ?"
 
 
 let body_of_function fu =

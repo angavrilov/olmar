@@ -2,6 +2,7 @@
 (*  See file license.txt for terms of use                              *)
 (***********************************************************************)
 
+open Stdlib_missing
 open Ast_annotation
 open Elsa_ml_base_types
 open Elsa_ml_flag_types

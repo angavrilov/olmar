@@ -16,6 +16,8 @@ let out_file = ref None
 
 let error_report_level = ref []
 
+let output_node_ids = ref false
+
 let set_sloppy_error_report () =
   error_report_level := [Ignore_unimplemented]
 
@@ -25,6 +27,8 @@ let arguments = Arg.align
      " output complete CFG in dot format");
     ("-fun", Arg.String (fun s -> functions := s :: !functions),
      "name generate the CFG for functions with name name in dot format");
+    ("-ids", Arg.Set output_node_ids,
+     " output node id and file information in the dot graph");
     ("-o", Arg.String (fun s -> out_file := Some s),
      "file output into file");       
     ("-sloppy", Arg.Unit set_sloppy_error_report,
@@ -67,7 +71,10 @@ let main () =
   Arg.parse arguments anonfun usage_msg;
   if !files = [] then
     usage();				(* does not return *)
-  let cfg = do_file_list (List.rev !files) !error_report_level
+  let cfg = do_file_list (List.rev !files) !error_report_level in
+  let opts = {
+    node_ids = !output_node_ids
+  } 
   in
     if !functions <> [] 
     then
@@ -75,10 +82,10 @@ let main () =
       let fun_ids = get_ids overload !functions in
       let _ = if fun_ids = [] then usage()
       in
-	function_call_graphs_to_dot cfg !out_file fun_ids
+	function_call_graphs_to_dot opts cfg !out_file fun_ids
 
     else if !dot_graph 
-    then cfg_to_dot cfg !out_file
+    then cfg_to_dot opts cfg !out_file
     else ()
 ;;
 

@@ -90,6 +90,7 @@ open Ast_annotation
 open Elsa_reflect_type
 open Elsa_ml_base_types
 open Elsa_ml_flag_types
+open Elsa_ast_util
 open Cfg_type
 open Cfg_util
 open Build
@@ -771,6 +772,8 @@ and func_fun loc x
 
     (* function definition: f(addresses) = body *)
 
+    Format.printf "%% Function semantics for %s@\n" (name_of_function x);
+    Format.printf "%% %s@\n" (string_of_location loc);
     Format.printf "@[<2>";
 
     (* - remainder of return value type *)
@@ -785,6 +788,7 @@ and func_fun loc x
              in in/t0524.cc, but in general? - seems obscure) *)
     assert (Option.isSome x.function_body);
     Option.app statement_fun x.function_body;
+                                                           (* inside func_fun *)
 
     (let variable_opt = x.nameAndParams.declarator_var in
       if (Option.valOf variable_opt).variable_name = Some "constructor_special" then
@@ -808,6 +812,7 @@ and func_fun loc x
 	      assert false)
     );
 
+                                                           (* inside func_fun *)
     Format.printf "@]@\n@\n";
 
     (* call function: call_f(expressions) = ... *)
@@ -840,6 +845,7 @@ and func_fun loc x
 		  Some "constructor_special" then
 		  None :: var_opt_list else var_opt_list
 	    in
+                                                           (* inside func_fun *)
 		 if List.length var_list > 0 then
 		   begin
 		     Format.printf "@[<2>(";
@@ -864,6 +870,7 @@ and func_fun loc x
 		   end;
 	| _ ->
 	    assert false);
+                                                           (* inside func_fun *)
       Format.printf "@ :@ ET[State,@ Semantics_";
       (* remainder of return value type *)
       (* TODO: is this different from the return type? What does
@@ -895,6 +902,7 @@ and func_fun loc x
 			       | TY_Reference _ -> true
 			       | _ -> false
 			   in
+                                                           (* inside func_fun *)
 			     if has_reference_type var then
 			       begin
 				 Format.printf "@[<2>";
@@ -924,6 +932,7 @@ and func_fun loc x
 	| _ ->
 	    assert false);
 
+                                                           (* inside func_fun *)
       (* name of function *)
       Option.app variable_fun variable_opt;
       (* append the class name in case it's a constructor or assignment
@@ -963,6 +972,7 @@ and func_fun loc x
 	| _ ->
 	    assert false);
     );
+                                                           (* inside func_fun *)
 
     Format.printf " ##@\n";
     Format.print_string "catch_return";
@@ -989,6 +999,7 @@ and func_fun loc x
     *)
 
     (* TODO: what is this; an empty compound statement for trivial destructors? *)
+                                                           (* inside func_fun *)
     assert (match x.function_dtor_statement with
       | None -> true
       | Some (S_compound (_, _, [])) -> true
@@ -1001,6 +1012,12 @@ and func_fun loc x
     (*
       bool_fun bool;
     *)
+
+(* Tjark: without the next line the function name comment at the beginning
+ * appears
+ * on some previous line, maybe not all boxes are properly closed?
+ *)
+    Format.printf "@\n@\n";
 
     trace ")";
   end

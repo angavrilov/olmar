@@ -16,3 +16,6 @@ let list_pos x xs = list_pos_rec x 0 xs
 let the = function 
   | None -> assert false
   | Some x -> x
+
+
+let implies a b = (not a) or b

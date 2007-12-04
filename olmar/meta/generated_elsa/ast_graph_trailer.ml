@@ -184,8 +184,6 @@ let is_scope_node ast_array i =
     | TY_Function_type _ | TY_PointerToMember_type _ 
     | STemplateArgument_type _ 
 
-
-
 	-> false
 
 
@@ -206,6 +204,8 @@ type node_selection =
   | Special_top_scope
 
 
+let hide_ast_type_nodes = ref false
+
 let print_this_node node_array i = node_array.(i) <- true
 
 let mark_noloc_iter node_array flag i node =
@@ -224,17 +224,21 @@ let mark_noloc_nodes node_array ast_array flag =
   Superast.iteri (mark_noloc_iter node_array flag) ast_array
 
 
-let mark_all_nodes node_array flag =
+let mark_all_nodes node_array ast_array flag =
   for i = 0 to Array.length node_array -1 do
-    node_array.(i) <- flag
+    if implies (flag && !hide_ast_type_nodes) (is_syntax_node ast_array.(i))
+    then
+      node_array.(i) <- flag
   done
 
 
 let mark_syntax_nodes node_array ast_array =
-  for i = 0 to Array.length node_array -1 do
-    if is_syntax_node ast_array.(i) then
-      node_array.(i) <- true
-  done
+  let save_hide_types = !hide_ast_type_nodes
+  in
+    hide_ast_type_nodes := true;
+    mark_all_nodes node_array ast_array true;
+    hide_ast_type_nodes := save_hide_types
+
 
 let mark_direction node_array ast_array visited dir_fun nodes = 
   let top_scope_opt = 
@@ -250,7 +254,9 @@ let mark_direction node_array ast_array visited dir_fun nodes =
     | [] -> ()
     | (_, []) :: ll -> doit ll
     | (dia, i::l) :: ll ->
-	if dia > visited.(i) then begin
+	if dia > visited.(i) && 
+	  (implies !hide_ast_type_nodes (is_syntax_node ast_array.(i)))
+	then begin
 	  print_this_node node_array i;
 	  visited.(i) <- dia;
 	  if (top_scope_opt = Some i && not !normal_top_level_scope) or
@@ -316,10 +322,10 @@ let mark_line node_array ast_array file line char =
 let mark_nodes node_array ast_array up down sels = 
   List.iter
     (function
-       | All_nodes -> mark_all_nodes node_array true
+       | All_nodes -> mark_all_nodes node_array ast_array true
        | Real_nodes -> mark_real_nodes node_array ast_array down
        | Syntax_nodes -> mark_syntax_nodes node_array ast_array
-       | No_nodes -> mark_all_nodes node_array false
+       | No_nodes -> mark_all_nodes node_array ast_array false
        | Add_node i -> node_array.(i) <- true
        | Del_node i -> node_array.(i) <- false
        | Add_diameter i -> mark_node_diameter node_array ast_array up down i
@@ -558,6 +564,8 @@ let arguments = Arg.align
      " unselect nodes with a <noloc> location");
     ("-with-noloc", Arg.Unit (fun () -> select Add_noloc),
      " select nodes with a <noloc> location");
+    ("-hide-types", Arg.Set hide_ast_type_nodes,
+     " hide type nodes");
     ("-normal-scope", Arg.Unit (fun () -> select Normal_scope),
      " don't treat scopes special");
     ("-special-scope", Arg.Unit (fun () -> select Special_scope),
