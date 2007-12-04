@@ -71,6 +71,10 @@ byte:
 sync: nova/ptab.oast ast2pvs
 	./ast2pvs nova/ptab.oast nova/ptab-sync-master.pvs sync_master_range
 
+.PHONY: sync
+htsync: sync
+	cp nova/ptab-sync-master.pvs /home/tews/VFiasco/hardware
+
 ##########
 
 # .dot graph files

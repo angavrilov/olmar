@@ -1,6 +1,11 @@
 2007-12-04  Hendrik Tews  <tews@tandem.cs.ru.nl>
 
         Semantic
+        * fix theory name
+        
+2007-12-04  Hendrik Tews  <tews@tandem.cs.ru.nl>
+
+        Semantic
         * multiple local variable declarations
         * no asserts any more on sync_master
         

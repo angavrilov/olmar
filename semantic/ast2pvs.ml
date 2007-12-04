@@ -2811,9 +2811,12 @@ let main () =
     usage();  (* does not return *)
   if not !out_file_set then
     out_file_name := !in_file_name ^ ".pvs";
+  let base_name = Filename.basename !out_file_name in
   let theory_name = try
-      String.sub !out_file_name 0 (String.index !out_file_name '.')
-    with Not_found -> !out_file_name in
+      String.sub base_name 0 (String.index base_name '.')
+    with Not_found -> base_name
+  in
+  let theory_name = translate "-" "_" theory_name in
   let lemma_name = theory_name ^ "_spec" in
     begin
       out := open_out !out_file_name;
