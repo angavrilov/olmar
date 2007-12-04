@@ -1,8 +1,14 @@
 2007-12-04  Hendrik Tews  <tews@tandem.cs.ru.nl>
 
         Semantic
-        * static casts
+        * fix importings, indentation
+        * output expressions for static casts
+        * fix static cast order
         
+2007-12-04  Hendrik Tews  <tews@tandem.cs.ru.nl>
+
+        Semantic
+        * static casts
         
 2007-12-04  Hendrik Tews  <tews@tandem.cs.ru.nl>
 

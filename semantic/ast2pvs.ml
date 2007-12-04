@@ -91,10 +91,12 @@ open Elsa_reflect_type
 open Elsa_ml_base_types
 open Elsa_ml_flag_types
 open Elsa_ast_util
+open Ast_accessors
 open Cfg_type
 open Cfg_util
 open Build
 open Option
+
 
 let unimplemented annot loc message =
   Printf.eprintf
@@ -350,14 +352,6 @@ let string_of_declFlag = function
 (*  See file license.txt for terms of use                                    *)
 (* ------------------------------------------------------------------------- *)
 
-(*open Cc_ast_gen_type*)
-(*open Ml_ctype*)
-open Ast_annotation
-open Ast_accessors
-
-(* include Library *)
-(* opened above *)
-(* include Option *)
 
 (* separate f s [x1; x2]  =  ignore (f x1); ignore (s ()); ignore (f x2) *)
 let separate f s =
@@ -2362,12 +2356,13 @@ and expression_fun loc x =
 
     | E_throw _ ->
 	assert false;
+                                                     (* inside expression_fun *)
 
     | E_keywordCast xx ->
 	trace "E_keywordCast(";
 	(match xx.key with
 	   | CK_STATIC ->		(* generate a cast specific function *)
-	       Format.printf "static_cast_%s_to_%s"
+	       Format.printf "static_cast_%s_to_%s@,"
 		 (* TODO: the following apparently ignores typedef's, 
 		  * because elsa expands typedef's those fields. For the 
 		  * target of the cast the real type is available in 
@@ -2379,32 +2374,47 @@ and expression_fun loc x =
 		  * from Phys to mword but not 
 		  * from unsigned long long to unsigned long.
 		  *)
-		 (mangle_ctype loc (Option.valOf xx.keyword_cast_type))
 		 (mangle_ctype loc 
 		    (Option.valOf (expression_type xx.keyword_cast_expr)))
+		 (mangle_ctype loc (Option.valOf xx.keyword_cast_type))
+
 	   | CK_DYNAMIC
 	   | CK_REINTERPRET
 	   | CK_CONST ->			
 	       (* gererate a general function with the data 
 		* types as arguments 
 		*)
-					(* cast keyword *)
-	castKeyword_fun xx.e_keywordCast_annotation loc xx.key;  
-	Format.printf "(@[<2>dt_";
-	assert (Option.isSome xx.keyword_cast_type);
-	Option.app (cType_fun loc)  xx.keyword_cast_type;  (* destination type *)
-	(* TODO: what is this? *)
-	(*
-	aSTTypeId_fun aSTTypeId;
-	*)
-	Format.printf ",@ dt_";
-	assert (Option.isSome (expression_type xx.keyword_cast_expr));
-	Option.app (cType_fun loc) (expression_type xx.keyword_cast_expr);  (* source type *)
-	Format.printf ")(@[<2>";
-	expression_fun loc xx.keyword_cast_expr;  (* expression *)
-	Format.printf ")@]@]";
-	(* close block opened at match xx.key *)
+
+	       (* cast keyword *)
+	       castKeyword_fun xx.e_keywordCast_annotation loc xx.key;  
+	       Format.printf "(@[<2>dt_";
+	       assert (Option.isSome xx.keyword_cast_type);
+                                                     (* inside expression_fun *)
+
+	       (* destination type *)
+	       Option.app (cType_fun loc)  xx.keyword_cast_type;  
+
+	       (* TODO: what is this? *)
+	       (* keyword_cast_ctype (as it is now called) contains the type 
+	        * as in the sources, opposed to keyword_cast_type, where
+		* (at least) typedef's are expanded
+		*)
+	       (*
+		 aSTTypeId_fun aSTTypeId;
+	       *)
+	       Format.printf ",@ dt_";
+	       assert (Option.isSome (expression_type xx.keyword_cast_expr));
+
+	       (* source type *)
+	       Option.app (cType_fun loc) 
+		 (expression_type xx.keyword_cast_expr);  
+	       Format.printf "@])@,";
 	);
+
+	Format.printf "(@[<2>";
+	expression_fun loc xx.keyword_cast_expr;  (* expression *)
+	Format.printf ")@]";
+
 	trace ")";
                                                      (* inside expression_fun *)
 
