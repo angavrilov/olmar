@@ -1,6 +1,12 @@
 2007-12-05  Hendrik Tews  <tews@tandem.cs.ru.nl>
 
         Semantic
+        * restructured DC_S_DECL code, changed constructor calls: now
+          without assignment
+
+2007-12-05  Hendrik Tews  <tews@tandem.cs.ru.nl>
+
+        Semantic
         * fix local external declarations
 
 2007-12-04  Hendrik Tews  <tews@tandem.cs.ru.nl>

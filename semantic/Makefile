@@ -60,6 +60,7 @@ byte:
 	g++ -I nova/include/ -E -o $@ $<
 
 # Ocaml abstract syntax trees
+.PRECIOUS: %.oast
 %.oast: %.pre.cpp
 	../olmar/build/elsa/ccparse_or -oc $@ $<
 

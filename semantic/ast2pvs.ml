@@ -1664,32 +1664,35 @@ and declarator_fun x (*annot, iDeclarator, init_opt,
       (* declaration statement *)
       | DC_S_DECL           ->
 
-	  Format.printf "assign(pm, dt_";
-	  assert (Option.isSome variable_opt);
-	  assert (Option.isSome !((Option.valOf variable_opt).variable_type));
-	  Option.app (cType_fun loc) !((Option.valOf variable_opt).variable_type);
-	  Format.printf ")(@[<2>id(";
-	  Option.app variable_fun variable_opt;
-	  Format.printf "),@ ";
 	  (match init_opt with
-	    | Some init ->
-		init_fun init;
-		(match init with
-		  | IN_ctor _ ->
-		      (match statement_opt_ctor with
-			| Some (S_expr (_, _,fullExpression)) ->
-			    fullExpression_fun loc fullExpression;
-			| _ ->
-			    assert false);
-		  | _ ->
-		      assert (not (Option.isSome statement_opt_ctor)));
-	    | None ->
-		unimplemented x.declarator_annotation loc 
-		  "default initialization";
-		assert false
-	  );
-	  Format.printf "@])";
-	  
+	     | Some IN_expr _ ->
+		 Format.printf "assign(pm, dt_";
+		 assert (Option.isSome variable_opt);
+		 assert (Option.isSome 
+			   !((Option.valOf variable_opt).variable_type));
+		 Option.app (cType_fun loc) 
+		   !((Option.valOf variable_opt).variable_type);
+		 Format.printf ")(@[<2>id(";
+		 Option.app variable_fun variable_opt;
+		 Format.printf "),@ ";
+		 init_fun (Option.valOf init_opt); (* treats the IN_expr case *)
+		 Format.printf "@])";
+	     | Some IN_ctor _ ->
+		 (match statement_opt_ctor with
+		    | Some (S_expr (_, _,fullExpression)) ->
+			fullExpression_fun loc fullExpression;
+		    | _ ->
+			assert false);
+	     | Some _ ->
+		 unimplemented x.declarator_annotation loc 
+		   "special initialization";
+		 assert false
+
+	     | None ->
+		 unimplemented x.declarator_annotation loc 
+		   "default initialization";
+		 assert false
+	  )	  
           (* If a destructor is associated with this variable, then it needs to
 	     be called at the end of the enclosing block; therefore the
 	     destructor call (as well as the allocation of stack memory for
@@ -2628,6 +2631,7 @@ and init_fun x =
 	   printed instead of this IN_ctor node's data. *)
 
 	(* TODO: what is this? *)
+	(* contains the declarations for temporaries, I believe *)
 	fullExpressionAnnot_fun xx.init_ctor_loc xx.init_ctor_annot;
 
 	(* the constructor function *)
@@ -2644,6 +2648,10 @@ and init_fun x =
 	*)
 
 	(* TODO: what is this? *)
+	(* was_IN_expr is true if this IN_ctor has been constructed by
+	 * the typechecker from an IN_expr, this has to do with 8.5.14, 
+	 * see cc_tcheck.ast.
+	 *)
 	(*
 	  bool_fun bool;
 	*)
