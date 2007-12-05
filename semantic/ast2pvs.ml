@@ -1108,7 +1108,14 @@ and memberInit_fun loc x (*annot, pQName, argExpression_list,
 
 (* declaration_fun is called both for toplevel declarations and 
  * for declarations inside a block. I simply assume now that for typedefs
- * it is only called at toplevel
+ * it is only called at toplevel.
+ * 
+ * The declaration itself might be an extern, for which no semantics 
+ * must be generated, at least not if the extern declaration appears 
+ * in a S_decl. It would be nice to let it completely vanish in that 
+ * case. However, S_compound builds on the assumption that every statement 
+ * generates something. So, well, we generate a skip for external 
+ * declarations.
  *)
 and declaration_fun loc x (*annot, declFlags, typeSpecifier, declarator_list*) =
   begin
@@ -1142,13 +1149,24 @@ and declaration_fun loc x (*annot, declFlags, typeSpecifier, declarator_list*) =
 	if List.length x.decllist = 0 then
 	  typeSpecifier_fun x.declaration_spec
 	else
-	  separate 
-	    (fun d -> 
-	       Format.printf "@[<2>";
-	       declarator_fun d;
-	       Format.printf "@]")
-	    (fun () -> Format.printf " ##@ ")
-	    x.decllist;
+	  let non_externals = 
+	    if List.mem DF_EXTERN x.declaration_dflags 
+	    then
+	      List.filter
+		(fun d -> d.declarator_init <> None)
+		x.decllist
+	    else x.decllist
+	  in
+	    if non_externals = [] 
+	    then Format.print_string "skip"
+	    else
+	      separate 
+		(fun d -> 
+		   Format.printf "@[<2>";
+		   declarator_fun d;
+		   Format.printf "@]")
+		(fun () -> Format.printf " ##@ ")
+		non_externals;
     trace ")";
   end
 
@@ -1666,8 +1684,9 @@ and declarator_fun x (*annot, iDeclarator, init_opt,
 		  | _ ->
 		      assert (not (Option.isSome statement_opt_ctor)));
 	    | None ->
-		(* TODO: default initialization (§8.5) not modelled yet *)
-		Format.print_string ">>>>>default-initialization<<<<<";
+		unimplemented x.declarator_annotation loc 
+		  "default initialization";
+		assert false
 	  );
 	  Format.printf "@])";
 	  
