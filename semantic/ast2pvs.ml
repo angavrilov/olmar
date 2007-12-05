@@ -2586,8 +2586,11 @@ and expression_fun loc x =
 	    else if is_present SC_INT_CONV then begin
 	      (* 4.7: int... -> int..., info loss possible *)
 	      (* TODO *)
-	      unimplemented xx.e_stdConv_annotation loc "SC_INT_CONV";
-	      Format.printf ">>>>>SC_INT_CONV<<<<<(@[<2>"
+	      Format.printf "int_conv_%s_to_%s(@[<2>"
+		(mangle_ctype loc
+		   (Option.valOf (expression_type xx.std_conv_expr) ))
+		(mangle_ctype loc 
+		   (Option.valOf xx.std_conversion_type))
 	    end
 	    else if is_present SC_FLOAT_CONV then begin
 	      (* 4.8: float... -> float..., info loss possible *)
@@ -2647,8 +2650,6 @@ and expression_fun loc x =
 	      unimplemented xx.e_stdConv_annotation loc "SC_FUNC_TO_PTR";
 	      assert false;
 	    end
-	    else
-	      assert false;
 	  end;
 	  expression_fun loc xx.std_conv_expr;
 	  List.iter (fun _ -> Format.printf ")@]") xx.stdConv;

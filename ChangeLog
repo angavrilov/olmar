@@ -1,5 +1,11 @@
 2007-12-05  Hendrik Tews  <tews@tandem.cs.ru.nl>
 
+        Semantic
+        * fix SC_INT_CONV
+        * sync_master parses!
+
+2007-12-05  Hendrik Tews  <tews@tandem.cs.ru.nl>
+
         * pass expected type to the creation of E_stdConv and set its type
           field right
         * works: E_stdConv and the wrapped expression point now to
