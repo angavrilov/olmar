@@ -144,6 +144,30 @@ let rec mangle_ctype loc = function
       unimplemented x.tY_PointerToMember_annotation loc "mangle CVAtomic";
       assert false
 
+
+(* Return true for those types for which an initialization, either
+ * explicitly user given, or implicitely via default constructors, is not 
+ * required. Such local variables stay uninitialized, see 8.5.9.
+ *)
+let initialization_not_required = function
+  | TY_CVAtomic(annot, atype, flags) ->
+      (match atype with
+	 | ATY_Simple _ -> true
+	 | ATY_Compound c -> false
+	 | ATY_Enum e -> true
+	 | ATY_PseudoInstantiation _
+	 | ATY_TypeVariable _
+	 | ATY_DependentQ _
+	     -> false
+      )
+
+  | TY_Pointer _ -> true
+	
+  | TY_Reference _ -> false
+  | TY_Array _ -> (* unsure, false is the save side *) false
+  | TY_Function _ -> false
+  | TY_DependentSizedArray _ -> false
+  | TY_PointerToMember x -> true
   
 
 (* ------------------------------------------------------------------------- *)
@@ -1689,9 +1713,20 @@ and declarator_fun x (*annot, iDeclarator, init_opt,
 		 assert false
 
 	     | None ->
-		 unimplemented x.declarator_annotation loc 
-		   "default initialization";
-		 assert false
+		 if x.declarator_type = None then begin
+		   unimplemented x.declarator_annotation loc 
+		     "typeless declarator";
+		   assert false;
+		 end;
+		 if initialization_not_required (Option.valOf x.declarator_type)
+		 then 
+		   Format.print_string "skip"
+		 else
+		   begin
+		     unimplemented x.declarator_annotation loc 
+		       "nonpod declaration without any initializer";
+		     assert false
+		   end
 	  )	  
           (* If a destructor is associated with this variable, then it needs to
 	     be called at the end of the enclosing block; therefore the

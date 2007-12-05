@@ -1,6 +1,11 @@
 2007-12-05  Hendrik Tews  <tews@tandem.cs.ru.nl>
 
         Semantic
+        * fix default non-initialization
+
+2007-12-05  Hendrik Tews  <tews@tandem.cs.ru.nl>
+
+        Semantic
         * restructured DC_S_DECL code, changed constructor calls: now
           without assignment
 
