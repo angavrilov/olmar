@@ -5954,7 +5954,11 @@ int compareArgsToParams(Env &env, FunctionType *ft, FakeList<ArgExpression> *arg
         ImplicitConversion ic;
         ic.kind = ImplicitConversion::IC_STANDARD;
         ic.scs = SC_FUNC_TO_PTR;
-        arg->expr = env.makeConvertedArg(arg->expr, ic);
+	// HT: can leave the target type in makeConvertedArg empty,
+	// because SC_FUNC_TO_PTR is make explicit in the ast 
+	// (creating an &-expression) and, since that is the only 
+	// conversion, no E_stdConv object is created.
+        arg->expr = env.makeConvertedArg(arg->expr, ic, NULL);
       }
     }
 

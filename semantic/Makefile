@@ -100,4 +100,6 @@ testall: $(patsubst %.cpp,%.pvs,$(wildcard test/test???.cpp))
 clean:
 	rm -f *.cmi *.cmx *.o ast2pvs
 	rm -f test/test???.pvs
+	rm -f test/test???.oast
 	rm -f nova/buddy.pvs nova/ptab.pre.cpp nova/ptab.pvs
+	rm -f nova/ptab.oast

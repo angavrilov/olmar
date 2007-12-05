@@ -5505,8 +5505,12 @@ ASTTypeId *Env::buildASTTypeId(CType *type)
 
 // Elaboration: if 'ic' involves a user-defined conversion, then modify the
 // AST to make that explicit.
+
+// HT: The conv_target_type can be NULL, but only if no E_stdConv object
+// is constructed. 
 Expression *Env::makeConvertedArg(Expression * const arg,
-                                  ImplicitConversion const &ic)
+                                  ImplicitConversion const &ic,
+				  CType * conv_target_type)
 {
   Expression *newarg = arg;
 
@@ -5519,20 +5523,22 @@ Expression *Env::makeConvertedArg(Expression * const arg,
       switch (ic.scs & SC_GROUP_1_MASK) {
       case SC_LVAL_TO_RVAL:
 	newarg = new E_stdConv(arg, ic.scs, ic.kind);
-	newarg->type = arg->type;
+	xassert(conv_target_type != NULL);
+	newarg->type = conv_target_type;
         // TODO
         break;
       case SC_ARRAY_TO_PTR:
 	newarg = new E_stdConv(arg, ic.scs, ic.kind);
-	newarg->type = arg->type;
+	xassert(conv_target_type != NULL);
+	newarg->type = conv_target_type;
         // TODO
         break;
       case SC_FUNC_TO_PTR:
         newarg = makeAddr(env.tfac, env.loc(), arg);
 	if(ic.scs & ~SC_GROUP_1_MASK) {
-	  CType * new_arg_type = newarg->type;
 	  newarg = new E_stdConv(newarg, ic.scs & ~SC_GROUP_1_MASK, ic.kind);
-	  newarg->type = new_arg_type;
+	  xassert(conv_target_type != NULL);
+	  newarg->type = conv_target_type;
 	}
         break;
       default:
@@ -5543,19 +5549,22 @@ Expression *Env::makeConvertedArg(Expression * const arg,
     } else {
       if(ic.scs != SC_IDENTITY) {
 	newarg = new E_stdConv(arg, ic.scs, ic.kind);
-	newarg->type = arg->type;
+	xassert(conv_target_type != NULL);
+	newarg->type = conv_target_type;
       }
       // TODO
     }
     break;
   case ImplicitConversion::IC_USER_DEFINED:
     newarg = new E_stdConv(arg, ic.scs, ic.kind);
-    newarg->type = arg->type;
+    xassert(conv_target_type != NULL);
+    newarg->type = conv_target_type;
     // TODO
     break;
   case ImplicitConversion::IC_ELLIPSIS:
     newarg = new E_stdConv(arg, ic.scs, ic.kind);
-    newarg->type = arg->type;
+    xassert(conv_target_type != NULL);
+    newarg->type = conv_target_type;
     // TODO
     break;
   case ImplicitConversion::IC_AMBIGUOUS:
@@ -5596,7 +5605,7 @@ bool Env::elaborateImplicitConversionArgToParam(CType *paramType, Expression *&a
 
   // Elaboration: if 'ic' involves a user-defined conversion, then
   // modify the AST to make that explicit
-  arg = env.makeConvertedArg(arg, ic);
+  arg = env.makeConvertedArg(arg, ic, paramType);
 
   // at least note that we plan to use this conversion, so
   // if it involves template functions, instantiate them

@@ -734,7 +734,8 @@ public:      // funcs
   CType *sizeofType(CType *t, int &size, Expression * /*nullable*/ expr);
 
   Expression *makeConvertedArg(Expression * const arg,
-                               ImplicitConversion const &ic);
+                               ImplicitConversion const &ic,
+			       CType * conv_target_type);
 
   bool elaborateImplicitConversionArgToParam(CType *paramType, Expression *&arg);
 

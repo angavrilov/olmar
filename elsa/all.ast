@@ -2108,6 +2108,11 @@ class Expression {
   // HT: Insert the conversion kind to make the detection of a missing user
   // conversion possible. Once all user conversions are in the ast, the 
   // conversion kind should go.
+  //
+  // HT: Assume that setting the type field in E_stdConv does not interfere
+  // in a bad way with typechecking. Set this type field such that it
+  // holds the target type of the conversion. It is guaranteed to be 
+  // non-NULL.
   -> E_stdConv(Expression expr, StandardConversion stdConv,
 	       ImplicitConversion_Kind conversionKind) {
        ctor {
