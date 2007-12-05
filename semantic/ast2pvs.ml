@@ -520,12 +520,21 @@ let compoundType_Keyword_fun = function
 let templ_kind_fun (kind : templateThingKind) =
   assert false
 
-let implicitConversion_Kind_fun = function
-  | IC_NONE         -> trace "IC_NONE"; assert false;
+let implicitConversion_Kind_fun annot loc = function
+  | IC_NONE         -> 
+      trace "IC_NONE"; 
+      unimplemented annot loc "empty implicit conversion";
+      assert false;
   | IC_STANDARD     -> trace "IC_STANDARD";
   | IC_USER_DEFINED -> trace "IC_USER_DEFINED"
-  | IC_ELLIPSIS     -> trace "IC_ELLIPSIS"; assert false;
-  | IC_AMBIGUOUS    -> trace "IC_AMBIGUOUS"; assert false
+  | IC_ELLIPSIS     -> 
+      trace "IC_ELLIPSIS"; 
+      unimplemented annot loc "IC_ELLIPSIS conversion";
+      assert false;
+  | IC_AMBIGUOUS    -> 
+      trace "IC_AMBIGUOUS"; 
+      unimplemented annot loc "IC_AMBIGUOUS conversion";
+      assert false
 
 (***************** variable ***************************)
 
@@ -2536,13 +2545,17 @@ and expression_fun loc x =
 	   type_opt should be the type of the expression after all conversions
 	   are applied. *)
 	assert (Option.isSome xx.std_conversion_type);
-	implicitConversion_Kind_fun xx.conversionKind;
+	assert(check_standardConversion xx.stdConv);
+	implicitConversion_Kind_fun xx.e_stdConv_annotation loc 
+	  xx.conversionKind;
 	(* TODO: user-defined conversions are currently not recorded properly
 	   in the ast by Elsa.  A user-defined conversion should be broken
 	   apart into a standard conversion sequence (scs), followed by a
 	   function call and another scs. *)
 	(match xx.conversionKind with
 	  | IC_USER_DEFINED ->
+	      unimplemented xx.e_stdConv_annotation loc 
+		"user defined standard conversion";
 	      Format.print_string ">>>>>IC_USER_DEFINED<<<<<"
 	  | _ -> ());
 	(* standard conversion sequence: contains at most one conversion each
@@ -2551,48 +2564,68 @@ and expression_fun loc x =
 	  begin
 	    (* conversion group 3 (comes last conceptually) *)
 	    (* 4.4: int* -> int const* *)
-	    if is_present SC_QUAL_CONV then
+	    if is_present SC_QUAL_CONV then begin
 	      (* TODO *)
+	      unimplemented xx.e_stdConv_annotation loc "SC_QUAL_CONV";
 	      assert false;
+	    end;
 
 	    (* conversion group 2 (goes in the middle) *)
-	    if is_present SC_INT_PROM then
+	    if is_present SC_INT_PROM then begin
               (* 4.5: int... -> int..., no info loss possible *)
 	      (* TODO *)
+	      unimplemented xx.e_stdConv_annotation loc "SC_INT_PROM";
 	      Format.printf ">>>>>SC_INT_PROM<<<<<(@[<2>"
-	    else if is_present SC_FLOAT_PROM then
+	    end
+	    else if is_present SC_FLOAT_PROM then begin
 	      (* 4.6: float -> double, no info loss possible *)
 	      (* TODO *)
+	      unimplemented xx.e_stdConv_annotation loc "SC_FLOAT_PROM";
 	      assert false
-	    else if is_present SC_INT_CONV then
+	    end
+	    else if is_present SC_INT_CONV then begin
 	      (* 4.7: int... -> int..., info loss possible *)
 	      (* TODO *)
+	      unimplemented xx.e_stdConv_annotation loc "SC_INT_CONV";
 	      Format.printf ">>>>>SC_INT_CONV<<<<<(@[<2>"
-	    else if is_present SC_FLOAT_CONV then
+	    end
+	    else if is_present SC_FLOAT_CONV then begin
 	      (* 4.8: float... -> float..., info loss possible *)
 	      (* TODO *)
+	      unimplemented xx.e_stdConv_annotation loc "SC_FLOAT_CONV";
 	      assert false
-	    else if is_present SC_FLOAT_INT_CONV then
+	    end
+	    else if is_present SC_FLOAT_INT_CONV then begin
 	      (* 4.9: int... <-> float..., info loss possible *)
 	      (* TODO *)
+	      unimplemented xx.e_stdConv_annotation loc "SC_FLOAT_INT_CONV";
 	      assert false
+	    end
                                          (* inside expression_fun | E_stdConv *)
-	    else if is_present SC_PTR_CONV then
+	    else if is_present SC_PTR_CONV then begin
 	      (* 4.10: 0 -> Foo*, Child* -> Parent* *)
 	      (* TODO *)
+	      unimplemented xx.e_stdConv_annotation loc "SC_PTR_CONV";
 	      Format.printf ">>>>>SC_PTR_CONV<<<<<(@[<2>"
-	    else if is_present SC_PTR_MEMB_CONV then
+	    end
+	    else if is_present SC_PTR_MEMB_CONV then begin
 	      (* 4.11: int Child::* -> int Parent::* *)
 	      (* TODO *)
+	      unimplemented xx.e_stdConv_annotation loc "SC_PTR_MEMB_CONV";
 	      assert false
-	    else if is_present SC_BOOL_CONV then
+	    end
+	    else if is_present SC_BOOL_CONV then begin
 	      (* 4.12: various types <-> bool *)
 	      (* TODO *)
+	      unimplemented xx.e_stdConv_annotation loc "SC_BOOL_CONV";
 	      assert false
-	    else if is_present SC_DERIVED_TO_BASE then
+	    end
+	    else if is_present SC_DERIVED_TO_BASE then begin
 	      (* 13.3.3.1p6: Child -> Parent *)
 	      (* TODO *)
+	      unimplemented xx.e_stdConv_annotation loc "SC_DERIVED_TO_BASE";
 	      assert false;
+	    end;
 
 	    (* conversion group 1 (comes first) *)
 	    if is_present SC_LVAL_TO_RVAL then
@@ -2602,13 +2635,19 @@ and expression_fun loc x =
 		Option.app (cType_fun loc) xx.std_conversion_type;
 		Format.print_string ")(";
 	      end
-	    else if is_present SC_ARRAY_TO_PTR then
+	    else if is_present SC_ARRAY_TO_PTR then begin
 	      (* 4.2: char[] -> char* *)
 	      (* TODO *)
+	      unimplemented xx.e_stdConv_annotation loc "SC_ARRAY_TO_PTR";
 	      Format.printf ">>>>>SC_ARRAY_TO_PTR<<<<<(@[<2>"
-	    else if is_present SC_FUNC_TO_PTR then
+	    end
+	    else if is_present SC_FUNC_TO_PTR then begin
 	      (* 4.3: int ()(int) -> int ( * )(int) *)
 	      (* TODO *)
+	      unimplemented xx.e_stdConv_annotation loc "SC_FUNC_TO_PTR";
+	      assert false;
+	    end
+	    else
 	      assert false;
 	  end;
 	  expression_fun loc xx.std_conv_expr;
