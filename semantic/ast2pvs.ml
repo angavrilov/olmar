@@ -584,33 +584,11 @@ and baseClass_fun baseClass =
       assert false;
 
 and compound_info_fun i = 
-    begin
-      trace "compound_info_fun(";
-(*
-      annotation_fun i.compound_info_poly;
-      Option.app string_fun i.compound_name;
-*)
-      variable_fun i.compound_type_var;
-(*
-      accessKeyword_fun i.ci_access;
-      scope_fun i.compound_scope;
-      bool_fun i.is_forward_decl;
-      bool_fun i.is_transparent_union;
-      compoundType_Keyword_fun i.keyword;
-      List.iter variable_fun i.data_members;
-      List.iter baseClass_fun i.bases;
-      List.iter variable_fun i.conversion_operators;
-      List.iter variable_fun i.friends;
-      Option.app typeSpecifier_fun !(i.syntax);
-
-      (* POSSIBLY CIRCULAR *)
-      Option.app string_fun i.inst_name;
-
-      (* POSSIBLY CIRCULAR *)
-      Option.app cType_fun !(i.self_type)
-*)
-      trace ")";
-    end
+  begin
+    trace "compound_info_fun(";
+    variable_fun i.compound_type_var;
+    trace ")";
+  end
 
 
 and enum_value_fun (annot, string, nativeint) =
@@ -826,10 +804,7 @@ and topForm_fun x =
 	trace ")";
 
 
-and func_fun loc x 
-           (*annot, declFlags, typeSpecifier, declarator, memberInit_list,
-	     s_compound_opt, handler_list, func, variable_opt_1,
-	     variable_opt_2, statement_opt, bool*) =
+and func_fun loc x =
   begin
     trace "func_fun(";
 
@@ -2873,7 +2848,7 @@ open Superast
 let arguments = []
 
 let usage_msg =
-  "Usage: ast2pvs input.ast [output.pvs] [functions]\n\
+  "Usage: ast2pvs input.ast [output.pvs] [function [...]] [exclude:function [...]]\n\
    \n\
    Recognized options are:"
 
@@ -2892,8 +2867,9 @@ let out_file_name = ref ""
 let out_file_set  = ref false
 
 let funs = ref []
+let exclude_funs = ref []
 
-let set_files s =
+let process_argument s =
   if not !in_file_set then
     begin
       in_file_name := s;
@@ -2905,10 +2881,13 @@ let set_files s =
       out_file_set  := true
     end
   else
+    if String.length s >= 8 && String.sub s 0 8 = "exclude:" then
+      exclude_funs := !exclude_funs @ [String.sub s 8 (String.length s - 8)]
+  else
     funs := !funs @ [s]
 
 let main () =
-  Arg.parse arguments set_files usage_msg;
+  Arg.parse arguments process_argument usage_msg;
   if not !in_file_set then
     usage();  (* does not return *)
   if not !out_file_set then
@@ -2932,9 +2911,16 @@ let main () =
           @[<2>IMPORTING@ Cpp_Verification@]@\n\
           @\n" theory_name;
       if !funs = [] then
-	(* Translates the entire compilation unit to PVS. *)
-	let (_, ast) = Elsa_oast_header.unmarshal_oast !in_file_name in
-	  compilationUnit_fun ast
+	begin
+	  (* Translates the entire compilation unit to PVS. *)
+	  if !exclude_funs <> [] then
+	    begin
+	      Printf.eprintf "Functions to exclude may only be specified if at least one function is given.\n";
+	      assert false
+	    end;
+	  let (_, ast) = Elsa_oast_header.unmarshal_oast !in_file_name in
+	    compilationUnit_fun ast
+	end
       else
 	(* Translate selected function(s) and their callees only. *)
 	begin
@@ -2943,7 +2929,7 @@ let main () =
 	  let get_ids overload funs =
 	    List.fold_left
 	      (fun res f_name ->
-		try 
+		try
 		  match Hashtbl.find overload f_name with
 		    | []   -> assert false
 		    | [id] -> id :: res
@@ -2958,8 +2944,11 @@ let main () =
 	  let report_func _ _ func_appl = 
 	    match func_appl with
 	      | Func_def (cfg_def, func) ->
-		  in_file_name := cfg_def.oast;
-		  func_fun cfg_def.loc func
+		  if not (List.mem (last cfg_def.fun_id.name) !exclude_funs) then
+		    begin
+		      in_file_name := cfg_def.oast;
+		      func_fun cfg_def.loc func
+		    end
 	      | _ ->
 		  assert false in
 	    iter_callees (apply_func_def report_func) call_graph fun_ids
