@@ -70,7 +70,7 @@ byte:
 
 .PHONY: sync
 sync: nova/ptab.oast ast2pvs
-	./ast2pvs nova/ptab.oast nova/ptab-sync-master.pvs sync_master_range
+	./ast2pvs nova/ptab.oast nova/ptab-sync-master.pvs -function sync_master_range
 
 .PHONY: sync
 htsync: sync

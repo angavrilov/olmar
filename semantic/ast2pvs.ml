@@ -2845,10 +2845,24 @@ open Superast
 (* main                                                                      *)
 (* ------------------------------------------------------------------------- *)
 
-let arguments = []
+let funs = ref []
+
+let function_arg_fun s =
+  funs := !funs @ [s]
+
+let exclude_funs = ref []
+
+let exclude_arg_fun s =
+  exclude_funs := !exclude_funs @ [s]
+
+let arguments = Arg.align
+  [("-function", Arg.String function_arg_fun,
+   "function translate function and its callees");
+   ("-exclude", Arg.String exclude_arg_fun,
+   "function exclude function from translation")]
 
 let usage_msg =
-  "Usage: ast2pvs input.ast [output.pvs] [function [...]] [exclude:function [...]]\n\
+  "Usage: ast2pvs input.ast [output.pvs]\n\
    \n\
    Recognized options are:"
 
@@ -2866,10 +2880,7 @@ let in_file_set  = ref false
 let out_file_name = ref ""
 let out_file_set  = ref false
 
-let funs = ref []
-let exclude_funs = ref []
-
-let process_argument s =
+let anonymous_argument s =
   if not !in_file_set then
     begin
       in_file_name := s;
@@ -2881,13 +2892,10 @@ let process_argument s =
       out_file_set  := true
     end
   else
-    if String.length s >= 8 && String.sub s 0 8 = "exclude:" then
-      exclude_funs := !exclude_funs @ [String.sub s 8 (String.length s - 8)]
-  else
-    funs := !funs @ [s]
+    usage()
 
 let main () =
-  Arg.parse arguments process_argument usage_msg;
+  Arg.parse arguments anonymous_argument usage_msg;
   if not !in_file_set then
     usage();  (* does not return *)
   if not !out_file_set then
