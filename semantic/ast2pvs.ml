@@ -1653,16 +1653,15 @@ and declarator_fun x (*annot, iDeclarator, init_opt,
 		assert false);
 	                                             (* inside declarator_fun *)
 
-	  Format.printf "@ :@ ST[State,@ Semantics_";
+	  Format.printf "@ :@ ST[State]@ =@]@\n";
 	  (* remainder of return value type *)
-	  (* TODO: is this different from the return type? What does
-	     "remainder" mean? *)
-	  (match ctype_opt with
+	  (* TODO: is this different from the return type? What does "remainder" mean? *)
+(*	  (match ctype_opt with
 	    | Some (TY_Function xx) ->
 		cType_fun loc xx.retType;
 	    | _ ->
-		assert false);
-	  Format.printf "]@ =@]@\n";
+		assert false);*)
+(*	  Format.printf "]@ =@]@\n"; *)
 
       | DC_TF_DECL          -> assert false;
       | DC_TF_EXPLICITINST  -> assert false;
@@ -2917,7 +2916,8 @@ let main () =
         BEGIN@\n\
         @[<2>@\n\
           @[<2>IMPORTING@ Cpp_Verification@]@\n\
-          @\n" theory_name;
+          @[<2>IMPORTING@ %s_defs@]@\n\
+          @\n" theory_name theory_name;
       if !funs = [] then
 	begin
 	  (* Translates the entire compilation unit to PVS. *)
@@ -2963,7 +2963,8 @@ let main () =
 	end;
       (* TODO: this only works for int main(), not for int main(argc, argv)
 	 (cf. C++ Standard, 3.6.1.2) *)
-      Format.printf "@[<2>PRECONDITION@ :@ PRED[State]@]@\n\
+(* Don't print the hoare lemma; we'll import the code into some other theory *)
+(*      Format.printf "@[<2>PRECONDITION@ :@ PRED[State]@]@\n\
           @\n\
           @[<2>POSTCONDITION@ :@ PRED[State]@]@\n\
           @\n\
@@ -2972,7 +2973,9 @@ let main () =
               main,@]@\n\
             POSTCONDITION)@]@]@\n\
           @\n\
-        END@ %s@]@." lemma_name theory_name;
+          END@ %s@]@." lemma_name theory_name;
+*)
+      Format.printf "@[END@ %s@]@." theory_name;
       close_out !out
     end;;
 

@@ -1,3 +1,10 @@
+2007-12-10  Marcus Völp   <voelp@os.inf.tu-dresden.de
+
+        * removed Data parameter from StmtResult
+        * import X_defs for handwritten definitions required to typecheck
+          X
+        * remove hoare lemma / use challenge theory for this
+
 2007-12-05  Hendrik Tews  <tews@tandem.cs.ru.nl>
 
         Semantic
