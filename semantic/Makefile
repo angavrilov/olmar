@@ -68,13 +68,29 @@ byte:
 %.pvs: %.oast ast2pvs
 	./ast2pvs $< $@
 
-.PHONY: sync
-sync: nova/ptab.oast ast2pvs
-	./ast2pvs nova/ptab.oast nova/ptab-sync-master.pvs -function sync_master_range
+.PHONY: sync_master
+sync_master: nova/ptab.oast ast2pvs
+	./ast2pvs nova/ptab.oast nova/ptab-sync-master.pvs -function sync_master
+
+.PHONY: sync_master
+htsync: sync_master
 
 .PHONY: htsync
-htsync: sync
+htsync: sync_master
 	cp nova/ptab-sync-master.pvs /home/tews/VFiasco/hardware
+
+# PRECONDITION: 
+# NOVA_DIR has been set to the absolute path where the Robin/nova repository has been checked out
+# HARDWARE_DIR to the absolute path of Robin/hardware
+nova_links: 
+	-@ln -s $(NOVA_DIR)/ptab.cpp nova/ptab.cpp 2>/dev/zero
+	-@ln -s $(NOVA_DIR)/include/*.h nova/include/ 2>/dev/zero
+
+rm_nova_links:
+	find -name "*.h" | grep -v "stdio.h" | xargs rm -f
+
+links: nova_links sync_master
+	-@ln -s $(PWD)/nova/ptab-sync-master.pvs $(HARDWARE_DIR)/ 2>/dev/zero
 
 ##########
 
