@@ -1,4 +1,17 @@
-2007-12-10  Marcus Völp   <voelp@os.inf.tu-dresden.de
+2007-12-14  Marcus Völp   <voelp@os.inf.tu-dresden.de>
+
+        * modified the way nova sources are used
+          * removed all checked in nova sources
+          * added rules to create symbolic links
+          * run make nova_links in the elsa/semantics directory having
+            NOVA_DIR set to the absolute path of your nova repository to
+            link ptab.cpp plus all .h files except stdio.h
+          * run make links to create in addition a link to
+            ptab-sync-master.pvs in the hardware model directory.
+            To do so set HARDWARE_DIR to the absolute path of the hardware 
+            directory and NOVA_DIR as above.
+
+2007-12-10  Marcus Völp   <voelp@os.inf.tu-dresden.de>
 
         * removed Data parameter from StmtResult
         * import X_defs for handwritten definitions required to typecheck
