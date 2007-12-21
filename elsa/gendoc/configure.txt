@@ -1,0 +1,26 @@
+Configuring elsa ...
+
+usage: ./configure [options]
+
+influential environment variables:
+  CC                 C compiler [gcc]
+  CXX                C++ compiler [g++]
+
+standard (sm_config) options:
+  -h:                print this message
+  -debug[=0/1]:      enable debugging options [0]
+  -target=<target>:  cross compilation target, e.g., "i386-mingw32msvc"
+  -no-dash-g:        disable -g
+  -no-dash-O2:       disable -O2
+  -no-ocamlopt:      disable ocamlopt (for bytecode compilation testing only)
+  -smbase=<dir>:     specify where the smbase library is [../smbase]
+
+package options:
+  -prof              enable profiling
+  -gcov=<mods>       enable coverage testing for modules <mods>
+  -devel             add options useful while developing (-Werror)
+  -gnu=[0/1]         enable GNU extensions? [1]
+  -kandr=[0/1]       enable K&R extensions? [1]
+  -ast=<dir>:        specify where the ast system is [../ast]
+  -elkhound=<dir>:   specify where the elkhound system is [../elkhound]
+  -useSerialNumbers: give serial numbers to some objects for debugging

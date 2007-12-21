@@ -16,8 +16,8 @@ ssh-add.c
 */
 
 /*
- * $Id$
- * $Log$
+ * $Id: ssh-add2.c,v 1.4 2006/11/08 12:44:42 tews Exp $
+ * $Log: ssh-add2.c,v $
  * Revision 1.4  2006/11/08 12:44:42  tews
  * * completed merge with changes from
  *   smbase-484-ast-278-elkhound-1036-elsa-2439, a few issues are

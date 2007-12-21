@@ -1,0 +1,36 @@
+// subobject hierarchy for E
+digraph "Subobjects" {
+  "E (0x83e42c4)" [
+    label = "E\npublic"
+  ]
+  "C (0x83e44d8)" -> "E (0x83e42c4)" [
+  ]
+  "D (0x83e45d0)" -> "E (0x83e42c4)" [
+  ]
+  "C (0x83e44d8)" [
+    label = "C\npublic"
+  ]
+  "B (0x83e4508)" -> "C (0x83e44d8)" [
+  ]
+  "B (0x83e4508)" [
+    label = "B\npublic"
+  ]
+  "A (0x83e4538)" -> "B (0x83e4508)" [
+    style = dashed
+  ]
+  "A (0x83e4538)" [
+    label = "A\npublic"
+  ]
+  "D (0x83e45d0)" [
+    label = "D\npublic"
+  ]
+  "B (0x83e45f0)" -> "D (0x83e45d0)" [
+  ]
+  "B (0x83e45f0)" [
+    label = "B\npublic"
+  ]
+  "A (0x83e4538)" -> "B (0x83e45f0)" [
+    style = dashed
+  ]
+}
+

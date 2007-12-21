@@ -1,0 +1,43 @@
+# 1 "crc.cpp"
+# 1 "<built-in>"
+# 1 "<command line>"
+# 1 "crc.cpp"
+# 41 "crc.cpp"
+static unsigned long crc_table[256];
+
+void gen_crc_table()
+
+ { register int i, j; register unsigned long crc_accum;
+   for ( i = 0; i < 256; i++ )
+       { crc_accum = ( (unsigned long) i << 24 );
+         for ( j = 0; j < 8; j++ )
+              { if ( crc_accum & 0x80000000L )
+                   crc_accum =
+                     ( crc_accum << 1 ) ^ 0x04c11db7L;
+                else
+                   crc_accum =
+                     ( crc_accum << 1 ); }
+         crc_table[i] = crc_accum; }
+   return; }
+
+unsigned long update_crc(unsigned long crc_accum, char const *data_blk_ptr,
+                                                    int data_blk_size)
+
+ { register int i, j;
+   for ( j = 0; j < data_blk_size; j++ )
+       { i = ( (int) ( crc_accum >> 24) ^ *data_blk_ptr++ ) & 0xff;
+         crc_accum = ( crc_accum << 8 ) ^ crc_table[i]; }
+   return crc_accum; }
+
+
+
+static int made_table = 0;
+unsigned long crc32(unsigned char const *data, int length)
+{
+  if (!made_table) {
+    gen_crc_table();
+    made_table = 1;
+  }
+
+  return update_crc(0xFFFFFFFF, (char*)data, length);
+}

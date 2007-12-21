@@ -1,0 +1,6 @@
+syntax: glob
+
+*.png
+*.ps.gz
+*.fig.gz
+*.png.gz

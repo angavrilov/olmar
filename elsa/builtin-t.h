@@ -1,5 +1,5 @@
 
-// $Id$
+// $Id: builtin-t.h,v 1.3 2006/11/08 12:44:42 tews Exp $
 
 // header file declaring minimal types needed for GCC builtins.
 
