@@ -29,6 +29,14 @@
   #define NOSOURCELOC(stuff) stuff
 #endif
 
+#if USE_ENDSOURCELOC
+  #define ENDSOURCELOC(stuff) stuff
+  #define ENDSOURCELOCARG(stuff) , stuff
+#else
+  #define ENDSOURCELOC(stuff)
+  #define ENDSOURCELOCARG(stuff)
+#endif
+
 
 // when enabled, NODE_COLUMN tracks in each stack node the
 // appropriate column to display it for in debugging dump.

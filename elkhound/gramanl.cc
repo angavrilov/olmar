@@ -4237,6 +4237,7 @@ void emitActionCode(GrammarAnalysis const &g, rostring hFname,
       << "    " << g.actionClassName << " *ths,\n"
       << "    int productionId, SemanticValue const *semanticValues"
          SOURCELOC( << ",\n  SourceLoc loc" )
+         ENDSOURCELOC( << ",\n  SourceLoc endloc" )
       << ");\n"
       << "\n"
       << "  // declare the classifier function\n"
@@ -4479,10 +4480,12 @@ void emitActions(Grammar const &g, EmitCode &out, EmitCode &dcl)
         << g.actionClassName << "::" << actionFuncName(prod)
         << "("
         SOURCELOC( << "SourceLoc loc" )
+        ENDSOURCELOC( << ", SourceLoc endloc" )
         ;
 
     dcl << "  " << prod.left->type << " " << actionFuncName(prod) << "("
         SOURCELOC( << "SourceLoc loc" )
+        ENDSOURCELOC( << ", SourceLoc endloc" )
         ;
 
     int ct=0;
@@ -4521,6 +4524,7 @@ void emitActions(Grammar const &g, EmitCode &out, EmitCode &dcl)
       << "  " << g.actionClassName << " *ths,\n"
       << "  int productionId, SemanticValue const *semanticValues"
       SOURCELOC( << ",\n  SourceLoc loc" )
+      ENDSOURCELOC( << ",\n  SourceLoc endloc" )
       << ")\n";
   out << "{\n";
   out << "  switch (productionId) {\n";
@@ -4532,6 +4536,7 @@ void emitActions(Grammar const &g, EmitCode &out, EmitCode &dcl)
     out << "    case " << prod.prodIndex << ":\n";
     out << "      return (SemanticValue)(ths->" << actionFuncName(prod) << "("
         SOURCELOC( << "loc" )
+        ENDSOURCELOC( << ", endloc" )
         ;
 
     // iterate over RHS elements, emitting arguments for each with a tag

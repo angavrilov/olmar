@@ -58,7 +58,8 @@ STATICDEF SemanticValue ParseTreeActions::reduce(
   UserActions *context,
   int productionId,
   SemanticValue const *svals
-  SOURCELOCARG( SourceLoc loc ) )
+  SOURCELOCARG( SourceLoc )
+  ENDSOURCELOCARG( SourceLoc ) )
 {
   ParseTreeActions *ths = static_cast<ParseTreeActions*>(context);
 

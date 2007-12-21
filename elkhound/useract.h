@@ -53,7 +53,8 @@ public:
     UserActions *context,         // parser context class object
     int productionId,             // production being used to reduce
     SemanticValue const *svals    // array of semantic values
-    SOURCELOCARG( SourceLoc loc ) );
+    SOURCELOCARG( SourceLoc loc )
+    ENDSOURCELOCARG( SourceLoc endloc ) );
                                                      
   // get the actual function; two-step to avoid virtual call in inner loop
   virtual ReductionActionFunc getReductionAction()=0;
@@ -174,7 +175,8 @@ public:
   static SemanticValue doReductionAction(
     UserActions *ths,
     int productionId, SemanticValue const *svals
-    SOURCELOCARG( SourceLoc loc ) );
+    SOURCELOCARG( SourceLoc loc ) 
+    ENDSOURCELOCARG( SourceLoc ) );
 
   static int reclassifyToken(UserActions *ths, 
     int oldTokenType, SemanticValue sval);

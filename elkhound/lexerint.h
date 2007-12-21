@@ -41,12 +41,14 @@ public:     // data
   // source location of the token; this will only be used if the
   // parser has been compiled to automatically propagate it
   SourceLoc loc;
+  SourceLoc endloc;
 
 public:     // funcs
   LexerInterface()
     : type(0),
       sval((SemanticValue)DEFAULT_UNPRIMED_SVAL),
-      loc(SL_UNKNOWN)
+      loc(SL_UNKNOWN),
+      endloc(SL_UNKNOWN)
   {}
   virtual ~LexerInterface() {}
 

@@ -99,6 +99,7 @@ package options:
                      (note that Elsa will not work in this mode)
   -nosub:            do not invoke subdirectory configure scripts
   -ast=<dir>:        specify where the ast library is [$AST]
+  -endloc:           produce end-of-ast-node-loc
 EOF
 }
 
@@ -159,6 +160,10 @@ foreach $optionAndValue (@ARGV) {
        "-DDO_ACCOUNTING=0",         # don't count stack nodes, etc.
        "-DENABLE_YIELD_COUNT=0");   # don't check for yield-then-merge at runtime
     push @c_args, "-DUSE_RECLASSIFY=0";
+  }
+
+  elsif ($arg eq "endloc") {
+    push @CCFLAGS, "-DUSE_ENDSOURCELOC=1";
   }
 
   elsif ($arg eq "nosub") {

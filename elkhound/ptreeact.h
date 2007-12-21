@@ -47,7 +47,8 @@ public:
     UserActions *context,
     int productionId,
     SemanticValue const *svals
-    SOURCELOCARG( SourceLoc loc ) );
+    SOURCELOCARG( SourceLoc loc )
+    ENDSOURCELOCARG( SourceLoc ) );
   virtual ReductionActionFunc getReductionAction()
     { return &ParseTreeActions::reduce; }
 
