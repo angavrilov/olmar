@@ -23,7 +23,7 @@
 (*   that we verify functions however.                                       *)
 (* - Declarations in for/if/while conditions are not supported yet.  Easy in *)
 (*   principle, just needs to be done.                                       *)
-(* - Default initialization (§8.5) is not modelled yet.                      *)
+(* - Default initialization (§8.5) is not modelled yet.                     *)
 (* - For switch statements, a list of case expressions is generated.         *)
 (* - C++ functions are turned into PVS definitions.                          *)
 (* - There's a software design issue: we need to print similar things        *)
@@ -114,15 +114,15 @@ let rec mangle_ctype loc = function
   | TY_CVAtomic(annot, atype, flags) ->
       (mangle_cv_flags flags) ^ "_" ^
       (match atype with
-	 | ATY_Simple(_, stype) -> 
-	     (translate " " "_" (string_of_simpleTypeId stype))
-	 | ATY_Compound c -> Option.valOf c.compound_name
-	 | ATY_Enum e -> Option.valOf e.enum_type_name
-	 | ATY_PseudoInstantiation _
-	 | ATY_TypeVariable _
-	 | ATY_DependentQ _
-	   -> unimplemented annot loc "mangle atomic type";
-	     assert false
+       | ATY_Simple(_, stype) -> 
+         (translate " " "_" (string_of_simpleTypeId stype))
+       | ATY_Compound c -> Option.valOf c.compound_name
+       | ATY_Enum e -> Option.valOf e.enum_type_name
+       | ATY_PseudoInstantiation _
+       | ATY_TypeVariable _
+       | ATY_DependentQ _
+         -> unimplemented annot loc "mangle atomic type";
+            assert false
       )
 
   | TY_Pointer(annot, flags, ptype) ->
@@ -144,6 +144,15 @@ let rec mangle_ctype loc = function
       unimplemented x.tY_PointerToMember_annotation loc "mangle CVAtomic";
       assert false
 
+let ctype_is_void = function
+  | TY_CVAtomic(_, atype, _) ->
+      (match atype with
+      | ATY_Simple(_, stype) ->
+         (match stype with 
+         | ST_VOID -> true
+         | _ -> false)
+      | _ -> false)
+  | _ -> false
 
 (* Return true for those types for which an initialization, either
  * explicitly user given, or implicitely via default constructors, is not 
@@ -206,12 +215,12 @@ let string_of_overloadableOp = function
   | OP_BITANDEQ	   -> assert false; "bitandeq"
   | OP_BITXOREQ	   -> assert false; "bitxoreq"
   | OP_BITOREQ	   -> assert false; "bitoreq"
-  | OP_EQUAL	   -> "=="
+  | OP_EQUAL	   -> "eq"
   | OP_NOTEQUAL	   -> "not_equal"
-  | OP_LESS	   -> "<"
-  | OP_GREATER	   -> ">"
-  | OP_LESSEQ	   -> "<="
-  | OP_GREATEREQ   -> ">="
+  | OP_LESS	   -> "lt"
+  | OP_GREATER	   -> "gt"
+  | OP_LESSEQ	   -> "le"
+  | OP_GREATEREQ   -> "ge"
   | OP_AND	   -> "and_exp"
   | OP_OR	   -> "or_exp"
   | OP_ARROW	   -> assert false; "arrow"
@@ -225,24 +234,24 @@ let string_of_overloadableOp = function
 
 let string_of_unaryOp = function
   | UNY_PLUS    -> "unary_plus"    (*TODO*)
-  | UNY_MINUS   -> "unary_minus"   (*TODO*)
+  | UNY_MINUS   -> "unary_minus" 
   | UNY_NOT     -> "unary_not"     (*TODO*)
-  | UNY_BITNOT  -> "unary_bitnot"  (*TODO*)
+  | UNY_BITNOT  -> "unary_bitnot"
 
 let string_of_binaryOp = function
-  | BIN_EQUAL       -> "=="
+  | BIN_EQUAL       -> "eq"
   | BIN_NOTEQUAL    -> "not_equal"
-  | BIN_LESS	    -> "<"
-  | BIN_GREATER	    -> ">"
-  | BIN_LESSEQ	    -> "<="
-  | BIN_GREATEREQ   -> ">="
-  | BIN_MULT	    -> "*"
+  | BIN_LESS	    -> "lt"
+  | BIN_GREATER	    -> "gt"
+  | BIN_LESSEQ	    -> "le"
+  | BIN_GREATEREQ   -> "ge"
+  | BIN_MULT	    -> "times"
   | BIN_DIV	    -> "div"
   | BIN_MOD	    -> "rem"
-  | BIN_PLUS	    -> "+"
-  | BIN_MINUS	    -> "-"
-  | BIN_LSHIFT	    -> "<<"
-  | BIN_RSHIFT	    -> ">>"
+  | BIN_PLUS	    -> "plus"
+  | BIN_MINUS	    -> "minus"
+  | BIN_LSHIFT	    -> "shl"
+  | BIN_RSHIFT	    -> "shr"
   | BIN_BITAND	    -> "bitand"
   | BIN_BITXOR	    -> "bitxor"
   | BIN_BITOR	    -> "bitor"
@@ -400,6 +409,8 @@ let rec last = function
  *
  **************************************************************************)
 
+(* Functions to output constant values of type bool, int, string, etc. *)
+
 let annotation_fun (a : annotated) =
   Format.printf "(%d)" (id_annotation a)
 
@@ -444,47 +455,60 @@ let string_fun (s : string) =
   let start = string_index (fun c -> c <> '_') s 0 in
     Format.print_string (String.sub s start (String.length s - start))
 
+
+(* Print line and character position in source file *)
 let sourceLoc_fun ((file : string), (line : int), (char : int)) =
   trace "sourceLoc_fun(";
   Format.printf "(%s, %d, %d)" file line char;
   trace ")"
 
+(* Print declarator flags such as static, extern, inline *)
 let declFlags_fun (dFs : declFlag list) =
   trace "declFlags_fun(";
   trace (string_of_declFlags dFs);
   trace ")"
 
+(* Print fundamental type such as int, long, etc. *)
 let simpleTypeId_fun (id : simpleTypeId) =
   trace "simpleTypeId_fun(";
   Format.print_string (local_string_of_simpleTypeId id);
   trace ")"
 
+(* Print type introducting keywords such as class, struct in class F;*)
 let typeIntr_fun (_ : typeIntr) = 
   trace "typeIntr_fun()"  (*TODO*)
 
+(* Print access keyword such as public, private, protected *)
 let accessKeyword_fun (keyword : accessKeyword) =
   Format.print_string (string_of_accessKeyword keyword)
 
+(* Print CV qualifiers: const, volatile, volatile const *)
 let cVFlags_fun (fls : cVFlag list) =
   trace "cVFlags_fun(";
   trace (string_of_cVFlags fls);
   trace ")"
 
+(* Print function name of overloadable operator *)
 let overloadableOp_fun (op : overloadableOp) =
   Format.print_string (string_of_overloadableOp op)
 
+(* Print function name of unary operator such as unary_not *)
 let unaryOp_fun (op : unaryOp) =
   Format.print_string (string_of_unaryOp op)
 
+(* Print function name of unary operator with side effects such as preinc *)
 let effectOp_fun (op : effectOp) =
   Format.print_string (string_of_effectOp op)
 
+(* Print function name of binary operator such as times *)
 let binaryOp_fun (op : binaryOp) =
   Format.print_string (string_of_binaryOp op)
 
+(* Print function name of assignment operators such as assign_times *)
 let assignOp_fun (op : binaryOp) =
   Format.print_string (string_of_assignOp op)
 
+(* Print cast keyword such as reinterpret_cast *)
 let castKeyword_fun annot loc = function
   | CK_DYNAMIC     -> 
       unimplemented annot loc "dynamic cast";
@@ -497,9 +521,11 @@ let castKeyword_fun annot loc = function
       unimplemented annot loc "const cast";
       assert false
 
+(* TODO *)
 let function_flags_fun (_ : functionFlags) =
   trace "function_flags_fun()"  (*TODO*)
 
+(* TODO *)
 let declaratorContext_fun (dc : declaratorContext) =
   trace "declaratorContext_fun(";
   trace (string_of_declaratorContext dc);
@@ -512,6 +538,7 @@ let array_size_fun = function
   | DYN_SIZE     -> assert false
   | FIXED_SIZE i -> assert false; int_fun i
 
+(* Print compound type keyword : class, struct, union in class F {}; *)
 let compoundType_Keyword_fun = function
   | K_STRUCT -> Format.print_string "struct"
   | K_CLASS  -> Format.print_string "class"
@@ -602,7 +629,6 @@ and enum_value_fun (annot, string, nativeint) =
     trace ")";
   end
 
-
 and atomicType_fun x =
   match x with
       ATY_Simple(annot, simpleTypeId) ->
@@ -647,7 +673,7 @@ and cType_fun loc x =
 	trace "PointerType(";
 	(*TODO*)
 	cVFlags_fun cVFlags;
-	Format.print_string "pointer[dt_";	
+	Format.print_string "pointer[";	
 	cType_fun loc cType;
 	Format.print_string "]";
 	trace ")";
@@ -655,7 +681,7 @@ and cType_fun loc x =
     | TY_Reference(annot, cType) ->
 	trace "ReferenceType(";
 	(*TODO*)
-	Format.print_string "reference[dt_";
+	Format.print_string "reference[";
 	cType_fun loc cType;
 	Format.print_string "]";
 	trace ")";
@@ -687,7 +713,6 @@ and cType_fun loc x =
 
     | TY_PointerToMember _ ->
 	assert false;
-
 
 and derefType = function
     TY_Reference (_, cType) -> cType
@@ -803,7 +828,7 @@ and topForm_fun x =
 	namespaceDecl_fun namespaceDecl;
 	trace ")";
 
-
+(* Print Function Body *)
 and func_fun loc x =
   begin
     trace "func_fun(";
@@ -839,10 +864,10 @@ and func_fun loc x =
       if (Option.valOf variable_opt).variable_name = Some "constructor_special" then
 	(* append return statement to the function body if this function is a constructor *)
 	begin
-	  Format.printf " ##@\nreturn(read_data(pm, dt_";
+	  Format.printf " ##@\nreturn(pm, dt_";
 	  Format.print_string
 	    (enclosing_classname_of_member (Option.valOf variable_opt));
-	  Format.printf ")(receiver))";
+	  Format.printf ", ret_addr)(receiver))";
 	end
       else
 	(* append "return_void" to the function body if necessary *)
@@ -859,7 +884,6 @@ and func_fun loc x =
 
                                                            (* inside func_fun *)
     Format.printf "@]@\n@\n";
-
     (* call function: call_f(expressions) = ... *)
 
     Format.printf "@[<2>call_";
@@ -927,6 +951,19 @@ and func_fun loc x =
 	    assert false) ctype_opt;
       Format.printf "]@ =@]@\n";
 
+  (*-- Evaluate function arguments --*)
+
+      (* introduce return address *)
+      Option.app (function
+        | TY_Function x ->
+          if not (ctype_is_void x.retType) then
+          begin
+            Format.printf "@[<2>with_new_returnvar(pm, dt_";
+            cType_fun loc x.retType;
+            Format.printf ")(@[<2>lambda@ @[<2>(ret_addr@ :@ Address)@]@] :@\n";
+          end;
+        | _ -> assert false) ctype_opt;
+
       (* arguments of function *)
       (match ctype_opt with
 	| Some (TY_Function xx) ->
@@ -958,7 +995,11 @@ and func_fun loc x =
 			       end
 			     else
 			       begin
-				 Format.printf "@[<2>with_new_stackvar(@[<2>lambda@ @[<2>(";
+         (* provide data type to with new stackvar to allocate proper size *)
+				 Format.printf "@[<2>with_new_stackvar(dt_";
+				 assert (Option.isSome !(var.variable_type));
+				 Option.app (cType_fun loc) !(var.variable_type);
+         Format.printf ")(@[<2>lambda@ @[<2>(";
 				 variable_fun var;
 				 Format.printf "_addr@ :@ Address)@]@]:@\n";
 				 Format.printf "@[<2>e2s(assign(pm, dt_";
@@ -1012,16 +1053,34 @@ and func_fun loc x =
 			     Format.print_string "receiver_addr";
 		       )) (fun () -> Format.printf ",@ ") var_list;
 		     Format.printf ")@]";
+         if not (ctype_is_void xx.retType) then
+         begin
+           Format.printf "(ret_addr)";     
+         end;
 		     List.iter (fun _ -> Format.printf ")@]") var_list;
 		   end;
 	| _ ->
 	    assert false);
+
+    (* closing bracket for with returnvar *)
+		(match ctype_opt with 
+    | Some (TY_Function xx) ->
+      if not (ctype_is_void xx.retType) then
+        Format.printf ")@]"
+      else
+        begin
+          (* void function may return whatsoever *)
+      		Format.printf "## @\n @[<2>catch_return@]";
+        end;
+    | _ -> assert false);
+
     );
                                                            (* inside func_fun *)
 
-    Format.printf " ##@\n";
-    Format.print_string "catch_return";
+    Format.printf "@\n";
     Format.printf "@]";
+
+    (* Read return result if there is any *)
 
     (* TODO: handlers for ctor "try" block *)
     assert (List.length x.function_handlers = 0);
@@ -1369,7 +1428,9 @@ and typeSpecifier_fun x =
 	(* dt_<type> : (interpreted_data_type?) *)
 	Format.printf "@[<2>dt_";
 	Option.app pQName_fun pQName_opt;  (* name of class type *)
-	Format.printf "@ :@ (interpreted_data_type?)@]@\n@\n";
+	Format.printf "@ :@ (interpreted_data_type?[Semantics_";
+	Option.app pQName_fun pQName_opt;  (* name of class type *)
+  Format.printf "])@]@\n@\n";
 
 	(* offsets_<type> : [# ... #] *)
 	Format.printf "@[<2>offsets_";
@@ -1627,6 +1688,7 @@ and declarator_fun x (*annot, iDeclarator, init_opt,
 	      Format.print_string
 		(enclosing_classname_of_member (Option.valOf variable_opt));
 	    end;
+
 	  (* arguments of function *)
 	  (match ctype_opt with
 	    | Some (TY_Function xx) ->
@@ -1653,14 +1715,19 @@ and declarator_fun x (*annot, iDeclarator, init_opt,
 		assert false);
 	                                             (* inside declarator_fun *)
 
+    (* provide return address for non void functions *)
+		(match ctype_opt with 
+    | Some (TY_Function xx) ->
+      if not (ctype_is_void xx.retType) then
+        begin
+      		Format.printf "(ret_addr : Address)";
+        end;
+    | _ -> assert false);
+
+
 	  Format.printf "@ :@ ST[State]@ =@]@\n";
 	  (* remainder of return value type *)
 	  (* TODO: is this different from the return type? What does "remainder" mean? *)
-(*	  (match ctype_opt with
-	    | Some (TY_Function xx) ->
-		cType_fun loc xx.retType;
-	    | _ ->
-		assert false);*)
 (*	  Format.printf "]@ =@]@\n"; *)
 
       | DC_TF_DECL          -> assert false;
@@ -1981,7 +2048,9 @@ and statement_fun x =
           | None ->
               Format.print_string "return_void"
           | Some fullExpression ->
-              Format.print_string "return(";
+              Format.printf "return(pm, dt_";
+              Option.app (expression_type_fun xx.return_loc) fullExpression.full_expr_expr;
+              Format.printf ", ret_addr)(";
               fullExpression_fun xx.return_loc fullExpression;
               Format.print_string ")");
         assert (not (Option.isSome xx.return_ctor_statement)); (* ? *)
@@ -2081,7 +2150,7 @@ and l2r_expression_fun loc x =
   in
     if is_lvalue_expression x then
       begin
-	Format.printf "l2r(pm, dt_int)@[<2>(";
+	Format.printf "l2r(pm, dt(int))@[<2>(";
 	expression_fun loc x;
         Format.printf ")@]";
       end
@@ -2125,6 +2194,83 @@ and intLit_expression_fun x =
 	assert false;
 
 
+and expression_type_fun loc x = 
+  match x with
+  | E_boolLit _ -> 
+     Format.print_string "bool";
+  | E_intLit xx ->
+     Option.app (cType_fun loc) xx.int_lit_type;
+  | E_floatLit _ ->
+     assert false;
+  | E_stringLit xx ->
+     Option.app (cType_fun loc) xx.string_lit_type;
+  | E_charLit xx ->
+     Option.app (cType_fun loc) xx.char_lit_type;
+  | E_this(_, type_opt, _) ->
+     Option.app (cType_fun loc) type_opt;
+  | E_variable xx ->
+     Option.app (cType_fun loc) xx.expr_var_type;
+  | E_funCall xx ->
+     Option.app (cType_fun loc) xx.fun_call_type;
+  | E_constructor xx ->
+     Option.app (cType_fun loc) xx.constructor_type;
+  | E_fieldAcc xx ->
+     Option.app (cType_fun loc) xx.field_access_type;
+  | E_sizeof xx ->
+     Format.print_string "uint";
+  | E_unary xx ->
+     Option.app (cType_fun loc) xx.unary_expr_type;
+  | E_effect xx ->
+     Option.app (cType_fun loc) xx.effect_type;
+  | E_binary xx ->
+     Option.app (cType_fun loc) xx.binary_expr_type;
+  | E_addrOf _ ->
+     Format.print_string "Address";
+  | E_deref (_,type_opt, _) ->
+     Option.app (cType_fun loc) type_opt;
+  | E_cast _ ->
+     assert false;
+  | E_cond xx ->
+   	 Option.app (cType_fun loc) xx.cond_type;     
+  | E_sizeofType xx ->
+     Option.app (cType_fun loc) xx.sizeof_type_type;
+  | E_assign xx ->
+     Option.app (fun t -> cType_fun loc (derefType t)) xx.assign_type;
+  | E_new _ ->
+     assert false;
+  | E_delete _ ->
+     assert false;
+  | E_throw _ ->
+     assert false;
+  | E_keywordCast xx ->
+     Option.app (cType_fun loc) xx.keyword_cast_type;
+  | E_typeidExpr _ ->
+     assert false;
+  | E_typeidType _ ->
+     assert false;
+  | E_grouping _ ->
+     assert false;
+  | E_arrow xx ->
+     Option.app (cType_fun loc) xx.expr_arrow_type;
+  | E_stdConv xx ->
+     Option.app (cType_fun loc) xx.std_conversion_type;
+  | E_statement _ ->
+     assert false;     
+  | E_compoundLit _ ->
+     assert false;
+  | E___builtin_constant_p _ ->
+     assert false;
+  | E___builtin_va_arg xx ->
+     Option.app (cType_fun loc) xx.va_arg_type;
+  | E_alignofType _ ->
+     Format.print_string "uint";
+  | E_alignofExpr _ ->
+     Format.print_string "uint";
+  | E_gnuCond _ ->
+     assert false;
+  | E_addrOfLabel _ ->
+     Format.print_string "Address";
+
 and expression_fun loc x = 
   match x with
     | E_boolLit(annot, type_opt, bool) ->
@@ -2140,7 +2286,9 @@ and expression_fun loc x =
         trace "E_intLit(";
 	(*Option.app cType_fun type_opt;*)
 	(*string_fun stringRef;*)
-	Format.print_string "literal(";
+	Format.print_string "literal[State, Semantics_";
+  Option.app (cType_fun loc) xx.int_lit_type;
+  Format.print_string "](";
 	int32_fun xx.i;
 	Format.print_string ")";
         trace ")";
@@ -2298,9 +2446,9 @@ and expression_fun loc x =
     | E_sizeof xx ->
 	(*TODO*)
 	trace "E_sizeof(";
-	Format.print_string "size(uidt(dt_";
+	Format.print_string "size_of(dt_";
 	Option.app (cType_fun loc) xx.sizeof_type;
-        Format.print_string "))";
+        Format.print_string ")";
 	(*expression_fun expression;*)
 	(*int_fun int;*)
         trace ")";
@@ -2312,6 +2460,8 @@ and expression_fun loc x =
 	(*Option.app cType_fun type_opt;*)
 	unaryOp_fun xx.unary_expr_op;
         Format.print_string "(";
+  Option.app (cType_fun loc) xx.unary_expr_type;
+        Format.print_string ")(";
 	expression_fun loc xx.unary_expr_expr;
         Format.print_string ")";
         trace ")";
@@ -2321,7 +2471,9 @@ and expression_fun loc x =
         assert (Option.isSome xx.effect_type);
 	(*Option.app cType_fun type_opt;*)
 	effectOp_fun xx.effect_op;
-        Format.printf "(pm, dt_int)(";
+        Format.printf "(pm, ";
+  Option.app (cType_fun loc) xx.effect_type;
+        Format.printf ")(";
 	expression_fun loc xx.effect_expr;
         Format.print_string ")";
         trace ")";
@@ -2331,7 +2483,9 @@ and expression_fun loc x =
         assert (Option.isSome xx.binary_expr_type);
 	(*Option.app cType_fun type_opt;*)
 	binaryOp_fun xx.binary_expr_op;
-        Format.printf "@[<2>(";
+        Format.printf "(";
+  Option.app (cType_fun loc) xx.binary_expr_type;
+        Format.printf ")@[<2>(";
 	expression_fun loc xx.e1; (*left*)
         Format.printf ",@ ";
 	expression_fun loc xx.e2; (*right*)
@@ -2373,22 +2527,23 @@ and expression_fun loc x =
 
     | E_sizeofType xx ->
 	trace "E_sizeofType(";
-	Format.printf ">>>>>";
+	Format.printf "size_of(dt_";
 	Option.app (cType_fun loc) xx.sizeof_type_type;
-	aSTTypeId_fun xx.sizeof_type_atype;
-	int_fun xx.sizeof_type_size;
-	bool_fun xx.tchecked; (*?*)
-	Format.printf "<<<<<";
+	Format.printf ")";
 	trace ")";
                                                      (* inside expression_fun *)
 
     | E_assign xx ->
         trace "E_assign(";
         assert (Option.isSome xx.assign_type);
-	assignOp_fun xx.assign_op;
-        Format.print_string "(pm, dt_";
-	Option.app (fun t -> cType_fun loc (derefType t)) xx.assign_type;
-	Format.printf ")@[<2>(";
+	      assignOp_fun xx.assign_op;
+        Format.print_string "(pm, ";
+        if (xx.assign_op == BIN_ASSIGN) then
+          begin
+            Format.print_string "dt_"; 
+          end;
+        Option.app (fun t -> cType_fun loc (derefType t)) xx.assign_type;
+        Format.printf ")@[<2>(";
 	expression_fun loc xx.target;
         Format.printf ",@ ";
 	l2r_expression_fun loc xx.src;
@@ -2975,7 +3130,7 @@ let main () =
           @\n\
           END@ %s@]@." lemma_name theory_name;
 *)
-      Format.printf "@[END@ %s@]@." theory_name;
+      Format.printf "END@ %s@]@." theory_name;
       close_out !out
     end;;
 

@@ -1,3 +1,11 @@
+2008-01-03  Marcus Völp   <voelp@os.inf.tu-dresden.de>
+
+        * disable Nova debugging in Makefile
+        * adjust ast2pvs to hardware model
+          - binary expressions are passed a Cpp_Type which must be a
+            non-bool integral
+          - changed the way how functions return values
+
 2007-12-14  Marcus Völp   <voelp@os.inf.tu-dresden.de>
 
         * modified the way nova sources are used

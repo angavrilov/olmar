@@ -57,7 +57,7 @@ byte:
 
 # pre-processing of C++ sources
 %.pre.cpp: %.cpp nova/include/*.h
-	g++ -I nova/include/ -E -o $@ $<
+	g++ -D NDEBUG -I nova/include/ -E -o $@ $<
 
 # Ocaml abstract syntax trees
 .PRECIOUS: %.oast
