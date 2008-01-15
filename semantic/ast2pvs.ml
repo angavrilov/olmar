@@ -1132,9 +1132,7 @@ and enclosing_classname_of_member (v : annotated variable_type) : string =
     (Option.valOf (Option.valOf v.scope).scope_compound).compound_name
 
 
-and memberInit_fun loc x (*annot, pQName, argExpression_list, 
-		    variable_opt_1, compound_opt, variable_opt_2, 
-		    full_expr_annot, statement_opt*) =
+and memberInit_fun loc x =
   begin
     trace "memberInit_fun(";
     Format.printf "e2s(assign(pm, dt_";
@@ -1254,9 +1252,7 @@ and aSTTypeId_fun x =
 
 and pQName_fun x =
   match x with
-      PQ_qualifier xx (*annot, sourceLoc, stringRef_opt, 
-		  templateArgument_opt, pQName, 
-		  variable_opt, s_template_arg_list*) ->
+      PQ_qualifier xx ->
 	trace "PQ_qualifier(";
 	Option.app string_fun xx.qualifier;
 	Option.app (templateArgument_fun xx.pq_qualifier_loc)
@@ -1272,7 +1268,7 @@ and pQName_fun x =
 	string_fun stringRef;
 	trace ")";
 
-    | PQ_operator xx (*annot, sourceLoc, operatorName, stringRef*) ->
+    | PQ_operator xx ->
 	trace "PQ_operator(";
 	Format.printf ">>>>>";
 	operatorName_fun xx.o;
@@ -1291,29 +1287,22 @@ and pQName_fun x =
 
 and typeSpecifier_fun x = 
   match x with
-    | TS_name xx (*annot, sourceLoc, cVFlags, pQName, bool, 
-	     var_opt_1, var_opt_2*) ->
+    | TS_name xx ->
 	trace "TS_name(";
 	(*TODO*)
-(*
-	cVFlags_fun cVFlags;
-	pQName_fun pQName;
-	bool_fun bool;
-*)
 	assert (Option.isSome xx.type_name_var);
 	assert (not (Option.isSome xx.type_name_nondep_var));
 	Option.app variable_fun xx.type_name_var;
 	Option.app variable_fun xx.type_name_nondep_var;
 	trace ")";
 
-    | TS_simple xx (*annot, sourceLoc, cVFlags, simpleTypeId*) ->
+    | TS_simple xx ->
 	trace "TS_simple(";
 	cVFlags_fun xx.simple_type_cv;
 	simpleTypeId_fun xx.id;
 	trace ")";
 
-    | TS_elaborated xx (*annot, sourceLoc, cVFlags, typeIntr, 
-		   pQName, namedAtomicType_opt*) ->
+    | TS_elaborated xx ->
 	trace "TS_elaborated(";
 	Format.printf ">>>>>";
 	assert(match xx.elaborated_atype with
@@ -1328,8 +1317,7 @@ and typeSpecifier_fun x =
 	Format.printf "<<<<<";
 	trace ")";
 
-    | TS_classSpec xx (*annot, sourceLoc, cVFlags, typeIntr, pQName_opt, 
-		  baseClassSpec_list, memberList, compoundType*) ->
+    | TS_classSpec xx ->
 	trace "TS_classSpec(";
 
 	let cVFlags = xx.class_cv in
