@@ -79,6 +79,10 @@ htsync: sync_master
 htsync: sync_master
 	cp nova/ptab-sync-master.pvs /home/tews/VFiasco/hardware
 
+.PHONY: twsync
+twsync: sync_master
+	cp nova/ptab-sync-master.pvs ../../Robin/hardware
+
 # PRECONDITION: 
 # NOVA_DIR has been set to the absolute path where the Robin/nova repository has been checked out
 # HARDWARE_DIR to the absolute path of Robin/hardware
