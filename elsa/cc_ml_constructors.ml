@@ -318,6 +318,7 @@ let register_AK_callbacks () =
  *)
 
 let cv_shift_amount = 10
+let cv_ignore_mask = Int32.of_int 1
 
 let cv_flag_array = [|
   CV_CONST;    (* = 0x0400 *)
@@ -329,10 +330,12 @@ let cv_flag_array = [|
 let _ = assert(Array.length cv_flag_array = 4)
 
 let cv_mask =
-  Int32.lognot(
-    Int32.of_int(int_of_float(
-	2.0 ** (float_of_int (Array.length cv_flag_array)) -. 1.0) 
-	     lsl cv_shift_amount))
+  Int32.lognot
+    (Int32.logor
+      (Int32.of_int(int_of_float(
+        2.0 ** (float_of_int (Array.length cv_flag_array)) -. 1.0)
+            lsl cv_shift_amount))
+      cv_ignore_mask)
 
 
 let cVFlag_from_int32 (flags : int32) =
