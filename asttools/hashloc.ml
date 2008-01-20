@@ -325,7 +325,7 @@ and atomicType_fun x =
 			    string_fun str,
 			    opt_map variable_fun variable_opt,
 			    accessKeyword_fun accessKeyword,
-			    compound_info_fun compound_info,
+			    atomicType_fun compound_info,
 			    List.map sTemplateArgument_fun 
 			      sTemplateArgument_list)
 

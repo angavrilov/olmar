@@ -189,7 +189,7 @@ and 'a atomicType =
        * variable might be void (regtest 568 , in/t0566.cc)
        *)
   | PseudoInstantiation of 'a * string * 'a variable option * accessKeyword * 
-      'a compound_info * 'a sTemplateArgument list
+      'a atomicType * 'a sTemplateArgument list
 
       (* EnumType( user given name, ?, public/protected, 
 	             constants, has_negatives)

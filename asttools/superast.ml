@@ -310,7 +310,7 @@ module Into_array = struct
 	    ast_array.(id_annotation annot) <- AtomicType x;
 	    visit annot;
 	    opt_iter (variable_fun ast_array) variable_opt;
-	    compound_info_fun ast_array compound_info;
+	    atomicType_fun ast_array compound_info;
 	    List.iter (sTemplateArgument_fun ast_array) sTemplateArgument_list
 
 	| EnumType(annot, _string, variable, _accessKeyword, 

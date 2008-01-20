@@ -243,7 +243,7 @@ and atomicType_fun x =
 			    compound_info, sTemplateArgument_list) ->
 	  visit annot;
 	  opt_iter variable_fun variable_opt;
-	  compound_info_fun compound_info;
+	  atomicType_fun compound_info;
 	  List.iter sTemplateArgument_fun sTemplateArgument_list
 
       | EnumType(annot, string, variable, accessKeyword, 

@@ -438,7 +438,7 @@ and atomicType_fun at =
 	      [("name", str);
 	       ("access", string_of_accessKeyword accessKeyword)]
 	      (let l1 = opt_child variable_fun "typedefVar" variable_opt in
-	       let l2 = [compound_info_fun compound_info, "primary"] in
+	       let l2 = [atomicType_fun compound_info, "primary"] in
 	       let l3 = 
 		 count_rev "args" 
 		   (List.rev_map 

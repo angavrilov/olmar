@@ -161,7 +161,7 @@ let ast_node_fun up down myindex = function
 				   compound_info, sTemplateArgument_list)) ->
       add_links up down myindex
 	(opt_link variable_annotation variable_opt
-	   ([compound_info_annotation compound_info]
+	   ([atomicType_annotation compound_info]
 	    @ (List.map sTemplateArgument_annotation sTemplateArgument_list)))
 
   (* 7 *)
