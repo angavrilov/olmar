@@ -72,9 +72,6 @@ byte:
 sync_master: nova/ptab.oast ast2pvs
 	./ast2pvs nova/ptab.oast nova/ptab-sync-master.pvs -function sync_master
 
-.PHONY: sync_master
-htsync: sync_master
-
 .PHONY: htsync
 htsync: sync_master
 	cp nova/ptab-sync-master.pvs /home/tews/VFiasco/hardware
