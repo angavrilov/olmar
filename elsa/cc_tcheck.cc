@@ -6249,6 +6249,13 @@ static bool hasNoopDtor(CType *t)
 
 CType *E_funCall::itcheck_x(Env &env, Expression *&replacement)
 {
+  // Do not retype completely applied conversion operators
+  if (type && func->type && func->type->isFunctionType()) {
+    FunctionType *ft = func->type->asFunctionType();
+    if (ft->isConversionOperator() && ft->retType == type)
+      return type;
+  }
+
   LookupSet candidates;
   inner1_itcheck(env, candidates);
 
@@ -7793,7 +7800,7 @@ CType *resolveOverloadedBinaryOperator(
   Expression *&replacement,  // OUT: replacement node
   //Expression *ths,           // expression node that is being resolved (not used)
   Expression *e1,            // left subexpression of 'this' (already type-checked)
-  Expression *e2,            // right subexpression, or NULL for postfix inc/dec
+  Expression *&e2,            // right subexpression, or NULL for postfix inc/dec
   OverloadableOp op,         // which operator this node is
   ArgumentInfoArray &argInfo // carries info about overloaded func arg names
 ) {
@@ -7919,6 +7926,19 @@ CType *resolveOverloadedBinaryOperator(
           replacement = deref;
           return deref->type;
         }
+        else if (op == OP_ASSIGN && env.lang.isCplusplus) {
+          CType *target_type = e1->type->asRval();
+
+          if (env.elaborateImplicitConversionArgToParam(target_type, e2)) {
+            xassert(e2->ambiguity == NULL);
+          } else {
+            env.error(e2->getType(), stringc
+                      << "cannot convert source type `" << e2->getType()->toString()
+                      << "' to target type `" << target_type->toString() << "'");
+          }
+
+          return resolver.getReturnType(winnerCand);
+        }
         else {
           // get the correct return value, at least
           CType *ret = resolver.getReturnType(winnerCand);
@@ -8020,12 +8040,14 @@ CType *E_effect::itcheck_x(Env &env, Expression *&replacement)
     env.error(stringc << "cannot use overloaded function name with " << toString(op));
   }
 
+  Expression *stub = NULL;
+
   // consider the possibility of operator overloading
   CType *ovlRet = isPrefix(op)?
     resolveOverloadedUnaryOperator(
       env, replacement, /*this,*/ expr, toOverloadableOp(op)) :
     resolveOverloadedBinaryOperator(
-      env, replacement, /*this,*/ expr, NULL, toOverloadableOp(op), argInfo) ;
+      env, replacement, /*this,*/ expr, stub, toOverloadableOp(op), argInfo) ;
   if (ovlRet) {
     return ovlRet;
   }
@@ -8867,6 +8889,20 @@ CType *E_assign::itcheck_x(Env &env, Expression *&replacement)
   // this finalizes an overloaded function name if the use
   // of '=' was not overloadable
   env.possiblySetOverloadedFunctionVar(src, target->type, argInfo[1].overloadSet);
+
+  if (op == BIN_ASSIGN && env.lang.isCplusplus) {
+    CType *target_type = target->type->asRval();
+
+    if (!src->type->containsGeneralizedDependent()) {
+      if (env.elaborateImplicitConversionArgToParam(target_type, src)) {
+        xassert(src->ambiguity == NULL);
+      } else {
+        env.error(src->getType(), stringc
+                  << "cannot convert source type `" << src->getType()->toString()
+                  << "' to target type `" << target_type->toString() << "'");
+      }
+    }
+  }
 
   return target->type;
 }

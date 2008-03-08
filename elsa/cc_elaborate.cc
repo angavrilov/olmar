@@ -713,7 +713,7 @@ Expression *ElabVisitor::elaborateCallSite(
 
       Variable *param = paramsIter.data();
       CType *paramType = param->getType();
-      if (paramType->isCompoundType()) {
+      if (paramType->isCompoundType() && !arg->expr->isE_constructor()) {
         // NOTE: it seems like this is one of those places where I
         // should NOT clone the "argument" argument to
         // makeCtorExpr/Statement (which is called by

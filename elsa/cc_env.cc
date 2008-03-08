@@ -11,6 +11,7 @@
 #include "mtype.h"         // MType
 #include "implconv.h"      // ImplicitConversion
 #include "typelistiter.h"  // TypeListIter_GrowArray
+#include "ast_build.h"     // makeExprList1, etc.
 
 
 // forwards in this file
@@ -5774,7 +5775,29 @@ Expression *Env::makeConvertedArg(Expression * const arg,
     }
     break;
   case ImplicitConversion::IC_USER_DEFINED:
-    // TODO
+    {
+      FunctionType *ft = ic.user->type->asFunctionType();
+
+      if (ft->isConstructor()) {
+        E_constructor *ector0 = new E_constructor(new TS_type(env.loc(), ft->retType), makeExprList1(arg));
+
+        ector0->type = ft->retType;
+        ector0->ctorVar = ic.user;
+
+        newarg = ector0;
+      }
+      else if (ft->isConversionOperator()) {
+        E_fieldAcc *efieldacc = new E_fieldAcc(arg, new PQ_variable(env.loc(), ic.user));
+        efieldacc->type = ft;
+        efieldacc->field = ic.user;
+
+        E_funCall *funcall = new E_funCall(efieldacc, FakeList<ArgExpression>::emptyList());
+        funcall->type = ft->retType;
+
+        newarg = funcall;
+      }
+      // TODO
+    }
     break;
   case ImplicitConversion::IC_ELLIPSIS:
     // TODO

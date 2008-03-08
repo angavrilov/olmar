@@ -1756,6 +1756,15 @@ void printArgExprList(PrintEnv &env, FakeList<ArgExpression> *list)
 void E_funCall::iprint(PrintEnv &env)
 {
   TreeWalkDebug treeDebug("E_funCall::iprint");
+
+  if (func->type && func->type->isFunctionType()) {
+    FunctionType *ft = func->type->asFunctionType();
+    if (ft->isConversionOperator()) {
+      func->asE_fieldAcc()->obj->print(env);
+      return;
+    }
+  }
+
   func->print(env);
   PairDelim pair(*env.out, "", "(", ")");
   printArgExprList(env, args);

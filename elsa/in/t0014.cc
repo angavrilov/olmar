@@ -27,16 +27,16 @@ int main()
   // E_new of an array of an array; this allocates
   // an array of objects, where each object has type
   // "int[5]", and 'x' objects are allocated
-  pp = new int[x][5];
+  // ERROR(1): pp = new int[x][5];
 
   // E_delete
   delete p;
 
   // E_keywordCast
-  x = const_cast<int>(x);
-  x = dynamic_cast<int>(x);
+  p = const_cast<int*>(p);
+  p = dynamic_cast<int*>(p);
   x = static_cast<int>(x);
-  x = reinterpret_cast<int>(x);
+  x = reinterpret_cast<float>(x);
 
   // E_typeidExpr
   typeid(x);
