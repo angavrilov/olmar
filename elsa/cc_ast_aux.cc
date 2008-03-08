@@ -1687,8 +1687,8 @@ void ReachableVarsTypeVisitor::visitScope(Scope *scope) {
   if (seenScopes.contains(scope)) return;
   seenScopes.add(scope);
   variableVisitor->visitVariable(scope->namespaceVar);
-  // FIX: If this type is a CompoundType, I think it will get visited
-  // as a CType by the type visitor at some point
+  if (scope->curCompound)
+    visitCompoundType(scope->curCompound);
   visitScope(scope->parentScope);
 }
 
