@@ -679,3 +679,8 @@ checkxml:
 # run all the tests
 .PHONY: check-full
 check-full: check checkxml
+
+# install the executable
+.PHONY: install
+install: ccparse
+	install ccparse /usr/local/bin

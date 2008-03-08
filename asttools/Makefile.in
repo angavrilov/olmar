@@ -157,6 +157,15 @@ ast_browser:  olmar.$(OCAML_LIB_EXT) ast_browser.$(OCAML_OBJ_EXT)
 	$(OCAMLCC) $(OCAML_FLAGS) -I $(ELSA) -I +lablgtk2 -o $@ lablgtk.$(OCAML_LIB_EXT) $^
 
 
+.PHONY: install
+install: META olmar.cma olmar.cmxa olmar.a $(OLMAR_LIB_FILES:.ml=.cmi)
+	ocamlfind install olmar $^
+	test ! -f ast_browser || install ast_browser /usr/local/bin
+
+.PHONY: uninstall
+	ocamlfind remove olmar
+
+
 TOCLEAN += dumpast
 dumpast: dumpast.ml
 	$(OCAMLCC) $(OCAML_FLAGS) -o $@ -I $(ELSA) unix.$(OCAML_LIB_EXT) $^

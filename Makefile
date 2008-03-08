@@ -44,3 +44,7 @@ docclean:
 	$(MAKE) -C elkhound docclean
 	$(MAKE) -C elsa docclean
 	$(MAKE) -C asttools docclean
+
+install:
+	$(MAKE) -C elsa install
+	$(MAKE) -C asttools install
