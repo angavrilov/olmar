@@ -5889,6 +5889,9 @@ Expression **skipGroupsPtr(Expression **e, ArrayStack<Expression*> &intermediate
 void tcheckExpression_set(Env &env, Expression *&expr,
                           LookupFlags flags, LookupSet &set)
 {
+  if (expr->ambiguity)
+    resolveAmbiguity(expr, env, "Expression", false /*priority*/, expr);
+ 
   Expression *origExpr = expr;
 
   CType *t;

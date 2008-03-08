@@ -916,7 +916,7 @@ void TypeSpecifier::setCVOnce(CVFlags newCV)
   // caller should not be using CV_UNLOCKED
   xassert(!(newCV & CV_UNLOCKED));
 
-  if (cv == CV_UNLOCKED) {
+  if (unsigned(cv) == unsigned(CV_UNLOCKED)) {
     cv = newCV;
   }
   else {

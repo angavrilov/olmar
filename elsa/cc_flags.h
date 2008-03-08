@@ -68,10 +68,16 @@ void fromXml(CVFlags &out, char const *str);
 ENUM_BITWISE_OPS(CVFlags, CV_ALL)
 
 // experiment: superset operator
+inline bool operator== (CVFlags cv1, CVFlags cv2)
+  { return unsigned(cv1 & CV_ALL) == unsigned(cv2 & CV_ALL); }  
+
+inline bool operator!= (CVFlags cv1, CVFlags cv2)
+  { return unsigned(cv1 & CV_ALL) != unsigned(cv2 & CV_ALL); }  
+
 inline bool operator>= (CVFlags cv1, CVFlags cv2)
-  { return (cv1 & cv2 & CV_ALL) == (cv2 & CV_ALL); }
+  { return unsigned(cv1 & cv2 & CV_ALL) == unsigned(cv2 & CV_ALL); }
 
-
+  
 // ----------------------- DeclFlags ----------------------
 // These flags tell what keywords were attached to a variable when it
 // was declared.  They also reflect classifications of various kinds;
