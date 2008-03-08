@@ -1205,8 +1205,22 @@ value TemplateInfo::toOcaml(ToOcamlData *data){
   //   child[5] = Val_None;
   // }
   child[5] = ref_constr(Val_None, data);
-  if(instantiationOf)
+  
+  bool prune_arguments = false;
+  
+  if(instantiationOf) {
     postpone_circular_Variable(data, child[5], instantiationOf);
+    
+    if (data->pruneUnused && !instantiationOf->getReal()) 
+    {
+      TemplateInfo *ti = instantiationOf->templateInfo();
+      
+      // Remove arguments inherited from the enclosing template
+      // There is no way to do it from the serialized tree if the condition of this if holds
+      prune_arguments = 
+        ti && ti->params.isEmpty() && !ti->inheritedParams.isEmpty();
+    }
+  }
 
   instantiations_result = Val_emptylist;
   SFOREACH_OBJLIST_NC(Variable, instantiations, iter) {
@@ -1239,12 +1253,14 @@ value TemplateInfo::toOcaml(ToOcamlData *data){
   child[8] = ocaml_list_rev(specializations_result);
 
   arguments_result = Val_emptylist;
-  FOREACH_OBJLIST_NC(STemplateArgument, arguments, iter) {
-    elem = iter.data()->toOcaml(data);
-    tmp = caml_alloc(2, Tag_cons); // allocate a cons cell
-    Store_field(tmp, 0, elem);	// store car
-    Store_field(tmp, 1, arguments_result); // store cdr
-    arguments_result = tmp;
+  if (!prune_arguments) {
+    FOREACH_OBJLIST_NC(STemplateArgument, arguments, iter) {
+      elem = iter.data()->toOcaml(data);
+      tmp = caml_alloc(2, Tag_cons); // allocate a cons cell
+      Store_field(tmp, 0, elem);	// store car
+      Store_field(tmp, 1, arguments_result); // store cdr
+      arguments_result = tmp;
+    }
   }
   child[9] = ocaml_list_rev(arguments_result);
 
@@ -1271,12 +1287,14 @@ value TemplateInfo::toOcaml(ToOcamlData *data){
   child[12] = ocaml_list_rev(partial_inst_result);
 
   arg_to_prim_result = Val_emptylist;
-  FOREACH_OBJLIST_NC(STemplateArgument, argumentsToPrimary, iter) {
-    elem = iter.data()->toOcaml(data);
-    tmp = caml_alloc(2, Tag_cons); // allocate a cons cell
-    Store_field(tmp, 0, elem);	// store car
-    Store_field(tmp, 1, arg_to_prim_result); // store cdr
-    arg_to_prim_result = tmp;
+  if (!prune_arguments) {
+    FOREACH_OBJLIST_NC(STemplateArgument, argumentsToPrimary, iter) {
+      elem = iter.data()->toOcaml(data);
+      tmp = caml_alloc(2, Tag_cons); // allocate a cons cell
+      Store_field(tmp, 0, elem);	// store car
+      Store_field(tmp, 1, arg_to_prim_result); // store cdr
+      arg_to_prim_result = tmp;
+    }
   }
   child[13] = ocaml_list_rev(arg_to_prim_result);
 
