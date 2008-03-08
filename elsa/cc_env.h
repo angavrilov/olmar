@@ -234,6 +234,7 @@ public:      // data
   bool doFunctionTemplateBodyInstantiation;
   bool doCompareArgsToParams;
   bool doReportTemplateErrors;     // see doc/permissive.txt
+  bool doReportPermissiveWarnings; // if false, no messages from uninst templates
 
   // when non-empty, the variable lookup results are collected and
   // compared to the text stored in this pointer; it is supplied via

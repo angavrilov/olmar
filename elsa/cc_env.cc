@@ -388,6 +388,7 @@ Env::Env(StringTable &s, CCLang &L, TypeFactory &tf,
     // 2005-03-09: things are finally ready to turn strict checking
     // on by default (see doc/permissive.txt)
     doReportTemplateErrors(!tracingSys("permissive")),
+    doReportPermissiveWarnings(!tracingSys("silent")),
 
     collectLookupResults("")
 {

@@ -148,6 +148,12 @@ bool strongMsgFilter(ErrorMsg *msg)
   }
 }
 
+bool fullMsgFilter(ErrorMsg *msg)
+{
+  TRACE("error", "dropping error arising from uninst template: " << msg->msg);
+  return false;
+}
+
 
 // take the errors, and later put them back after filtering
 class UninstTemplateErrorFilter {
@@ -169,7 +175,10 @@ public:
       if (!env.doReportTemplateErrors) {
         // remove all messages that are not 'strong'
         // (see doc/permissive.txt)
-        env.errors.filter(strongMsgFilter);
+        // ang: or drop them completely
+        env.errors.filter(
+          env.doReportPermissiveWarnings ?
+            strongMsgFilter : fullMsgFilter);
       }
 
       // now put back the saved messages

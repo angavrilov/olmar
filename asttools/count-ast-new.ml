@@ -35,6 +35,8 @@ open Ml_ctype
 open Cc_ast_gen_type
 
 
+
+
 (**************************************************************************
  *
  * contents of astmatch.ml
@@ -50,6 +52,7 @@ let count_int = ref 0
 let count_nativeint = ref 0
 let count_string = ref 0
 let count_sourceLoc = ref 0
+let count_fileloc = Hashtbl.create 100
 
 let bool_fun _ = incr count_bool
 
@@ -61,12 +64,16 @@ let string_fun _ =
   (* Printf.eprintf "STRING\n%!"; *)
   incr count_string
 
-let sourceLoc_fun _ = 
+let sourceLoc_fun (file,_,_) = 
   incr count_sourceLoc;
   (* Printf.eprintf "STRING\n%!"; *)
   incr count_string;
   incr count_int;
-  incr count_int
+  incr count_int;
+  try
+    incr (Hashtbl.find count_fileloc file)
+  with 
+    Not_found -> Hashtbl.add count_fileloc file (ref 1)   
 
 
 
@@ -859,7 +866,11 @@ let print_stats o_max_node =
 	print_endline "";
     end;
     if o_max_node <> o_max_node or o_max_node <> o_max_node then
-      print_endline "node counts differ!"
+      print_endline "node counts differ!";
+    List.iter (fun (file, cnt) -> 
+	 Printf.printf "%s\t\t- %d locations.\n" file cnt) 
+      (List.sort (fun (_, a) (_, b) -> compare a b)
+         (Hashtbl.fold (fun k c l -> (k, !c) :: l) count_fileloc []))
 
 
 
