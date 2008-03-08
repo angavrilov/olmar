@@ -624,6 +624,11 @@ bool IMType::imatchTypeWithResolvedType(CType const *conc, CType const *pat,
 
   CType const *resolvedType = env->applyArgumentMapToType_helper(mtype, patNC);
   if (resolvedType) {
+    // don't match as it will enforce complete type equality,
+    // and no deduction is possible anyway
+    if (flags & MF_DEDUCTION)
+      return true;
+
     // take the resolved type and compare it directly to 'conc'
     return imatchType(conc, resolvedType, flags & ~MF_MATCH);
   }
