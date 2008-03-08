@@ -47,7 +47,7 @@ void tcheckPQName(PQName *&name, Env &env, Scope *scope = NULL,
                   LookupFlags lflags = LF_NONE);
 
 static Variable *outerResolveOverload_ctor
-  (Env &env, SourceLoc loc, CType *type, ArgumentInfoArray &argInfo);
+  (Env &env, SourceLoc loc, CType *type, ArgumentInfoArray &argInfo, FakeList<ArgExpression> **args = NULL);
 
 static Variable *outerResolveOverload_explicitSet(
   Env &env,
@@ -5713,6 +5713,8 @@ void getArgumentInfo(Env &env, ArgumentInfo &ai, Expression *e)
   ai.type = e->type;
 }
 
+static bool refineCandidates(Env &env, SourceLoc loc, LookupSet &candidates, 
+    PQ_template *targs, FakeList<ArgExpression> *args, char const *&lastRemovalReason);
 
 // Given a Variable that might denote an overloaded set of functions,
 // and the syntax of the arguments that are to be passed to the
@@ -5738,15 +5740,31 @@ void getArgumentInfo(Env &env, ArgumentInfo &ai, Expression *e)
 static Variable *outerResolveOverload(Env &env,
                                       PQName * /*nullable*/ finalName,
                                       SourceLoc loc, Variable *var,
-                                      ArgumentInfoArray &argInfo)
+                                      ArgumentInfoArray &argInfo,
+                                      FakeList<ArgExpression> **args)
 {
-  // if no overload set, nothing to resolve
-  if (!var->overload) {
-    return var;
+  LookupSet candidates;
+  candidates.adds(var);
+
+  if (args) {
+    char const *lastRemovalReason = "(none removed)";
+    refineCandidates(env, loc, candidates, NULL, *args, lastRemovalReason);
+
+    if (candidates.isEmpty()) {
+      env.error(loc, stringc
+               << "call site name lookup failed to yield any candidates; "
+               << "last candidate was removed because: " << lastRemovalReason);
+    }
   }
 
+  if (candidates.isEmpty())
+    return NULL;
+
+  if (candidates.count() == 1)
+    return candidates.first();
+
   return outerResolveOverload_explicitSet(env, finalName, loc, var->name,
-                                          argInfo, var->overload->set);
+                                          argInfo, candidates);
 }
 
 static Variable *outerResolveOverload_explicitSet(
@@ -5802,7 +5820,7 @@ static Variable *outerResolveOverload_explicitSet(
 // version of 'outerResolveOverload' for constructors; 'type' is the
 // type of the object being constructed
 static Variable *outerResolveOverload_ctor
-  (Env &env, SourceLoc loc, CType *type, ArgumentInfoArray &argInfo)
+  (Env &env, SourceLoc loc, CType *type, ArgumentInfoArray &argInfo, FakeList<ArgExpression> **args)
 {
   // skip overload resolution if any dependent args (in/t0412.cc)
   for (int i=0; i<argInfo.size(); i++) {
@@ -5828,7 +5846,8 @@ static Variable *outerResolveOverload_ctor
                                             NULL, // finalName; none for a ctor
                                             loc,
                                             ctor,
-                                            argInfo);
+                                            argInfo,
+                                            args);
     if (chosen) {
       ret = chosen;
     } else {
@@ -6317,6 +6336,70 @@ void possiblyWrapWithImplicitThis(Env &env, Expression *&func,
   }
 }
 
+static bool refineCandidates(Env &env, SourceLoc loc, LookupSet &candidates, 
+    PQ_template *targs, FakeList<ArgExpression> *args, char const *&lastRemovalReason)
+{
+  /**/ {
+    SObjListMutator<Variable> mut(candidates);
+    while (!mut.isDone()) {
+      Variable *v = mut.data();
+      bool const considerInherited = false;
+      InferArgFlags const iflags = IA_NO_ERRORS;
+
+      // filter out non-templates if we have template arguments
+      if (targs && !v->isTemplate(considerInherited)) {
+        mut.remove();
+        lastRemovalReason = "non-template given template arguments";
+        continue;
+      }
+
+      // instantiate templates
+      if (v->isTemplate(considerInherited)) {
+        // initialize the bindings with those explicitly provided
+        MType match(env);
+        if (targs) {
+          if (!env.loadBindingsWithExplTemplArgs(v, targs->sargs, match, iflags)) {
+            mut.remove();
+            lastRemovalReason = "incompatible explicit template args";
+            continue;
+          }
+        }
+
+        // deduce the rest from the call site (expression) args
+        TypeListIter_FakeList argsIter(args);
+        if (!env.inferTemplArgsFromFuncArgs(v, argsIter, match, iflags)) {
+          mut.remove();
+          lastRemovalReason = "incompatible call site args";
+          continue;
+        }
+
+        // use them to instantiate the template
+        Variable *inst = env.instantiateFunctionTemplate(loc, v, match);
+        if (!inst) {
+          // in/t0608.cc: it might be that 'v' is a template member of
+          // something that encloses this site, in which case we can't
+          // instantiate it b/c some parameters are still abstract, so
+          // we will just call it dependent
+          if (env.isMemberOfOpenTemplate(v)) {
+            return false;
+          }
+
+          mut.remove();
+          lastRemovalReason = "could not deduce all template params";
+          continue;
+        }
+
+        // replace the template primary with its instantiation
+        mut.dataRef() = inst;
+      }
+
+      mut.adv();
+    }
+  }
+
+  return true;
+}
+
 CType *E_funCall::inner2_itcheck(Env &env, LookupSet &candidates)
 {
   // inner1 skipped E_groupings already
@@ -6436,61 +6519,8 @@ CType *E_funCall::inner2_itcheck(Env &env, LookupSet &candidates)
 
     // refine candidates by instantiating templates, etc.
     char const *lastRemovalReason = "(none removed yet)";
-    SObjListMutator<Variable> mut(candidates);
-    while (!mut.isDone()) {
-      Variable *v = mut.data();
-      bool const considerInherited = false;
-      InferArgFlags const iflags = IA_NO_ERRORS;
-
-      // filter out non-templates if we have template arguments
-      if (targs && !v->isTemplate(considerInherited)) {
-        mut.remove();
-        lastRemovalReason = "non-template given template arguments";
-        continue;
-      }
-
-      // instantiate templates
-      if (v->isTemplate(considerInherited)) {
-        // initialize the bindings with those explicitly provided
-        MType match(env);
-        if (targs) {
-          if (!env.loadBindingsWithExplTemplArgs(v, targs->sargs, match, iflags)) {
-            mut.remove();
-            lastRemovalReason = "incompatible explicit template args";
-            continue;
-          }
-        }
-
-        // deduce the rest from the call site (expression) args
-        TypeListIter_FakeList argsIter(args);
-        if (!env.inferTemplArgsFromFuncArgs(v, argsIter, match, iflags)) {
-          mut.remove();
-          lastRemovalReason = "incompatible call site args";
-          continue;
-        }
-
-        // use them to instantiate the template
-        Variable *inst = env.instantiateFunctionTemplate(pqname->loc, v, match);
-        if (!inst) {
-          // in/t0608.cc: it might be that 'v' is a template member of
-          // something that encloses this site, in which case we can't
-          // instantiate it b/c some parameters are still abstract, so
-          // we will just call it dependent
-          if (env.isMemberOfOpenTemplate(v)) {
-            return env.dependentType();
-          }
-
-          mut.remove();
-          lastRemovalReason = "could not deduce all template params";
-          continue;
-        }
-
-        // replace the template primary with its instantiation
-        mut.dataRef() = inst;
-      }
-
-      mut.adv();
-    }
+    if (!refineCandidates(env, pqname->loc, candidates, targs, args, lastRemovalReason))
+      return env.dependentType();
 
     // do we still have any candidates?
     if (candidates.isEmpty()) {
@@ -6540,20 +6570,21 @@ CType *E_funCall::inner2_itcheck(Env &env, LookupSet &candidates)
   // the type of the function that is being invoked
   CType *t = func->type->asRval();
 
+  // fulfill the promise that inner1 made when it passed
+  // LF_NO_IMPL_THIS, namely that we would add 'this->' later
+  // if needed; here is "later"
+  possiblyWrapWithImplicitThis(env, func, fevar, feacc);
+
   // check for operator()
   CompoundType *ct = t->ifCompoundType();
   if (ct) {
-    // the insertion of implicit 'this->' below will not be reached,
-    // so do it here too
-    possiblyWrapWithImplicitThis(env, func, fevar, feacc);
-
     env.ensureCompleteType("use as function object", t);
     Variable *funcVar = ct->getNamedField(env.functionOperatorName, env);
     if (funcVar) {
       // resolve overloading
       getArgumentInfo(env, argInfo[0], func);
       funcVar = outerResolveOverload(env, NULL /*finalName*/, env.loc(), funcVar,
-                                     argInfo);
+                                     argInfo, &args);
       if (funcVar) {
         // rewrite AST to reflect use of 'operator()'
         Expression *object = func;
@@ -6563,7 +6594,9 @@ CType *E_funCall::inner2_itcheck(Env &env, LookupSet &candidates)
         fa->type = funcVar->type;
         func = fa;
 
-        return funcVar->type->asFunctionType()->retType;
+        fevar = NULL;
+        feacc = fa;
+        t = funcVar->type;
       }
       else {
         return env.errorType();
@@ -6575,11 +6608,6 @@ CType *E_funCall::inner2_itcheck(Env &env, LookupSet &candidates)
         << "but it has no operator() declared");
     }
   }
-
-  // fulfill the promise that inner1 made when it passed
-  // LF_NO_IMPL_THIS, namely that we would add 'this->' later
-  // if needed; here is "later"
-  possiblyWrapWithImplicitThis(env, func, fevar, feacc);
 
   // make sure this function has been typechecked
   if (fevar) {
