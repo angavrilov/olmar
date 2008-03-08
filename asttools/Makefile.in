@@ -124,6 +124,39 @@ ast_graph: $(ASTGRAPH_ML:.ml=.$(OCAML_OBJ_EXT))
 	$(OCAMLCC) $(OCAML_FLAGS) -o $@ $^
 
 
+OLMAR_LIB_FILES=\
+	dense_set.ml \
+	$(ELSA)/elsa_util.ml \
+	$(ELSA)/cc_ml_types.ml \
+	$(ELSA)/ml_ctype.ml \
+	$(ELSA)/ast_annotation.ml \
+	$(ELSA)/cc_ast_gen_type.ml \
+	$(ELSA)/oast_header_version.ml \
+	$(ELSA)/oast_header.ml \
+	ast_util.ml \
+	ast_meta.ml
+
+olmar.cma: $(OLMAR_LIB_FILES:.ml=.cmo)
+	$(OCAMLC) $(OCAML_FLAGS) -a -o $@ $^
+
+olmar.cmxa: $(OLMAR_LIB_FILES:.ml=.cmx)
+	$(OCAMLOPT) $(OCAML_FLAGS) -a -o $@ $^
+
+.PHONY: libs
+TOCLEAN += olmar.cma olmar.cmxa olmar.a
+libs: olmar.cma olmar.cmxa olmar.a $(OLMAR_LIB_FILES:.ml=.cmi)
+	mkdir -p lib
+	cp -f $^ lib/
+
+
+ast_browser.$(OCAML_OBJ_EXT): ast_browser.ml
+	$(OCAMLCC) $(OCAML_FLAGS) -I $(ELSA) -I +lablgtk2 -c $<
+
+TOCLEAN += ast_browser
+ast_browser:  olmar.$(OCAML_LIB_EXT) ast_browser.$(OCAML_OBJ_EXT)
+	$(OCAMLCC) $(OCAML_FLAGS) -I $(ELSA) -I +lablgtk2 -o $@ lablgtk.$(OCAML_LIB_EXT) $^
+
+
 TOCLEAN += dumpast
 dumpast: dumpast.ml
 	$(OCAMLCC) $(OCAML_FLAGS) -o $@ -I $(ELSA) unix.$(OCAML_LIB_EXT) $^
@@ -237,15 +270,15 @@ test_ast: ast_graph
 
 $(ELSA)/%.cmo: $(ELSA)/%.ml
 	$(MAKE) \
-		OCAMLOPT="$(OCAMLOPT)" OCAMLCC="$(OCAMLCC)" \
-		OCAMLC="$(OCAMLC)" OCAML_OBJ_EXT="$(OCAML_OBJ_EXT)" \
+		OCAMLOPT="$(OCAMLOPT)" OCAMLCC="$(OCAMLC)" \
+		OCAMLC="$(OCAMLC)" OCAML_OBJ_EXT="cmo" \
 		OCAML_LIB_EXT="$(OCAML_LIB_EXT)" \
 		-C $(ELSA) elsa_ml_objects
 
 $(ELSA)/%.cmx: $(ELSA)/%.ml
 	$(MAKE) \
-		OCAMLOPT="$(OCAMLOPT)" OCAMLCC="$(OCAMLCC)" \
-		OCAMLC="$(OCAMLC)" OCAML_OBJ_EXT="$(OCAML_OBJ_EXT)" \
+		OCAMLOPT="$(OCAMLOPT)" OCAMLCC="$(OCAMLOPT)" \
+		OCAMLC="$(OCAMLC)" OCAML_OBJ_EXT="cmx" \
 		OCAML_LIB_EXT="$(OCAML_LIB_EXT)" \
 		-C $(ELSA) elsa_ml_objects
 
