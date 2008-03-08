@@ -533,6 +533,14 @@ value ocaml_from_SourceLoc(const SourceLoc &loc, ToOcamlData *d){
   CAMLreturn(result);
 }
 
+// A function to dump source coordinates, to be used from gdb
+void dumpSourceLoc(SourceLoc loc) {
+  char const *name;
+  int line, col;
+
+  sourceLocManager->decodeLineCol(loc, name, line, col);
+  printf("%s:%d:%d\n", name, line, col);
+}
 
 // hand written ocaml serialization function
 value ocaml_ast_annotation(const void *thisp, ToOcamlData *d)
