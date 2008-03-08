@@ -70,10 +70,11 @@ let create_TTK_INSTANTIATION_constructor () = TTK_INSTANTIATION
 (* type variable *)
 
 let create_variable_constructor 
-    poly loc name var_type flags value 
-    defparam funcdef overload_ref virt_ride scope_opt templ_info =
+    poly loc name var_type flags value
+    defparam funcdef overload_ref virt_ride scope_opt templ_info decl_loc =
   { poly_var = poly;
     loc = loc;
+    var_decl_loc = decl_loc;
     var_name = name;
     var_type = var_type;
     flags = flags;

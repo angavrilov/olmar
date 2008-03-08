@@ -3567,6 +3567,7 @@ Variable *Env::createDeclaration(
       TRACE("odr",    "def'n of " << name
                    << " at " << toString(loc)
                    << " overrides decl at " << toString(prior->loc));
+      prior->decl_loc = prior->loc;
       prior->loc = loc;
       prior->setFlag(DF_DEFINITION);
       prior->clearFlag(DF_EXTERN);

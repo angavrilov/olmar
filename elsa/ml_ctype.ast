@@ -34,7 +34,11 @@ ocaml_type_verbatim {
 (* this will be inserted in the middle in the ast type defintion *)
 and 'a variable = {
   poly_var : 'a;
+
+  (* If the var is a definition, var_decl_loc might hold the declaration location. *)
   loc : sourceLoc;
+  var_decl_loc : sourceLoc;
+
   (* might be None for abstract declarators (?) *)
   var_name : string option;
 

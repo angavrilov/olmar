@@ -526,7 +526,7 @@ all.ast: $(CC_AST_MODS)
 	if [ -f all.ast ] ; then \
 		line1=$$(head -1 all.ast); echo $$line1 > all.ast; \
 	else \
-		echo "// all.ast \$$Revision: 1.32 $$" >> all.ast; \
+		echo "// all.ast \$$Revision: 1.33 $$" >> all.ast; \
 	fi
 	for f in $^ ; do \
 		echo "//=========================== start of $$f" >> all.ast; \

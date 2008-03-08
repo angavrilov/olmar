@@ -76,6 +76,7 @@ let rec variable_fun(v : annotated variable) =
     poly_var = annotation_fun v.poly_var;
 
     loc = sourceLoc_fun v.loc;
+    var_decl_loc = sourceLoc_fun v.var_decl_loc;
 
     var_name = opt_map string_fun v.var_name;
 

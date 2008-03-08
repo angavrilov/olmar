@@ -61,6 +61,7 @@ size_t Variable::numVariables = 0;
 // ---------------------- Variable --------------------
 Variable::Variable(SourceLoc L, StringRef n, CType *t, DeclFlags f)
   : loc(L),
+    decl_loc(SL_UNKNOWN),
     name(n),
     type(t),
     flags(f),
@@ -112,6 +113,7 @@ Variable::Variable(SourceLoc L, StringRef n, CType *t, DeclFlags f)
 // ctor for de-serialization
 Variable::Variable(XmlReader&)
   : loc(SL_UNKNOWN),
+    decl_loc(SL_UNKNOWN),
     name(NULL),
     type(NULL),
     flags(DF_NONE),
@@ -935,7 +937,7 @@ void Variable::traverse(TypeVisitor &vis) {
 value Variable::toOcaml(ToOcamlData *data){
   CAMLparam1(ocaml_val);
   CAMLlocal3(elem, list, tmp);
-  CAMLlocalN(var, 12);
+  CAMLlocalN(var, 13);
   
   if(ocaml_val) {
     // cerr << "shared ocaml value in Variable\n" << flush;
@@ -957,6 +959,7 @@ value Variable::toOcaml(ToOcamlData *data){
 
   var[0] = ocaml_ast_annotation(this, data);
   var[1] = ocaml_from_SourceLoc(loc, data);
+  var[12] = ocaml_from_SourceLoc(decl_loc, data);
 
   if(name) {
     var[2] = ocaml_from_StringRef(name, data);
@@ -1037,7 +1040,7 @@ value Variable::toOcaml(ToOcamlData *data){
   }
 
   ocaml_val = caml_callbackN(*create_variable_constructor_closure,
-                             12, var);
+                             13, var);
   xassert(IS_OCAML_AST_VALUE(ocaml_val));
 
   data->stack.remove(this);

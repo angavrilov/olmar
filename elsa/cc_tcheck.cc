@@ -1991,6 +1991,12 @@ CompoundType *checkClasskeyAndName(
       if (ct->forward) {
         // now it is no longer a forward declaration
         ct->forward = false;
+
+        // shift the source location
+        if (ct->typedefVar) {
+          ct->typedefVar->decl_loc = ct->typedefVar->loc;
+          ct->typedefVar->loc = loc;
+        }
       }
       else {
         env.error(stringc << ct->keywordAndName() << " has already been defined");

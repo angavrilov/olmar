@@ -84,7 +84,8 @@ let ast_node_fun = function
   | Variable v ->
       (* unused record copy to provoke compilation errors for new fields *)
       let _dummy = {			
-	poly_var = v.poly_var; loc = v.loc; var_name = v.var_name;
+	poly_var = v.poly_var; loc = v.loc; var_decl_loc = v.var_decl_loc;
+        var_name = v.var_name;
 	var_type = v.var_type; flags = v.flags; value = v.value;
 	defaultParam = v.defaultParam; funcDefn = v.funcDefn;
 	overload = v.overload; virtuallyOverride = v.virtuallyOverride;
@@ -92,6 +93,7 @@ let ast_node_fun = function
       }
       in
 	sourceLoc_fun v.loc;
+        sourceLoc_fun v.var_decl_loc;
 	opt_iter string_fun v.var_name;
       
   | TemplateInfo ti -> 

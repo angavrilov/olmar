@@ -61,6 +61,9 @@ public:    // data
   // declaration, and definition), but I haven't done that yet
   SourceLoc loc;          // location of the name in the source text
 
+  // location of the declaration, if loc contains location of the definition
+  SourceLoc decl_loc;
+
   // name introduced (possibly NULL for abstract declarators)
   StringRef name;
 
