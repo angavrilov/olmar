@@ -29,9 +29,8 @@ namespace Blah {
     template <class U>
     U f(U);
 
-    // true ambiguity
-    //ERROR(1): template <class T>
-    //ERROR(1): B<T*> f(B<T>);
+    template <class T>
+    B<T*> f(B<T>);
   };
 
   void g(A& a, B<int>& b) {

@@ -2258,13 +2258,18 @@ bool Env::inferTemplArgsFromFuncArgs
         }
       }
 
+      // 14.8.2.1p2b3
+      MatchFlags alt_mflags = mflags;
+      if (!paramType->isReferenceType())
+        alt_mflags |= MF_IGNORE_TOP_CV;
+
       // final sentence of 14.8.2.1p2
       paramType = paramType->asRval();
 
       // "find template argument values that will make the deduced
       // [parameter type] identical to ['argType']"
       match.failedDueToDQT = false;
-      bool argUnifies = match.matchTypeNC(argType, paramType, mflags);
+      bool argUnifies = match.matchTypeNC(argType, paramType, alt_mflags);
 
       if (!argUnifies && match.failedDueToDQT) {
         // this is the case where we put it back in the worklist
@@ -2283,6 +2288,7 @@ bool Env::inferTemplArgsFromFuncArgs
         if (argType->isPointer() && paramType->isPointer()) {
           argType = argType->getAtType();
           paramType = paramType->getAtType();
+          alt_mflags = mflags;
         }
 
         if (argType->isCompoundType()) {
@@ -2312,7 +2318,7 @@ bool Env::inferTemplArgsFromFuncArgs
             // push and pop of bindings.  Therefore I will just note
             // the bugs and ignore them for now.
             CType *t = env.makeType(sub->ct);    // leaked
-            if (match.matchTypeNC(t, paramType, mflags)) {
+            if (match.matchTypeNC(t, paramType, alt_mflags)) {
               argUnifies = true;
               break;
             }

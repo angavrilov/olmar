@@ -1375,12 +1375,6 @@ bool MType::matchTypeNC(CType *conc, CType *pat, MatchFlags flags)
 
 bool MType::commonMatchType(CType const *conc, CType const *pat, MatchFlags flags)
 {
-  // 14.8.2.1p2b3
-  if ((flags & MF_DEDUCTION) &&
-      !pat->isReferenceType()) {
-    flags |= MF_IGNORE_TOP_CV;
-  }
-
   bool result = imatchType(conc, pat, flags);
 
   #ifndef NDEBUG

@@ -617,7 +617,7 @@ struct A {
                  
     // from in/t0462.cc; the 'const' is *not* deduced for T
     __test_mtype((int const)0,
-                 (T        )0, MF_MATCH|MF_DEDUCTION,
+                 (T        )0, MF_MATCH|MF_DEDUCTION|MF_IGNORE_TOP_CV,
                  "T", (int)0);
                  
     // from in/t0486.cc

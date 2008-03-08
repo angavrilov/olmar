@@ -989,7 +989,19 @@ bool atLeastAsSpecializedAs(Env &env, CType *concrete, CType *pattern)
   //     that is equivalent?
 
   MType match(env);
-  return match.matchTypeNC(concrete, pattern, MF_MATCH);
+
+  MatchFlags flags = MF_MATCH;
+
+  if (concrete->isFunctionType() && pattern->isFunctionType()) {
+    FunctionType *concrete_fun = concrete->asFunctionType();
+    FunctionType *pattern_fun = pattern->asFunctionType();
+
+    if (!concrete_fun->isConversionOperator() &&
+        !pattern_fun->isConversionOperator())
+      flags |= MF_IGNORE_RETURN;
+  }
+
+  return match.matchTypeNC(concrete, pattern, flags);
 }
 
 

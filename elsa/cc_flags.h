@@ -69,7 +69,7 @@ ENUM_BITWISE_OPS(CVFlags, CV_ALL)
 
 // experiment: superset operator
 inline bool operator>= (CVFlags cv1, CVFlags cv2)
-  { return (cv1 & cv2) == cv2; }
+  { return (cv1 & cv2 & CV_ALL) == (cv2 & CV_ALL); }
 
 
 // ----------------------- DeclFlags ----------------------
