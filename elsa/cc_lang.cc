@@ -262,6 +262,8 @@ void CCLang::MSVC_bug_compatibility()
 {
   allowImplicitIntForOperators = B3_TRUE;
   allowAnonymousStructs = B3_TRUE;
+  allowIncompleteEnums = true;
+  allowTemplateUnions = true;
 }
 
 

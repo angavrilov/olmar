@@ -1823,7 +1823,10 @@ CompoundType *checkClasskeyAndName(
     env.error("complete specialization (\"<>\") requires template args");
     return NULL;
   }
-  if (keyword==TI_UNION && (templateParams || templateArgs)) {
+
+  // ang: Template unions are used in BOOST
+  if (!env.lang.allowTemplateUnions &&
+      keyword==TI_UNION && (templateParams || templateArgs)) {
     env.error("template unions are not allowed");
     return NULL;
   }

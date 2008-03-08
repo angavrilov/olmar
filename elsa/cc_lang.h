@@ -199,6 +199,9 @@ public:
   // see doc/anon-structs.txt
   Bool3 allowAnonymousStructs;
 
+  // supported at least by msvc, used by BOOST
+  bool allowTemplateUnions;
+
   // gcc-2 bug compatibility: In gcc-2, namespace "std::" is actually
   // an alias for the global scope.  This flag turns on some hacks
   // to accept some code preprocessed with gcc-2 headers.
