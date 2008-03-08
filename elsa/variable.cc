@@ -953,6 +953,8 @@ value Variable::toOcaml(ToOcamlData *data){
     data->stack.add(this);
   }
 
+  bool isLive = !data->pruneUnused || getReal();
+
   var[0] = ocaml_ast_annotation(this, data);
   var[1] = ocaml_from_SourceLoc(loc, data);
 
@@ -967,10 +969,10 @@ value Variable::toOcaml(ToOcamlData *data){
   // var[3] = type->toOcaml(data);
   var[3] = ref_constr(Val_None, data);
   xassert((type == NULL) == ((flags & DF_NAMESPACE) != 0));
-  if(!(flags & DF_NAMESPACE))
+  if(!(flags & DF_NAMESPACE) && isLive)
     postpone_circular_CType(data, var[3], type);
 
-  var[4] = ocaml_from_DeclFlags(flags, data);
+  var[4] = ocaml_from_DeclFlags(flags|(isLive?DF_NONE:DF_EXISTENTIAL), data);
 
   // circular
   // if(varValue) {
@@ -980,11 +982,11 @@ value Variable::toOcaml(ToOcamlData *data){
   // else
   //   var[5] = Val_None;
   var[5] = ref_constr(Val_None, data);
-  if(varValue)
+  if(varValue && isLive)
     postpone_circular_Expression(data, var[5], varValue);
 
 
-  if(defaultParamType) {
+  if(defaultParamType && isLive) {
     var[6] = defaultParamType->toOcaml(data);
     var[6] = option_some_constr(var[6]);
   }
@@ -994,19 +996,19 @@ value Variable::toOcaml(ToOcamlData *data){
   // circular
   // var[7] = funcDefn->toOcaml(data);
   var[7] = ref_constr(Val_None, data);
-  if(funcDefn)
+  if(funcDefn && isLive)
     postpone_circular_Function(data, var[7], funcDefn);
 
   // circular (contains itself)
   // var[8] = overload->toOcaml(data);
   // initialize with an empty list, 
   var[8] = ref_constr(Val_emptylist, data);
-  if(overload)
+  if(overload && isLive)
     postpone_circular_OverloadSet(data, var[8], overload);
 
   // virtuallyOverride
   list = Val_emptylist;
-  if(virtuallyOverride) {
+  if(virtuallyOverride && isLive) {
     SObjSetIter<Variable *> iter(*virtuallyOverride);
     while(!iter.isDone()) {
       elem = iter.data()->toOcaml(data);
@@ -1020,14 +1022,14 @@ value Variable::toOcaml(ToOcamlData *data){
   var[9] = list;
 
   // scope
-  if(scope) {
+  if(scope && isLive) {
     var[10] = option_some_constr(scope->scopeToOcaml(data));
   }
   else {
     var[10] = Val_None;
   }    
 
-  if(TemplateInfo * ti = templateInfo()) {
+  if(TemplateInfo * ti = isLive ? templateInfo() : NULL) {
     var[11] = option_some_constr(ti->toOcaml(data));
   }
   else {
@@ -1147,11 +1149,14 @@ value OverloadSet::toOcaml(ToOcamlData *data) {
   // treat the overload set as list
   list = Val_emptylist;
   SFOREACH_OBJLIST_NC(Variable, set, iter) {
-    elem = iter.data()->toOcaml(data);
-    tmp = caml_alloc(2, Tag_cons);
-    Store_field(tmp, 0, elem);
-    Store_field(tmp, 1, list);
-    list = tmp;
+    if (!data->pruneUnused || iter.data()->getReal())
+    {
+      elem = iter.data()->toOcaml(data);
+      tmp = caml_alloc(2, Tag_cons);
+      Store_field(tmp, 0, elem);
+      Store_field(tmp, 1, list);
+      list = tmp;
+    }
   }
 
   ocaml_val = list;

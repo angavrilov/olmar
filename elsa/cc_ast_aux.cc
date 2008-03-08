@@ -1437,8 +1437,12 @@ string TA_templateUsed::argString() const
 
 // ----------------- RealVarAndTypeASTVisitor ----------------
 
+bool RealVarAndTypeASTVisitor::pruneMode = false;
+
 void RealVarAndTypeASTVisitor::visitVariable(Variable *var) {
   if (variableVisitor) variableVisitor->visitVariable(var);
+  if (pruneMode && var && var->funcDefn)
+    var->funcDefn->traverse(loweredVisitor);
 }
 
 void RealVarAndTypeASTVisitor::visitType(CType *type) {
@@ -1504,7 +1508,11 @@ bool RealVarAndTypeASTVisitor::visitExpression(Expression *obj) {
   } else if (obj->isE_variable()) {
     E_variable *evar = obj->asE_variable();
     visitVariable(evar->var);
-    visitVariable(evar->nondependentVar);
+
+    if (evar->nondependentVar &&
+        !evar->nondependentVar->isTemplate() &&
+        !evar->nondependentVar->isUninstTemplateMember())
+      visitVariable(evar->nondependentVar);
   } else if (obj->isE_constructor()) {
     visitVariable(obj->asE_constructor()->ctorVar);
   } else if (obj->isE_fieldAcc()) {
@@ -1585,6 +1593,22 @@ bool ReachableVarsTypePred::operator() (CType const *t0) {
     }
   } else if (t->isCompoundType()) {
     typeVisitor.visitCompoundType(t->asCompoundType());
+  } else if (t->isEnumType()) {
+    if (RealVarAndTypeASTVisitor::pruneMode) {
+      // ang: visit enum's typedef var so that
+      //      the --prune-root mode does not remove it
+      EnumType *e = t->asNamedAtomicType()->asEnumType();
+      if (e->typedefVar && !e->typedefVar->isUninstTemplateMember())
+        variableVisitor.visitVariable(e->typedefVar);
+
+      // ang: visit declarations of the enum values
+      for(StringObjDict<EnumType::Value>::Iter iter(e->valueIndex);
+          !iter.isDone(); iter.next()) {
+        const EnumType::Value *eValue = iter.value();
+        if (eValue->decl && !eValue->decl->isUninstTemplateMember())
+          variableVisitor.visitVariable(eValue->decl);
+      }
+    }
   }
   return false;                 // dummy value; just means keep searching
 }
@@ -1603,12 +1627,43 @@ void ReachableVarsTypeVisitor::visitType(CType *type) {
 }
 
 void ReachableVarsTypeVisitor::visitCompoundType(CompoundType *ct) {
+  if (!ct) return;
+  if (seenCpdTypes.contains(ct)) return;
+  seenCpdTypes.add(ct);
+
   variableVisitor->visitVariable(ct->typedefVar);
   visitScope(ct);
+  
+  // ang: do not prune template arguments
+  TemplateInfo *ti = ct->typedefVar->templateInfo();
+  if (RealVarAndTypeASTVisitor::pruneMode && ti) {
+    FOREACH_OBJLIST(STemplateArgument, ti->arguments, iter) {
+      STemplateArgument const *arg = iter.data();
+      switch (arg->kind) {
+      case STemplateArgument::STA_TYPE:
+        visitType(arg->sta_value.t);
+        break;
+      case STemplateArgument::STA_ENUMERATOR:
+      case STemplateArgument::STA_REFERENCE:
+      case STemplateArgument::STA_POINTER:
+      case STemplateArgument::STA_MEMBER:
+        variableVisitor->visitVariable(arg->sta_value.v);
+        break;
+      default:;
+      }
+    }
+  }
+  
   for(StringRefMap<Variable>::Iter iter(ct->getVariableIter()); !iter.isDone(); iter.adv()) {
     Variable *v = iter.value();
     if (v->templateInfo() && !v->templateInfo()->isInstantiation()) continue;
     variableVisitor->visitVariable(v);
+    
+    // ang: do not prune virtual inline functions of used classes, even if they are not used directly
+    if (RealVarAndTypeASTVisitor::pruneMode && v->funcDefn && v->hasAllFlags(DF_MEMBER|DF_VIRTUAL)) {
+        RealVarAndTypeASTVisitor vis(variableVisitor, this);
+        v->funcDefn->traverse(vis.loweredVisitor);
+    }
   }
   for(StringRefMap<Variable>::Iter iter(ct->getTypeTagIter()); !iter.isDone(); iter.adv()) {
     Variable *v = iter.value();

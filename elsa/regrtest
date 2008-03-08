@@ -889,7 +889,7 @@ testparse t0591.cc
 testparse t0592.cc
 failparse t0593.cc "addr of template func overloaded with non-template func"
 failparse t0594.cc "addr of template func with some explicit template args"
-failparse t0595.cc "addr of overloaded template funcs + two-phase lookup"
+testparse t0595.cc #"addr of overloaded template funcs + two-phase lookup"
 failparse t0596.cc "deduce template args during op overload resolution from name of overloaded function"
 testparse t0597.cc
 testparse t0598.cc

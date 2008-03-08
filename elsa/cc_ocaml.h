@@ -76,11 +76,13 @@ public:
   value source_loc_hash;
   unsigned postponed_count;
   CircularAstPart * postponed_circles;
+  bool pruneUnused;
 
   ToOcamlData();
   ~ToOcamlData();
 };
 
+void prune_top_forms(TranslationUnit *unit, string base_file);
 
 value ref_constr(value elem, ToOcamlData * data);
 

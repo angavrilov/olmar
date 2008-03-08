@@ -47,6 +47,7 @@ static bool wantBpprintAfterElab = false;
 
 bool caml_start_up_done = false;
 string ocamlAstFname;
+string rootUnitFname;
 
 // nonempty if we want to run cc2c; value of "-" means stdout
 static string cc2cOutputFname;
@@ -217,6 +218,17 @@ char *myProcessArgs(int argc, char **argv, char const *additionalInfo)
       }
       traceAddSys("marshalToOcaml");
       ocamlAstFname = argv[2];
+      argc -= 2;
+      argv += 2;
+    }
+    else if (0==strcmp(argv[1], "--prune-root")) {
+      // set the prune root
+      if(argc <= 2){
+	cout << "option --prune-root requires a filename argument\n";
+	exit(2);
+      }
+      traceAddSys("pruneOcaml");
+      rootUnitFname = argv[2];
       argc -= 2;
       argv += 2;
     }
@@ -759,11 +771,22 @@ void doit(int argc, char **argv)
     }
   }
 
+  if (tracingSys("pruneOcaml")) {
+    prune_top_forms(unit, rootUnitFname);
+  }
+
   // mark "real" (non-template) variables as such
   if (!tracingSys("parseXml")) {
     // mark "real" (non-template) variables as such
     MarkRealVars markReal;
-    visitVarsF(builtinVars, markReal);
+
+    Restorer<bool> prune(
+        RealVarAndTypeASTVisitor::pruneMode,
+        tracingSys("pruneOcaml"));
+
+    if (!tracingSys("pruneOcaml"))
+      visitVarsF(builtinVars, markReal);
+
     visitRealVarsF(unit, markReal);
   }
 

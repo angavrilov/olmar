@@ -5,10 +5,12 @@
 // implementation of cc_ocaml.h -- ocaml serialization utility functions
 
 
+#include "trace.h"        // traceAddSys
 #include "cc_ocaml.h"
 extern "C" {
 #include <caml/fail.h>
 }
+#include "cc_flags.h"
 #include "cc.ast.gen.h"		// Function->toOcaml
 
 // #define DEBUG_CIRCULARITIES
@@ -57,7 +59,8 @@ ToOcamlData::ToOcamlData()  :
   stack(), 
   source_loc_hash(Val_unit),
   postponed_count(0),
-  postponed_circles(NULL)
+  postponed_circles(NULL),
+  pruneUnused(tracingSys("pruneOcaml"))
 {
 
   xassert(caml_start_up_done);
@@ -379,10 +382,13 @@ void finish_circular_pointers(ToOcamlData * data) {
 
 	StringRefMap<Variable>::Iter var_iter(*(part->ast.string_var_map));
 	while(!var_iter.isDone()) {
-	  key = ocaml_from_cstring(var_iter.key(), data);
-	  var = var_iter.value()->toOcaml(data);
-	  val = caml_callback3(*scope_hashtbl_add_closure, cell, key, var);
-	  xassert(val == Val_unit);
+          if (!data->pruneUnused || var_iter.value()->getReal())
+          {
+            key = ocaml_from_StringRef(var_iter.key(), data);
+            var = var_iter.value()->toOcaml(data);
+            val = caml_callback3(*scope_hashtbl_add_closure, cell, key, var);
+            xassert(val == Val_unit);
+          }
 	  var_iter.adv();
 	}
       }
@@ -2739,8 +2745,83 @@ void check_caml_root_status() {
 }
 #endif // DEBUG_CAML_GLOBAL_ROOTS
 
+void prune_form_list(ASTList<TopForm> &l, const string &base_file) {
+  for(ASTListMutator<TopForm> iter(l); !iter.isDone();) 
+  {
+    TopForm *form = iter.data();
+    
+    const char *name;
+    int line, col;
+    sourceLocManager->decodeLineCol(form->loc, name, line, col);
+    
+    //printf("%s %s\n", name, base_file.c_str());
+    if (strcmp(name, base_file.c_str())==0)
+    {
+      iter.adv();
+      continue;
+    }
+  redo:
+    ASTSWITCH(TopForm, form) {
+      ASTCASE(TF_decl, d)
+        if ((d->decl->dflags & (DF_EXTERN | DF_TYPEDEF)) ||
+            (d->decl->spec->cv & (CV_CONST)) || 
+             d->decl->decllist->isEmpty())
+          iter.remove();
+        else {
+          bool found = false;
+          FAKELIST_FOREACH_NC(Declarator, d->decl->decllist, iter2) {
+            if (iter2->type && iter2->type->getTag() == BaseType::T_FUNCTION) 
+              continue;
+            found = true;
+            break;
+          }
+		
+          if (found)
+            iter.adv();
+          else
+            iter.remove();
+        }
+      ASTNEXT(TF_func, f)
+        if ((f->f->dflags & (DF_INLINE | DF_STATIC)) || 
+            !f->f->body ||
+            (f->f->nameAndParams && f->f->nameAndParams->var && 
+             (f->f->nameAndParams->var->flags & (DF_INLINE))))
+          iter.remove();
+        else
+          iter.adv();
+      ASTNEXT(TF_template, t)
+        iter.remove();
+      ASTNEXT(TF_explicitInst, ei)
+        iter.remove();
+      ASTNEXT(TF_linkage, l)
+        prune_form_list(l->forms->topForms, base_file);
+        if (l->forms->topForms.isEmpty())
+          iter.remove();
+        else
+          iter.adv();
+      ASTNEXT(TF_one_linkage, l)
+        form = l->form;
+        goto redo;
+      ASTNEXT(TF_asm, a)
+        iter.adv();
+      ASTNEXT(TF_namespaceDefn, n)
+        prune_form_list(n->forms, base_file);
+        if (n->forms.isEmpty())
+          iter.remove();
+        else
+          iter.adv();
+      ASTNEXT(TF_namespaceDecl, nd)
+        iter.remove();
+      ASTDEFAULTC
+        xassert(false);
+      ASTENDCASE
+    }
+  }
+}
 
-
+void prune_top_forms(TranslationUnit *unit, string base_file) {
+    prune_form_list(unit->topForms, base_file);
+}
 
 /*
 

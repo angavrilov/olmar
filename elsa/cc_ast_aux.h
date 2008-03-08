@@ -220,6 +220,8 @@ class RealVarAndTypeASTVisitor : private ASTVisitor {
 
   // methods
   public:
+  static bool pruneMode;
+
   virtual void visitVariable(Variable *var);
   virtual void visitType(CType *type);
 
@@ -272,7 +274,7 @@ class ReachableVarsTypeVisitor : public RealVarAndTypeASTVisitor::TypeVisitor {
   // different set as the visitation of a CompoundType as a Scope
   // differs from its visitation as a CompoundType.
   SObjSet<Scope*> seenScopes;
-//   SObjSet<CompoundType*> seenCpdTypes; // re-used across anyCtorSatisfies visitations
+  SObjSet<CompoundType*> seenCpdTypes; // re-used across anyCtorSatisfies visitations
 
   // tor
   public:
