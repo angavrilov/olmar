@@ -9,48 +9,39 @@ open Cc_ml_types
 let debug_print_locs = false
 
 (* source loc hashing stuff *)
+
+(* Using int instead of nativeint causes us to lose
+   a bit, so we'll just split the hash. It's better
+   than keeping a separate heap object for the key.
+   Anyway, in the current implementation of SourceLoc, the
+   second hash will probably be empty. *)
 type source_loc_hash = 
-    (string, string) Hashtbl.t * (nativeint, sourceLoc) Hashtbl.t
+    (string, string) Hashtbl.t * (int, sourceLoc) Hashtbl.t * (int, sourceLoc) Hashtbl.t
 
 let source_loc_hash_init () : source_loc_hash =
-  ((Hashtbl.create 50), (Hashtbl.create 1543))
+  ((Hashtbl.create 50), (Hashtbl.create 5000), (Hashtbl.create 50))
 
-let source_loc_hash_find ((strings, locs) : source_loc_hash) (loc : nativeint) =
-  (* 
-   * Printf.eprintf "hashing %nd ... " loc;
-   * try
-   *)
-    let ret = Hashtbl.find locs loc
-    in
-      (* Printf.eprintf "found\n%!"; *)
-      (* raise End_of_file; *)
-      ret
-  (* 
-   * with
-   *   | Not_found as ex -> 
-   * 	Printf.eprintf "raise Not_found\n%!";
-   * 	raise ex
-   *   | ex ->
-   * 	Printf.eprintf "raise other exc\n%!";
-   * 	raise ex
-   *)
+let source_loc_hash_find ((strings, locs1, locs2) : source_loc_hash) (loc : nativeint) =
+    let key = Nativeint.to_int loc in
+    let locs = (if (Nativeint.compare loc Nativeint.zero) < 0 then locs2 else locs1) in
+    Hashtbl.find locs key
 
-let source_loc_hash_add ((strings, locs) : source_loc_hash) 
-    (loc : nativeint) ((file,line,char) as srcloc : sourceLoc) =
-  assert(not (Hashtbl.mem locs loc));
-  let new_file =
+let source_loc_map_file strings ((file, line, char) as src_loc) =
     try
-      Hashtbl.find strings file
+      (Hashtbl.find strings file, line, char)
     with
       | Not_found -> 
-	  Hashtbl.add strings file file;
-	  file
-  in
-  let ret = if new_file == file then srcloc else (new_file, line, char) in
-    Hashtbl.add locs loc ret;
-    if debug_print_locs then
-      Printf.eprintf "srcloc hash %nd -> %s:%d:%d\n%!" loc file line char;
-    ret
+        Hashtbl.add strings file file;
+        src_loc
+
+let source_loc_hash_add ((strings, locs1, locs2) : source_loc_hash) 
+    (loc : nativeint) ((file,line,char) as srcloc : sourceLoc) =
+  let key = Nativeint.to_int loc in
+  let locs = (if (Nativeint.compare loc Nativeint.zero) < 0 then locs2 else locs1) in
+    let ret = source_loc_map_file strings srcloc in
+      assert (not (Hashtbl.mem locs key));
+      Hashtbl.add locs key ret;
+      ret
 
 let register_src_loc_callbacks () =
   Callback.register_exception "not_found_exception_id" (Not_found);

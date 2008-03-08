@@ -1485,12 +1485,12 @@ StringRef D_attribute::tcheck_getAlias(Env *penv) const
 // ocaml serialization method
 // hand written ocaml serialization function
 value D_attribute::toOcaml(ToOcamlData * data){
-  CAMLparam0();
+  CAMLparam1(ocaml_val);
   CAMLlocalN(child, 4);
   CAMLlocal4(a_spec_list, a_spec, tmp, elem);
   if(ocaml_val) {
     // cerr << "shared ocaml value in D_attribute\n" << flush;
-    CAMLreturn(ocaml_val);
+    CAMLreturn(ocaml_fetch_node(ocaml_val));
   }
 
   static value * create_D_attribute_constructor_closure = NULL;
@@ -1534,13 +1534,13 @@ value D_attribute::toOcaml(ToOcamlData * data){
   a_spec_list = ocaml_list_rev(a_spec_list);
 
   child[3] = a_spec_list;
-  caml_register_global_root(&ocaml_val);
+
   ocaml_val = caml_callbackN(*create_D_attribute_constructor_closure,
                              4, child);
   xassert(IS_OCAML_AST_VALUE(ocaml_val));
 
   data->stack.remove(this);
-  CAMLreturn(ocaml_val);
+  CAMLreturn(ocaml_register_node(child[0],&ocaml_val));
 }
 
 

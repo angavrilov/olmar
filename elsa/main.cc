@@ -273,8 +273,19 @@ void marshal_to_ocaml(char ** argv, const char * inputFname,
 
     ocaml_unit = unit->toOcaml(&ocaml_data);
     xassert(ocaml_data.stack.size() == 0);
+
+#ifdef DEBUG_CAML_GLOBAL_ROOTS
+    //debug_caml_global_root_stats();
+#endif
+
     finish_circular_pointers(&ocaml_data);
-    unit->detachOcaml();
+
+#ifdef DEBUG_CAML_GLOBAL_ROOTS
+    //debug_caml_global_root_stats();
+#endif
+
+    // ang: Not needed anymore, it seems.
+    //unit->detachOcaml();
   }
 #ifdef DEBUG_CAML_GLOBAL_ROOTS
   check_caml_root_status();

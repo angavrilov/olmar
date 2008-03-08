@@ -27,6 +27,7 @@ let _ = Callback.register
 
 let _ = Gc.set {(Gc.get ()) with 
 		  (* Gc.verbose = 0x037;  *)
-		  Gc.space_overhead = 200;
-		  Gc.minor_heap_size = 1024 * 1024 * 8;
+		  Gc.space_overhead = 140;
+		  Gc.minor_heap_size = 1024*64;
+		  Gc.major_heap_increment = 1024*512;
 	       }

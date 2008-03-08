@@ -17,17 +17,39 @@ extern "C" {
 #include <iomanip.h>
 #endif
 
+// #define DEBUG_CAML_HEAP
+
+#if defined(DEBUG_CAML_HEAP)
+CAMLextern char *caml_young_start;
+CAMLextern char *caml_young_end;
+
+#define Is_young(val) \
+  (xassert (Is_block (val)), \
+   (unsigned)(val) < (unsigned)caml_young_end && (unsigned)(val) > (unsigned)caml_young_start)
+
+typedef char page_table_entry;
+
+CAMLextern char *caml_heap_start;
+CAMLextern char *caml_heap_end;
+CAMLextern page_table_entry *caml_page_table;
+
+#define Page(p) ((unsigned) (p) >> Page_log)
+#define Is_in_heap(p) \
+  (xassert (Is_block ((value) (p))), \
+   (unsigned)(p) >= (unsigned)caml_heap_start && (unsigned)(p) < (unsigned)caml_heap_end \
+   && caml_page_table [Page (p)])
+#endif
+
 
 CircularAstPart::CircularAstPart() : 
   ca_type(CA_Empty), 
-  val(Val_unit),
+  val(0),
   next(NULL)
 {
-  caml_register_global_root(&val);
 }
 
 CircularAstPart::~CircularAstPart() {
-  caml_remove_global_root(&val);
+  xassert(!val || Is_long(val));
 }
 
 
@@ -83,16 +105,22 @@ value ref_constr(value elem, ToOcamlData * data) {
 // not really serialization, but closely related
 CircularAstPart * init_ca_part(ToOcamlData * data, value val,
 			       CircularAstType type) {
+  CAMLparam1(val);
 
   // no need to register val as long as we don't allocate here
   CircularAstPart * part = new CircularAstPart;
   part->ca_type = type;
+
+  ocaml_register_node(ocaml_pseudo_annotation(), &val);
   part->val = val;
+
   part->next = data->postponed_circles;
   data->postponed_circles = part;
   data->postponed_count++;
 
-  return part;
+#define value CircularAstPart*
+  CAMLreturn(part);
+#undef value
 }
 
 // hand written ocaml serialization function
@@ -256,7 +284,7 @@ void finish_circular_pointers(ToOcamlData * data) {
 #   endif // DEBUG_CIRCULARITIES
     data->postponed_count--;
 
-    cell = part->val;
+    cell = ocaml_fetch_node(part->val);
     xassert(data->stack.size() == 0);
   
     switch(part->ca_type) {
@@ -524,6 +552,80 @@ value ocaml_ast_annotation(const void *thisp, ToOcamlData *d)
   CAMLreturn(result);
 }
 
+// allocate a temporary key, used to cache annotation-less nodes
+value ocaml_pseudo_annotation()
+{
+  CAMLparam0();
+  CAMLlocal1(result);
+
+  static value * create_ast_annotation_closure = NULL;
+  if(create_ast_annotation_closure == NULL)
+    create_ast_annotation_closure = caml_named_value("ocaml_pseudo_annot");
+  xassert(create_ast_annotation_closure);
+
+  result = caml_callback(*create_ast_annotation_closure, Val_unit);
+  xassert(IS_OCAML_AST_VALUE(result));
+
+  CAMLreturn(result);
+}
+
+value ocaml_register_node(value annot, value *pval)
+{
+  CAMLparam1(annot);
+  CAMLlocal1(result);
+
+  // *pval may not be guarded by local roots anymore,
+  // so fetch the value at once, and clear the variable.
+  xassert(pval && !Is_long(*pval) && IS_OCAML_AST_VALUE(*pval));
+  result = *pval; 
+  *pval = 0;
+
+  static value *register_node_closure = NULL;
+  if(register_node_closure == NULL)
+    register_node_closure = caml_named_value("ocaml_register_id_node");
+  xassert(register_node_closure);
+
+#ifdef DEBUG_CAML_HEAP
+  if (Is_block(result)) {
+    for (unsigned i = 0; i < Wosize_val(result); ++i) {
+      value x = Field(result, i);
+      xassert(Is_long(x) || Is_atom(x) || Is_young(x) || Is_in_heap(x));
+    }
+  }
+#endif
+  
+  *pval = caml_callback2(*register_node_closure, annot, result);
+  xassert(Is_long(*pval));
+#ifdef DEBUG_CAML_HEAP
+  xassert(result && Is_atom(result) || Is_young(result) || Is_in_heap(result));
+#endif
+
+  CAMLreturn(result);
+}
+
+static int fetch_count = 0;
+
+value ocaml_fetch_node(value id) {
+  CAMLparam1(id);
+  CAMLlocal1(result);
+
+  static value *fetch_node_closure = NULL;
+  if(fetch_node_closure == NULL)
+    fetch_node_closure = caml_named_value("ocaml_fetch_id_node");
+  xassert(fetch_node_closure);
+
+  xassert(Is_long(id));
+
+  result = caml_callback(*fetch_node_closure, id);
+  xassert(IS_OCAML_AST_VALUE(result));
+#ifdef DEBUG_CAML_HEAP
+  xassert(result && (Is_atom(result) || Is_young(result) || Is_in_heap(result)));
+#endif
+
+  fetch_count++;
+
+  CAMLreturn(result);
+}
 
 int get_max_annotation()
 {
@@ -2597,6 +2699,12 @@ void debug_caml_register_global_root (value * val) {
   if(debug_caml_roots.size() > debug_caml_root_max)
     debug_caml_root_max = debug_caml_roots.size();
   caml_register_global_root(val);
+}
+
+void debug_caml_global_root_stats() {
+  cerr << "active caml roots: " << debug_caml_roots.size()
+       << " (max was " << debug_caml_root_max << " ); "
+       << "nodes fetched " << fetch_count << " times\n";  
 }
 
 void debug_caml_remove_global_root (value * val) {

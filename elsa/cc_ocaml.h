@@ -23,6 +23,7 @@
 void debug_caml_register_global_root (value *);
 void debug_caml_remove_global_root (value *);
 void check_caml_root_status();
+void debug_caml_global_root_stats();
 
 #endif // DEBUG_CAML_GLOBAL_ROOTS
 
@@ -117,6 +118,11 @@ extern bool caml_start_up_done;
 value ocaml_from_SourceLoc(const SourceLoc &, ToOcamlData *);
 value ocaml_ast_annotation(const void *, ToOcamlData *);
 int get_max_annotation(void);
+
+// pval is changed from a node to it's id; the old value is returned
+value ocaml_register_node(value annot, value *pval); 
+value ocaml_fetch_node(value id);
+value ocaml_pseudo_annotation();
 
 //********************** value generation ************************************
 // for flag sets

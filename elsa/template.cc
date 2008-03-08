@@ -112,11 +112,11 @@ bool TypeVariable::isAssociated() const
 // ocaml serialization method
 // hand written ocaml serialization function
 value TypeVariable::toOcaml(ToOcamlData * data){
-  CAMLparam0();
+  CAMLparam1(ocaml_val);
   CAMLlocalN(child, 4);
   if(ocaml_val) {
     // cerr << "shared ocaml value in Variable\n" << flush;
-    CAMLreturn(ocaml_val);
+    CAMLreturn(ocaml_fetch_node(ocaml_val));
   }
   static value * create_atomic_TypeVariable_constructor_closure = NULL;
   if(create_atomic_TypeVariable_constructor_closure == NULL)
@@ -136,13 +136,12 @@ value TypeVariable::toOcaml(ToOcamlData * data){
   child[2] = typedefVar->toOcaml(data);
   child[3] = ocaml_from_AccessKeyword(access, data);
 
-  caml_register_global_root(&ocaml_val);
   ocaml_val = caml_callbackN(*create_atomic_TypeVariable_constructor_closure,
 			    4, child);
   xassert(IS_OCAML_AST_VALUE(ocaml_val));
 
   data->stack.remove(this);
-  CAMLreturn(ocaml_val);
+  CAMLreturn(ocaml_register_node(child[0],&ocaml_val));
 }
 
 
@@ -151,7 +150,6 @@ value TypeVariable::toOcaml(ToOcamlData * data){
 void TypeVariable::detachOcaml() {
   if(ocaml_val == 0) return;
   NamedAtomicType::detachOcaml();
-
   // no data itself
 }
 
@@ -213,12 +211,12 @@ void PseudoInstantiation::traverse(TypeVisitor &vis)
 // ocaml serialization method
 // hand written ocaml serialization function
 value PseudoInstantiation::toOcaml(ToOcamlData * data){
-  CAMLparam0();
+  CAMLparam1(ocaml_val);
   CAMLlocal3(elem, tmp, args_result);
   CAMLlocalN(childs, 6);
   if(ocaml_val) {
     // cerr << "shared ocaml value in PseudoInstantiation\n" << flush;
-    CAMLreturn(ocaml_val);
+    CAMLreturn(ocaml_fetch_node(ocaml_val));
   }
   static value * create_atomic_PseudoInstantiation_constructor_closure = NULL;
   if(create_atomic_PseudoInstantiation_constructor_closure == NULL)
@@ -259,14 +257,13 @@ value PseudoInstantiation::toOcaml(ToOcamlData * data){
   }
   childs[5] = ocaml_list_rev(args_result);
 
-  caml_register_global_root(&ocaml_val);
   ocaml_val = 
     caml_callbackN(*create_atomic_PseudoInstantiation_constructor_closure,
 		   6, childs);
   xassert(IS_OCAML_AST_VALUE(ocaml_val));
 
   data->stack.remove(this);
-  CAMLreturn(ocaml_val);
+  CAMLreturn(ocaml_register_node(childs[0],&ocaml_val));
 }
 
 
@@ -363,11 +360,11 @@ void DependentQType::traverse(TypeVisitor &vis)
 // ocaml serialization method
 // hand written ocaml serialization function
 value DependentQType::toOcaml(ToOcamlData * data){
-  CAMLparam0();
+  CAMLparam1(ocaml_val);
   CAMLlocalN(child, 6);
   if(ocaml_val) {
     // cerr << "shared ocaml value in Variable\n" << flush;
-    CAMLreturn(ocaml_val);
+    CAMLreturn(ocaml_fetch_node(ocaml_val));
   }
   static value * create_atomic_DependentQType_constructor_closure = NULL;
   if(create_atomic_DependentQType_constructor_closure == NULL)
@@ -389,13 +386,12 @@ value DependentQType::toOcaml(ToOcamlData * data){
   child[4] = first->toOcaml(data);
   child[5] = rest->toOcaml(data);
 
-  caml_register_global_root(&ocaml_val);
   ocaml_val = caml_callbackN(*create_atomic_DependentQType_constructor_closure,
 			    6, child);
   xassert(IS_OCAML_AST_VALUE(ocaml_val));
 
   data->stack.remove(this);
-  CAMLreturn(ocaml_val);
+  CAMLreturn(ocaml_register_node(child[0],&ocaml_val));
 }
 
 
@@ -455,11 +451,11 @@ int DependentSizedArrayType::reprSize() const
 // ocaml serialization method
 // hand written ocaml serialization function
 value DependentSizedArrayType::toOcaml(ToOcamlData * data){
-  CAMLparam0();
+  CAMLparam1(ocaml_val);
   CAMLlocal3(poly, caml_elt_type, caml_size);
   if(ocaml_val) {
     // cerr << "shared ocaml value in ArrayType\n" << flush;
-    CAMLreturn(ocaml_val);
+    CAMLreturn(ocaml_fetch_node(ocaml_val));
   }
   static value * create_ctype_DependentSizedArrayType_constructor_closure = NULL;
   if(create_ctype_DependentSizedArrayType_constructor_closure == NULL)
@@ -479,13 +475,12 @@ value DependentSizedArrayType::toOcaml(ToOcamlData * data){
   caml_size = sizeExpr->toOcaml(data);
   xassert(IS_OCAML_AST_VALUE(caml_size));
 
-  caml_register_global_root(&ocaml_val);
   ocaml_val = caml_callback3(*create_ctype_DependentSizedArrayType_constructor_closure,
                              poly, caml_elt_type, caml_size);
   xassert(IS_OCAML_AST_VALUE(ocaml_val));
 
   data->stack.remove(this);
-  CAMLreturn(ocaml_val);
+  CAMLreturn(ocaml_register_node(poly,&ocaml_val));
 }
 
 
@@ -583,10 +578,10 @@ bool TemplateParams::anyParamCtorSatisfies(TypePred &pred) const
 // ocaml serialization method
 // hand written ocaml serialization function
 value TemplateParams::toOcaml(ToOcamlData *data){
-  CAMLparam0();
+  CAMLparam1(ocaml_val);
   CAMLlocal3(list,elem,tmp);
   if(ocaml_val) {
-    CAMLreturn(ocaml_val);
+    CAMLreturn(ocaml_fetch_node(ocaml_val));
   }
 
   if(data->stack.contains(this)) {
@@ -605,12 +600,16 @@ value TemplateParams::toOcaml(ToOcamlData *data){
     list = tmp;
   }
 
-  caml_register_global_root(&ocaml_val);
   ocaml_val = ocaml_list_rev(list);
   xassert(IS_OCAML_AST_VALUE(ocaml_val));
 
+  // ang: Allocate a new key; do it before CAMLreturn, 
+  //   otherwise caml 3.08 will have problems, as it removes
+  //   local roots before evaluating the expression in CAMLreturn
+  tmp = ocaml_pseudo_annotation();
+
   data->stack.remove(this);
-  CAMLreturn(ocaml_val);
+  CAMLreturn(ocaml_register_node(tmp,&ocaml_val));
 }
 
 void TemplateParams::detachOcaml(){
@@ -620,7 +619,7 @@ void TemplateParams::detachOcaml(){
     list_iter.data()->detachOcaml();
   }
 
-  caml_remove_global_root(&ocaml_val);
+  xassert(Is_long(ocaml_val));
   ocaml_val = 0;
 }
 
@@ -637,12 +636,12 @@ InheritedTemplateParams::~InheritedTemplateParams()
 // ocaml serialization method
 // hand written ocaml serialization function
 value InheritedTemplateParams::toOcaml(ToOcamlData * data){
-  CAMLparam0();
+  CAMLparam1(ocaml_val);
   CAMLlocal5(annot, elem, tmp, params_result, encl_val);
 
   if(ocaml_val) {
     // cerr << "shared ocaml value in TemplateInfo\n" << flush;
-    CAMLreturn(ocaml_val);
+    CAMLreturn(ocaml_fetch_node(ocaml_val));
   }
   static value * create_inheritedTemplateParams_constructor_closure = NULL;
   if(create_inheritedTemplateParams_constructor_closure == NULL)
@@ -674,19 +673,18 @@ value InheritedTemplateParams::toOcaml(ToOcamlData * data){
   encl_val = ref_constr(Val_None, data);
   postpone_circular_CompoundInfo(data, encl_val, enclosing);
 
-  caml_register_global_root(&ocaml_val);
   ocaml_val = 
     caml_callback3(*create_inheritedTemplateParams_constructor_closure,
 		   annot, params_result, encl_val);
   xassert(IS_OCAML_AST_VALUE(ocaml_val));
 
   data->stack.remove(this);
-  CAMLreturn(ocaml_val);
+  CAMLreturn(ocaml_register_node(annot,&ocaml_val));
 }
 
 void InheritedTemplateParams::detachOcaml(){
   if(ocaml_val == 0) return;
-  caml_remove_global_root(&ocaml_val);
+  xassert(Is_long(ocaml_val));
   ocaml_val = 0;
   SFOREACH_OBJLIST_NC(Variable, params, iter)
     iter.data()->detachOcaml();
@@ -1143,7 +1141,7 @@ void TemplateInfo::debugPrint(int depth, bool printPartialInsts)
 // ocaml serialization method
 // hand written ocaml serialization function
 value TemplateInfo::toOcaml(ToOcamlData *data){
-  CAMLparam0();
+  CAMLparam1(ocaml_val);
   CAMLlocalN(child, 20);
   CAMLlocal5(elem, tmp, params_result, inherited_params_result, 
 	     instantiations_result);
@@ -1152,7 +1150,7 @@ value TemplateInfo::toOcaml(ToOcamlData *data){
 
   if(ocaml_val) {
     // cerr << "shared ocaml value in TemplateInfo\n" << flush;
-    CAMLreturn(ocaml_val);
+    CAMLreturn(ocaml_fetch_node(ocaml_val));
   }
   static value * create_templateInfo_constructor_closure = NULL;
   if(create_templateInfo_constructor_closure == NULL)
@@ -1308,20 +1306,19 @@ value TemplateInfo::toOcaml(ToOcamlData *data){
   }
   child[19] = ocaml_list_rev(dep_bases_result);
 
-  caml_register_global_root(&ocaml_val);
   ocaml_val = caml_callbackN(*create_templateInfo_constructor_closure,
 			     20, child);
   xassert(IS_OCAML_AST_VALUE(ocaml_val));
 
   data->stack.remove(this);
-  CAMLreturn(ocaml_val);
+  CAMLreturn(ocaml_register_node(child[0],&ocaml_val));
 }
 
 // ocaml serialization, cleanup ocaml_val
 // hand written ocaml serialization function
 void TemplateInfo::detachOcaml(){
   if(ocaml_val == 0) return;
-  caml_remove_global_root(&ocaml_val);
+  xassert(Is_long(ocaml_val));
   ocaml_val = 0;
   SFOREACH_OBJLIST_NC(Variable, params, iter)
     iter.data()->detachOcaml();
@@ -1649,11 +1646,11 @@ char const *toString(STemplateArgument::Kind k)
 // ocaml serialization method
 // hand written ocaml serialization function
 value STemplateArgument::toOcaml(ToOcamlData * data){
-  CAMLparam0();
+  CAMLparam1(ocaml_val);
   CAMLlocal2(annot, arg);
   if(ocaml_val) {
     // cerr << "shared ocaml value in STemplateArgument!\n" << flush;
-    CAMLreturn(ocaml_val);
+    CAMLreturn(ocaml_fetch_node(ocaml_val));
   }
 
   if(data->stack.contains(this)) {
@@ -1674,8 +1671,6 @@ value STemplateArgument::toOcaml(ToOcamlData * data){
   static value * create_STA_TEMPLATE_constructor_closure = NULL;
   static value * create_STA_ATOMIC_constructor_closure = NULL;
 
-  caml_register_global_root(&ocaml_val);
-  
   // the annotation is always used
   annot = ocaml_ast_annotation(this, data);
 
@@ -1791,7 +1786,7 @@ value STemplateArgument::toOcaml(ToOcamlData * data){
   xassert(IS_OCAML_AST_VALUE(ocaml_val));
 
   data->stack.remove(this);
-  CAMLreturn(ocaml_val);
+  CAMLreturn(ocaml_register_node(annot,&ocaml_val));
 }
 
 
@@ -1799,7 +1794,7 @@ value STemplateArgument::toOcaml(ToOcamlData * data){
 // hand written ocaml serialization function
 void STemplateArgument::detachOcaml() {
   if(ocaml_val == 0) return;
-  caml_remove_global_root(&ocaml_val);
+  xassert(Is_long(ocaml_val));
   ocaml_val = 0;
 
   switch(kind){
@@ -6275,11 +6270,11 @@ bool TemplateTypeVariable::isAssociated() const
 // ocaml serialization method
 // hand written ocaml serialization function
 value TemplateTypeVariable::toOcaml(ToOcamlData * data){
-  CAMLparam0();
+  CAMLparam1(ocaml_val);
   CAMLlocalN(child, 5);
   if(ocaml_val) {
     // cerr << "shared ocaml value in Variable\n" << flush;
-    CAMLreturn(ocaml_val);
+    CAMLreturn(ocaml_fetch_node(ocaml_val));
   }
   static value * create_atomic_TemplateTypeVariable_constructor_closure = NULL;
   if(create_atomic_TemplateTypeVariable_constructor_closure == NULL)
@@ -6300,13 +6295,12 @@ value TemplateTypeVariable::toOcaml(ToOcamlData * data){
   child[3] = ocaml_from_AccessKeyword(access, data);
   child[4] = params.toOcaml(data);
 
-  caml_register_global_root(&ocaml_val);
   ocaml_val = caml_callbackN(*create_atomic_TemplateTypeVariable_constructor_closure,
                             5, child);
   xassert(IS_OCAML_AST_VALUE(ocaml_val));
 
   data->stack.remove(this);
-  CAMLreturn(ocaml_val);
+  CAMLreturn(ocaml_register_node(child[0], &ocaml_val));
 }
 
 // ocaml serialization, cleanup ocaml_val

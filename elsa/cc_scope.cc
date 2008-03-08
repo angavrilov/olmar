@@ -1378,13 +1378,13 @@ void Scope::traverse_internal(TypeVisitor &vis)
 // ocaml serialization method for Scope
 // hand written ocaml serialization function
 value Scope::scopeToOcaml(ToOcamlData *data){
-  CAMLparam0();
+  CAMLparam1(scope_ocaml_val);
   CAMLlocalN(child, 8);
   CAMLlocal5(hash, hash_size, list, elem, tmp);
 
   if(scope_ocaml_val) {
     // cerr << "shared ocaml value in Scope\n" << flush;
-    CAMLreturn(scope_ocaml_val);
+    CAMLreturn(ocaml_fetch_node(scope_ocaml_val));
   }
   static value * create_scope_constructor_closure = NULL;
   static value * scope_hashtbl_create_closure = NULL;
@@ -1457,20 +1457,19 @@ value Scope::scopeToOcaml(ToOcamlData *data){
   else
     child[7] = Val_None;
 
-  caml_register_global_root(&scope_ocaml_val);
   scope_ocaml_val = caml_callbackN(*create_scope_constructor_closure,
 				   8, child);
   xassert(IS_OCAML_AST_VALUE(scope_ocaml_val));
 
   data->stack.remove(this);
-  CAMLreturn(scope_ocaml_val);    
+  CAMLreturn(ocaml_register_node(child[0], &scope_ocaml_val));    
 }
 
 
 // hand written ocaml serialization cleanup
 void Scope::scopeDetachOcaml() {
   if(scope_ocaml_val == 0) return;
-  caml_remove_global_root(&scope_ocaml_val);
+  xassert(Is_long(scope_ocaml_val));
   scope_ocaml_val = 0;
 
   StringRefMap<Variable>::Iter var_iter(variables);

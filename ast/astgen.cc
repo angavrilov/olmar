@@ -1915,7 +1915,7 @@ void CGen::emitToOcaml(ASTClass const * super, ASTClass const *sub)
   string cbc = cb & "_closure";
 
   out << "value " << myClass->name << "::toOcaml(ToOcamlData *data) {\n";
-  out << "  CAMLparam0();\n";
+  out << "  CAMLparam1(ocaml_val);\n";
 
   unsigned sub_args = sub ? (sub->args.count() + sub->fields.count()) : 0; 
   unsigned args_count = super->args.count() + super->fields.count() + 
@@ -1923,6 +1923,8 @@ void CGen::emitToOcaml(ASTClass const * super, ASTClass const *sub)
 
   if(polymorphicOcaml)
     args_count++;
+  else
+    out << "  CAMLlocal1(pseudo_annot);\n";
 
   if(args_count > 0)
     out << "  CAMLlocalN(child, " << args_count << ");\n";
@@ -1931,7 +1933,7 @@ void CGen::emitToOcaml(ASTClass const * super, ASTClass const *sub)
       // << "    cerr << \"shared ocaml value in "
       // << myClass->name
       // << "\\n\" << flush;\n"
-      << "    CAMLreturn(ocaml_val);\n"
+      << "    CAMLreturn(ocaml_fetch_node(ocaml_val));\n"
       << "  }\n";
 
   out << "  static value * " << cbc << " = NULL;\n"
@@ -1963,8 +1965,6 @@ void CGen::emitToOcaml(ASTClass const * super, ASTClass const *sub)
   emitToOcamlChilds(super->lastArgs, count);
   out << endl;
 
-  out << "  caml_register_global_root(&ocaml_val);\n";
-
   if(args_count <= 3){
     out << "  ocaml_val = caml_callback";
     if(args_count > 1)
@@ -1993,9 +1993,14 @@ void CGen::emitToOcaml(ASTClass const * super, ASTClass const *sub)
 
   out << "  xassert(IS_OCAML_AST_VALUE(ocaml_val));\n\n";
 
+  if(!polymorphicOcaml)
+    out << "  pseudo_annot = ocaml_pseudo_annotation();\n\n";
+
   out << "  data->stack.remove(this);\n";
 
-  out << "  CAMLreturn(ocaml_val);" << endl;
+  out << "  CAMLreturn(ocaml_register_node(" 
+    << (polymorphicOcaml ? "child[0]" : "pseudo_annot")
+    << ",&ocaml_val));" << endl;
   
   out << "}" << endl << endl;
 }
@@ -2069,7 +2074,7 @@ void CGen::emitDetachOcaml(ASTClass const *super, ASTClass const *sub)
   if(sub)
     out << "  " << super->name << "::detachOcaml();\n";
   else {
-    out << "  caml_remove_global_root(&ocaml_val);\n";
+    out << "  xassert(Is_long(ocaml_val));\n";
     out << "  ocaml_val = 0;\n";
   }
 

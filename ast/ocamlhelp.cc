@@ -27,3 +27,19 @@ value ocaml_list_rev(value l){
   xassert(list_rev_callback);
   CAMLreturn(caml_callback(*list_rev_callback, l));
 }
+
+value ocaml_from_StringRef(StringRef sr, ToOcamlData *d){
+  CAMLparam0();
+  CAMLlocal2(result, tmp);
+
+  static value *reg_string_callback = NULL;
+  if(reg_string_callback == NULL)
+    reg_string_callback = caml_named_value("Reg_StringRef");
+  xassert(reg_string_callback);
+
+  xassert(sr);
+  tmp = caml_copy_string(sr);
+  result = caml_callback2(*reg_string_callback, Val_long(unsigned(sr)>>1), tmp);
+
+  CAMLreturn(result);
+}

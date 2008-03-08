@@ -933,13 +933,13 @@ void Variable::traverse(TypeVisitor &vis) {
 // ocaml serialization method for Variable
 // hand written ocaml serialization function
 value Variable::toOcaml(ToOcamlData *data){
-  CAMLparam0();
+  CAMLparam1(ocaml_val);
   CAMLlocal3(elem, list, tmp);
   CAMLlocalN(var, 12);
   
   if(ocaml_val) {
     // cerr << "shared ocaml value in Variable\n" << flush;
-    CAMLreturn(ocaml_val);
+    CAMLreturn(ocaml_fetch_node(ocaml_val));
   }
   static value * create_variable_constructor_closure = NULL;
   if(create_variable_constructor_closure == NULL)
@@ -1034,19 +1034,18 @@ value Variable::toOcaml(ToOcamlData *data){
     var[11] = Val_None;
   }
 
-  caml_register_global_root(&ocaml_val);
   ocaml_val = caml_callbackN(*create_variable_constructor_closure,
                              12, var);
   xassert(IS_OCAML_AST_VALUE(ocaml_val));
 
   data->stack.remove(this);
-  CAMLreturn(ocaml_val);
+  CAMLreturn(ocaml_register_node(var[0],&ocaml_val));
 }
 
 // hand written ocaml serialization cleanup
 void Variable::detachOcaml() {
   if(ocaml_val == 0) return;
-  caml_remove_global_root(&ocaml_val);
+  xassert(Is_long(ocaml_val));
   ocaml_val = 0;
 
   detach_ocaml_SourceLoc(loc);
@@ -1130,12 +1129,12 @@ Variable *OverloadSet::findByType(FunctionType const *ft) {
 // ocaml serialization method for OverloadSet
 // hand written ocaml serialization function
 value OverloadSet::toOcaml(ToOcamlData *data) {
-  CAMLparam0();
+  CAMLparam1(ocaml_val);
   CAMLlocal3(elem, list, tmp);
   
   if(ocaml_val) {
     // cerr << "shared ocaml value in OverloadSet\n" << flush;
-    CAMLreturn(ocaml_val);
+    CAMLreturn(ocaml_fetch_node(ocaml_val));
   }
 
   if(data->stack.contains(this)) {
@@ -1154,18 +1153,23 @@ value OverloadSet::toOcaml(ToOcamlData *data) {
     Store_field(tmp, 1, list);
     list = tmp;
   }
-  caml_register_global_root(&ocaml_val);
+
   ocaml_val = list;
   xassert(IS_OCAML_AST_VALUE(ocaml_val));
 
+  // ang: Allocate a new key; do it before CAMLreturn, 
+  //   otherwise caml 3.08 will have problems, as it removes
+  //   local roots before evaluating the expression in CAMLreturn
+  tmp = ocaml_pseudo_annotation();
+
   data->stack.remove(this);
-  CAMLreturn(ocaml_val);
+  CAMLreturn(ocaml_register_node(tmp,&ocaml_val));
 }
 
 // hand written ocaml serialization cleanup
 void OverloadSet::detachOcaml() {
   if(ocaml_val == 0) return;
-  caml_remove_global_root(&ocaml_val);
+  xassert(Is_long(ocaml_val));
   ocaml_val = 0;
 
   SFOREACH_OBJLIST_NC(Variable, set, iter) {

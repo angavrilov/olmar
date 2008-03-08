@@ -98,15 +98,8 @@ value ocaml_from_int32(const int32 &i, ToOcamlData *d){
 }
 
 // hand written ocaml serialization function
-
-
-
-// hand written ocaml serialization function
-inline
-value ocaml_from_StringRef(const StringRef &s, ToOcamlData *d){
-  // StringRef is const char *
-  return(ocaml_from_cstring(s, d));
-}
+// ang: StringRef is just a const char*, no need to use references
+value ocaml_from_StringRef(StringRef s, ToOcamlData *d);
 
 // hand written ocaml serialization function
 inline
