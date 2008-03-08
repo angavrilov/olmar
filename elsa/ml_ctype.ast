@@ -189,7 +189,7 @@ and 'a atomicType =
        * variable might be void (regtest 568 , in/t0566.cc)
        *)
   | PseudoInstantiation of 'a * string * 'a variable option * accessKeyword * 
-      'a atomicType * 'a sTemplateArgument list
+      'a atomicType option ref * 'a sTemplateArgument list
 
       (* EnumType( user given name, ?, public/protected, 
 	             constants, has_negatives)
@@ -249,9 +249,9 @@ and 'a sTemplateArgument =
                           (* not yet resolved into a valid template argument *)
   | STA_NONE of 'a
                           (* type argument *)
-  | STA_TYPE of 'a * 'a cType 
+  | STA_TYPE of 'a * 'a cType option ref
                           (* int argument *)
-  | STA_INT of 'a * int   
+  | STA_INT of 'a * int32   
                           (* enum argument *)
   | STA_ENUMERATOR of 'a * 'a variable 
                           (* reference to global object *)

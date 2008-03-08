@@ -261,7 +261,7 @@ let ast_node_fun = function
 
   | STemplateArgument(STA_INT(annot, int)) -> 
       annotation_fun annot;
-      int_fun int
+      int32_fun int
 
   | STemplateArgument(STA_ENUMERATOR(annot, variable)) -> 
       annotation_fun annot;

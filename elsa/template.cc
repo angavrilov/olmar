@@ -244,8 +244,10 @@ value PseudoInstantiation::toOcaml(ToOcamlData * data){
     childs[2] = Val_None;
 
   childs[3] = ocaml_from_AccessKeyword(access, data);
-  childs[4] = primary->toOcaml(data);
 
+  // ang: circular in a BOOST_FOREACH-derived sample
+  childs[4] = ref_constr(Val_None, data);
+  postpone_circular_AtomicType(data, childs[4], primary);
 
   args_result = Val_emptylist;
   FOREACH_OBJLIST_NC(STemplateArgument, args, iter) {
@@ -1692,7 +1694,9 @@ value STemplateArgument::toOcaml(ToOcamlData * data){
       create_STA_TYPE_constructor_closure = 
         caml_named_value("create_STA_TYPE_constructor");
     xassert(create_STA_TYPE_constructor_closure);
-    arg = getType()->toOcaml(data);
+    // ang: circular somewhere in strings in MSVC+STLport+BOOST
+    arg = ref_constr(Val_None, data);
+    postpone_circular_CType(data, arg, getType());
     ocaml_val = 
       caml_callback2(*create_STA_TYPE_constructor_closure, annot, arg);
     break;
@@ -1702,7 +1706,7 @@ value STemplateArgument::toOcaml(ToOcamlData * data){
       create_STA_INT_constructor_closure = 
         caml_named_value("create_STA_INT_constructor");
     xassert(create_STA_INT_constructor_closure);
-    arg = ocaml_from_int(getInt(), data);
+    arg = ocaml_from_int32(getInt(), data);
     ocaml_val = caml_callback2(*create_STA_INT_constructor_closure, annot, arg);
     break;
 

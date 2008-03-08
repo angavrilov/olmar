@@ -438,8 +438,8 @@ and atomicType_fun at =
 	      [("name", str);
 	       ("access", string_of_accessKeyword accessKeyword)]
 	      (let l1 = opt_child variable_fun "typedefVar" variable_opt in
-	       let l2 = [atomicType_fun compound_info, "primary"] in
-	       let l3 = 
+	       let l2 = opt_child atomicType_fun "primary" !compound_info in
+	       let l3 =
 		 count_rev "args" 
 		   (List.rev_map 
 		      sTemplateArgument_fun sTemplateArgument_list)
@@ -569,11 +569,12 @@ and sTemplateArgument_fun ta =
 	| STA_NONE _annot -> 
 	    tanode "STA_NONE" [] []
 
-	| STA_TYPE(_annot, cType) -> 
+	| STA_TYPE(_annot, rcType) -> 
+           let cType = match !rcType with Some x -> x | None -> assert false in
 	    tanode "STA_TYPE" [] [(cType_fun cType, "sta_value.t")]
 
 	| STA_INT(_annot, int) -> 
-	    tanode "STA_INT" [("sta_value.i", string_of_int int)] []
+	    tanode "STA_INT" [("sta_value.i", Int32.to_string int)] []
 
 	| STA_ENUMERATOR(_annot, variable) -> 
 	    tanode_1c "STA_ENUMERATOR" "sta_value.v" (variable_fun variable)

@@ -159,9 +159,14 @@ let ast_node_fun up down myindex = function
   (* 6 *)
   | AtomicType(PseudoInstantiation(_annot, _str, variable_opt, _accessKeyword, 
 				   compound_info, sTemplateArgument_list)) ->
+      let cinfo = 
+        match !compound_info with 
+        | Some x -> x
+        | None -> assert false
+      in
       add_links up down myindex
 	(opt_link variable_annotation variable_opt
-	   ([atomicType_annotation compound_info]
+	   ([atomicType_annotation cinfo]
 	    @ (List.map sTemplateArgument_annotation sTemplateArgument_list)))
 
   (* 7 *)
@@ -244,9 +249,10 @@ let ast_node_fun up down myindex = function
       ()
 
   (* 17 *)
-  | STemplateArgument(STA_TYPE(_annot, cType)) ->
+  | STemplateArgument(STA_TYPE(_annot, rcType)) ->
+    let cType = match !rcType with Some x -> x | None -> assert false in
       add_links up down myindex
-	[cType_annotation cType]
+        [cType_annotation cType]
 
   (* 18 *)
   | STemplateArgument(STA_INT(_annot, _int)) ->

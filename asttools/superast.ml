@@ -310,7 +310,7 @@ module Into_array = struct
 	    ast_array.(id_annotation annot) <- AtomicType x;
 	    visit annot;
 	    opt_iter (variable_fun ast_array) variable_opt;
-	    atomicType_fun ast_array compound_info;
+	    opt_iter (atomicType_fun ast_array) !compound_info;
 	    List.iter (sTemplateArgument_fun ast_array) sTemplateArgument_list
 
 	| EnumType(annot, _string, variable, _accessKeyword, 
@@ -397,7 +397,7 @@ module Into_array = struct
 	      ()
 
 	  | STA_TYPE(_annot, cType) -> 
-	      cType_fun ast_array cType
+	      opt_iter (cType_fun ast_array) !cType
 
 	  | STA_INT(_annot, _int) -> 
 	      ()

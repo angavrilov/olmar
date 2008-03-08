@@ -112,6 +112,21 @@ void postpone_circular_CType(ToOcamlData * data, value val, CType * type) {
 
 // hand written ocaml serialization function
 // not relly a serialization function, but handwritten ;-)
+void postpone_circular_AtomicType(ToOcamlData * data, value val, AtomicType * type) {
+
+  // no need to register val as long as we don't allocate here
+  xassert(type != NULL);
+  CircularAstPart * part = init_ca_part(data, val, CA_AtomicType);
+  part->ast.atype = type;
+# ifdef DEBUG_CIRCULARITIES
+  cerr << "postpone (" << data->postponed_count
+       << ") atomic type " << type << " in cell " 
+       << hex << "0x" << val << dec << "\n";
+# endif // DEBUG_CIRCULARITIES
+}
+
+// hand written ocaml serialization function
+// not relly a serialization function, but handwritten ;-)
 void postpone_circular_Function(ToOcamlData * data, value val,
 				Function * func) {
 
@@ -345,6 +360,13 @@ void finish_circular_pointers(ToOcamlData * data) {
       }
       break;
 
+    case CA_AtomicType:
+#     ifdef DEBUG_CIRCULARITIES
+      cerr << " (AtomicType)\n";
+#     endif // DEBUG_CIRCULARITIES
+      val = part->ast.atype->toOcaml(data);
+      break;
+
     case CA_Empty:
     default:
       xassert(false);
@@ -357,6 +379,7 @@ void finish_circular_pointers(ToOcamlData * data) {
     case CA_TypeSpecifier:
     case CA_Variable:
     case CA_CompoundInfo:
+    case CA_AtomicType:
       // update an option ref
       // check that cell is ref None
       xassert(Is_block(cell) && 	      // it's a block

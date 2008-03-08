@@ -36,7 +36,8 @@ enum CircularAstType {
   CA_Variable,
   CA_CompoundInfo,
   CA_OverloadSet,
-  CA_StringRefMapVariable
+  CA_StringRefMapVariable,
+  CA_AtomicType
 };
 
 
@@ -52,6 +53,7 @@ class CircularAstPart {
     CompoundType * compound;	/* tagged CA_CompoundInfo */
     OverloadSet * overload;	/* tagged CA_OverloadSet */
     StringRefMap<Variable> * string_var_map; /* tagged CA_StringRefMapVariable*/
+    AtomicType * atype;         /* tagged CA_AtomicType */
   } ast;
   
   // val contains the thing which gets updated later.
@@ -96,6 +98,7 @@ value ref_constr(value elem, ToOcamlData * data);
  * which must be empty.
  */
 void postpone_circular_CType(ToOcamlData * data, value val, CType * type);
+void postpone_circular_AtomicType(ToOcamlData * data, value val, AtomicType * type);
 void postpone_circular_Function(ToOcamlData * data, value val, Function * func);
 void postpone_circular_Expression(ToOcamlData *, value, Expression *);
 void postpone_circular_TypeSpecifier(ToOcamlData *, value, TypeSpecifier *);
