@@ -355,7 +355,12 @@ void OverloadResolver::addTemplCandidate
      sargs);
   // quarl: for some reason adding ``xassert(var0inst != NULL)'' sometimes
   // stops the segfault without throwing an assertion failure!
-  xassert(var0inst != NULL && "f1c15444-8783-4296-981f-e3908d7cb1b4");
+
+  // ang: this assertion breaks SFINAE for some tests
+  //xassert(var0inst != NULL && "f1c15444-8783-4296-981f-e3908d7cb1b4");
+  if (var0inst == NULL)
+    return;
+
   xassert(var0inst->templateInfo()->isCompleteSpecOrInstantiation());
 
   // try adding the candidate
