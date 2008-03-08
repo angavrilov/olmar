@@ -536,6 +536,7 @@ string paramsToCString(SObjList<Variable> const &params)
     }
     else {
       // non-type parameter
+      Restorer<bool> res0(global_mayUseTypeAndVarToCString, true);
       sb << p->toCStringAsParameter();
     }
   }
@@ -5355,9 +5356,9 @@ STemplateArgument Env::applyArgumentMapToPQName
       xTypeDeduction(stringc << "failed to find `" << qual->qualifier
                              << "' in " << scope->scopeName());
     }
-    if (!q->type->isCompoundType()) {
+    if ((q->type && !q->type->isCompoundType()) || (!q->type && !q->isNamespace())) {
       xTypeDeduction(stringc << "`" << qual->qualifier << "' in "
-                             << scope->scopeName() << " is not a class");
+                             << scope->scopeName() << " is not a class or namespace");
     }
 
     if (qual->sargs.isEmpty() && !q->isTemplate(false /*considerInherited*/)) {
