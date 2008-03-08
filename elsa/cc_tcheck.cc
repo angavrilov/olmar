@@ -996,10 +996,15 @@ void Declaration::tcheck(Env &env, DeclaratorContext context)
         //    parameters with types declared like "typedef struct { } *foo"
         //    because those are REALLY anonymous structs; so we could actually
         //    name THOSE by index.
+        //
+        // ang
+        //    When an option is set, use any available name to name the struct.
 
         char const *relName = NULL;
 
-        if ((dflags & DF_TYPEDEF) && decllist->count() == 1) {
+        if (((dflags & DF_TYPEDEF) && decllist->count() == 1) ||
+            (env.doAlwaysNameAnonymous && decllist->count() >= 1)) 
+        {
           IDeclarator *decl = decllist->first()->decl;
           relName = decl->getDeclaratorId()->getName();
         }
@@ -1015,7 +1020,9 @@ void Declaration::tcheck(Env &env, DeclaratorContext context)
 
         char const *relName = NULL;
 
-        if ((dflags & DF_TYPEDEF) && decllist->count() == 1) {
+        if (((dflags & DF_TYPEDEF) && decllist->count() == 1) ||
+            (env.doAlwaysNameAnonymous && decllist->count() >= 1)) 
+        {
           IDeclarator *decl = decllist->first()->decl;
           relName = decl->getDeclaratorId()->getName();
         }

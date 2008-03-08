@@ -236,6 +236,10 @@ public:      // data
   bool doReportTemplateErrors;     // see doc/permissive.txt
   bool doReportPermissiveWarnings; // if false, no messages from uninst templates
 
+  // Always use a declared name to name anonymous structs and unions,
+  // even if it is not a typedef.
+  bool doAlwaysNameAnonymous;
+
   // when non-empty, the variable lookup results are collected and
   // compared to the text stored in this pointer; it is supplied via
   // an an 'asm' directive (see TF_asm::itcheck)

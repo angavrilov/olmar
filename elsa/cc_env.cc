@@ -390,6 +390,8 @@ Env::Env(StringTable &s, CCLang &L, TypeFactory &tf,
     doReportTemplateErrors(!tracingSys("permissive")),
     doReportPermissiveWarnings(!tracingSys("silent")),
 
+    doAlwaysNameAnonymous(tracingSys("forceNameAnons")),
+
     collectLookupResults("")
 {
   // create first scope
