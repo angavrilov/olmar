@@ -1006,6 +1006,10 @@ public:      // template funcs
     (SourceLoc loc, DeclFlags dflags, Variable *templ, FunctionType *type,
      SObjList<STemplateArgument> const &args);
 
+  bool fillExplicitClassSpecializationArgs
+    (TemplateInfo *specTI, TemplateInfo *primaryTI,
+        SObjList<STemplateArgument> const &src);
+
   bool verifyCompatibleTemplateParameters
     (Scope *scope, DeclFlags dflags, CompoundType *prior);
 

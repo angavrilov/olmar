@@ -2026,8 +2026,14 @@ STATICDEF int TemplCandidates::compareCandidatesStatic
   case STAC_LEFT_MORE_SPEC: return -1; break;
   case STAC_RIGHT_MORE_SPEC: return 1; break;
   case STAC_EQUAL:
-    // FIX: perhaps this should be a user error?
-    xfailure("Two template argument tuples are identical");
+    // last resort solution - if there are less parameters, it's probably more specific
+    if (lti->params.count() < rti->params.count())
+      return -1;
+    else if (lti->params.count() > rti->params.count())
+      return 1;
+    else
+      // FIX: perhaps this should be a user error?
+      xfailure("Two template argument tuples are identical");
     break;
   case STAC_INCOMPARABLE: return 0; break;
   }
@@ -3312,7 +3318,11 @@ Variable *Env::instantiateFunctionTemplate
   xassert(primaryTI->isPrimary());
 
   // the arguments should be concrete
-  xassert(!containsVariables(sargs));
+  if (containsVariables(sargs)) {
+    error(stringc << "cannot instantiate `" << primary->toString()
+                << "': arguments are not concrete.");
+    return NULL;
+  }
 
   // look for a (complete) specialization that matches
   Variable *spec = findCompleteSpecialization(primaryTI, sargs);
@@ -3920,6 +3930,18 @@ void Env::instantiateForwardClasses(Variable *baseV)
   }
 }
 
+bool Env::fillExplicitClassSpecializationArgs
+    (TemplateInfo *specTI, TemplateInfo *primaryTI,
+        SObjList<STemplateArgument> const &src)
+{
+  ObjList<STemplateArgument> owningPrimaryArgs;
+  if (!supplyDefaultTemplateArguments(primaryTI, owningPrimaryArgs, src)) {
+    return false;
+  }
+
+  specTI->copyArguments(owningPrimaryArgs);
+  return true;
+}
 
 // return false on error
 bool Env::supplyDefaultTemplateArguments

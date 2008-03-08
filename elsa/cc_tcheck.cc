@@ -2060,7 +2060,12 @@ CompoundType *checkClasskeyAndName(
       // 'makeNewCompound' will already have put the template *parameters*
       // into 'specialTI', but not the template arguments
       TemplateInfo *ctTI = ct->templateInfo();
-      ctTI->copyArguments(ssargs);
+
+      // retrieve the primary template info
+      TemplateInfo *primaryTI = primary->templateInfo();
+
+      // fill the parameters, using default arguments in the process
+      env.fillExplicitClassSpecializationArgs(ctTI, primaryTI, ssargs);
 
       // fix the self-type arguments (only if partial inst)
       if (ct->selfType->isPseudoInstantiation()) {
@@ -2075,7 +2080,6 @@ CompoundType *checkClasskeyAndName(
       // add this type to the primary's list of specializations; we are not
       // going to add 'ct' to the environment, so the only way to find the
       // specialization is to go through the primary template
-      TemplateInfo *primaryTI = primary->templateInfo();
       primaryTI->addSpecialization(ct->getTypedefVar());
 
       // check to see if there is already an instantiation of some

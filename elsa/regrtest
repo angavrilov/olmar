@@ -734,8 +734,8 @@ failparse t0436.cc "pointer-to-member names processed in wrong order"
 testparse t0437.cc
 testparse t0438a.cc
 testparse t0438.cc
-failparse t0439.cc "default args in explicit spec"
-failparse t0440.cc "default args in explicit spec + DQTs"
+testparse t0439.cc #"default args in explicit spec"
+testparse t0440.cc #"default args in explicit spec + DQTs"
 testparse t0441a.cc
 testparse t0441.cc
 testparse t0442.cc
@@ -1171,7 +1171,7 @@ testparse k0088.cc #"inferring const member function template parameter type"
 testparse k0089.cc #"specialization of template function member"
 testparse k0090.cc #"template specialization of array"
 testparse k0090a.cc #"template specialization of array"
-failparse k0091.cc "template specialization with all default parameters"
+testparse k0091.cc #"template specialization with all default parameters"
 failparse k0092.cc "template-parameter-instantiated template class without 'typename' in constructor initializer"
 failparse k0093.cc "tertiary operator implicitly casting one pointer operand to bool"
 # This is a warning now instead of an error:
