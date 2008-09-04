@@ -668,6 +668,9 @@ Expression *ElabVisitor::elaborateCallSite(
 {
   Expression *retObj = NULL;
 
+  if (env.fullExpressionAnnotStack.isEmpty())
+    return retObj;
+  
   if (doing(EA_ELIM_RETURN_BY_VALUE)) {
     // If the return type is a CompoundType, then make a temporary and
     // point the retObj at it.  NOTE: This can never accidentally create
