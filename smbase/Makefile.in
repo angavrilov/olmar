@@ -160,6 +160,8 @@ OBJS := \
 # some modules do not build on mingw32; for the moment I do not need them
 ifeq ($(strip $(CROSSTARGET)),i386-mingw32msvc)
   OBJS := $(filter-out mypopen.o mysig.o smregexp.o,$(OBJS))
+  CFLAGS := $(CFLAGS) -mno-cygwin
+  CCFLAGS := $(CCFLAGS) -mno-cygwin
 endif
 
 $(THIS): $(OBJS)

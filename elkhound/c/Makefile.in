@@ -31,6 +31,12 @@ CCFLAGS := @CCFLAGS@ -I$(SMBASE) -I$(AST) -I$(ELKHOUND)
 libraries := $(LIBELKHOUND) $(LIBAST) $(LIBSMBASE)
 LDFLAGS := -g -Wall $(libraries)
 
+CROSSTARGET   := @CROSSTARGET@
+
+ifeq ($(strip $(CROSSTARGET)),i386-mingw32msvc)
+  CCFLAGS := $(CCFLAGS) -mno-cygwin
+  LDFLAGS := $(LDFLAGS) -mno-cygwin
+endif
 
 # compile .cc in this directory to a .o
 %.o: %.cc
@@ -62,11 +68,13 @@ c.tok: lexer2
 
 # run astgen to generate the AST implementation
 c.ast.gen.h c.ast.gen.cc: c.ast
+	rm -f c.ast.gen.h c.ast.gen.cc
 	$(AST)/astgen -oc.ast.gen c.ast
 
 
 # run elkhound to generate the parser
 c.gr.gen.h c.gr.gen.cc c.gr.gen.y: c.gr c.tok
+	rm -f c.gr.gen.h c.gr.gen.cc c.gr.gen.y
 	$(ELKHOUND)/elkhound -tr bison -v -o c.gr.gen c.gr
 
 

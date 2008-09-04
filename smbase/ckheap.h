@@ -11,6 +11,7 @@ extern "C" {
 
 #ifdef __WIN32__
   // don't want to try to get dlmalloc working...
+  #define checkHeap()
   #define checkHeapNode(n) /*nothing*/
   #define malloc_stats() ((void)0)
 #else

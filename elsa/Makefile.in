@@ -34,10 +34,10 @@ OCAML_OBJ_EXT := @OCAML_OBJ_EXT@
 
 ifeq ($(NATIVE_OCAML),1)
 #native
-OCAMLLIBS := -L $(LIBOCAMLRUN) -lasmrun -ldl
+OCAMLLIBS = -L $(LIBOCAMLRUN) -lasmrun -ldl
 else
 #bytecode
-OCAMLLIBS := -L $(LIBOCAMLRUN) -lcamlrun -lcurses -ldl
+OCAMLLIBS = -L $(LIBOCAMLRUN) -lcamlrun -lcurses -ldl
 endif
 
 # list of files to clean in 'clean' (etc.) targets
@@ -138,6 +138,13 @@ GCOV_OPTS := -fprofile-arcs -ftest-coverage
 libraries := $(LIBELKHOUND) $(LIBAST) $(LIBSMBASE)
 LDFLAGS := @LDFLAGS@ $(libraries)
 
+CROSSTARGET   := @CROSSTARGET@
+
+ifeq ($(strip $(CROSSTARGET)),i386-mingw32msvc)
+  CCFLAGS := $(CCFLAGS) -mno-cygwin
+  LDFLAGS := $(LDFLAGS) -mno-cygwin
+  LIBOCAMLRUN := /usr/lib/mingw
+endif
 
 # compile .cc in this directory to a .o
 TOCLEAN += *.o

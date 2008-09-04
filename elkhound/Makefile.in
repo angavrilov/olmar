@@ -50,6 +50,12 @@ CCFLAGS := @CCFLAGS@ -I$(SMBASE) -I$(AST) -Ic
 libraries := $(LIBAST) $(LIBSMBASE)
 LDFLAGS := -g -Wall $(libraries)
 
+CROSSTARGET   := @CROSSTARGET@
+
+ifeq ($(strip $(CROSSTARGET)),i386-mingw32msvc)
+  CCFLAGS := $(CCFLAGS) -mno-cygwin
+  LDFLAGS := $(LDFLAGS) -mno-cygwin
+endif
 
 # some other tools
 AR     := ar
@@ -251,6 +257,7 @@ mlsstr: mlsstr.cc mlsstr.h
 # test grammar for 'forbid' (there is no executable for this, I just look
 # at the Elkhound output)
 forbid.gr.gen.out: forbid.gr elkhound
+	rm -f forbid.gr.gen.*
 	./elkhound -tr requireExactStats -o forbid.gr.gen forbid.gr
 
 
