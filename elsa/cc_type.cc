@@ -663,6 +663,7 @@ string CompoundType::toCString() const
 int CompoundType::reprSize() const
 {
   int total = 0;
+  int vpcount = 0;
 
   // base classes
   {
@@ -674,9 +675,15 @@ int CompoundType::reprSize() const
       }
       else {
         total += iter.data()->ct->reprSize();
+        if (iter.data()->ct->hasVirtualFns())
+          vpcount++;
       }
     }
   }
+  
+  // If this is the first class with virtual functions, add the VMT pointer
+  if (hasVirtualFns() && !vpcount)
+    total += 4;
 
   // This algorithm is a very crude approximation of the packing and
   // alignment behavior of some nominal compiler.  Ideally, we'd have
