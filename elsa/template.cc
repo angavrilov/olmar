@@ -2834,6 +2834,11 @@ Variable *Env::findMostSpecific
 {
   // baseV should be a template primary
   TemplateInfo *baseVTI = baseV->templateInfo();
+
+  // A hack to overcome k0099
+  if (baseVTI->isSpecialization())
+	baseVTI = baseVTI->getPrimary();
+  
   xassert(baseVTI->isPrimary());
 
   // iterate through all of the specializations and build up a set of
@@ -3586,6 +3591,12 @@ Variable *Env::instantiateClassTemplateDecl
   primary = primary->skipAlias();
 
   TemplateInfo *primaryTI = primary->templateInfo();
+  xassert(primaryTI);
+  
+  // A hack to overcome k0099
+  if (primaryTI->isSpecialization())
+	primaryTI = primaryTI->getPrimary();
+	
   xassert(primaryTI->isPrimary() && "60a04156-a119-4c6c-8c04-bca58e69dee1");
 
   // the arguments should be concrete

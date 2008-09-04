@@ -1180,7 +1180,7 @@ failparse k0095.cc "templatized enum parameter"
 testparse k0096.cc "statement expression returning struct"
 testparse k0097.cc "function pointer template"
 failparse k0098.cc "ambiguous operator cast"
-failparse k0099.cc "partial specialization lookup"
+testparse k0099.cc #"partial specialization lookup"
 testparse k0100.cc
 testparse k0101.cc "typename ParameterDeclaration in TemplateParameterList"
 failparse k0102.cc "template parameter template-instantiated on another template parameter"
