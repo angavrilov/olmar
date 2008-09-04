@@ -2184,7 +2184,7 @@ void tcheckDeclaratorPQName(Env &env, ScopeSeq &qualifierScopes,
 
     // if that worked, get that scope and its parents, up to the current
     // innermost scope
-    if (scopeVar) {
+    if (scopeVar && (!scopeVar->type || !scopeVar->type->isDependent())) {
       env.getParentScopes(qualifierScopes, scopeVar);
     }
 
