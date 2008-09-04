@@ -84,9 +84,10 @@ string IMType::Binding::asString() const
 
 
 // ------------------------- IMType -----------------------------
-IMType::IMType()
+IMType::IMType(CCLang &lang)
   : bindings(),
     env(NULL),
+    lang(lang),
     failedDueToDQT(false)
 {}
 
@@ -1187,8 +1188,27 @@ bool IMType::imatchArrayType(ArrayType const *conc, ArrayType const *pat, MatchF
 bool IMType::imatchPointerToMemberType(PointerToMemberType const *conc,
                                        PointerToMemberType const *pat, MatchFlags flags)
 {
-  return imatchAtomicType(conc->inClassNAT, pat->inClassNAT, flags) &&
-         imatchCVFlags(conc->cv, pat->cv, flags) &&
+  if (!imatchAtomicType(conc->inClassNAT, pat->inClassNAT, flags)) {
+    bool ok = false;
+  
+    if (lang.allowMemberPtrCastDeduction &&
+        (flags & MF_DEDUCTION) &&
+        conc->inClassNAT->isCompoundType() &&
+        pat->inClassNAT->isCompoundType()) 
+    {
+      if (pat->inClassNAT->asCompoundTypeC()
+          ->hasStrictBaseClass(
+                conc->inClassNAT->asCompoundTypeC()
+            )) {
+        ok = true;
+      }
+    }
+
+    if (!ok)
+      return false;
+  }
+
+  return imatchCVFlags(conc->cv, pat->cv, flags) &&
          imatchType(conc->atType, pat->atType, flags & MF_PTR_PROP);
 }
 
@@ -1349,8 +1369,8 @@ bool IMType::imatchArraySizeWithExpression
 
 
 // -------------------------- MType --------------------------
-MType::MType(bool allowNonConst_)
-  : allowNonConst(allowNonConst_)
+MType::MType(CCLang &lang, bool allowNonConst_)
+  : IMType(lang), allowNonConst(allowNonConst_)
 {}
 
 MType::~MType()
@@ -1358,7 +1378,7 @@ MType::~MType()
 
 
 MType::MType(Env &e)
-  : allowNonConst(true)
+  : IMType(e.lang), allowNonConst(true)
 {
   env = &e;
 }
@@ -1550,14 +1570,14 @@ void MType::setBoundValue(StringRef name, STemplateArgument const &value)
 // ---------------------- global funcs ------------------------
 bool callMatchType(CType const *conc, CType const *pat, MatchFlags flags)
 {
-  MType match;
+  MType match(global_lang);
   return match.matchType(conc, pat, flags);
 }
 
 bool callMatchAtomicType(AtomicType const *conc, AtomicType const *pat,
                          MatchFlags flags)
 {
-  MType match;
+  MType match(global_lang);
   return match.matchAtomicType(conc, pat, flags);
 }
 

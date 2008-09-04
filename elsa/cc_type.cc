@@ -9,6 +9,7 @@
 #include "hashtbl.h"    // lcprngTwoSteps
 #include "asthelp.h"    // ind
 #include "cc_ocaml.h"   // ToOcamlData
+#include "cc_lang.h"
 
 // TemplateInfo, etc... it would be sort of nice if this module didn't
 // have to #include template.h, since most of what it does is
@@ -204,7 +205,7 @@ bool AtomicType::isNamedAtomicType() const
 
 bool AtomicType::equals(AtomicType const *obj) const
 {
-  MType match;
+  MType match(global_lang);
   return match.matchAtomicType(this, obj, MF_NONE);
 }
 
@@ -1715,7 +1716,7 @@ STATICDEF char const *BaseType::getNameOfTag(Tag t)
 
 bool BaseType::equals(BaseType const *obj, MatchFlags flags) const
 {
-  MType mtype;
+  MType mtype(global_lang);
 
   // oy.. I think it's a fair assumption that the only direct subclass
   // of BaseType is CType ...; in fact, I just made BaseType's ctor

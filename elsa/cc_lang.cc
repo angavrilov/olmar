@@ -7,6 +7,7 @@
 
 #include <string.h>      // memset
 
+CCLang global_lang;
 
 static void setWarning(Bool3 &b, bool enable)
 {
@@ -264,6 +265,7 @@ void CCLang::MSVC_bug_compatibility()
   allowAnonymousStructs = B3_TRUE;
   allowIncompleteEnums = true;
   allowTemplateUnions = true;
+  allowMemberPtrCastDeduction = true;
 }
 
 

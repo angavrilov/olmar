@@ -3044,7 +3044,7 @@ bool Env::equivalentTypes(CType const *a, CType const *b, MatchFlags mflags)
   // declaration, wherein the parameters *have* been associated, and
   // the 'b' type refers to the new declaration we are trying to
   // match up, so its parameters have *not* been associated
-  MType match;
+  MType match(lang);
   if (!match.matchType(a, b, mflags | MF_MATCH | MF_ISOMORPHIC | MF_UNASSOC_TPARAMS)) {
     return false;
   }
@@ -3052,14 +3052,14 @@ bool Env::equivalentTypes(CType const *a, CType const *b, MatchFlags mflags)
   // 2005-05-28: The following is a bit of a hack...
   // (in/t0494.cc) check the symmetric condition too
   // (in/t0184.cc) letting all tparams unify
-  MType match2;
+  MType match2(lang);
   return match2.matchType(b, a, mflags | MF_MATCH | MF_ISOMORPHIC);
 }
 
 
 bool equalOrIsomorphic(CType const *a, CType const *b)
 {
-  MType match;
+  MType match(global_lang);
   return match.matchType(a, b, MF_ISOMORPHIC|MF_MATCH);
 }
 

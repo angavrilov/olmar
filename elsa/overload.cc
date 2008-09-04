@@ -451,7 +451,7 @@ void OverloadResolver::processCandidate(Variable *v)
     xassert(templInfo0);      // should have templateness
 
     // see if this candidate matches
-    MType match;
+    MType match(env.lang);
     if (!match.matchSTemplateArguments(sargs, templInfo0->arguments, MF_MATCH)) {
       // if not, skip it
       continue;

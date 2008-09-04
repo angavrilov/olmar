@@ -18,6 +18,7 @@
 #include "template.h"           // STemplateArgument
 
 class Env;                      // cc_env.h
+class CCLang;
 
 class MType;                    // this file
 
@@ -84,6 +85,8 @@ protected:   // data
   // seems unavoidable.  On the bright side, it means I can remove
   // all PQName resolution code from MType, since Env can do that.
   Env *env;                    // (nullable serf)
+  
+  CCLang &lang;
 
 public:      // data                    
   // This is set to true if a failure to resolve a DQT is the cause of
@@ -155,7 +158,7 @@ private:     // funcs
   // the only allowed subclass is MType; this justifies a
   // static_cast in mtype.cc
   friend class MType;
-  IMType();
+  IMType(CCLang &lang);
   ~IMType();
 };
 
@@ -196,7 +199,7 @@ private:     // funcs
 public:      // funcs
   // if 'allowNonConst' is false, const match* can be invoked;
   // if 'allowNonConst' is true, 'getBoundValue' be invoked
-  MType(bool allowNonConst = false);
+  MType(CCLang &lang, bool allowNonConst = false);
   ~MType();
 
   // This constructor sets 'allowNonConst' to true and also

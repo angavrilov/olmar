@@ -237,6 +237,10 @@ public:
   // declaring it without 'static'. gcc-3.4 allows with warning; gcc-4.0
   // disallows.
   Bool3 allowStaticAfterNonStatic;
+  
+  // msvc compat: Allow casting of pointers to class members from base class
+  // to derived in template argument deduction.
+  bool allowMemberPtrCastDeduction;
 
 private:     // funcs
   void setAllWarnings(bool enable);
@@ -281,6 +285,8 @@ public:      // funcs
   // place, however I think I need this.
   string toString();
 };
+
+extern CCLang global_lang;
 
 bool handleExternInline_asPrototype();
 bool handleExternInline_asWeakStaticInline();

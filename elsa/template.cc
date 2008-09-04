@@ -898,7 +898,7 @@ ObjList<STemplateArgument> &TemplateInfo::getArgumentsToPrimary()
 bool isomorphicArgumentLists(ObjList<STemplateArgument> const &list1,
                              ObjList<STemplateArgument> const &list2)
 {
-  MType mtype;
+  MType mtype(global_lang);
   return mtype.matchSTemplateArguments(list1, list2, MF_ISOMORPHIC|MF_MATCH);
 }
 
@@ -912,7 +912,7 @@ bool equalArgumentLists(ObjList<STemplateArgument> const &list1,
                         ObjList<STemplateArgument> const &list2,
                         MatchFlags mflags)
 {
-  MType mtype;
+  MType mtype(global_lang);
   return mtype.matchSTemplateArguments(list1, list2, mflags);
 }
 
@@ -1444,7 +1444,7 @@ bool STemplateArgument::isDependent() const
 bool STemplateArgument::equals(STemplateArgument const *obj,
                                MatchFlags mflags) const
 {
-  MType mtype;
+  MType mtype(global_lang);
   return mtype.matchSTemplateArgument(this, obj, mflags);
 }
 
@@ -2550,7 +2550,7 @@ bool Env::insertTemplateArgBindings_oneParamList
   //
   // I'm not sure this is right; maybe I need to accumulate them
   // across all the parameter lists?
-  MType typeBindings(true /*allowNonConst*/);
+  MType typeBindings(lang, true /*allowNonConst*/);
 
   SObjListIter<Variable> paramIter(params);
   while (!paramIter.isDone()) {
@@ -2818,7 +2818,7 @@ bool TemplateInfo::parametersMatchArguments
   }
 
   // see if this candidate matches
-  MType match;
+  MType match(global_lang);
   if (match.matchSTemplateArguments(sargs, matchTI->arguments, MF_MATCH)) {
     return true;
   }

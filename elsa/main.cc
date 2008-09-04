@@ -340,7 +340,7 @@ void doit(int argc, char **argv)
   StringTable strTable;
 
   // parsing language options
-  CCLang lang;
+  CCLang &lang = global_lang;
   lang.GNU_Cplusplus();
 
 
