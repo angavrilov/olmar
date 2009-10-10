@@ -6,6 +6,7 @@
 #include <stdlib.h>      // rand
 #include <iostream>      // cout
 using std::cout;
+using std::endl;
 
 // class we're going to make a pool of
 class Foo {

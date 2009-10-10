@@ -274,6 +274,7 @@ STATICDEF bool StringHash::keyCompare(char const *key1, char const *key2)
 
 #include <iostream>      // cout
 using std::cout;
+using std::ios;
 
 #include <stdlib.h>      // rand
 #include <iostream>      // istream

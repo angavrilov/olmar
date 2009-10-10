@@ -13,7 +13,7 @@ check:
 	$(MAKE) -C ast check
 	$(MAKE) -C elkhound check
 	$(MAKE) -C elsa check
-	$(MAKE) -C asttools check
+#	$(MAKE) -C asttools check
 
 clean:
 	$(MAKE) -C smbase clean
