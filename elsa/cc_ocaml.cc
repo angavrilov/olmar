@@ -44,6 +44,8 @@ CAMLextern page_table_entry *caml_page_table;
    && caml_page_table [Page (p)])
 #endif
 
+bool caml_start_up_done = false;
+
 
 CircularAstPart::CircularAstPart() : 
   ca_type(CA_Empty), 

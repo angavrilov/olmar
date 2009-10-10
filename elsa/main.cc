@@ -48,7 +48,6 @@ static bool wantBpprint = false;
 static bool wantBpprintAfterElab = false;
 
 
-bool caml_start_up_done = false;
 string ocamlAstFname;
 string rootUnitFname;
 
