@@ -48,8 +48,8 @@
 #include "sobjlist.h"      // SObjList
 
 #include <stdio.h>         // FILE
-#include <iostream.h>      // ostream
-
+#include <iostream>        // ostream
+using std::ostream;
 
 // fwds from other files
 class LexerInterface;      // lexerint.h

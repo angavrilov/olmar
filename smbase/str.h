@@ -14,7 +14,16 @@
 #define STR_H
 
 #include "typ.h"         // bool
-#include <iostream.h>	 // istream, ostream
+#include <iostream>	 // istream, ostream
+using std::cin;
+using std::cout;
+using std::cerr;
+using std::clog;
+using std::endl;
+using std::flush;
+using std::istream;
+using std::ostream;
+
 #include <stdarg.h>      // va_list
 #include <string.h>      // strcmp, etc.
 

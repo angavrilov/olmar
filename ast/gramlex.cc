@@ -7,7 +7,8 @@
 #include "ocsstr.h"      // OCSubstrate
 #include "ckheap.h"      // checkHeap
 
-#include <fstream.h>     // cout, ifstream
+#include <fstream>     // cout, ifstream
+using std::ifstream;
 
 
 // workaround for flex-2.5.31

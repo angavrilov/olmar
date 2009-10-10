@@ -14,7 +14,8 @@
 #include "typ.h"         // bool
 #include "xassert.h"     // xassert, for convenience for #includers
 #include "str.h"         // string
-#include <iostream.h>    // ostream
+#include <iostream>      // ostream
+using std::ostream;
 
 // by using this macro, the debugger gets a shot before the stack is unwound
 #ifdef THROW

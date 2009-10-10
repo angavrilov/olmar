@@ -3,6 +3,8 @@
 *.csm
 *.d
 *.i
+*.o
+*.a
 *.lib
 *.~DE
 .fsync-save

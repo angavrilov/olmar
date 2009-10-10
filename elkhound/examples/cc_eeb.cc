@@ -9,7 +9,9 @@
 #include "srcloc.h"      // SourceLoc
 
 #include <assert.h>      // assert
-#include <iostream.h>    // cout
+#include <iostream>      // cout
+using std::cout;
+
 #include <stdlib.h>      // abort
 
 static char const *termNames[] = {

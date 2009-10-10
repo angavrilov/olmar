@@ -7,7 +7,9 @@
 #ifndef __STRDICT_H
 #define __STRDICT_H
 
-#include <iostream.h>   // ostream
+#include <iostream>     // ostream
+using std::ostream;
+
 #include "str.h"        // string
 #include "macros.h"     // DMEMB
 #include "xassert.h"    // xassert

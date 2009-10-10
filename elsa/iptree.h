@@ -9,7 +9,8 @@
 #include "array.h"          // GrowArray
 #include "bitstrmap.h"      // BitStrMap
 
-#include <iostream.h>       // ostream
+#include <iostream>         // ostream
+using std::ostream;
 #include <stdio.h>          // FILE
 #include <limits.h>         // INT_MAX
 

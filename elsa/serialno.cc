@@ -3,7 +3,8 @@
 
 #include "serialno.h"         // this module
 #include "trace.h"            // tracingSys
-#include "fstream.h"          // ifstream
+#include <fstream>            // ifstream
+using std::ifstream;
 
 
 // -------------------- serial numbers ON --------------------

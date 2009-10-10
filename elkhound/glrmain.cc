@@ -3,7 +3,9 @@
 // grammars (this file is *not* required for general use of
 // the Elkhound parser)
 
-#include <iostream.h>     // cout
+#include <iostream>       // cout
+using std::cout;
+
 #include <stdlib.h>       // exit
 
 #include "trace.h"        // traceAddSys

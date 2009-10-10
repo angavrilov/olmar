@@ -21,7 +21,8 @@
 #ifndef __GRAMMAR_H
 #define __GRAMMAR_H
 
-#include <iostream.h>  // ostream
+#include <iostream>    // ostream
+using std::ostream;
 
 #include "str.h"       // string
 #include "objlist.h"   // ObjList

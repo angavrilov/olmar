@@ -5,7 +5,12 @@
 #ifndef OFSTREAMTS_H
 #define OFSTREAMTS_H
 
-#include <fstream.h>
+#include <fstream>
+using std::ios;
+using std::streampos;
+using std::ifstream;
+using std::ofstream;
+
 #include "str.h"
 
 // An ofstream which is timestamp-conscious.  It first writes to a temporary

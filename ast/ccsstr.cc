@@ -7,7 +7,9 @@
 #include "strutil.h"     // string, replace
 #include "reporterr.h"   // silentReportError
 
-#include <iostream.h>    // cout
+#include <iostream>      // cout
+using std::cout;
+
 #include <ctype.h>       // isspace
 
 

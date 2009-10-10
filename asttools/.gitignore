@@ -1,9 +1,13 @@
 *.cmi
 *.cmo
 *.cmx
+*.cmxa
+*.o
+*.a
 Makefile
 ast_graph
 ast_graph.native
+ast_browser
 check_oast
 check_oast_byte
 config.status

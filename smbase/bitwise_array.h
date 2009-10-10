@@ -7,8 +7,9 @@
 #include "xassert.h"      // xassert
 #include <stdlib.h>       // qsort
 #include <string.h>       // memcpy
-#include <new.h>          // new
+#include <new>            // new
 
+using std::bad_alloc;
 
 // ------------------ BitwiseGrowArray --------------------
 // This class implements an array of T's; it automatically expands

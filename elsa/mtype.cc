@@ -607,7 +607,7 @@ bool IMType::imatchTypeWithResolvedType(CType const *conc, CType const *pat,
   }
 
   // this cast is justified by the private constructors of IMType
-  MType &mtype = static_cast<MType&>(*this);
+  MType &mtype = reinterpret_cast<MType&>(*this);
 
   // this cast is justified by the fact that applyArgumentMap is
   // careful not to modify its argument; it accepts a non-const ptr

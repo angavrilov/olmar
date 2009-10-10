@@ -151,7 +151,8 @@ void emitMLActionCode(GrammarAnalysis const &g, rostring mliFname,
     out << "#include \"srcloc.h\"      // SourceLoc\n";
     out << "\n";
     out << "#include <assert.h>      // assert\n";
-    out << "#include <iostream.h>    // cout\n";
+    out << "#include <iostream>      // cout\n";
+    out << "using std::cout;\n\n";
     out << "#include <stdlib.h>      // abort\n";
     out << "\n";
 

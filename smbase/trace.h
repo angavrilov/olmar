@@ -5,8 +5,8 @@
 #ifndef TRACE_H
 #define TRACE_H
 
-#include <iostream.h>     // ostream
-
+#include <iostream>     // ostream
+using std::ostream;
 
 // add a subsystem to the list of those being traced
 void traceAddSys(char const *sysName);

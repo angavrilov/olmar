@@ -16,7 +16,9 @@ extern "C" {
 // #define DEBUG_CIRCULARITIES
 
 #if defined(DEBUG_CIRCULARITIES) || defined(DEBUG_CAML_GLOBAL_ROOTS)
-#include <iomanip.h>
+#include <iomanip>
+using std::hex;
+using std::dec;
 #endif
 
 // #define DEBUG_CAML_HEAP

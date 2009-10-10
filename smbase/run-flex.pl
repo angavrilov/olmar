@@ -170,8 +170,9 @@ for ($i=0; $i < @lines; $i++) {
   # this is stateless because it does not occur in the cygwin
   # flex output (they have a different fix)
   if ($line =~ m/class istream;/) {
-    $lineno++;
-    print OUT ("#include <iostream.h>      // class istream\n");
+    $lineno+=2;
+    print OUT ("#include <iostream>        // class istream\n".
+               "using std::istream;\n");
     next;
   }
 
@@ -255,7 +256,14 @@ for ($i=0; $i < @lines; $i++) {
   }
 
   elsif ($state == 4) {
-    if ($line =~ m/^int yyFlexLexer::yylex/) {
+    if ($line =~ m/^int yyFlexLexer::yywrap/) {
+      $state++;
+      $lineno++;
+      $lineno++;
+      print OUT ("#ifndef NO_YYFLEXLEXER_METHODS\n" .
+                 $line);
+      next;
+    } elsif ($line =~ m/^int yyFlexLexer::yylex/) {
       $state++;
       $i++;       # skip the '{' line, to keep #line numbers in sync
       chomp($line);
@@ -282,7 +290,9 @@ for ($i=0; $i < @lines; $i++) {
     if ($lines[$i+1] =~ m/^yyFlexLexer::yyFlexLexer/) {
       $state++;
       $lineno++;
-      print OUT ("#ifndef NO_YYFLEXLEXER_METHODS\n");
+      $lineno++;
+      print OUT ($line .
+                 "#ifndef NO_YYFLEXLEXER_METHODS\n");
       next;
     }
   }

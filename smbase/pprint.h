@@ -26,7 +26,9 @@
 #ifndef PPRINT_H
 #define PPRINT_H
 
-#include <iostream.h>      // ostream
+#include <iostream>        // ostream
+using std::ostream;
+
 #include "str.h"           // string
 #include "array.h"         // GrowArray
 

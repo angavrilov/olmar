@@ -12,7 +12,8 @@
 
 #include <string.h>          // strncmp
 #include <ctype.h>           // isalnum
-#include <fstream.h>         // ifstream
+#include <fstream>           // ifstream
+using std::ifstream;
 
 
 string unbox(string *s)

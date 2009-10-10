@@ -6,7 +6,8 @@
 #include "cc_ast_aux.h"    // class LoweredASTVisitor
 #include "sobjset.h"       // SObjSet
 
-#include <iostream.h>      // cout
+#include <iostream>        // cout
+using std::cout;
 
 
 // -------------------------- NextPtr ----------------------

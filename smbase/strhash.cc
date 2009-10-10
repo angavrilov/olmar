@@ -272,7 +272,9 @@ STATICDEF bool StringHash::keyCompare(char const *key1, char const *key2)
 // ---------------------- test code --------------------
 #ifdef TEST_STRHASH
 
-#include <iostream.h>    // cout
+#include <iostream>      // cout
+using std::cout;
+
 #include <stdlib.h>      // rand
 #include <iostream>      // istream
 #include <fstream>       // filebuf

@@ -86,6 +86,9 @@ predicate.ast.gen.*
 test-bad-tmp.c
 tmp*
 *.i
+*.o
+*.exe
+*.a
 predicate.log
 cexp3.gr.gen.*
 regrtest.log

@@ -48,7 +48,8 @@
 
 #include <sys/stat.h>     // chmod, mode macros
 #include <time.h>         // tzset, localtime, time
-#include <iostream.h>     // cout
+#include <iostream>       // cout
+using std::cout;
 
 #if !defined(__WIN32__) || defined(__BORLANDC__)
   #include <dirent.h>       // opendir

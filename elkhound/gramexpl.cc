@@ -5,7 +5,9 @@
 #include "gramanl.h"    // GrammarAnalysis
 #include "strtokp.h"    // StrtokParse
 
-#include <iostream.h>   // cin/cout
+#include <iostream>     // cin/cout
+using std::cin;
+using std::cout;
 
 
 void grammarExplorer(GrammarAnalysis &g)

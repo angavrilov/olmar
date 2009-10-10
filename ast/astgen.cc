@@ -16,8 +16,10 @@
 #include "ofstreamts.h"    // ofstreamTS
 
 #include <string.h>        // strncmp
-#include <fstream.h>       // ofstream
+#include <fstream>         // ofstream
 #include <ctype.h>         // isalnum
+
+using std::ofstream;
 
 // propertly a member of ListClass below, but I don't like nested
 // things

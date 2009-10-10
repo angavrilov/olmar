@@ -12,7 +12,8 @@
 #include "cc_ast.h"             // C++ AST; this module
 #include "str.h"                // stringBuilder
 
-#include <iostream.h>           // ostream
+#include <iostream>             // ostream
+using std::ostream;
 
 // this virtual semi-abstract class is intended to act as a
 // "superclass" for ostream, stringBuilder, and any other "output

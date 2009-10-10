@@ -8,7 +8,9 @@
 #ifndef __SVDICT_H
 #define __SVDICT_H
 
-#include <iostream.h>   // ostream
+#include <iostream>     // ostream
+using std::ostream;
+
 #include "str.h"        // string
 #include "macros.h"     // DMEMB
 #include "xassert.h"    // xassert

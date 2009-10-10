@@ -3,8 +3,9 @@
 
 #ifndef LOCSTR_H
 #define LOCSTR_H
-                                          
-#include <iostream.h>    // ostream
+
+#include <iostream>      // ostream
+using std::ostream;
 #include <string.h>      // strlen
 
 #include "strtable.h"    // StringRef

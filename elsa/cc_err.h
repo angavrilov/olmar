@@ -8,8 +8,8 @@
 #include "str.h"       // string
 #include "srcloc.h"    // SourceLoc
 
-#include <ostream.h>   // ostream
-
+#include <iostream>    // ostream
+using std::ostream;
 
 // flags on errors
 enum ErrorFlags {

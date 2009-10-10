@@ -9,7 +9,9 @@
 #include "ptreeact.h"  // ParseTreeLexer, ParseTreeActions
 
 #include <stdio.h>     // getchar
-#include <iostream.h>  // cout
+#include <iostream>    // cout
+using std::cout;
+
 #include <string.h>    // strcmp
 
 

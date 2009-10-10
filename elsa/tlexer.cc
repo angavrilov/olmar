@@ -8,8 +8,8 @@
 #include "nonport.h"       // getMilliseconds
 #include "trace.h"         // tracingSys
 
-#include <iostream.h>      // cout
-
+#include <iostream>        // cout
+using std::cout;
 
 void entry(int argc, char **argv)
 {

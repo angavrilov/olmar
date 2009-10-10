@@ -12,7 +12,8 @@
 
 #include "sm_flexlexer.h"   // yyFlexLexer
 
-#include <iostream.h>       // istream
+#include <iostream>         // istream
+using std::istream;
 #include "lexerint.h"       // LexerInterface
 #include "strtable.h"       // StringRef, StringTable
 

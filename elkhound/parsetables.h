@@ -8,7 +8,8 @@
 #include "array.h"        // ArrayStack
 #include "glrconfig.h"    // compression options
 #include "str.h"          // string
-#include <iostream.h>     // ostream
+#include <iostream>       // ostream
+using std::ostream;
 
 class Flatten;            // flatten.h
 class EmitCode;           // emitcode.h

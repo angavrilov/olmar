@@ -2,7 +2,9 @@
 // another go at C expressions, with user-supplied actions
 
 verbatim {
-  #include <iostream.h>            // cout
+  #include <iostream>              // cout
+  using std::cout;
+
   #include "cexp3ast.ast.gen.h"    // Exp
   #include "trace.h"               // trace
   #include "useract.h"             // UserActions

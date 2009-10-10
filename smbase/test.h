@@ -5,7 +5,9 @@
 #ifndef __TEST_H
 #define __TEST_H
 
-#include <iostream.h>      // cout
+#include <iostream>        // cout
+using std::cout;
+
 #include <stdio.h>         // printf
 #include "exc.h"           // xBase
 #include "nonport.h"       // getMilliseconds

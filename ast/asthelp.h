@@ -9,7 +9,8 @@
 #include "str.h"         // string
 #include "locstr.h"      // LocString
 
-#include <iostream.h>    // ostream
+#include <iostream>      // ostream
+using std::ostream;
 
 // HT: builtin typedefs
 // Two word typenames do not work with astgen. Declare aliases here 

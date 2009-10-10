@@ -9,7 +9,7 @@
 #include "mangle.h"       // mangle
 #include "exc.h"          // unwinding
 
-#include <iomanip.h>
+#include <iomanip>
 
 Scope::Scope(ScopeKind sk, int cc, SourceLoc initLoc)
   : variables(),

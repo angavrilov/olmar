@@ -5,7 +5,9 @@
 #include "strtable.h"    // StringTable
 #include "exc.h"         // throw_XOpen
 
-#include <fstream.h>     // ifstream
+#include <fstream>       // ifstream
+using std::ifstream;
+using std::ios;
 
 #if defined(__GNUC__) && (__GNUC__ > 2)
   // gcc-3 doesn't have istrstream (but it is standard!), so fake it

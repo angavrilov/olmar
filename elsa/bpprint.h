@@ -12,7 +12,8 @@
 #include "boxprint.h"        // BoxPrint
 
 // libc++
-#include <iostream.h>        // cout
+#include <iostream>          // cout
+using std::cout;
 
 class TranslationUnit;       // cc_ast.h
 

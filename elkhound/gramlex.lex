@@ -17,7 +17,9 @@
 #include "gramlex.h"
 
 // pull in the bison-generated token codes
-#include "grampar.codes.h"
+#define YYSTYPE_IS_DECLARED
+#include "grampar.tab.h"
+//#include "grampar.codes.h"
 
 #include <string.h>     // strchr, strrchr
 

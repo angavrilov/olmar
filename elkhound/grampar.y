@@ -11,7 +11,8 @@
 #include "owner.h"          // Owner
 
 #include <stdlib.h>         // malloc, free
-#include <iostream.h>       // cout
+#include <iostream>         // cout
+using std::cout;
 
 // enable debugging the parser
 #ifndef NDEBUG

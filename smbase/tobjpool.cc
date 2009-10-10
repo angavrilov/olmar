@@ -4,8 +4,8 @@
 #include "objpool.h"     // ObjectPool
 
 #include <stdlib.h>      // rand
-#include <iostream.h>    // cout
-
+#include <iostream>      // cout
+using std::cout;
 
 // class we're going to make a pool of
 class Foo {
