@@ -1418,6 +1418,13 @@ Scope *Env::acceptingScope(DeclFlags df)
   return NULL;    // silence warning
 }
 
+Scope *Env::typeAcceptingScope(StringRef name) {
+  if (lang.noInnerClasses && isAnonName(name))
+    return acceptingScope();
+  else
+    return acceptingScope(DF_TYPEDEF);
+}
+
 
 Scope *Env::outerScope()
 {
@@ -1610,7 +1617,7 @@ bool Env::addCompound(CompoundType *ct)
     return true;
   }
 
-  return typeAcceptingScope()->addCompound(ct);
+  return typeAcceptingScope(ct->name)->addCompound(ct);
 }
 
 
@@ -1623,7 +1630,7 @@ bool Env::addEnum(EnumType *et)
     return true;
   }
 
-  return typeAcceptingScope()->addEnum(et);
+  return typeAcceptingScope(et->name)->addEnum(et);
 }
 
 
@@ -1636,7 +1643,7 @@ bool Env::addTypeTag(Variable *tag)
     return true;
   }
 
-  return typeAcceptingScope()->addTypeTag(tag);
+  return typeAcceptingScope(tag->name)->addTypeTag(tag);
 }
 
 
@@ -2271,7 +2278,7 @@ CompoundType *Env::lookupCompound(StringRef name, LookupFlags flags)
   if (flags & LF_INNER_ONLY) {
     // 10/17/04: dsw/sm: Pass DF_TYPEDEF here so that in C mode we
     // will be looking at 'outerScope'.
-    return acceptingScope(DF_TYPEDEF)->lookupCompound(name, env, flags);
+    return typeAcceptingScope(name)->lookupCompound(name, env, flags);
   }
 
   // look in all the scopes
@@ -2309,6 +2316,11 @@ EnumType *Env::lookupEnum(StringRef name, LookupFlags flags)
 StringRef Env::getAnonName(TypeIntr keyword, char const *relName)
 {
   return getAnonName(toString(keyword), relName);
+}
+
+
+bool Env::isAnonName(StringRef name) {
+  return (name == NULL || strncmp(name, "__anon_", 7) == 0);
 }
 
 

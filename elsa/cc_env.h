@@ -342,7 +342,7 @@ public:      // funcs
   // innermost scope that can accept names; the decl flags might
   // be used to choose exactly which scope to use
   Scope *acceptingScope(DeclFlags df = DF_NONE);
-  Scope *typeAcceptingScope() { return acceptingScope(DF_TYPEDEF); }
+  Scope *typeAcceptingScope(StringRef name);
 
   // innermost non-class, non-template, non-function-prototype scope
   Scope *outerScope();
@@ -494,6 +494,9 @@ public:      // funcs
 
   // more general
   StringRef getAnonName(char const *why, char const *relName);
+
+  // check if this is an anonymous name
+  bool isAnonName(StringRef name);
 
   // introduce a new compound type name; return the constructed
   // CompoundType's pointer in 'ct', after inserting it into 'scope'

@@ -2025,7 +2025,7 @@ CompoundType *checkClasskeyAndName(
         //   the elaborated-type-specifier declares the identifier to be a
         //   class-name in the scope that contains the declaration
         // if definition=true, I think it works the same [ref?]
-        env.typeAcceptingScope() :
+        env.typeAcceptingScope(stringName) :
         // 3.3.1 para 5 says:
         //   the identifier is declared in the smallest non-class,
         //   non-function-prototype scope that contains the declaration
@@ -2058,7 +2058,7 @@ CompoundType *checkClasskeyAndName(
       // dsw: need to register it at least, even if it isn't added to
       // the scope, otherwise I can't print out the name of the type
       // because at the top scope I don't know the scopeKind
-      env.typeAcceptingScope()->registerVariable(ct->typedefVar);
+      env.typeAcceptingScope(ct->name)->registerVariable(ct->typedefVar);
 
       // similarly, the parentScope should be set properly
       env.setParentScope(ct);
@@ -2250,7 +2250,9 @@ void TS_classSpec::tcheckIntoCompound(
   CompoundType *containingClass = env.acceptingScope()->curCompound;
   if (env.lang.noInnerClasses) {
     // nullify the above; act as if it's an outer class
-    containingClass = NULL;
+    // ang: unless it is an anonymous type
+    if (!env.isAnonName(ct->name))
+      containingClass = NULL;
   }
 
   // let me map from compounds to their AST definition nodes
